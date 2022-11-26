@@ -1,10 +1,8 @@
-<div align="center">
-  <img src="https://github.com/rsundqvist/rics/raw/master/docs/logo-text.png"><br>
-</div>
+# ID Translation
+**_Convert IDs to human-readable labels._**
 
 -----------------
 
-# Convert IDs to human-readable labels. <!-- omit in toc -->
 [![PyPI - Version](https://img.shields.io/pypi/v/id-translation.svg)](https://pypi.python.org/pypi/id-translation)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/id-translation.svg)](https://pypi.python.org/pypi/id-translation)
 [![Tests](https://github.com/rsundqvist/id-translation/workflows/tests/badge.svg)](https://github.com/rsundqvist/id-translation/actions?workflow=tests)
@@ -15,30 +13,22 @@
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://github.com/pre-commit/pre-commit)
 
 ## What is it?
-
 A package suite for translating integer IDs typically found in databases. Translation is highly configurable and tested
 for multiple different SQL dialects and schema naming paradigms. This is configurable using TOML, allowing power users
-to specify shared configurations that "just work" for regular users. See the example snippet below.
+to specify shared configurations that "just work" for regular users; see the snippet below.
 
 ```python
 from id_translation import Translator
 
-def get_singleton() -> Translator:
-  """Returns pre-built Translator instance."""
-  return Translator.load_persistent_instance(
-    "/company/translation/config.toml",
-    extra_fetchers=["/company/translation/customer-database-config.toml"],
-    # Singleton is updated by a CRON job; regular users don't have write access.
-    max_age=None,  # None = never update
-  )
+translator = Translator.load_persistent_instance("/company/id-translation/config.toml")
+print("The first employee at Company Inc was:", translator.translate(1, names="employee_id"))
 ```
 _A function to create [Translator][translate] instances that "just work"._
 
 ## Highlighted Features
-
 - A highly configurable translation [format] strings.
 - Powerful automated [Name-to-source][n2s-mapping] and format [placeholder][pm-mapping] mapping, backed by the 
-  [RiCS](https://rics.readthedocs.io/) library.
+  [RiCS](https://github.com/rsundqvist/rics/) library ([PyPI](https://pypi.org/project/rics/), [docs](https://rics.readthedocs.io/)).
 - Prebuilt fetchers for [SQL][sql-fetcher] and [file-system][pandas-fetcher] sources.
 - Configure using [TOML][translator-config].
 - Support for [persistent] instances stored on disk.
