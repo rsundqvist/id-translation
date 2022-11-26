@@ -1,0 +1,30 @@
+[fetching.SqlFetcher]
+connection_string = "@DVDRENTAL_CONNECTION_STRING"
+password = "@DVDRENTAL_PASSWORD"
+blacklist_tables = ["category"]  # Let's pretend this table is off-limits
+
+[fetching.SqlFetcher.engine_kwargs]
+# fast_executemany = true  # Not supported by the driver
+
+# ------------------------------------------------------------------------------
+# Placeholder mapping configuration. Binds actual names in sources (such as
+# column names in an SQL table) to wanted names, eg id = 'animal_id'.
+[fetching.mapping]
+unmapped_values_action = "ignore"
+
+[[fetching.mapping.filter_functions]]
+function = "banned_substring"
+substrings = ["p2007"]
+where = "context"
+
+[[fetching.mapping.score_function_heuristics]]
+function = "value_fstring_alias"
+fstring = "first_{value}"
+[[fetching.mapping.score_function_heuristics]]
+function = "value_fstring_alias"
+fstring = "{context}_{value}"
+
+[fetching.mapping.overrides.address]
+code = "postal_code"
+[fetching.mapping.overrides.film]
+name = "title"

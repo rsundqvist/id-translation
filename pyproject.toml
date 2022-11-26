@@ -1,0 +1,183 @@
+[tool.poetry]
+name = "id-translation"
+version = "0.0.0.dev0"
+description = "Convert IDs into human-readable labels."
+authors = ["Richard Sundqvist <richard.sundqvist@live.se>"]
+
+readme = "README.md"
+homepage = "https://github.com/rsundqvist/id-translation"
+repository = "https://github.com/rsundqvist/id-translation"
+documentation = "https://id-translation.readthedocs.io"
+keywords = ["id-translation"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+    "Operating System :: Microsoft :: Windows",
+    "License :: OSI Approved :: MIT License",
+    "Natural Language :: English",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+]
+
+
+[tool.poetry.urls]
+"Bug Tracker" = "https://github.com/rsundqvist/id-translation/issues"
+"Changelog" = "https://github.com/rsundqvist/id-translation/blob/master/CHANGELOG.md"
+
+[tool.poetry.scripts]
+
+
+[tool.poetry.dependencies]
+python = "<4,>=3.8"
+
+pandas = ">=1.1"
+sqlalchemy = ">=1.0.0"
+tomli = { version = ">=2.0.1", markers = "python_version < '3.11'" }
+rics = "==1.0.0"
+
+[tool.poetry.group.docs]
+optional = true
+[tool.poetry.group.docs.dependencies]
+# duplicate object warnings for sphinx>=4
+# description: https://github.com/astropy/astropy/issues/11723
+# https://github.com/astropy/astropy/pull/12270
+sphinx = "^5.1.1"
+pydata-sphinx-theme = "^0.9.0"
+myst-parser = "^0.18.0"
+nbsphinx = "^0.8.9"
+ipython = "^8.5.0"
+sphinxcontrib-programoutput = "^0.17"
+
+[tool.poetry.group.notebooks]
+optional = true
+[tool.poetry.group.notebooks.dependencies]
+jupyterlab = "^3"
+ipywidgets = "*"
+jupyterlab-execute-time = "*"
+tqdm = "*"
+
+[tool.poetry.group.flake8.dependencies]
+flakeheaven = "^3.0.0"
+flake8-builtins = "^1.5.3"
+flake8-blind-except = "^0.2.1"
+flake8-logging-format = "^0.7.5"
+flake8-bugbear = "^22.9.11"
+flake8-annotations = "^2.9.1"
+flake8-docstrings = "^1.6.0"
+flake8-bandit = "^3.0.0"
+darglint = "^1.8.1"
+
+[tool.poetry.group.codestyle.dependencies]
+isort = "^5.10.1"
+black = { version = "^22", extras = ["jupyter"] }
+
+[tool.poetry.group.test.dependencies]
+pytest = "^7.2.0"
+xdoctest = "^1.1.0"
+coverage = "^6.5.0"
+pytest-cov = "^4.0.0"
+codespell = "^2.2.2"
+
+# db drivers and related dependencies
+pg8000 = "^1.29.2"
+pymssql = "^2.2.5"
+pymysql = "^1.0.2"
+cryptography = "^38.0.3"
+
+[tool.poetry.group.misc.dependencies]
+pre-commit = "^2.20.0"
+invoke = ">=1.7.1"  # Make 3.11 succeed when a compatible release is out.
+safety = "^2.1.1"
+mypy = "^0.991"
+bump2version = "^1.0.1"
+
+[tool.poetry.group.types.dependencies]
+types-requests = ">=2.28.10"
+types-setuptools = ">=65.3.0"
+types-urllib3 = ">=1.26.24"
+#pandas-stubs = ">=1.4.4.220919"
+
+[tool.poetry.group.dev.dependencies]
+
+
+[tool.flakeheaven]
+format = "grouped"
+max_line_length = 150 # The "real" limit is 120; black takes care of those. This allows black to make exceptions.
+show_source = true
+docstring_convention = "google"
+extended-default-ignore = []
+
+[tool.flakeheaven.plugins]
+pyflakes = ["+*"]
+pycodestyle = ["+*",
+    "-W503", # Line break occurred before a binary operator - conflicts with W504
+    "+W504", # Line break occurred after a binary operator - keeping this one
+    "-E203", # Whitespace before ':' - conflicts with black
+]
+mccabe = ["+*"]
+"flake8-*" = ["+*"]
+darglint = ["+*"]
+
+flake8-annotations = ["+*",
+    "-ANN101", "-ANN102", # Typehint for self/cls
+    "-ANN401"             # Allow typing.Any
+]
+flake8-docstrings = ["+*",
+    "-D105", # Missing docstring in magic method
+    "-D107", # Missing docstring in __init__ - special case of D105. Init docstring = class docstring.
+]
+flake8-darglint = ["+*",
+    "-DAR203", # The docstring parameter type doesn't match function. - Let mypy handle types
+    "-DAR402", # The docstring describes an exception not explicitly raised. - for delegates that raise
+]
+flake8-logging-format = ["+*",
+    "-G004", # Logging statements should not use fstring. - I think this is fine IFF under enabledFor-guard
+]
+
+[tool.flakeheaven.exceptions."src/id_translation/fetching/"]
+flake8-docstrings = ["-D102"]  # Docstrings are inherited
+[tool.flakeheaven.exceptions."src/id_translation/dio/"]
+flake8-docstrings = ["-D102"]  # Docstrings are inherited
+
+[tool.flakeheaven.exceptions."src/id_translation/testing.py"]
+flake8-docstrings = ["-DAR101", "-D102"]
+
+[tool.flakeheaven.exceptions."tests/"]
+# Test modules/classes/functions are never "really" public, and I don't want to typehint/document all of them :).
+flake8-docstrings = ["-*"]
+flake8-annotations = ["-*"]
+flake8-bandit = ["-*"]
+flake8-darglint = ["-DAR101"]
+
+[tool.flakeheaven.exceptions."jupyterlab/"]
+flake8-annotations = ["-*"]
+flake8-docstrings = ["-*"]
+
+[tool.flakeheaven.exceptions."src/id_translation/__init__.py"]
+pyflakes = ["-F401"]  # Module imported but unused - False positive for __version__; IDE solves for real positives
+
+
+[tool.isort]
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+line_length = 120
+known_third_party = ["invoke", "nox"]
+combine_as_imports = true
+
+
+[tool.black]
+line-length = 120
+target-version = ["py38"]
+
+
+[build-system]
+requires = ["poetry-core>=1.0.8"]
+build-backend = "poetry.core.masonry.api"

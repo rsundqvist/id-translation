@@ -1,0 +1,8 @@
+pytest
+sqlalchemy
+cryptography
+pandas
+pg8000
+pymssql
+pymysql
+pyyaml
