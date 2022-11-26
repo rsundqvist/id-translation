@@ -1,0 +1,29 @@
+################################################################################
+# For help, see https://rics.readthedocs.io                                    #
+################################################################################
+[translator]
+fmt = "[{title}. ]{name} (id={id})[ the {species}]"
+
+# ------------------------------------------------------------------------------
+# Name-to-source mapping configuration. Binds names to source, eg 'cute_animals'
+# -> 'my_database.animals'. Overrides take precedence over scoring logic.
+[translator.mapping]
+score_function="equality"
+[[translator.mapping.score_function_heuristics]]
+function = "like_database_table"
+
+[translator.mapping.overrides]
+bitten_by = "animals"
+
+################################################################################
+# Fetching configuration.
+################################################################################
+[fetching.PandasFetcher]
+read_function = "read_csv"
+read_path_format= "./sources/{}.csv"
+
+# ------------------------------------------------------------------------------
+# Placeholder mapping configuration. Binds actual names in sources (such as
+# column names in an SQL table) to wanted names, eg id = 'animal_id'.
+[[fetching.mapping.score_function_heuristics]]
+function = "__main__.smurf_column_heuristic"

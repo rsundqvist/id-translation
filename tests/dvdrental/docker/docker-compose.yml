@@ -1,0 +1,17 @@
+version: "3"
+
+services:
+  mysql:
+    image: rsundqvist/sakila-preload:mysql
+    ports:
+      - "5001:3306"
+
+  postgres:
+    image: rsundqvist/sakila-preload:postgres
+    ports:
+      - "5002:5432"
+
+  mssql:
+    image: rsundqvist/sakila-preload:mssql
+    ports:
+      - "5003:1433"

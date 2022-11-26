@@ -1,0 +1,61 @@
+################################################################################
+# For help, see https://rics.readthedocs.io                                    #
+################################################################################
+[translator]
+fmt = "{id}:{name}[ (original: {original_name})] *{from}†{to}"
+
+# ------------------------------------------------------------------------------
+# Name-to-source mapping configuration. Binds names to source, eg 'cute_animals'
+# -> 'my_database.animals'. Overrides take precedence over scoring logic.
+[translator.mapping]
+unmapped_values_action = "raise"
+score_function = "modified_hamming"
+
+[[translator.mapping.score_function_heuristics]]
+function = "like_database_table"
+
+[translator.mapping.overrides]
+firstTitle = "title_basics"
+nconst = "name_basics"
+tconst = "title_basics"
+
+# ------------------------------------------------------------------------------
+# Handling of unknown IDs.
+[unknown_ids]
+fmt = "{id} not translated; default name={name}"
+
+[unknown_ids.overrides]
+from = "?"
+to = "?"
+
+[unknown_ids.overrides.name_basics]
+name = "Name unknown"
+
+[unknown_ids.overrides.title_basics]
+name = "Title unknown"
+original_name = "Original title unknown"
+
+################################################################################
+# Fetching configuration.
+################################################################################
+[fetching.SqlFetcher]
+fetch_all_limit = inf
+whitelist_tables = ["name_basics", "title_basics"]
+connection_string = "postgresql+pg8000://postgres:{password}@localhost:5432/imdb"
+password = "your_password"
+
+# ------------------------------------------------------------------------------
+# Placeholder mapping configuration. Binds actual names in sources (such as
+# column names in an SQL table) to wanted names, eg id = 'animal_id'.
+[fetching.mapping.overrides.name_basics]
+id = "nconst"
+name = "primaryName"
+from = "birthYear"
+to = "deathYear"
+
+[fetching.mapping.overrides.title_basics]
+id = "tconst"
+name = "primaryTitle"
+original_name = "originalTitle"
+from = "startYear"
+to = "endYear"

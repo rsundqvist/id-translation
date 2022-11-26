@@ -1,0 +1,5 @@
+[codespell]
+ignore-words-list =
+    ans
+
+summary = true
