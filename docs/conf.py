@@ -152,24 +152,46 @@ html_context = {
     "default_mode": "light",  # Dark mode doesn't work properly; disable it
     "carousel": [
         dict(
-            title="Cookbook",
-            text="Like copy-pasting? Me too!",
-            url="documentation/cookbook/index.html",
-            img="_static/chef.png",
-        ),
-        dict(
-            title="ID Translation",
-            text="API documentation for the Translator and related classes.",
-            url="_autosummary/id_translation.html#id_translation.Translator.translate",
-            img="_static/translation.png",
-            alt="Translation API documentation.",
-        ),
-        dict(
             title="Translator Config",
             text="TOML format documentation.",
             url="documentation/translator-config.html",
             img="_static/toml-config.png",
             alt="Translator TOML config documentation.",
+        ),
+        dict(
+            title="Format",
+            text="Translation format specification.",
+            url="_autosummary/id_translation.offline.html#id_translation.offline.Format",
+            img="TODO", # TODO
+        ),
+        dict(
+            title="Translator.translate()",
+            text="Main entry point for translation tasks.",
+            url="_autosummary/id_translation.html#id_translation.Translator.translate",
+            img="_static/translation.png",
+            alt="Translation API documentation.",
+        ),
+        
+        # TODO: Fixem
+        dict(
+            title="Cookbook",
+            text="Like copy-pasting? Me too!",
+            url="documentation/examples/notebooks/cookbook/pandas-index.html",
+            img="_static/chef.png",
+        ),
+        dict(
+            title="TODO",
+            text="Maon tasks.",
+            url="_autosumslate",
+            img="_stn.png",
+            alt="Trantation.",
+        ),
+        dict(
+            title="RiCS",
+            text="Documentation for the backing library.",
+            url="https://rics.readthedocs.io",
+            img="_static/logo.png",
+            alt="Documentation for the backing library.",
         ),
     ],
 }
