@@ -264,6 +264,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
                 cls.default_score_function,  # type: ignore
                 heuristics=[("force_lower_case", {})],
             ),
+            overrides=InheritedKeysDict(),
         )
 
     @classmethod
