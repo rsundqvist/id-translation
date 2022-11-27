@@ -1,6 +1,6 @@
 from typing import Any, Iterator, Mapping, Optional
 
-from ..ttypes import IdType
+from ..types import IdType
 from .types import TranslatedIds
 
 

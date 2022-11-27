@@ -1,7 +1,7 @@
 """Supporting functions for implementations."""
 from typing import Collection, List
 
-from ..ttypes import IdType, SourceType
+from ..types import IdType, SourceType
 from .types import FetchInstruction as _FetchInstruction
 
 

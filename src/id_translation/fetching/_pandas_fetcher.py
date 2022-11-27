@@ -8,7 +8,7 @@ from rics._internal_support.types import PathLikeType
 from rics.misc import get_by_full_name, tname
 
 from ..offline.types import PlaceholderTranslations
-from ..ttypes import IdType
+from ..types import IdType
 from ._abstract_fetcher import AbstractFetcher
 from .types import FetchInstruction
 

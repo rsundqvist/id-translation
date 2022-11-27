@@ -1,7 +1,7 @@
 from typing import Any, Dict, List, Sequence
 
 from ..offline import TranslationMap
-from ..ttypes import IdType, NameType, SourceType
+from ..types import IdType, NameType, SourceType
 from . import DataStructureIO
 from .exceptions import NotInplaceTranslatableError
 

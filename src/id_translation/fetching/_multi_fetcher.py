@@ -12,7 +12,7 @@ from rics.misc import tname
 from rics.performance import format_perf_counter
 
 from ..offline.types import SourcePlaceholderTranslations
-from ..ttypes import IdType, SourceType
+from ..types import IdType, SourceType
 from . import Fetcher, exceptions
 from .types import IdsToFetch
 

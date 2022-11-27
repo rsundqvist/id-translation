@@ -3,7 +3,7 @@ from typing import Any, Dict, Generic, List
 
 from rics.misc import tname
 
-from ..ttypes import ID, IdType, NameType, SourceType
+from ..types import ID, IdType, NameType, SourceType
 from ._format import Format
 from ._magic_dict import MagicDict
 from .types import PlaceholdersTuple, PlaceholderTranslations, TranslatedIds

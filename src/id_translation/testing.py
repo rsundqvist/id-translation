@@ -11,7 +11,7 @@ from .offline.types import (
     PlaceholderTranslations as _PlaceholderTranslations,
     SourcePlaceholderTranslations as _SourcePlaceholderTranslations,
 )
-from .ttypes import IdType, SourceType
+from .types import IdType, SourceType
 
 
 class TestMapper(_Mapper[ValueType, ValueType, ContextType]):

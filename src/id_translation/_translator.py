@@ -23,7 +23,7 @@ from .fetching import Fetcher
 from .fetching.types import IdsToFetch
 from .offline import Format, TranslationMap
 from .offline.types import FormatType, PlaceholderTranslations, SourcePlaceholderTranslations
-from .ttypes import (
+from .types import (
     ID,
     ExtendedOverrideFunction,
     IdType,

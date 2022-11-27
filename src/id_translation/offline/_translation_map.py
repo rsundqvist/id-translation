@@ -4,7 +4,7 @@ from typing import Any, Dict, Generic, Iterator, List, Mapping, Optional, Set, T
 from rics.collections.dicts import InheritedKeysDict, reverse_dict
 from rics.misc import tname
 
-from ..ttypes import IdType, NameType, SourceType
+from ..types import IdType, NameType, SourceType
 from ._format import Format
 from ._format_applier import DefaultFormatApplier, FormatApplier
 from ._magic_dict import MagicDict
