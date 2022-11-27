@@ -13,7 +13,7 @@ from id_translation.fetching import exceptions
 
 from ..exceptions import ConnectionStatusError
 from ..offline.types import PlaceholdersTuple, PlaceholderTranslations, SourcePlaceholderTranslations
-from ..ttypes import ID, IdType, SourceType
+from ..types import ID, IdType, SourceType
 from ._fetcher import Fetcher
 from .types import FetchInstruction, IdsToFetch
 

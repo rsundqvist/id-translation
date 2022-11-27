@@ -67,8 +67,8 @@ doesn't work on files (see #154), so we'll use pandas to create a :class:`~panda
 The ``Translator`` knows what a ``DataFrame`` is, and will assume that the columns are names to translate.
 
 .. important::
-   In the language of the ``Translator``, the bite report is a :attr:`~id_translation.ttypes.Translatable`. The columns
-   ``'human_id'`` and ``'bitten_by'`` are the :attr:`names <id_translation.ttypes.NameType>` that must be
+   In the language of the ``Translator``, the bite report is a :attr:`~id_translation.types.Translatable`. The columns
+   ``'human_id'`` and ``'bitten_by'`` are the :attr:`names <id_translation.types.NameType>` that must be
    :attr:`translated <id_translation.Translator.translate>`.
 
 

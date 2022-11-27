@@ -15,7 +15,7 @@ from rics.collections import dicts
 from rics.mapping import HeuristicScore as _HeuristicScore, Mapper as _Mapper
 
 from . import _config_utils, exceptions, fetching
-from .ttypes import IdType, NameType, SourceType
+from .types import IdType, NameType, SourceType
 
 if TYPE_CHECKING:
     from . import Translator

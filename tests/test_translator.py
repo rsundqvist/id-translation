@@ -13,7 +13,7 @@ from rics.mapping.exceptions import MappingError, MappingWarning, UserMappingErr
 from id_translation import Translator as RealTranslator, _config_utils
 from id_translation.dio.exceptions import NotInplaceTranslatableError, UntranslatableTypeError
 from id_translation.exceptions import ConfigurationError, TooManyFailedTranslationsError
-from id_translation.ttypes import IdType
+from id_translation.types import IdType
 
 from .conftest import ROOT
 

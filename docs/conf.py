@@ -18,7 +18,7 @@ from rics._internal_support.changelog import split_changelog
 import id_translation
 
 type_modules = (
-    "id_translation.ttypes",
+    "id_translation.types",
     "id_translation.fetching.types",
     # rics
     "rics.mapping.types",
@@ -37,7 +37,7 @@ def callback(_app, _env, node, _contnode):  # noqa
         # TODO When are they gonna fix this sh*t? Did they already..?
         #   Special hack for factory.py, which is a public module. And for some
         #   reason that breaks. I've no idea why :')
-        reftarget = f"id_translation.ttypes.{reftarget}"
+        reftarget = f"id_translation.types.{reftarget}"
 
     for m in type_modules:
         if reftarget.startswith(m):

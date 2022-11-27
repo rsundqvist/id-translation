@@ -5,7 +5,7 @@ import pytest
 from id_translation import Translator
 from id_translation.factory import TranslatorFactory, default_fetcher_factory
 from id_translation.fetching import AbstractFetcher, MemoryFetcher
-from id_translation.ttypes import IdType, SourceType
+from id_translation.types import IdType, SourceType
 
 
 class AnotherFetcherType(MemoryFetcher[SourceType, IdType]):

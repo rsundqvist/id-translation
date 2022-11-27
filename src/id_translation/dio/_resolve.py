@@ -1,6 +1,6 @@
 from typing import Type
 
-from ..ttypes import Translatable
+from ..types import Translatable
 from . import DataStructureIO
 from ._dict import DictIO
 from ._pandas import PandasIO

@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Any, Dict, Generic as _Generic, Sequence, Tupl
 
 import pandas as pd
 
-from ..ttypes import ID, IdType, SourceType
+from ..types import ID, IdType, SourceType
 
 if TYPE_CHECKING:
     from ._format import Format

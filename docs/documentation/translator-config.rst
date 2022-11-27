@@ -47,9 +47,9 @@ Section: Translator
      - Specify how translated IDs are displayed
      -
 
-* Parameters for :attr:`Name <id_translation.ttypes.NameType>`-to-:attr:`source <id_translation.ttypes.SourceType>`
+* Parameters for :attr:`Name <id_translation.types.NameType>`-to-:attr:`source <id_translation.types.SourceType>`
   mapping are specified in a ``[translator.mapping]``-subsection. See: :ref:`Subsection: Mapping` for details (context =
-  :attr:`source <id_translation.ttypes.SourceType>`).
+  :attr:`source <id_translation.types.SourceType>`).
 
 Section: Unknown IDs
 --------------------
@@ -67,7 +67,7 @@ Section: Unknown IDs
 
 * Alternative :attr:`placeholder <id_translation.offline.Format.placeholders>`-values for unknown IDs can be declared
   in a ``[unknown_ids.overrides]``-subsection. See: :ref:`Subsection: Overrides` for details (context =
-  :attr:`source <id_translation.ttypes.SourceType>`).
+  :attr:`source <id_translation.types.SourceType>`).
 
 .. _translator-config-fetching:
 
@@ -92,7 +92,7 @@ a :class:`~id_translation.fetching.MemoryFetcher` would be created by adding a `
   :attr:`placeholder <id_translation.fetching.Fetcher.placeholders>` names in
   :attr:`~id_translation.fetching.Fetcher.sources` to desired
   :attr:`placeholder names <id_translation.offline.Format.placeholders>` requested by the calling Translator instance.
-  See: :ref:`Subsection: Mapping` for details (context = :attr:`source <id_translation.ttypes.SourceType>`).
+  See: :ref:`Subsection: Mapping` for details (context = :attr:`source <id_translation.types.SourceType>`).
 * Additional parameters vary based on the chosen implementation. See the :mod:`id_translation.fetching` module for
   choices.
 
