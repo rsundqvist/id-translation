@@ -1,6 +1,6 @@
 from typing import Iterable, List
 
-from rics.utility.misc import tname
+from rics.misc import tname
 
 from . import parse_format_string
 from .types import FormatType, PlaceholdersTuple

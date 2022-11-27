@@ -8,13 +8,13 @@ from typing import Any, Dict, Generic, Iterable, List, Optional, Set, Tuple, Typ
 import numpy
 import pandas as pd
 from rics._internal_support.types import PathLikeType
+from rics.collections.dicts import InheritedKeysDict, MakeType
+from rics.collections.misc import as_list
 from rics.mapping import DirectionalMapping, Mapper
 from rics.mapping.exceptions import MappingError, MappingWarning
 from rics.mapping.types import UserOverrideFunction
+from rics.misc import tname
 from rics.performance import format_perf_counter
-from rics.utility.collections.dicts import InheritedKeysDict, MakeType
-from rics.utility.collections.misc import as_list
-from rics.utility.misc import tname
 
 from . import _config_utils, factory
 from .dio import DataStructureIO, resolve_io
@@ -67,7 +67,7 @@ class Translator(Generic[NameType, SourceType, IdType]):
         mapper: A :class:`rics.mapping.Mapper` instance for binding names to sources.
         default_fmt: Alternative :class:`.Format` to use instead of `fmt` for fallback translation of unknown IDs.
         default_fmt_placeholders: Shared and/or source-specific default placeholder values for unknown IDs. See
-            :meth:`rics.utility.collections.dicts.InheritedKeysDict.make` for details.
+            :meth:`rics.collections.dicts.InheritedKeysDict.make` for details.
         allow_name_inheritance: If ``True``, enable name resolution fallback to the parent `translatable` when
             translating with the ``attribute``-option. Allows nameless ``pandas.Index`` instances to inherit the name of
             a ``pandas.Series``.
@@ -133,7 +133,7 @@ class Translator(Generic[NameType, SourceType, IdType]):
 
         Since we didn't give an explicit `default_fmt_placeholders`, the regular `fmt` is used instead. Formats can be
         plain strings, in which case translation will never explicitly fail unless the name itself fails to map and
-        :attr:`rics.mapping.Mapper.unmapped_values_action` is set to :attr:`rics.utility.action_level.ActionLevel.RAISE`.
+        :attr:`rics.mapping.Mapper.unmapped_values_action` is set to :attr:`rics.action_level.ActionLevel.RAISE`.
     """
 
     def __init__(
@@ -203,7 +203,7 @@ class Translator(Generic[NameType, SourceType, IdType]):
                 fetchers are ranked by input order, with the fetcher defined in `path` (if any) being given the highest
                 priority (rank 0).
             clazz: Translator implementation to create. If a string is passed, the class is resolved using
-                :func:`~rics.utility.misc.get_by_full_name` if a string is given. Use ``cls`` if ``None``.
+                :func:`~rics.misc.get_by_full_name` if a string is given. Use ``cls`` if ``None``.
 
         Returns:
             A new ``Translator`` instance with a :attr:`config_metadata` attribute.
@@ -549,7 +549,7 @@ class Translator(Generic[NameType, SourceType, IdType]):
             max_age: The maximum age of the cached ``Translator`` before it must be recreated. Pass ``max_age=0`` to
                 force recreation.
             clazz: Translator implementation to create. If a string is passed, the class is resolved using
-                :func:`~rics.utility.misc.get_by_full_name`. Use ``cls`` if ``None``.
+                :func:`~rics.misc.get_by_full_name`. Use ``cls`` if ``None``.
 
         Returns:
             A new or cached ``Translator`` instance with a :attr:`config_metadata` attribute.
@@ -640,7 +640,7 @@ class Translator(Generic[NameType, SourceType, IdType]):
             rics.mapping.exceptions.MappingError: If :meth:`map` fails (only when `translatable` is given).
 
         Notes:
-            The ``Translator`` is guaranteed to be :func:`~rics.utility.misc.serializable` once offline. Fetchers often
+            The ``Translator`` is guaranteed to be :func:`~rics.misc.serializable` once offline. Fetchers often
             aren't as they require things like database connections to function.
 
         See Also:

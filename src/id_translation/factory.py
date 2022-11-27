@@ -8,11 +8,11 @@ except ModuleNotFoundError:
     # Shamelessly stolen from https://github.com/hukkin/tomli#building-a-tomlitomllib-compatibility-layer
     import tomli as tomllib  # type: ignore
 
+from rics import misc
 from rics._internal_support.types import PathLikeType
+from rics.action_level import ActionLevel as _ActionLevel
+from rics.collections import dicts
 from rics.mapping import HeuristicScore as _HeuristicScore, Mapper as _Mapper
-from rics.utility import misc
-from rics.utility.action_level import ActionLevel as _ActionLevel
-from rics.utility.collections import dicts
 
 from . import _config_utils, exceptions, fetching
 from .ttypes import IdType, NameType, SourceType

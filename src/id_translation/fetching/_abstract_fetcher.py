@@ -3,11 +3,11 @@ from abc import abstractmethod
 from time import perf_counter
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
 
+from rics.collections.dicts import InheritedKeysDict, reverse_dict
 from rics.mapping import HeuristicScore, Mapper
 from rics.mapping.score_functions import modified_hamming
+from rics.misc import tname
 from rics.performance import format_perf_counter
-from rics.utility.collections.dicts import InheritedKeysDict, reverse_dict
-from rics.utility.misc import tname
 
 from id_translation.fetching import exceptions
 

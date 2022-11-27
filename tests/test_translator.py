@@ -96,7 +96,7 @@ def test_translate_without_id(hex_fetcher):
 
 @pytest.mark.parametrize("copy", [False, True])
 def test_can_pickle(translator, copy):
-    from rics.utility.misc import serializable
+    from rics.misc import serializable
 
     assert serializable(translator.copy() if copy else translator)
 
