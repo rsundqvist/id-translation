@@ -1,8 +1,8 @@
 from copy import copy
 from typing import Any, Dict, Generic, Iterator, List, Mapping, Optional, Set, Type, Union
 
-from rics.utility.collections.dicts import InheritedKeysDict, reverse_dict
-from rics.utility.misc import tname
+from rics.collections.dicts import InheritedKeysDict, reverse_dict
+from rics.misc import tname
 
 from ..ttypes import IdType, NameType, SourceType
 from ._format import Format

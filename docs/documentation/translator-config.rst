@@ -8,7 +8,7 @@ The recommended way of creating and configuring translators is the :meth:`Transl
 .. hint::
     For ``Fetcher`` classes and functions used by ``Mapper``, ``rics``-package implementations are used by default. To
     specify an external class or function, use ``'fully.qualified.names'`` in quotation marks. Names are resolved by
-    :func:`~rics.utility.misc.get_by_full_name`, using an appropriate ``default_module`` argument.
+    :func:`~rics.misc.get_by_full_name`, using an appropriate ``default_module`` argument.
 
 For an introduction to the translation process itself, see the :ref:`translation-primer`.
 
@@ -122,7 +122,7 @@ For more information about the mapping procedure, please refer to the :ref:`mapp
    * - unmapped_values_action
      - `raise | warn | ignore`
      - Handle unmatched values.
-     - See: :class:`rics.utility.action_level.ActionLevel`
+     - See: :class:`rics.action_level.ActionLevel`
    * - cardinality
      - `OneToOne | ManyToOne`
      - Determine how many candidates to map a single value to.
@@ -219,7 +219,7 @@ As an example, the next snippet lets us match table columns such as `animal_id` 
 
 Subsection: Overrides
 ---------------------
-Shared or context-specific key-value pairs implemented by the :class:`~rics.utility.collections.dicts.InheritedKeysDict`
+Shared or context-specific key-value pairs implemented by the :class:`~rics.collections.dicts.InheritedKeysDict`
 class. When used in config files, these appear as ``[*.overrides]``-sections. Top-level override items are given in the
 ``[*.overrides]``-section, while context-specific items are specified using a subsection, eg
 ``[*.overrides.<context-name>]``.

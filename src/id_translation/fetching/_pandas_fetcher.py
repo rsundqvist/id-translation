@@ -5,7 +5,7 @@ from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Union
 
 import pandas as pd
 from rics._internal_support.types import PathLikeType
-from rics.utility.misc import get_by_full_name, tname
+from rics.misc import get_by_full_name, tname
 
 from ..offline.types import PlaceholderTranslations
 from ..ttypes import IdType
