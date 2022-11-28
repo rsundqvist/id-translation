@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Optional, Sequence, TypeVar
 import pandas as pd
 
 from ..offline import TranslationMap
-from ..ttypes import IdType, NameType, SourceType
+from ..types import IdType, NameType, SourceType
 from ._data_structure_io import DataStructureIO
 from ._sequence import SequenceIO, translate_sequence, verify_names
 

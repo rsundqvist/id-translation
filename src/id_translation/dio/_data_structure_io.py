@@ -3,7 +3,7 @@ from abc import abstractmethod
 from typing import Any, Dict, List, Optional, Sequence
 
 from ..offline import TranslationMap
-from ..ttypes import IdType, NameType, SourceType
+from ..types import IdType, NameType, SourceType
 
 
 class DataStructureIO:

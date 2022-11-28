@@ -18,12 +18,12 @@ from rics._internal_support.changelog import split_changelog
 import id_translation
 
 type_modules = (
-    "id_translation.ttypes",
+    "id_translation.types",
     "id_translation.fetching.types",
     # rics
     "rics.mapping.types",
-    "rics.utility.collections.dicts",
-    "rics.utility.collections.misc",
+    "rics.collections.dicts",
+    "rics.collections.misc",
 )
 
 for tm in type_modules:
@@ -37,7 +37,7 @@ def callback(_app, _env, node, _contnode):  # noqa
         # TODO When are they gonna fix this sh*t? Did they already..?
         #   Special hack for factory.py, which is a public module. And for some
         #   reason that breaks. I've no idea why :')
-        reftarget = f"id_translation.ttypes.{reftarget}"
+        reftarget = f"id_translation.types.{reftarget}"
 
     for m in type_modules:
         if reftarget.startswith(m):
@@ -75,6 +75,7 @@ release = id_translation.__version__
 # The short X.Y version.
 version = ".".join(release.split(".")[:2])
 
+rics_docs = f"https://rics.readthedocs.io/en/{'latest' if 'dev' in release else 'stable'}/"
 # -- General configuration -----------------------------------------------------
 
 # Add any Sphinx extension module names here, as strings. They can be
@@ -152,24 +153,40 @@ html_context = {
     "default_mode": "light",  # Dark mode doesn't work properly; disable it
     "carousel": [
         dict(
-            title="Cookbook",
-            text="Like copy-pasting? Me too!",
-            url="documentation/cookbook/index.html",
-            img="_static/chef.png",
-        ),
-        dict(
-            title="ID Translation",
-            text="API documentation for the Translator and related classes.",
-            url="_autosummary/id_translation.html#id_translation.Translator.translate",
-            img="_static/translation.png",
-            alt="Translation API documentation.",
-        ),
-        dict(
             title="Translator Config",
             text="TOML format documentation.",
             url="documentation/translator-config.html",
             img="_static/toml-config.png",
-            alt="Translator TOML config documentation.",
+        ),
+        dict(
+            title="Format",
+            text="Translation format specification.",
+            url="_autosummary/id_translation.offline.html#id_translation.offline.Format",
+            img="https://img.freepik.com/free-vector/education-background-with-pencil_53876-115369.jpg",
+        ),
+        dict(
+            title="Translator.translate",
+            text="Main entry point for translation tasks.",
+            url="_autosummary/id_translation.html#id_translation.Translator.translate",
+            img="_static/translation.png",
+        ),
+        dict(
+            title="Cookbook",
+            text="Like copy-pasting? Me too!",
+            url="documentation/examples/notebooks/cookbook/pandas-index.html",
+            img="_static/chef.png",
+        ),
+        dict(
+            title="Fetching",
+            text="API documentation for SQL and file-system fetching.",
+            url="_autosummary/id_translation.fetching.html",
+            img="https://cdn-icons-png.flaticon.com/512/6486/6486493.png",
+        ),
+        dict(
+            title="RiCS",
+            text="Documentation for the backing library.",
+            url=rics_docs,
+            img="https://rics.readthedocs.io/en/stable/_static/logo-text.png",
         ),
     ],
 }
@@ -181,7 +198,6 @@ html_static_path = ["_static", "_images"]
 html_css_files = ["style.css"]
 html_logo = "logo.png"
 html_favicon = "logo-icon.png"
-
 
 # -- Nitpicky configuration ----------------------------------------------------
 nitpicky = True
@@ -206,7 +222,7 @@ intersphinx_mapping = {
     "numpy": ("http://docs.scipy.org/doc/numpy/", None),
     "sqlalchemy": ("https://docs.sqlalchemy.org/en/14/", None),
     "matplotlib": ("https://matplotlib.org/stable/", None),
-    "rics": ("https://rics.readthedocs.io/en/stable/", None),
+    "rics": (rics_docs, None),
 }
 
 # -- Gallery configuration -------------------------------------------------

@@ -6,11 +6,11 @@ from typing import Any, Dict, Iterable, List, Literal, Optional, Set
 from urllib.parse import quote_plus
 
 import sqlalchemy
+from rics.misc import read_env_or_literal, tname
 from rics.performance import format_perf_counter
-from rics.utility.misc import read_env_or_literal, tname
 
 from ..offline.types import PlaceholderTranslations
-from ..ttypes import IdType
+from ..types import IdType
 from . import exceptions, support
 from ._abstract_fetcher import AbstractFetcher
 from .types import FetchInstruction

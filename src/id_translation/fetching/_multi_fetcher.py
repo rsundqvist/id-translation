@@ -6,13 +6,13 @@ from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from time import perf_counter
 from typing import Dict, Iterable, List, Tuple
 
+from rics.action_level import ActionLevel, ActionLevelHelper
+from rics.collections.dicts import reverse_dict
+from rics.misc import tname
 from rics.performance import format_perf_counter
-from rics.utility.action_level import ActionLevel, ActionLevelHelper
-from rics.utility.collections.dicts import reverse_dict
-from rics.utility.misc import tname
 
 from ..offline.types import SourcePlaceholderTranslations
-from ..ttypes import IdType, SourceType
+from ..types import IdType, SourceType
 from . import Fetcher, exceptions
 from .types import IdsToFetch
 

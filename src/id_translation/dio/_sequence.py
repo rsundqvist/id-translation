@@ -2,10 +2,10 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, TypeVar
 
 import numpy as np
 import pandas as pd
-from rics.utility.collections.misc import as_list
+from rics.collections.misc import as_list
 
 from ..offline import TranslationMap
-from ..ttypes import IdType, NameType, SourceType
+from ..types import IdType, NameType, SourceType
 from . import DataStructureIO
 from .exceptions import NotInplaceTranslatableError
 

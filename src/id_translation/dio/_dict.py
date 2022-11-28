@@ -1,7 +1,7 @@
 from typing import Any, Dict, List, Optional, Sequence, TypeVar
 
 from ..offline import TranslationMap
-from ..ttypes import IdType, NameType, SourceType
+from ..types import IdType, NameType, SourceType
 from ._data_structure_io import DataStructureIO
 
 T = TypeVar("T", bound=Dict)  # type: ignore[type-arg]  # TODO: Higher-Kinded TypeVars

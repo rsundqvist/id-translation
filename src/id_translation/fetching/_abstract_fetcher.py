@@ -3,17 +3,17 @@ from abc import abstractmethod
 from time import perf_counter
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
 
+from rics.collections.dicts import InheritedKeysDict, reverse_dict
 from rics.mapping import HeuristicScore, Mapper
 from rics.mapping.score_functions import modified_hamming
+from rics.misc import tname
 from rics.performance import format_perf_counter
-from rics.utility.collections.dicts import InheritedKeysDict, reverse_dict
-from rics.utility.misc import tname
 
 from id_translation.fetching import exceptions
 
 from ..exceptions import ConnectionStatusError
 from ..offline.types import PlaceholdersTuple, PlaceholderTranslations, SourcePlaceholderTranslations
-from ..ttypes import ID, IdType, SourceType
+from ..types import ID, IdType, SourceType
 from ._fetcher import Fetcher
 from .types import FetchInstruction, IdsToFetch
 
@@ -22,10 +22,6 @@ LOGGER = logging.getLogger(__package__).getChild("AbstractFetcher")
 
 class AbstractFetcher(Fetcher[SourceType, IdType]):
     """Base class for retrieving translations from an external source.
-
-    Users who wish to define their own fetching logic should inherit this class, but there are implementations for
-    common uses cases. See :class:`~.fetching.PandasFetcher` for a versatile base fetcher, or
-    :class:`~.fetching.SqlFetcher` for a more specialized solution.
 
     Args:
         mapper: A :class:`rics.mapping.Mapper` instance used to adapt placeholder names in sources to wanted names, ie
@@ -264,6 +260,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
                 cls.default_score_function,  # type: ignore
                 heuristics=[("force_lower_case", {})],
             ),
+            overrides=InheritedKeysDict(),
         )
 
     @classmethod

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Generic, Iterable, Optional, Set
 
 from ..offline.types import PlaceholdersTuple
-from ..ttypes import IdType, SourceType
+from ..types import IdType, SourceType
 
 
 @dataclass(frozen=True)

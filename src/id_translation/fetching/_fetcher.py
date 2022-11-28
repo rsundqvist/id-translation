@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Dict, Generic, Iterable, List
 
 from ..offline.types import SourcePlaceholderTranslations
-from ..ttypes import IdType, SourceType
+from ..types import IdType, SourceType
 from .types import IdsToFetch
 
 

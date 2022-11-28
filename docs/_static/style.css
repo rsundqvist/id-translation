@@ -35,13 +35,13 @@ div.frontpage-gallery a {
     color: rgb(var(--pst-color-text-base));
 }
 div.frontpage-gallery img.card-img {
-    transform: scale(1.8);
+    transform: scale(1.2);
     transform-origin: 40% 20%;
     opacity: 0.2;
     transition: 400ms ease-out;
 }
 div.frontpage-gallery:hover img.card-img {
-    transform: scale(1.2);
+    transform: scale(1.0);
     opacity: 1.0;
     transition: 400ms ease-out;
 }

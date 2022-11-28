@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Mapping, Sequence, Union
 import pandas as pd
 
 from ..offline.types import PlaceholderTranslations, SourcePlaceholderTranslations
-from ..ttypes import IdType, SourceType
+from ..types import IdType, SourceType
 from ._abstract_fetcher import AbstractFetcher
 from .types import FetchInstruction
 
