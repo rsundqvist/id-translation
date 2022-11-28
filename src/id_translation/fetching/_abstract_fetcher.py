@@ -23,10 +23,6 @@ LOGGER = logging.getLogger(__package__).getChild("AbstractFetcher")
 class AbstractFetcher(Fetcher[SourceType, IdType]):
     """Base class for retrieving translations from an external source.
 
-    Users who wish to define their own fetching logic should inherit this class, but there are implementations for
-    common uses cases. See :class:`~.fetching.PandasFetcher` for a versatile base fetcher, or
-    :class:`~.fetching.SqlFetcher` for a more specialized solution.
-
     Args:
         mapper: A :class:`rics.mapping.Mapper` instance used to adapt placeholder names in sources to wanted names, ie
             the names of the placeholders that are in the translation :class:`.Format` being used.

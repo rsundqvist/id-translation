@@ -1,7 +1,7 @@
 import logging
 import os
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Union
+from typing import Any, Callable, Dict, Iterable, List, Mapping, Union
 
 import pandas as pd
 from rics._internal_support.types import PathLikeType
@@ -28,6 +28,7 @@ class PandasFetcher(AbstractFetcher[str, IdType]):
         read_function: A Pandas `read`-function.
         read_path_format: A formatting string or a callable to apply to a source before passing them to `read_function`.
             Must contain a `source` as its only placeholder. Example: ``data/{source}.pkl``. Leave as-is if ``None``.
+            Valid URL schemes include http, ftp, s3, gs, and file.
         read_function_args: Additional positional arguments for `read_function`.
         read_function_kwargs: Additional keyword arguments for `read_function`.
 
@@ -38,14 +39,18 @@ class PandasFetcher(AbstractFetcher[str, IdType]):
     def __init__(
         self,
         read_function: Union[PandasReadFunction, str] = pd.read_pickle,
-        read_path_format: Optional[Union[str, FormatFn]] = "data/{}.pkl",
+        read_path_format: Union[str, FormatFn] = "data/{}.pkl",
         read_function_args: Iterable[Any] = None,
         read_function_kwargs: Mapping[str, Any] = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
         self._read = get_by_full_name(read_function, pd) if isinstance(read_function, str) else read_function
-        self._format_source: FormatFn = _make_format_fn(read_path_format)
+        self._format_source: FormatFn  # Oneliner makes MyPy complain?
+        if callable(read_path_format):
+            self._format_source = read_path_format  # pragma: no cover
+        else:
+            self._format_source = read_path_format.format
         self._args = read_function_args or ()
         self._kwargs = read_function_kwargs or {}
 
@@ -121,11 +126,3 @@ class PandasFetcher(AbstractFetcher[str, IdType]):
     def __repr__(self) -> str:
         read_path_format = self._format_source("{source}")
         return f"{tname(self)}(read_function={tname(self._read)}, {read_path_format=})"
-
-
-def _make_format_fn(read_path_format: Optional[Union[str, FormatFn]]) -> FormatFn:
-    if callable(read_path_format):  # pragma: no cover
-        return read_path_format
-
-    # At this point read_path_format is a string or None
-    return (read_path_format or "{}").format
