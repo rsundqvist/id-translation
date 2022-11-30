@@ -423,7 +423,7 @@ def test_complex_function_overrides(translator):
     with pytest.raises(NotImplementedError) as e:
         translator.translate(1, names="whatever", override_function=lambda *args: {})
 
-    assert "https://github.com/rsundqvist/rics/issues/64" in str(e.value)
+    assert "https://github.com/rsundqvist/id-translation/issues/6" in str(e.value)
 
 
 def test_override_fetcher(translator):

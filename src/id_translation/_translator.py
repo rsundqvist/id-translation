@@ -462,7 +462,7 @@ class Translator(Generic[NameType, SourceType, IdType]):
                 # This will probably be some kind of class in the future, as we need to do bookkeeping to keep track
                 # of where we should fetch our translations later.
                 raise NotImplementedError(
-                    "Name splitting is not yet supported. See https://github.com/rsundqvist/rics/issues/64"
+                    "Name splitting is not yet supported. See https://github.com/rsundqvist/id-translation/issues/6"
                 )
             else:
                 return res

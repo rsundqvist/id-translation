@@ -6,7 +6,7 @@
 [![PyPI - Version](https://img.shields.io/pypi/v/id-translation.svg)](https://pypi.python.org/pypi/id-translation)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/id-translation.svg)](https://pypi.python.org/pypi/id-translation)
 [![Tests](https://github.com/rsundqvist/id-translation/workflows/tests/badge.svg)](https://github.com/rsundqvist/id-translation/actions?workflow=tests)
-[![Codecov](https://codecov.io/gh/rsundqvist/id-translation/branch/main/graph/badge.svg)](https://codecov.io/gh/rsundqvist/id-translation)
+[![Codecov](https://codecov.io/gh/rsundqvist/id-translation/branch/master/graph/badge.svg)](https://codecov.io/gh/rsundqvist/id-translation)
 [![Read the Docs](https://readthedocs.org/projects/id-translation/badge/)](https://id-translation.readthedocs.io/)
 [![PyPI - License](https://img.shields.io/pypi/l/id-translation.svg)](https://pypi.python.org/pypi/id-translation)
 [![Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
@@ -29,13 +29,14 @@ print(
 _A function to create [Translator][translate] instances that "just work"._
 
 ## Highlighted Features
-- A highly configurable translation [format] strings.
-- Powerful automated [Name-to-source][n2s-mapping] and format [placeholder][pm-mapping] mapping, backed by the 
-  [RiCS](https://github.com/rsundqvist/rics/) library ([PyPI](https://pypi.org/project/rics/), [docs](https://rics.readthedocs.io/)).
+- Support for ``int`` and ``string`` IDs or a collection thereof, with automatic name and ID extraction.
+- Translation of [pandas types][pandas-translation], including `pandas.Index` types.
+- Intuitive [Format strings][format], with support for optional elements.
+- Powerful automated [Name-to-source][n2s-mapping] and [Format placeholder][pm-mapping] mapping.
 - Prebuilt fetchers for [SQL][sql-fetcher] and [file-system][pandas-fetcher] sources.
-- Configure using [TOML][translator-config].
-- Support for [persistent] instances stored on disk.
+- Configure using [TOML][translator-config], support for [persistent] instances stored on disk.
 
+[pandas-translation]: https://id-translation.readthedocs.io/en/latest/documentation/examples/notebooks/cookbook/pandas-index.html
 [translate]: https://id-translation.readthedocs.io/en/latest/_autosummary/id_translation.html#id_translation.Translator.translate
 [format]: https://id-translation.readthedocs.io/en/latest/_autosummary/id_translation.offline.html#id_translation.offline.Format
 [n2s-mapping]: https://id-translation.readthedocs.io/en/latest/documentation/translation-primer.html#name-to-source-mapping
