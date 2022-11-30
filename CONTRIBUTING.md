@@ -57,7 +57,7 @@ trouble.
    git clone --recurse-submodules git@github.com:rsundqvist/id-translation.git
    cd id-translation
    git submodule update --init --recursive
-   poetry install --all-extras --with=docs
+   poetry install --all-extras --with=docs,notebooks
    ```
    
    Generating documentation has a few dependencies which may need to be installed
@@ -83,12 +83,7 @@ trouble.
    ./run-docker-dvdrental.sh
    ./run-invocations.sh
    ```
-   
-5. **Bonus content**
 
-   ```bash
-   poetry install --with=notebooks
-   ```
 
 ### Running GitHub Actions locally
 Relying on GitHub actions for new CI/CD features is quite slow. An alternative is to use 
