@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2022-11-30
+
 ### Fixed
 - Fixed a few documentation issues.
 
@@ -22,5 +24,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Switch to relative imports.
 * Fix some intersphinx issues.
 
-[Unreleased]: https://github.com/rsundqvist/id-translation/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/rsundqvist/id-translator/compare/v0.0.0...v0.1.0
+[Unreleased]: https://github.com/rsundqvist/id-translation/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/rsundqvist/id-translation/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/rsundqvist/id-translation/compare/v0.0.0...v0.1.0
