@@ -39,8 +39,7 @@ python = "<4,>=3.8"
 pandas = ">=1.1"
 sqlalchemy = ">=1.0.0"
 tomli = { version = ">=2.0.1", markers = "python_version < '3.11'" }
-# rics = ">=2"  # TODO Uncomment before release
-rics = { git = "https://github.com/rsundqvist/rics.git", branch = "master" }
+rics = ">=2"
 
 [tool.poetry.group.docs]
 optional = true
@@ -91,13 +90,6 @@ pymssql = "^2.2.5"
 pymysql = "^1.0.2"
 cryptography = "^38.0.3"
 
-[tool.poetry.group.misc.dependencies]
-pre-commit = "^2.20.0"
-invoke = ">=1.7.1"  # Make 3.11 succeed when a compatible release is out.
-safety = "^2.1.1"
-mypy = "^0.991"
-bump2version = "^1.0.1"
-
 [tool.poetry.group.types.dependencies]
 types-requests = ">=2.28.10"
 types-setuptools = ">=65.3.0"
@@ -105,7 +97,11 @@ types-urllib3 = ">=1.26.24"
 #pandas-stubs = ">=1.4.4.220919"
 
 [tool.poetry.group.dev.dependencies]
-
+pre-commit = "^2.20.0"
+invoke = ">=1.7.1"  # Make 3.11 succeed when a compatible release is out.
+safety = "^2.1.1"
+mypy = "^0.991"
+bump2version = "^1.0.1"
 
 [tool.flakeheaven]
 format = "grouped"

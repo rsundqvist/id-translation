@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed a few documentation issues.
 
 ### Changed
+- Bump requirement from `rics==1.0.0` to `rics>=2`.
 - Switch `id_translation.ttypes` back to just `types`.
 
 ## [0.1.0] - 2022-11-26
