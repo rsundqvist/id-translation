@@ -41,9 +41,10 @@ Follow these steps to begin local development. I use Ubuntu LTS and PyCharm
 (both are kept updated), so such environments will usually work without too much
 trouble.
 
-1. **Installing [Poetry](https://python-poetry.org/docs/) and Invoke**
+1. **Installing [Poetry](https://python-poetry.org/docs/) and [Invoke](https://www.pyinvoke.org/)**
    
-   Poetry is an alternative to tools like Pipenv.
+   Poetry is a dependency management tool. You must have `poetry >= 1.2.2` as this project uses version 2.0 of the
+   lockfile  format.
    ```bash
    curl -sSL https://install.python-poetry.org/ | python -
    pip install invoke
