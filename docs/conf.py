@@ -153,16 +153,16 @@ html_context = {
     "default_mode": "light",  # Dark mode doesn't work properly; disable it
     "carousel": [
         dict(
+            title="Translation primer",
+            text="An introduction to the translation process.",
+            url="documentation/translation-primer.html",
+            img="_images/translation-flow.drawio.png",
+        ),
+        dict(
             title="Translator Config",
             text="TOML format documentation.",
             url="documentation/translator-config.html",
             img="_static/toml-config.png",
-        ),
-        dict(
-            title="Format",
-            text="Translation format specification.",
-            url="_autosummary/id_translation.offline.html#id_translation.offline.Format",
-            img="https://img.freepik.com/free-vector/education-background-with-pencil_53876-115369.jpg",
         ),
         dict(
             title="Translator.translate",

@@ -23,8 +23,8 @@ The file structure is as follows:
        └── humans.csv
 
 This example uses the API to construct the ``Translator`` instance, but the recommended way of creating instances are
-:ref:`translator-config` files. Condensed versions for creating an equivalent ``Translator`` using the either the API or
-TOML configuration is available in the :ref:`notebooks` section.
+:ref:`translator-config`. Condensed versions for creating an equivalent ``Translator`` using the either the API or TOML
+configuration is available in the :ref:`notebooks` section.
 
 Call diagram
 ------------
