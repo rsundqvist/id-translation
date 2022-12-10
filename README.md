@@ -36,15 +36,15 @@ _A function to create [Translator][translate] instances that "just work"._
 - Prebuilt fetchers for [SQL][sql-fetcher] and [file-system][pandas-fetcher] sources.
 - Configure using [TOML][translator-config], support for [persistent] instances stored on disk.
 
-[pandas-translation]: https://id-translation.readthedocs.io/en/latest/documentation/examples/notebooks/cookbook/pandas-index.html
-[translate]: https://id-translation.readthedocs.io/en/latest/_autosummary/id_translation.html#id_translation.Translator.translate
-[format]: https://id-translation.readthedocs.io/en/latest/_autosummary/id_translation.offline.html#id_translation.offline.Format
-[n2s-mapping]: https://id-translation.readthedocs.io/en/latest/documentation/translation-primer.html#name-to-source-mapping
-[pm-mapping]: https://id-translation.readthedocs.io/en/latest/documentation/translation-primer.html#placeholder-mapping
-[persistent]: https://id-translation.readthedocs.io/en/latest/_autosummary/id_translation.html#id_translation.Translator.load_persistent_instance
-[sql-fetcher]: https://id-translation.readthedocs.io/en/latest/_autosummary/id_translation.fetching.html#id_translation.fetching.SqlFetcher
-[pandas-fetcher]: https://id-translation.readthedocs.io/en/latest/_autosummary/id_translation.fetching.html#id_translation.fetching.PandasFetcher
-[translator-config]: https://id-translation.readthedocs.io/en/latest/documentation/translator-config.html
+[pandas-translation]: https://id-translation.readthedocs.io/en/stable/documentation/examples/notebooks/cookbook/pandas-index.html
+[translate]: https://id-translation.readthedocs.io/en/stable/_autosummary/id_translation.html#id_translation.Translator.translate
+[format]: https://id-translation.readthedocs.io/en/stable/_autosummary/id_translation.offline.html#id_translation.offline.Format
+[n2s-mapping]: https://id-translation.readthedocs.io/en/stable/documentation/translation-primer.html#name-to-source-mapping
+[pm-mapping]: https://id-translation.readthedocs.io/en/stable/documentation/translation-primer.html#placeholder-mapping
+[persistent]: https://id-translation.readthedocs.io/en/stable/_autosummary/id_translation.html#id_translation.Translator.load_persistent_instance
+[sql-fetcher]: https://id-translation.readthedocs.io/en/stable/_autosummary/id_translation.fetching.html#id_translation.fetching.SqlFetcher
+[pandas-fetcher]: https://id-translation.readthedocs.io/en/stable/_autosummary/id_translation.fetching.html#id_translation.fetching.PandasFetcher
+[translator-config]: https://id-translation.readthedocs.io/en/stable/documentation/translator-config.html
 
 
 ## Installation
@@ -74,4 +74,4 @@ started, see the [Contributing Guide](CONTRIBUTING.md) and [Code of Conduct](COD
 
 [Python Package Index (PyPI)]: https://pypi.org/project/id-translation
 [pip]: https://pip.pypa.io
-[Python installation guide]: http://docs.python-guide.org/en/latest/starting/installation/
+[Python installation guide]: http://docs.python-guide.org/en/stable/starting/installation/
