@@ -12,6 +12,15 @@
 [![Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://github.com/pre-commit/pre-commit)
 
+
+<div align="center">
+  <img src="https://github.com/rsundqvist/id-translation/raw/master/docs/_images/covid-europe-mplcyberpunk-theme.png"><br>
+</div>
+
+Country IDs translated using the standard `id:name`-format. Click [here][ecdc] for source.
+
+[ecdc]: https://www.ecdc.europa.eu/en/publications-data/download-todays-data-geographic-distribution-covid-19-cases-worldwide
+
 ## What is it?
 A package suite for translating integer IDs typically found in databases. Translation is highly configurable and tested
 for multiple different SQL dialects and schema naming paradigms. This is configurable using TOML, allowing power users
@@ -26,7 +35,6 @@ print(
   translator.translate(1, names="employee_id"),
 )
 ```
-_A function to create [Translator][translate] instances that "just work"._
 
 ## Highlighted Features
 - Support for ``int`` and ``string`` IDs or a collection thereof, with automatic name and ID extraction.
