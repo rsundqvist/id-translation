@@ -31,6 +31,7 @@ PYTHON_TARGETS_STR = " ".join([str(p) for p in PYTHON_TARGETS])
 
 
 def _run(c: Context, command: str) -> Result:
+    print(f"Command: {command}")
     return c.run(command, pty=platform.system() != "Windows")
 
 
@@ -117,7 +118,13 @@ def flake8(c):
 def safety(c):
     # type: (Context) -> None
     """Run safety."""
-    _run(c, "poetry export --format=requirements.txt --without-hashes | poetry run safety check --stdin --full-report")
+    ignored = [51668]
+
+    _run(
+        c,
+        "poetry export --format=requirements.txt --without-hashes | "
+        f"poetry run safety check --stdin --full-report {' '.join(map('-i {}'.format, ignored))}",
+    )
 
 
 @task(pre=[flake8, safety, call(format_, check=True)])
