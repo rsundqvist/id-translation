@@ -80,8 +80,12 @@ def insert_data(engine, data):
         (None, ALL_TABLES),
         (ALL_TABLES, ALL_TABLES),
         (["animals", "humans"], {"animals", "humans"}),
-        ([], set()),
     ],
 )
 def test_whitelist(connection_string, whitelist, expected):
     assert set(SqlFetcher(connection_string, whitelist_tables=whitelist).sources) == expected
+
+
+def test_empty_whitelist(connection_string):
+    with pytest.warns(UserWarning, match="empty"):
+        assert tuple(SqlFetcher(connection_string, whitelist_tables=()).sources) == ()

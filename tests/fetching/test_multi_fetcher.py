@@ -16,7 +16,9 @@ def fetchers(data: Dict[str, pd.DataFrame]) -> Collection[AbstractFetcher[str, i
     humans_fetcher: MemoryFetcher[str, int] = MemoryFetcher({"humans": data["humans"]})
     empty_fetcher: MemoryFetcher[str, int] = MemoryFetcher()
     everything_fetcher: MemoryFetcher[str, int] = MemoryFetcher(data)
-    sql_fetcher: SqlFetcher[int] = SqlFetcher("sqlite://", whitelist_tables=())  # No tables allowed!
+
+    with pytest.warns(UserWarning, match="empty"):
+        sql_fetcher: SqlFetcher[int] = SqlFetcher("sqlite://", whitelist_tables=())  # No tables allowed!
     return humans_fetcher, empty_fetcher, everything_fetcher, sql_fetcher
 
 
