@@ -86,7 +86,9 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
             whitelist_tables = set(whitelist_tables)
             if len(whitelist_tables) == 0:
                 self.close()
-                LOGGER.warning(f"Got empty 'whitelist_tables' argument. No tables are available to {self}.")
+                msg = f"Got empty 'whitelist_tables' argument. No tables will be available to {self}."
+                LOGGER.warning(msg)
+                warnings.warn(msg)
 
             self._whitelist = set(whitelist_tables)
 
@@ -94,14 +96,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
     def _summaries(self) -> Dict[str, "SqlFetcher.TableSummary"]:
         """Names and sizes of tables that the ``SqlFetcher`` may interact with."""
         if self._table_ts_dict is None:
-            start = perf_counter()
-            ts_dict = self._get_summaries()
-            if LOGGER.isEnabledFor(logging.INFO):
-                sz = {name: ts.size for name, ts in sorted(ts_dict.items())}
-                LOGGER.info(
-                    f"{self._estr}: Processed {len(ts_dict)} tables in {format_perf_counter(start)}. Lengths={sz}."
-                )
-            self._table_ts_dict = ts_dict
+            self._table_ts_dict = self._get_summaries()
 
         return self._table_ts_dict
 
@@ -207,6 +202,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
     def _get_summaries(self) -> Dict[str, "SqlFetcher.TableSummary"]:
         start = perf_counter()
         metadata = self.get_metadata()
+
         if LOGGER.isEnabledFor(logging.DEBUG):
             LOGGER.debug(f"{self._estr}: Metadata created in {format_perf_counter(start)}.")
 
@@ -244,7 +240,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         start = perf_counter()
         size = self.get_approximate_table_size(table, id_column)
         if LOGGER.isEnabledFor(logging.DEBUG):
-            LOGGER.debug(f"{self._estr}: Size of '{table.name}' resolved in {format_perf_counter(start)}: {size} rows.")
+            LOGGER.debug(f"{self._estr}: Counted {size} rows of table '{table.name}' in {format_perf_counter(start)}.")
         fetch_all_permitted = self._fetch_all_limit is None or size < self._fetch_all_limit
         return SqlFetcher.TableSummary(table.name, size, table.columns, fetch_all_permitted, id_column)
 

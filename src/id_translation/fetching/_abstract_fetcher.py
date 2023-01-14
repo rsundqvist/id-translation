@@ -193,8 +193,8 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
             translations = self.fetch_translations(instr)
             if LOGGER.isEnabledFor(logging.DEBUG):
                 LOGGER.debug(
-                    f"Fetched {translations.placeholders} for {len(translations.records)} IDS "
-                    f"from '{translations.source}' in {format_perf_counter(start)} using {self}."
+                    f"Fetched placeholders {translations.placeholders} for {len(translations.records)} IDs "
+                    f"from source '{translations.source}' in {format_perf_counter(start)} using {self}."
                 )
 
             if reverse_mappings:
