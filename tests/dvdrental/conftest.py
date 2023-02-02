@@ -24,7 +24,9 @@ def check_status(dialect: str) -> None:
     engine = sqlalchemy.create_engine(get_connection_string(dialect))
 
     try:
-        pd.read_sql("SELECT * FROM store", engine)
+        # pd.read_sql("SELECT * FROM store", engine)
+        with engine.connect():
+            print("TODO: use", pd.read_sql)
     except Exception:  # noqa: B902
         msg = (
             f"Unable to connect to database for {dialect=}. Start the databases"
