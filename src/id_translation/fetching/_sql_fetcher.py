@@ -104,13 +104,15 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         """Fetch columns from a SQL database."""
         ts = self._summaries[instr.source]
         columns = ts.select_columns(instr)
-        select = sqlalchemy.select(map(ts.columns.get, columns))
+        select = sqlalchemy.select(*map(ts.columns.get, columns))
 
         if instr.ids is None and not ts.fetch_all_permitted:  # pragma: no cover
             raise exceptions.ForbiddenOperationError(self._FETCH_ALL, f"disabled for table '{ts.name}'.")
 
         stmt = select if instr.ids is None else self._make_query(ts, select, set(instr.ids))
-        return PlaceholderTranslations(instr.source, tuple(columns), tuple(self.engine.execute(stmt)))
+        with self.engine.connect() as conn:
+            records = tuple(conn.execute(stmt))
+        return PlaceholderTranslations(instr.source, tuple(columns), records)
 
     def _make_query(
         self, ts: "SqlFetcher.TableSummary", select: sqlalchemy.sql.Select, ids: Set[IdType]
@@ -261,12 +263,13 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         Returns:
             An approximate size for `table`.
         """
-        return int(self.engine.execute(sqlalchemy.func.count(id_column)).scalar())
+        with self.engine.connect() as conn:
+            return int(conn.execute(sqlalchemy.func.count(id_column)).scalar())
 
     def get_metadata(self) -> sqlalchemy.MetaData:
         """Create a populated metadata object."""
-        metadata = sqlalchemy.MetaData(self.engine)
-        metadata.reflect(only=self._whitelist or None, views=self._reflect_views)
+        metadata = sqlalchemy.MetaData()
+        metadata.reflect(self.engine, only=self._whitelist or None, views=self._reflect_views)
         return metadata
 
     @classmethod
