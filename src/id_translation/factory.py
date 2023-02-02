@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Generic as _Generic, Iter
 try:
     import tomllib  # type: ignore
 except ModuleNotFoundError:
+    # TODO: Remove for 3.13
     # PEP-680 compatibility layer for Python < 3.11, see https://peps.python.org/pep-0680/
     # Shamelessly stolen from https://github.com/hukkin/tomli#building-a-tomlitomllib-compatibility-layer
     import tomli as tomllib  # type: ignore
