@@ -35,7 +35,7 @@ jobs:
 
   tests:
     needs: linting
-    name: ${{ matrix.os }} / ${{ matrix.python-version }} / SQLAlchemy v${{ matrix.sqlalchemy_major_version }}
+    name: ${{ matrix.os }} / ${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}-latest
     continue-on-error: ${{ matrix.experimental }}
     strategy:
@@ -44,9 +44,6 @@ jobs:
         os: [ Ubuntu, MacOS, Windows ]
         python-version: [ '3.8', '3.9', '3.10', '3.11' ]
         experimental: [false]
-        sqlalchemy_major_version: ['1', '2']
-    env:
-      SQLALCHEMY_MAJOR_VERSION: ${{ matrix.sqlalchemy_major_version }}
     steps:
       - uses: actions/checkout@v3
 
@@ -69,8 +66,6 @@ jobs:
           pip install poetry
 
       - name: Run mypy with nox
-        # Strict typechecking compatability is not possible (or hard enough not to bother) for both v1 and v2
-        if: matrix.sqlalchemy_major_version == '1'
         shell: bash
         run: nox --force-color -s mypy-${{ matrix.python-version }}
 

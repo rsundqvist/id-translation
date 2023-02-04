@@ -1,5 +1,4 @@
 """Nox sessions."""
-import os
 import platform
 import tempfile
 from typing import Any
@@ -37,14 +36,6 @@ def install_with_constraints(session: Session, *args: str, **kwargs: Any) -> Non
         )
         session.install("-r", requirements.name, *args, **kwargs)
 
-    sqlalchemy_major_version = os.environ.get("SQLALCHEMY_MAJOR_VERSION")
-    if sqlalchemy_major_version == "2":
-        session.install("sqlalchemy>2")
-        session.env["SQLALCHEMY_SILENCE_UBER_WARNING"] = "0"
-    elif sqlalchemy_major_version == "1":
-        session.install("sqlalchemy<2")
-        session.env["SQLALCHEMY_SILENCE_UBER_WARNING"] = "1"
-
 
 def install_with_project_extras(session: Session) -> None:
     """Install the project using poetry."""
@@ -57,7 +48,6 @@ def tests(session: Session) -> None:
     """Run the test suite."""
     install_with_project_extras(session)
     install_with_constraints(session, "invoke", "pytest", "xdoctest", "coverage", "pytest-cov")
-
     try:
         session.run(
             "inv",
