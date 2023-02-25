@@ -228,9 +228,8 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
                 LOGGER.warning(msg)
 
     def __repr__(self) -> str:
-        fetchers = list(self._id_to_fetcher.values())
         max_workers = self.max_workers
-        return f"{tname(self)}({max_workers=}, {fetchers=})"
+        return f"{tname(self)}({max_workers=}, fetchers={', '.join(map(str, self._id_to_fetcher.values()))})"
 
     def _fmt_fetcher(self, fetcher: Fetcher[SourceType, IdType]) -> str:
         """Format a managed fetcher with rank and hex ID."""

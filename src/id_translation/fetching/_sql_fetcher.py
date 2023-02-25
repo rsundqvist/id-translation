@@ -30,6 +30,8 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
             be an environment variable just like `connection_string`.
         whitelist_tables: The only tables the ``SqlFetcher`` may access. Mutually exclusive with `blacklist_tables`.
         blacklist_tables: The only tables the ``SqlFetcher`` may not access. Mutually exclusive with `whitelist_tables`.
+        schema: Database schema to use. Typically needed only if `schema` is not the default schema for the user
+            specified in the connection string.
         include_views: If ``True``, discover views as well.
         fetch_all_limit: Maximum size of table to allow a fetch all-operation. 0=never allow. Ignore if ``None``.
         engine_kwargs: A dict of keyword arguments for :func:`sqlalchemy.create_engine`.
@@ -52,6 +54,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         password: str = None,
         whitelist_tables: Iterable[str] = None,
         blacklist_tables: Iterable[str] = (),
+        schema: str = None,
         include_views: bool = True,
         fetch_all_limit: Optional[int] = 100_000,
         engine_kwargs: Dict[str, Any] = None,
@@ -70,6 +73,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
 
         self._engine = self.create_engine(connection_string, password, engine_kwargs or {})
         self._estr = str(self.engine)
+        self._schema = schema
         self._reflect_views = include_views
         self._fetch_all_limit = fetch_all_limit
 
@@ -146,7 +150,8 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
 
     def __str__(self) -> str:
         disconnected = "<disconnected>: " if not self.online else ""
-        return f"{tname(self)}({disconnected}{self._estr}, tables={repr(self.sources or '<no tables>')})"
+        schema = f"[schema={self._schema!r}]" if self._schema else ""
+        return f"{tname(self)}({disconnected}{self._estr}, tables{schema}={repr(self.sources or '<no tables>')})"
 
     @property
     def engine(self) -> sqlalchemy.engine.Engine:
@@ -207,7 +212,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         if LOGGER.isEnabledFor(logging.DEBUG):
             LOGGER.debug(f"{self._estr}: Metadata created in {format_perf_counter(start)}.")
 
-        table_names = set(metadata.tables)
+        table_names = {t.name for t in metadata.tables.values()}
         if self._whitelist:
             tables = self._whitelist  # pragma: no cover
         else:
@@ -225,7 +230,8 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
 
         ans = {}
         for name in tables:
-            table = metadata.tables[name]
+            qualified_name = name if self._schema is None else f"{self._schema}.{name}"
+            table = metadata.tables[qualified_name]
             id_column = self.id_column(table.name, (c.name for c in table.columns))
             if id_column is None:  # pragma: no cover
                 continue  # Mapper would've raised an error if we required all non-filtered tables to be mapped
@@ -267,7 +273,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
 
     def get_metadata(self) -> sqlalchemy.MetaData:
         """Create a populated metadata object."""
-        metadata = sqlalchemy.MetaData()
+        metadata = sqlalchemy.MetaData(schema=self._schema)
         metadata.reflect(self.engine, only=tuple(self._whitelist) or None, views=self._reflect_views)
         return metadata
 
