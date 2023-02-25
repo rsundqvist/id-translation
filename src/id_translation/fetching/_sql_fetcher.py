@@ -235,6 +235,12 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
             id_column = self.id_column(table.name, (c.name for c in table.columns))
             if id_column is None:  # pragma: no cover
                 continue  # Mapper would've raised an error if we required all non-filtered tables to be mapped
+            if id_column not in table.columns:
+                raise exceptions.UnknownPlaceholderError(
+                    f"The ID column {id_column!r} is not present in table={table.name!r}. The override "
+                    f"configuration {self.mapper._overrides} may be incorrect. "
+                    f"Known columns: {sorted(c.name for c in table.columns)}."
+                )
 
             ans[name] = self.make_table_summary(table, table.columns[id_column])
 

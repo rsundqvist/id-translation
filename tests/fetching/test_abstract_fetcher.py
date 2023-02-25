@@ -34,5 +34,5 @@ def test_fetch_all_forbidden(data):
 
 def test_unknown_placeholders(fetcher):
     with pytest.raises(exceptions.UnknownPlaceholderError) as ec:
-        fetcher._make_mapping(IdsToFetch("humans", None), ("id", "number_of_legs"), {"number_of_legs"})
+        fetcher.fetch([IdsToFetch("humans", None)], ("id", "number_of_legs"), {"number_of_legs"})
     assert "{'number_of_legs'} not recognized" in str(ec.value)
