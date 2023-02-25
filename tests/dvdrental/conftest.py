@@ -1,6 +1,5 @@
 import os
 
-import pandas as pd
 import sqlalchemy
 import yaml  # type: ignore
 
@@ -24,15 +23,16 @@ def check_status(dialect: str) -> None:
     engine = sqlalchemy.create_engine(get_connection_string(dialect))
 
     try:
-        # pd.read_sql("SELECT * FROM store", engine)
-        with engine.connect():
-            print("TODO: use", pd.read_sql)
+        with engine.connect() as conn:
+            count = next(conn.execute(sqlalchemy.text("SELECT count(*) FROM store")))
     except Exception:  # noqa: B902
         msg = (
             f"Unable to connect to database for {dialect=}. Start the databases"
             " by running:\n    ./run-docker-dvdrental.sh"
         )
         raise RuntimeError(msg)
+
+    assert count[0] == 2, f"Expected 2 stores, but got {count}."
 
 
 def get_connection_string(dialect: str, with_password: bool = True) -> str:
