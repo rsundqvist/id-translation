@@ -166,9 +166,6 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
             UnknownPlaceholderError: If the placeholder is unknown to the fetcher.
         """
 
-    def close(self) -> None:
-        pass
-
     def _fetch(
         self,
         ids_to_fetch: Iterable[IdsToFetch[SourceType, IdType]],
