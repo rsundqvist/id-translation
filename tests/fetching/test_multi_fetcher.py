@@ -24,7 +24,9 @@ def fetchers(data: Dict[str, pd.DataFrame]) -> Collection[AbstractFetcher[str, i
 
 @pytest.fixture(scope="module")
 def multi_fetcher(fetchers):
-    return MultiFetcher(*fetchers)
+    fetcher = MultiFetcher(*fetchers)
+    yield fetcher
+    fetcher.close()
 
 
 @pytest.fixture(scope="module")
