@@ -119,8 +119,11 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         return PlaceholderTranslations(instr.source, tuple(columns), records)
 
     def _make_query(
-        self, ts: "SqlFetcher.TableSummary", select: sqlalchemy.sql.Select[Any], ids: Set[IdType]
-    ) -> sqlalchemy.sql.Select[Any]:
+        self,
+        ts: "SqlFetcher.TableSummary",
+        select: sqlalchemy.sql.Select,  # type: ignore[type-arg]
+        ids: Set[IdType],
+    ) -> sqlalchemy.sql.Select:  # type: ignore[type-arg]
         where = self.selection_filter_type(ids, ts, **self._select_params)
 
         if where == "in":
@@ -247,7 +250,9 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         return ans
 
     def make_table_summary(
-        self, table: sqlalchemy.sql.schema.Table, id_column: sqlalchemy.sql.schema.Column[Any]
+        self,
+        table: sqlalchemy.sql.schema.Table,
+        id_column: sqlalchemy.sql.schema.Column,  # type: ignore[type-arg]
     ) -> "SqlFetcher.TableSummary":
         """Create a table summary."""
         start = perf_counter()
@@ -260,7 +265,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
     def get_approximate_table_size(
         self,
         table: sqlalchemy.sql.schema.Table,
-        id_column: sqlalchemy.sql.schema.Column[Any],
+        id_column: sqlalchemy.sql.schema.Column,  # type: ignore[type-arg]
     ) -> int:
         """Return the approximate size of a table.
 
@@ -351,11 +356,11 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         """Name of the table."""
         size: int
         """Approximate size of the table."""
-        columns: sqlalchemy.sql.base.ColumnCollection[str, Any]
+        columns: sqlalchemy.sql.base.ColumnCollection  # type: ignore[type-arg]
         """A flag indicating that the FETCH_ALL-operation is permitted for this table."""
         fetch_all_permitted: bool
         """A flag indicating that the FETCH_ALL-operation is permitted for this table."""
-        id_column: sqlalchemy.schema.Column[Any]
+        id_column: sqlalchemy.schema.Column  # type: ignore[type-arg]
         """The ID column of the table."""
 
         def select_columns(self, instr: FetchInstruction[str, IdType]) -> List[str]:
