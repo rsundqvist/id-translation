@@ -1,3 +1,5 @@
+import os
+import time
 from os.path import join
 from tempfile import TemporaryDirectory
 
@@ -58,7 +60,11 @@ def test_heuristic(sql_fetcher, ids_to_fetch, expected):
 
 @pytest.fixture(scope="module")
 def sql_fetcher(connection_string):
-    yield SqlFetcher(connection_string, fetch_in_below=25, fetch_between_over=500, fetch_between_max_overfetch_factor=2)
+    fetcher = SqlFetcher(
+        connection_string, fetch_in_below=25, fetch_between_over=500, fetch_between_max_overfetch_factor=2
+    )
+    yield fetcher
+    fetcher.close()
 
 
 @pytest.fixture(scope="module")
@@ -66,14 +72,18 @@ def connection_string(data):
     with TemporaryDirectory() as tmpdir:
         db_file = join(tmpdir, "sqlfetcher-test-database.sqlite")
         connection_string = f"sqlite:///{db_file}"
-        engine = sqlalchemy.create_engine(connection_string)
-        insert_data(engine, data)
+        insert_data(connection_string, data)
         yield connection_string
+        if os.name == "nt":
+            # Windows seems more sensitive to this. Sleep a while to make sure all engines close their connections.
+            time.sleep(5)
 
 
-def insert_data(engine, data):
+def insert_data(connection_string, data):
+    engine = sqlalchemy.create_engine(connection_string)
     for table, table_data in data.items():
         table_data.to_sql(table, engine, index=False)
+    engine.dispose()
 
 
 @pytest.mark.parametrize(
@@ -85,12 +95,16 @@ def insert_data(engine, data):
     ],
 )
 def test_whitelist(connection_string, whitelist, expected):
-    assert set(SqlFetcher(connection_string, whitelist_tables=whitelist).sources) == expected
+    fetcher = SqlFetcher(connection_string, whitelist_tables=whitelist)
+    assert set(fetcher.sources) == expected
+    fetcher.close()
 
 
 def test_empty_whitelist(connection_string):
     with pytest.warns(UserWarning, match="empty"):
-        assert tuple(SqlFetcher(connection_string, whitelist_tables=()).sources) == ()
+        fetcher = SqlFetcher(connection_string, whitelist_tables=())
+        assert tuple(fetcher.sources) == ()
+    fetcher.close()
 
 
 @pytest.mark.parametrize("column", ["id", "name"])
@@ -99,3 +113,4 @@ def test_bad_override(column, connection_string):
     fetcher = SqlFetcher(connection_string, mapper=mapper)
     with pytest.raises(exceptions.UnknownPlaceholderError, match=f"'{column}': 'bad_column'"):
         fetcher.fetch([IdsToFetch("humans", None)], (column,), (column,))
+    fetcher.close()
