@@ -1,3 +1,4 @@
+from itertools import product
 from os import getenv
 from pathlib import Path
 from sys import platform
@@ -16,12 +17,18 @@ DIALECTS = [
 
 
 @pytest.mark.filterwarnings("ignore:Did not recognize type:sqlalchemy.exc.SAWarning")
-@pytest.mark.parametrize("dialect", DIALECTS)
+@pytest.mark.parametrize("dialect, with_schema", product(DIALECTS, [False, True]))
 @pytest.mark.skipif(getenv("CI") == "true" and platform != "linux", reason="No Docker for Mac and Windows in CI/CD.")
-def test_dvd_rental(dialect):
+def test_dvd_rental(dialect, with_schema):
     check_status(dialect)
     engine = sqlalchemy.create_engine(get_connection_string(dialect))
     translator = get_translator(dialect)
+
+    sql_fetcher = translator.fetcher.fetchers[1]  # type: ignore[attr-defined]
+    assert sql_fetcher._schema is None
+    if with_schema:
+        sql_fetcher._schema = {"mysql": "sakila", "postgresql": "public", "mssql": "dbo"}[dialect]
+
     expected = pd.read_csv(
         Path(__file__).with_name("translated.csv"), index_col=0, parse_dates=["rental_date", "return_date"]
     )
