@@ -3,9 +3,11 @@ from tempfile import TemporaryDirectory
 
 import pytest as pytest
 import sqlalchemy
+from rics.collections.dicts import InheritedKeysDict
+from rics.mapping import Mapper
 
-from id_translation.fetching import SqlFetcher
-from id_translation.fetching.types import FetchInstruction
+from id_translation.fetching import SqlFetcher, exceptions
+from id_translation.fetching.types import FetchInstruction, IdsToFetch
 
 ALL_TABLES = {"animals", "humans", "big_table", "huge_table"}
 
@@ -89,3 +91,11 @@ def test_whitelist(connection_string, whitelist, expected):
 def test_empty_whitelist(connection_string):
     with pytest.warns(UserWarning, match="empty"):
         assert tuple(SqlFetcher(connection_string, whitelist_tables=()).sources) == ()
+
+
+@pytest.mark.parametrize("column", ["id", "name"])
+def test_bad_override(column, connection_string):
+    mapper: Mapper[str, str, str] = Mapper(overrides=InheritedKeysDict(default={column: "bad_column"}))
+    fetcher = SqlFetcher(connection_string, mapper=mapper)
+    with pytest.raises(exceptions.UnknownPlaceholderError, match=f"'{column}': 'bad_column'"):
+        fetcher.fetch([IdsToFetch("humans", None)], (column,), (column,))

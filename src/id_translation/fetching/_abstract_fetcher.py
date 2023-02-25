@@ -9,11 +9,10 @@ from rics.mapping.score_functions import modified_hamming
 from rics.misc import tname
 from rics.performance import format_perf_counter
 
-from id_translation.fetching import exceptions
-
 from ..exceptions import ConnectionStatusError
 from ..offline.types import PlaceholdersTuple, PlaceholderTranslations, SourcePlaceholderTranslations
 from ..types import ID, IdType, SourceType
+from . import exceptions
 from ._fetcher import Fetcher
 from .types import FetchInstruction, IdsToFetch
 
@@ -55,14 +54,16 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         Args:
             source: The source to map placeholders for.
             placeholders: Desired :attr:`~.Format.placeholders`.
-            candidates: A subset of candidates (placeholder names) in `source` to map with `placeholders`. ``None``
-                =retrieve using :meth:`get_placeholders`.
+            candidates: A subset of candidates (placeholder names) in `source` to map with `placeholders`.
             clear_cache: If ``True``, force a full remap.
 
         Returns:
             A dict ``{wanted_placeholder_name: actual_placeholder_name_in_source}``, where
             `actual_placeholder_name_in_source` will be ``None`` if the wanted placeholder could not be mapped to any of
             the candidates available for the source.
+
+        Raises:
+            UnknownPlaceholderError: If any of `required_placeholders` are incorrectly mapped, or not mapped at all.
         """
         if clear_cache or source not in self._mapping_cache:
             self._mapping_cache[source] = {}
@@ -202,6 +203,25 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
                 translations.placeholders = tuple(reverse_mappings.get(p, p) for p in translations.placeholders)
 
             translations.id_pos = translations.placeholders.index(ID)
+
+            unmapped_required_placeholders = required_placeholders.difference(translations.placeholders)
+            if unmapped_required_placeholders:
+                source = itf.source
+
+                hint = ""
+                if reverse_mappings and unmapped_required_placeholders.intersection(reverse_mappings.values()):
+                    r = reverse_dict(reverse_mappings)
+                    bad_mappings = {b: r[b] for b in unmapped_required_placeholders}
+                    hint = (
+                        f"\nHint: Mapping {bad_mappings} for required placeholders (keys) were made to placeholders "
+                        f"that do not exist. The override configuration {self.mapper._overrides} may be incorrect."
+                    )
+
+                raise exceptions.UnknownPlaceholderError(
+                    f"Required placeholders {unmapped_required_placeholders} not recognized."
+                    f" For {source=}, known placeholders are: {sorted(self.placeholders[source])} for {self}.{hint}"
+                )
+
             yield translations
 
     def _make_fetch_instruction(
@@ -240,17 +260,8 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
     ) -> Dict[str, str]:
         wanted_to_actual = self.map_placeholders(itf.source, placeholders)
         if LOGGER.isEnabledFor(logging.DEBUG):
-            LOGGER.debug(f"Placeholder mappings for source={repr(itf.source)}: {wanted_to_actual}.")
-
-        ans: Dict[str, str] = {wanted: actual for wanted, actual in wanted_to_actual.items() if actual}
-        missing = required_placeholders.difference(ans)
-        if missing:
-            source = itf.source
-            raise exceptions.UnknownPlaceholderError(
-                f"Required placeholders {missing} not recognized."
-                f" For {source=}, known placeholders are: {sorted(ans)} for {self}."
-            )
-        return ans
+            LOGGER.debug(f"Placeholder mappings for source={itf.source!r}: {wanted_to_actual}.")
+        return {wanted: actual for wanted, actual in wanted_to_actual.items() if actual is not None}
 
     @classmethod
     def default_mapper_kwargs(cls) -> Dict[str, Any]:
