@@ -1,5 +1,5 @@
 ################################################################################
-# For help, see https://rics.readthedocs.io                                    #
+# For help, see https://id-translation.readthedocs.io                          #
 ################################################################################
 [translator]
 fmt = "{id}:{name}[ (original: {original_name})] *{from}†{to}"
