@@ -27,13 +27,10 @@ def execute_query(dialect: str) -> pd.DataFrame:
     connection_string = CONNECTION_STRING.format(dialect=dialect, driver=DRIVERS[dialect], **CREDENTIALS[dialect])
 
     with sqlalchemy.create_engine(connection_string).connect() as conn:
-        from sqlalchemy import text
-
-        records = list(conn.execute(text(QUERY)))
+        records = list(conn.execute(sqlalchemy.text(QUERY)))
 
     columns = ["customer_id", "film_id", "category_id", "staff_id", "rental_date", "return_date"]
     return pd.DataFrame.from_records(records, columns=columns)
-    # return pd.read_sql(QUERY, sqlalchemy.create_engine(connection_string))
 
 
 def test_reference() -> None:

@@ -26,10 +26,7 @@ def test_dvd_rental(dialect):
         Path(__file__).with_name("translated.csv"), index_col=0, parse_dates=["rental_date", "return_date"]
     )
     with engine.connect() as conn:
-        from sqlalchemy import text
-
-        records = list(conn.execute(text(QUERY)))
-    # df: pd.DataFrame = pd.read_sql(QUERY, engine).loc[expected.index]
+        records = list(conn.execute(sqlalchemy.text(QUERY)))
     df = pd.DataFrame.from_records(records, columns=expected.columns).loc[expected.index]
     actual = translator.translate(df)
 
