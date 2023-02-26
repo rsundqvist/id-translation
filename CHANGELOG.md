@@ -7,9 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- New optional `schema` argument for `SqlFetcher`.
+
 ### Changed
-- Add optional `schema` argument for `SqlFetcher`.
 - Improve error reporting for unmapped required placeholders; warn about potential override issues.
+
+### Fixed
+- Minimum install requirement is now correctly set to `SQLAlchemy>=1.4`.
 
 ## [0.2.1] - 2023-02-04
 

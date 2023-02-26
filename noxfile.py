@@ -1,4 +1,5 @@
 """Nox sessions."""
+import os
 import platform
 import tempfile
 from typing import Any
@@ -35,6 +36,10 @@ def install_with_constraints(session: Session, *args: str, **kwargs: Any) -> Non
             external=True,
         )
         session.install("-r", requirements.name, *args, **kwargs)
+
+    sqlalchemy_version = os.environ.get("SQLALCHEMY_VERSION")
+    if sqlalchemy_version:
+        session.install(f"sqlalchemy{sqlalchemy_version}")
 
 
 def install_with_project_extras(session: Session) -> None:
