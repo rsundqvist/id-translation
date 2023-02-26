@@ -3,7 +3,6 @@
 Execute 'invoke --list' for guidance on using Invoke.
 """
 import platform
-import sys
 import webbrowser
 from pathlib import Path
 
@@ -120,11 +119,7 @@ def lint(c: Context) -> None:
 @task
 def mypy(c: Context) -> None:
     """Run mypy."""
-    flags = []
-    if (sys.version_info.major, sys.version_info.minor) >= (3, 11):
-        # TODO: Remove for 3.13
-        flags.append("--no-warn-unused-ignores")
-    _run(c, f"poetry run mypy {SOURCE_DIR} {TEST_DIR} {''.join(flags)}")
+    _run(c, f"poetry run mypy {SOURCE_DIR} {TEST_DIR}")
 
 
 @task

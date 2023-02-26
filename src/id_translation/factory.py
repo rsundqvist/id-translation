@@ -1,13 +1,11 @@
 """Factory functions for translation classes."""
+import sys
 from typing import TYPE_CHECKING, Any, Callable, Dict, Generic as _Generic, Iterable, List, Optional, Tuple, Type, Union
 
-try:
-    import tomllib  # type: ignore
-except ModuleNotFoundError:
-    # TODO: Remove for 3.13
-    # PEP-680 compatibility layer for Python < 3.11, see https://peps.python.org/pep-0680/
-    # Shamelessly stolen from https://github.com/hukkin/tomli#building-a-tomlitomllib-compatibility-layer
-    import tomli as tomllib  # type: ignore
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    import tomli as tomllib
 
 from rics import misc
 from rics._internal_support.types import PathLikeType
