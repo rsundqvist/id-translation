@@ -9,7 +9,6 @@ else:
 
 from rics import misc
 from rics._internal_support.types import PathLikeType
-from rics.action_level import ActionLevel as _ActionLevel
 from rics.collections import dicts
 from rics.mapping import HeuristicScore as _HeuristicScore, Mapper as _Mapper
 
@@ -199,11 +198,7 @@ class TranslatorFactory(_Generic[NameType, SourceType, IdType]):
                 "Section [fetching] is required when no pre-initialized AbstractFetcher is given."
             )
 
-        return (
-            fetchers[0]
-            if len(fetchers) == 1
-            else fetching.MultiFetcher(*fetchers, duplicate_source_discovered_action=_ActionLevel.WARN)
-        )
+        return fetchers[0] if len(fetchers) == 1 else fetching.MultiFetcher(*fetchers)
 
     @classmethod
     def _make_mapper(cls, parent_section: str, config: Dict[str, Any]) -> Optional[_Mapper[Any, Any, Any]]:

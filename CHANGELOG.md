@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Improve error reporting for unmapped required placeholders; warn about potential override issues.
+- Default `MultiFetcher.duplicate_source_discovered_action` increased from _'ignore'_ to _'warn'_.
 
 ### Fixed
 - Minimum install requirement is now correctly set to `SQLAlchemy>=1.4`.
