@@ -26,11 +26,13 @@ Section: Translator
    * - Key
      - Type
      - Description
-     - Comments
    * - fmt
      - :class:`~id_translation.offline.Format`
      - Specify how translated IDs are displayed
-     -
+   * - allow_name_inheritance
+     - :py:class:`bool`
+     - If ``True``, enable name resolution fallback to the parent `translatable` when calling the
+       :meth:`~id_translation.Translator.translate`-function with the ``attribute``-option.
 
 * Parameters for :attr:`Name <id_translation.types.NameType>`-to-:attr:`source <id_translation.types.SourceType>`
   mapping are specified in a ``[translator.mapping]``-subsection. See: :ref:`Subsection: Mapping` for details (context =
