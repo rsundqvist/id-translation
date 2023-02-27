@@ -185,6 +185,8 @@ class TranslatorFactory(_Generic[NameType, SourceType, IdType]):
         config: Dict[str, Any],
         extra_fetchers: Iterable[str],
     ) -> fetching.Fetcher[SourceType, IdType]:
+        multi_fetcher_kwargs = config.pop("MultiFetcher", {})
+
         fetchers: List[fetching.Fetcher[SourceType, IdType]] = []
         if config:
             fetchers.append(self._make_fetcher(**config))  # Add primary fetcher
@@ -198,7 +200,7 @@ class TranslatorFactory(_Generic[NameType, SourceType, IdType]):
                 "Section [fetching] is required when no pre-initialized AbstractFetcher is given."
             )
 
-        return fetchers[0] if len(fetchers) == 1 else fetching.MultiFetcher(*fetchers)
+        return fetchers[0] if len(fetchers) == 1 else fetching.MultiFetcher(*fetchers, **multi_fetcher_kwargs)
 
     @classmethod
     def _make_mapper(cls, parent_section: str, config: Dict[str, Any]) -> Optional[_Mapper[Any, Any, Any]]:

@@ -1,13 +1,13 @@
 import os
+from pathlib import Path
 
 import sqlalchemy
 import yaml  # type: ignore
 
 from id_translation import Translator
 
-from ..conftest import ROOT
-
-DOCKER_ROOT = ROOT.joinpath("dvdrental/docker")
+ROOT = Path(__file__).parent
+DOCKER_ROOT = ROOT.joinpath("docker")
 CREDENTIALS = yaml.safe_load(DOCKER_ROOT.joinpath("credentials.yml").read_text())["dialects"]
 for k, v in dict(
     mysql="pymysql",
@@ -44,6 +44,6 @@ def get_connection_string(dialect: str, with_password: bool = True) -> str:
 def get_translator(dialect: str) -> Translator[str, str, int]:
     os.environ["DVDRENTAL_PASSWORD"] = "Sofia123!"
     os.environ["DVDRENTAL_CONNECTION_STRING"] = get_connection_string(dialect, with_password=False)
-    extra_fetchers = [ROOT.joinpath("dvdrental/sql-fetcher.toml")]
-    config = ROOT.joinpath("dvdrental/translation.toml")
+    extra_fetchers = [ROOT.joinpath("sql-fetcher.toml")]
+    config = ROOT.joinpath("translation.toml")
     return Translator.from_config(config, extra_fetchers)

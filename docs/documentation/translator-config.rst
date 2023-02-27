@@ -12,21 +12,6 @@ The recommended way of creating and configuring translators is the :meth:`Transl
 
 For an introduction to the translation process itself, see the :ref:`translation-primer`.
 
-Multiple fetchers
------------------
-Complex applications may require multiple fetchers. These may be specified in auxiliary config files, one fetcher per
-file. Only the ``fetching`` key will be considered in these files. If multiple fetchers are defined, a
-:class:`~id_translation.fetching.MultiFetcher` is created. Fetchers defined this way are **hierarchical**. The input
-order determines rank, affecting Name-to-:attr:`source <id_translation.fetching.Fetcher.sources>` mapping. For
-example, for a ``Translator`` created by running:
-
->>> from id_translation import Translator
->>> extra_fetchers=["fetcher.toml", "backup-fetcher.toml"]
->>> Translator.from_config("translation.toml", extra_fetchers=extra_fetchers)
-
-the :func:`Translator.map <id_translation.Translator.map>`-function will first consider the sources of the fetcher
-defined in **translation.toml** (if there is one), then `fetcher.toml` and finally `backup-fetcher.toml`.
-
 Sections
 --------
 The only valid top-level keys are ``translator``, ``unknown_ids``, and ``fetching``. Only the ``fetching`` section is
@@ -99,8 +84,42 @@ a :class:`~id_translation.fetching.MemoryFetcher` would be created by adding a `
 .. hint::
 
    Custom classes may be initialized by using sections with fully qualified type names in single quotation marks. For
-   example, a ``[fetching.'my.library.SuperFetcher']`` would import and initialize a ``SuperFetcher`` from the
+   example, a ``[fetching.'my.library.SuperFetcher']``-section would import and initialize a ``SuperFetcher`` from the
    ``my.library`` module.
+
+
+Multiple fetchers
+~~~~~~~~~~~~~~~~~
+Complex applications may require multiple fetchers. These may be specified in auxiliary config files, one fetcher per
+file. Only the ``fetching`` key will be considered in these files. If multiple fetchers are defined, a
+:class:`~id_translation.fetching.MultiFetcher` is created. Fetchers defined this way are **hierarchical**. The input
+order determines rank, affecting Name-to-:attr:`source <id_translation.fetching.Fetcher.sources>` mapping. For
+example, for a ``Translator`` created by running
+
+>>> from id_translation import Translator
+>>> extra_fetchers=["fetcher.toml", "backup-fetcher.toml"]
+>>> Translator.from_config("translation.toml", extra_fetchers=extra_fetchers)
+
+the :func:`Translator.map <id_translation.Translator.map>`-function will first consider the sources of the fetcher
+defined in `translation.toml` (if there is one), then `fetcher.toml` and finally `backup-fetcher.toml`.
+
+.. list-table:: Section keys: ``[fetching.MultiFetcher]`` (main config only)
+   :header-rows: 1
+
+   * - Key
+     - Type
+     - Description
+   * - max_workers
+     - :py:class:`int`
+     - Maximum number of individual child fetchers to call in parallel.
+   * - duplicate_translation_action
+     - `raise | warn | ignore`
+     - Action to take when multiple fetchers return translations for the same source.
+   * - duplicate_source_discovered_action
+     - `raise | warn | ignore`
+     - Action to take when multiple fetchers claim the same source.
+
+The ``[fetching.MultiFetcher]`` section is permitted only in the main configuration file.
 
 .. _translator-config-mapping:
 

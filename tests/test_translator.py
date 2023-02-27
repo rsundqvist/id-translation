@@ -475,27 +475,31 @@ def test_float_ids(translator):
 
 def test_load_persistent_instance(tmp_path):
     path = ROOT.joinpath("dvdrental/translation.toml")  # Uses an in-memory fetcher.
-    fetchers = [ROOT.joinpath("config.imdb.toml")]
 
     expected = [None, "1:Action", "2:Animation"]
     translatable: List[int] = [0, 1, 2]
     args = (translatable, "category_id")
 
     with pytest.warns(UserWarning, match="EXPERIMENTAL"):
-        translator = Translator.load_persistent_instance(path, fetchers, tmp_path, clazz=Translator)
-        now = translator.now  # type: ignore[attr-defined]
+        translator = Translator.load_persistent_instance(path, cache_dir=tmp_path, clazz=Translator)
+        assert isinstance(translator, Translator)
+        now = translator.now
         assert translator.translate(*args) == expected
 
-        translator = Translator.load_persistent_instance(path, fetchers, tmp_path, clazz=Translator)
-        assert translator.now == now  # type: ignore[attr-defined]
+        translator = Translator.load_persistent_instance(path, cache_dir=tmp_path, clazz=Translator)
+        assert isinstance(translator, Translator)
+        assert translator.now == now
         assert translator.translate(*args) == expected
 
-        translator = Translator.load_persistent_instance(path, fetchers, tmp_path, clazz=Translator, max_age="-1d")
-        assert translator.now > now  # type: ignore[attr-defined]
+        translator = Translator.load_persistent_instance(path, cache_dir=tmp_path, clazz=Translator, max_age="-1d")
+        assert isinstance(translator, Translator)
+        assert translator.now > now
         assert translator.translate(*args) == expected
 
         real_translator: RealTranslator[str, str, int] = RealTranslator.load_persistent_instance(
-            path, fetchers, tmp_path
+            path,
+            cache_dir=tmp_path,
         )
+        assert isinstance(real_translator, RealTranslator)
         assert real_translator.translate(*args) == expected
         assert not isinstance(real_translator, Translator)
