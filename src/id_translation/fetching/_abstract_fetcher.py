@@ -238,8 +238,12 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         actual_to_wanted: Dict[str, str] = reverse_dict(wanted_to_actual)
         need_placeholder_mapping = actual_to_wanted != wanted_to_actual
         if need_placeholder_mapping:
-            placeholders = tuple(map(wanted_to_actual.__getitem__, filter(wanted_to_actual.__contains__, placeholders)))
-            required_placeholders = set(map(wanted_to_actual.__getitem__, required_placeholders))
+            # We'll just map what we can here. If anything is missing it'll be caught later.
+            def apply(c: Iterable[str]) -> Iterable[str]:
+                return (wanted_to_actual[p] for p in c if p in wanted_to_actual)
+
+            placeholders = tuple(apply(placeholders))
+            required_placeholders = set(apply(required_placeholders))
 
         return (
             actual_to_wanted if need_placeholder_mapping else None,
