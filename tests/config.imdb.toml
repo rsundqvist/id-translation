@@ -44,6 +44,12 @@ name = "Title unknown"
 original_name = "Original title unknown"
 
 ################################################################################
+# Parallel fetching configuration.
+################################################################################
+[fetching.MultiFetcher]
+duplicate_source_discovered_action = "ignore"
+
+################################################################################
 # Fetching configuration.
 ################################################################################
 [fetching.PandasFetcher]

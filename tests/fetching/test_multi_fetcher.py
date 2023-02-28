@@ -24,7 +24,7 @@ def fetchers(data: Dict[str, pd.DataFrame]) -> Collection[AbstractFetcher[str, i
 
 @pytest.fixture(scope="module")
 def multi_fetcher(fetchers):
-    fetcher = MultiFetcher(*fetchers)
+    fetcher = MultiFetcher(*fetchers, duplicate_source_discovered_action="ignore")
     yield fetcher
     fetcher.close()
 
@@ -117,6 +117,6 @@ def test_from_config():
     main_config = ROOT.joinpath("config.imdb.toml")
     extra_fetchers = [
         ROOT.joinpath("config.toml"),
-        ROOT.joinpath("config.imdb.toml"),
+        ROOT.joinpath("config.toml"),
     ]
     Translator.from_config(main_config, extra_fetchers)

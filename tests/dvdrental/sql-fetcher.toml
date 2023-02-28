@@ -1,7 +1,10 @@
 [fetching.SqlFetcher]
 connection_string = "@DVDRENTAL_CONNECTION_STRING"
 password = "@DVDRENTAL_PASSWORD"
-blacklist_tables = ["category"]  # Let's pretend this table is off-limits
+blacklist_tables = [
+    "category",  # Let's pretend this table is off-limits
+    "store", "rental", "inventory", "payment",  # No name columns; can't translate these
+]
 
 [fetching.SqlFetcher.engine_kwargs]
 # fast_executemany = true  # Not supported by the driver
@@ -26,5 +29,12 @@ fstring = "{context}_{value}"
 
 [fetching.mapping.overrides.address]
 code = "postal_code"
+name = "address"
 [fetching.mapping.overrides.film]
 name = "title"
+
+# TODO Dessa överlappar - heuristik? Även 'address' ovan
+[fetching.mapping.overrides.country]
+name = "country"
+[fetching.mapping.overrides.city]
+name = "city"

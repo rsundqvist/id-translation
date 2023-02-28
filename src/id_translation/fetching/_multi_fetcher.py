@@ -41,9 +41,9 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
     def __init__(
         self,
         *fetchers: Fetcher[SourceType, IdType],
-        max_workers: int = 2,
-        duplicate_translation_action: ActionLevel = ActionLevel.WARN,
-        duplicate_source_discovered_action: ActionLevel = ActionLevel.IGNORE,
+        max_workers: int = 1,
+        duplicate_translation_action: ActionLevel.ParseType = ActionLevel.WARN,
+        duplicate_source_discovered_action: ActionLevel.ParseType = ActionLevel.WARN,
     ) -> None:
         for pos, f in enumerate(fetchers):
             if not isinstance(f, Fetcher):  # pragma: no cover
