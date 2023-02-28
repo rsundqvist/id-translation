@@ -112,5 +112,5 @@ def test_bad_override(column, connection_string):
     mapper: Mapper[str, str, str] = Mapper(overrides=InheritedKeysDict(default={column: "bad_column"}))
     fetcher = SqlFetcher(connection_string, mapper=mapper)
     with pytest.raises(exceptions.UnknownPlaceholderError, match=f"'{column}': 'bad_column'"):
-        fetcher.fetch([IdsToFetch("humans", None)], (column,), (column,))
+        fetcher.fetch([IdsToFetch("humans", [-1])], (column,), (column,))  # Add ID to avoid fetch-all
     fetcher.close()

@@ -227,7 +227,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         placeholders: PlaceholdersTuple,
         required_placeholders: Set[str],
     ) -> Tuple[Optional[Dict[str, str]], FetchInstruction[SourceType, IdType]]:
-        fetch_all_placeholders = not placeholders
+        fetch_all_placeholders = itf.ids is None or not placeholders
 
         required_placeholders.add(ID)
         if ID not in placeholders:
