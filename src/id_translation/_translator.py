@@ -198,11 +198,9 @@ class Translator(Generic[NameType, SourceType, IdType]):
         """Create a ``Translator`` from TOML inputs.
 
         Args:
-            path: Path to a TOML file.
-            extra_fetchers: Path to TOML files defining additional fetchers. Useful for fetching from multiple sources
-                or kinds of sources, for example locally stored files in conjunction with one or more databases. The
-                fetchers are ranked by input order, with the fetcher defined in `path` (if any) being given the highest
-                priority (rank 0).
+            path: Path to the main TOML configuration file.
+            extra_fetchers: Paths to fetching configuration TOML files. If multiple fetchers are defined, they are
+                ranked by input order. If a fetcher defined in the main configuration, it will be prioritized (rank=0).
             clazz: Translator implementation to create. If a string is passed, the class is resolved using
                 :func:`~rics.misc.get_by_full_name` if a string is given. Use ``cls`` if ``None``.
 
@@ -521,10 +519,10 @@ class Translator(Generic[NameType, SourceType, IdType]):
     @classmethod
     def load_persistent_instance(
         cls,
+        cache_dir: PathLikeType,
         config_path: PathLikeType,
         extra_fetchers: Iterable[PathLikeType] = (),
-        cache_dir: PathLikeType = None,
-        max_age: Union[str, pd.Timedelta, timedelta] = "7d",
+        max_age: Union[str, pd.Timedelta, timedelta] = "12h",
         clazz: Union[str, Type["Translator[NameType, SourceType, IdType]"]] = None,
     ) -> "Translator[NameType, SourceType, IdType]":
         """Load or create a persistent :attr:`~.Fetcher.fetch_all`-instance.
@@ -540,29 +538,27 @@ class Translator(Generic[NameType, SourceType, IdType]):
           way that it is no longer :meth:`equivalent <.ConfigMetadata.is_equivalent>` to the
           configuration used to create the original ``Translator``.
 
-        .. note:: This method is **not** thread safe.
+        .. warning:: This method is **not** thread safe.
 
         Args:
-            config_path: Path to a TOML file. See :meth:`from_config` for details.
-            extra_fetchers: Path to TOML files defining additional fetchers. See :meth:`from_config` for details.
-            cache_dir: Root directory where the cached translator and associated metadata is stored. Derive based on
-                `config_path` if ``None``.
-            max_age: The maximum age of the cached ``Translator`` before it must be recreated. Pass ``max_age=0`` to
+            cache_dir: Root directory where the cached translator and associated metadata is stored.
+            config_path: Path to the main TOML configuration file.
+            extra_fetchers: Paths to fetching configuration TOML files. If multiple fetchers are defined, they are
+                ranked by input order. If a fetcher defined in the main configuration, it will be prioritized (rank=0).
+            max_age: The maximum age of the cached ``Translator`` before it must be recreated. Pass ``max_age='0d'`` to
                 force recreation.
             clazz: Translator implementation to create. If a string is passed, the class is resolved using
-                :func:`~rics.misc.get_by_full_name`. Use ``cls`` if ``None``.
+                :func:`~rics.misc.get_by_full_name` if a string is given. Use ``cls`` if ``None``.
 
         Returns:
             A new or cached ``Translator`` instance with a :attr:`config_metadata` attribute.
-        """
-        warnings.warn("Method 'Translator.load_persistent_instance' is EXPERIMENTAL. Use with caution.", UserWarning)
 
+        See Also:
+             The :meth:`from_config` method, which will initialize the Translator using `path`, `extra_fetchers`, and
+                `clazz` if the cached instance is outdated.
+        """
         path = Path(str(config_path))
-        cache_dir = (
-            Path.home().joinpath(".rics").joinpath("cache").joinpath(path)
-            if cache_dir is None
-            else Path(str(cache_dir))
-        )
+        cache_dir = Path(str(cache_dir)).expanduser().absolute()
         cache_dir.mkdir(parents=True, exist_ok=True)
 
         metadata_path = cache_dir.joinpath("metadata.json")
@@ -570,17 +566,16 @@ class Translator(Generic[NameType, SourceType, IdType]):
 
         extra_fetcher_paths: List[str] = list(map(str, extra_fetchers))
 
-        reference_metadata = _config_utils.make_metadata(
+        metadata = _config_utils.make_metadata(
             str(path),
             extra_fetcher_paths,
-            clazz=factory.TranslatorFactory.resolve_class(clazz or cls),
+            clazz=factory.TranslatorFactory.resolve_class(clazz),
         )
-        if _config_utils.use_cached_translator(metadata_path, reference_metadata, pd.Timedelta(max_age)):
+        if _config_utils.use_cached_translator(metadata_path, metadata, pd.Timedelta(max_age)):
             return cls.restore(cache_path)
         else:
-            ans: Translator[NameType, SourceType, IdType] = cls.from_config(path, extra_fetcher_paths, clazz).store(
-                path=cache_path, delete_fetcher=True
-            )
+            ans: Translator[NameType, SourceType, IdType] = cls.from_config(path, extra_fetcher_paths, clazz)
+            ans.store(path=cache_path, delete_fetcher=True)
             metadata_path.write_text(ans.config_metadata.to_json())
             return ans
 
@@ -647,6 +642,7 @@ class Translator(Generic[NameType, SourceType, IdType]):
         See Also:
             The :meth:`Translator.restore` method.
         """
+        start = perf_counter()
         if translatable is None:
             source_translations: SourcePlaceholderTranslations[SourceType] = self._fetch(None)
             translation_map = self._to_translation_map(source_translations)
@@ -665,6 +661,7 @@ class Translator(Generic[NameType, SourceType, IdType]):
 
         self._cached_tmap = translation_map
 
+        message = f"Created {self} in {format_perf_counter(start)}."
         if path:
             import os
             import pickle  # noqa: S403
@@ -674,8 +671,10 @@ class Translator(Generic[NameType, SourceType, IdType]):
             with open(path, "wb") as f:
                 pickle.dump(self, f)
 
-            mb_size = os.path.getsize(path) / 1000000
-            LOGGER.info(f"Stored {self} of size {mb_size:.3g} MB at path='{path}'.")
+            mb_size = os.path.getsize(path) / 2**20
+            message += f" Serialized {mb_size:.2g} MiB at path='{path}'."
+
+        LOGGER.info(message)
         return self
 
     def _get_updated_tmap(

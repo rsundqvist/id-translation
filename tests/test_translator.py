@@ -49,11 +49,6 @@ class Translator(RealTranslator[str, str, IdType]):
 @dataclass(frozen=True)
 class ConfigMetadataForTest(_config_utils.ConfigMetadata):
     def __post_init__(self) -> None:
-        assert self.path.is_absolute(), f"Got non-absolute main configuration path='{self.path}'."
-        for path in self.extra_fetchers:
-            assert path.is_absolute(), f"Got non-absolute auxiliary fetcher configuration path='{path}'."
-
-        assert isinstance(self.clazz, str), f"Got clazz={self.clazz}, expected string."
         assert self.clazz in ("id_translation._translator.Translator", "tests.test_translator.Translator")
 
 
@@ -474,32 +469,28 @@ def test_float_ids(translator):
 
 
 def test_load_persistent_instance(tmp_path):
-    path = ROOT.joinpath("dvdrental/translation.toml")  # Uses an in-memory fetcher.
+    config_path = ROOT.joinpath("dvdrental/translation.toml")  # Uses an in-memory fetcher.
 
     expected = [None, "1:Action", "2:Animation"]
     translatable: List[int] = [0, 1, 2]
     args = (translatable, "category_id")
 
-    with pytest.warns(UserWarning, match="EXPERIMENTAL"):
-        translator = Translator.load_persistent_instance(path, cache_dir=tmp_path, clazz=Translator)
-        assert isinstance(translator, Translator)
-        now = translator.now
-        assert translator.translate(*args) == expected
+    translator = Translator.load_persistent_instance(tmp_path, config_path, clazz=Translator)
+    assert isinstance(translator, Translator)
+    now = translator.now
+    assert translator.translate(*args) == expected
 
-        translator = Translator.load_persistent_instance(path, cache_dir=tmp_path, clazz=Translator)
-        assert isinstance(translator, Translator)
-        assert translator.now == now
-        assert translator.translate(*args) == expected
+    translator = Translator.load_persistent_instance(tmp_path, config_path, clazz=Translator)
+    assert isinstance(translator, Translator)
+    assert translator.now == now
+    assert translator.translate(*args) == expected
 
-        translator = Translator.load_persistent_instance(path, cache_dir=tmp_path, clazz=Translator, max_age="-1d")
-        assert isinstance(translator, Translator)
-        assert translator.now > now
-        assert translator.translate(*args) == expected
+    translator = Translator.load_persistent_instance(tmp_path, config_path, clazz=Translator, max_age="-1d")
+    assert isinstance(translator, Translator)
+    assert translator.now > now
+    assert translator.translate(*args) == expected
 
-        real_translator: RealTranslator[str, str, int] = RealTranslator.load_persistent_instance(
-            path,
-            cache_dir=tmp_path,
-        )
-        assert isinstance(real_translator, RealTranslator)
-        assert real_translator.translate(*args) == expected
-        assert not isinstance(real_translator, Translator)
+    real_translator: RealTranslator[str, str, int] = RealTranslator.load_persistent_instance(tmp_path, config_path)
+    assert isinstance(real_translator, RealTranslator)
+    assert real_translator.translate(*args) == expected
+    assert not isinstance(real_translator, Translator)

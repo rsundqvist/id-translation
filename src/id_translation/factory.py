@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Generic as _Generic, Iter
 if sys.version_info >= (3, 11):
     import tomllib
 else:
-    import tomli as tomllib
+    import tomli as tomllib  # pragma: no cover
 
 from rics import misc
 from rics._internal_support.types import PathLikeType

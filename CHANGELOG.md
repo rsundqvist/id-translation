@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - New optional `schema` argument for `SqlFetcher`.
+- Finished `Translator.load_persistent_instance()` implementation (no longer experimental).
 
 ### Changed
 - Improve error reporting for unmapped required placeholders; warn about potential override issues.
