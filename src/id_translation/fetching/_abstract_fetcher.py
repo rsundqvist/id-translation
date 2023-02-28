@@ -203,23 +203,23 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
 
             unmapped_required_placeholders = required_placeholders.difference(translations.placeholders)
             if unmapped_required_placeholders:
-                source = itf.source
-
-                hint = ""
-                if reverse_mappings and unmapped_required_placeholders.intersection(reverse_mappings.values()):
-                    r = reverse_dict(reverse_mappings)
-                    bad_mappings = {b: r[b] for b in unmapped_required_placeholders}
-                    hint = (
-                        f"\nHint: Mapping {bad_mappings} for required placeholders (keys) were made to placeholders "
-                        f"that do not exist. The override configuration {self.mapper._overrides} may be incorrect."
-                    )
-
-                raise exceptions.UnknownPlaceholderError(
-                    f"Required placeholders {unmapped_required_placeholders} not recognized."
-                    f" For {source=}, known placeholders are: {sorted(self.placeholders[source])} for {self}.{hint}"
-                )
+                self._verify_placeholders(reverse_mappings or {}, itf.source, unmapped_required_placeholders)
 
             yield translations
+
+    def _verify_placeholders(self, reverse_mappings: Dict[str, str], source: SourceType, unmapped: Set[str]) -> None:
+        hint = ""
+        if unmapped.intersection(reverse_mappings.values()):
+            r = reverse_dict(reverse_mappings)
+            bad_mappings = {b: r[b] for b in unmapped}
+            hint = (
+                f"\nHint: Mapping {bad_mappings} for required placeholders (keys) were made to placeholders that do not"
+                f" exist. The override configuration {self.mapper._overrides} may be incorrect."
+            )
+        raise exceptions.UnknownPlaceholderError(
+            f"Required placeholders {unmapped} not recognized. For {source=}, known placeholders are: "
+            f"{sorted(self.placeholders[source])} for {self}.{hint}"
+        )
 
     def _make_fetch_instruction(
         self,
