@@ -302,6 +302,20 @@ class Translator(Generic[NameType, SourceType, IdType]):
             rics.mapping.exceptions.UserMappingError: If `override_function` returns a source which is not
                 known, and ``self.mapper.unknown_user_override_action != 'ignore'``.
         """  # noqa: DAR101 darglint is bugged here
+        start = perf_counter()
+        if LOGGER.isEnabledFor(logging.INFO):
+            type_name = tname(translatable, prefix_classname=True)
+            if attribute:
+                type_name = f"{type_name}.{attribute}"
+            type_name = f"'{type_name}'"
+
+            name_info = f"Will be derived based on {type_name}" if names is None else str(names)
+            if ignore_names is not None:
+                name_info += f", excluding those given by {ignore_names=}"
+
+            sources = self.sources  # Ensures that the fetcher is warmed up; good for log organization.
+            LOGGER.info(f"Begin translation of {type_name} using {sources=}. Names to translate: {name_info}.")
+
         if self.online and reverse:  # pragma: no cover
             raise ConnectionStatusError("Reverse translation cannot be performed online.")
 
@@ -340,7 +354,13 @@ class Translator(Generic[NameType, SourceType, IdType]):
             # Hacky special handling for eg pandas.Index
             if hasattr(ans, "name") and hasattr(translatable, "name"):  # pragma: no cover
                 ans.name = translatable.name
-            return obj
+            ans = obj
+
+        if LOGGER.isEnabledFor(logging.INFO):
+            inplace_info = f"Values in {type_name} have been replaced " if inplace else "Returning a translated copy"
+            LOGGER.info(
+                f"Finished translation of {type_name} in {format_perf_counter(start)}. {inplace_info} since {inplace=}."
+            )
 
         return ans
 
