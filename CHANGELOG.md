@@ -23,6 +23,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Minimum install requirement is now correctly set to `SQLAlchemy>=1.4`.
 - Now correctly always fetches all placeholders when performing a _FETCH_ALL_-operation.
 
+### Removed
+- Redundant alias `types.ExtendedOverrideFunction` and related code.
+
 ## [0.2.1] - 2023-02-04
 
 ### Added

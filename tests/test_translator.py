@@ -414,13 +414,6 @@ def test_simple_function_overrides(translator):
         translator.translate(1, names="whatever", override_function=lambda *args: "bad")
 
 
-def test_complex_function_overrides(translator):
-    with pytest.raises(NotImplementedError) as e:
-        translator.translate(1, names="whatever", override_function=lambda *args: {})
-
-    assert "https://github.com/rsundqvist/id-translation/issues/6" in str(e.value)
-
-
 def test_override_fetcher(translator):
     old_fetcher = translator.fetcher
     assert "1:0x1, positive=True" == translator.translate(1, names="positive_numbers")

@@ -23,17 +23,7 @@ from .fetching import Fetcher
 from .fetching.types import IdsToFetch
 from .offline import Format, TranslationMap
 from .offline.types import FormatType, PlaceholderTranslations, SourcePlaceholderTranslations
-from .types import (
-    ID,
-    ExtendedOverrideFunction,
-    IdType,
-    Names,
-    NamesPredicate,
-    NameType,
-    NameTypes,
-    SourceType,
-    Translatable,
-)
+from .types import ID, IdType, Names, NamesPredicate, NameType, NameTypes, SourceType, Translatable
 
 _NAME_ATTRIBUTES = ("name", "columns", "keys")
 
@@ -260,7 +250,7 @@ class Translator(Generic[NameType, SourceType, IdType]):
         names: NameTypes[NameType] = None,
         ignore_names: Names[NameType] = None,
         inplace: bool = False,
-        override_function: ExtendedOverrideFunction[NameType, SourceType, IdType] = None,
+        override_function: UserOverrideFunction[NameType, SourceType, IdType] = None,
         maximal_untranslated_fraction: float = 1.0,
         reverse: bool = False,
         attribute: str = None,
@@ -274,13 +264,8 @@ class Translator(Generic[NameType, SourceType, IdType]):
             names: Explicit names to translate. Derive from `translatable` if ``None``.
             ignore_names: Names **not** to translate, or a predicate ``(str) -> bool``.
             inplace: If ``True``, translate in-place and return ``None``.
-            override_function: A callable ``(name, fetcher.sources, ids) -> ...`` returning one of
-
-                * ``None`` (use regular mapping logic)
-                * a ``source`` to use, or
-                * a split mapping ``{source: [ids_for_source..]}``. This forces IDs to be fetched from
-                  different sources in spite of being labelled with the same name.
-
+            override_function: A callable ``(name, fetcher.sources, ids) -> Source | None``. See
+                :meth:`Mapper.apply <rics.mapping.Mapper.apply>` for details.
             maximal_untranslated_fraction: The maximum fraction of IDs for which translation may fail before an error is
                 raised. 1=disabled. Ignored in `reverse` mode.
             reverse: If ``True``, perform translations back to IDs. Offline mode only.
@@ -369,7 +354,7 @@ class Translator(Generic[NameType, SourceType, IdType]):
         translatable: Translatable,
         names: NameTypes[NameType] = None,
         ignore_names: Names[NameType] = None,
-        override_function: ExtendedOverrideFunction[NameType, SourceType, IdType] = None,
+        override_function: UserOverrideFunction[NameType, SourceType, IdType] = None,
     ) -> Optional[DirectionalMapping[NameType, SourceType]]:
         """Map names to translation sources.
 
@@ -377,12 +362,8 @@ class Translator(Generic[NameType, SourceType, IdType]):
             translatable: A data structure to map names for.
             names: Explicit names to translate. Derive from `translatable` if ``None``.
             ignore_names: Names **not** to translate, or a predicate ``(str) -> bool``.
-            override_function: A callable ``(name, fetcher.sources, ids) -> ...`` returning one of
-
-                * ``None`` (use regular mapping logic)
-                * a ``source`` to use, or
-                * a split mapping ``{source: [ids_for_source..]}``. This forces IDs to be fetched from
-                  different sources in spite of being labelled with the same name.
+            override_function: A callable ``(name, fetcher.sources, ids) -> Source | None``. See
+                :meth:`Mapper.apply <rics.mapping.Mapper.apply>` for details.
 
         Returns:
             A mapping of names to translation sources. Returns ``None`` if mapping failed.
@@ -401,16 +382,11 @@ class Translator(Generic[NameType, SourceType, IdType]):
         translatable: Translatable,
         names: NameTypes[NameType] = None,
         ignore_names: Names[NameType] = None,
-        override_function: ExtendedOverrideFunction[NameType, SourceType, IdType] = None,
+        override_function: UserOverrideFunction[NameType, SourceType, IdType] = None,
     ) -> pd.DataFrame:
         """Returns raw match scores for name-to-source mapping. See :meth:`map` for details."""
         names_to_translate = self._resolve_names(translatable, names, ignore_names)
-
-        return self.mapper.compute_scores(
-            names_to_translate,
-            self.sources,
-            override_function=None if override_function is None else self._wrap_override_function(override_function),
-        )
+        return self.mapper.compute_scores(names_to_translate, self.sources, override_function=override_function)
 
     @property
     def sources(self) -> List[SourceType]:
@@ -422,16 +398,11 @@ class Translator(Generic[NameType, SourceType, IdType]):
         translatable: Translatable,
         names: NameTypes[NameType] = None,
         ignore_names: Names[NameType] = None,
-        override_function: ExtendedOverrideFunction[NameType, SourceType, IdType] = None,
+        override_function: UserOverrideFunction[NameType, SourceType, IdType] = None,
         parent: Translatable = None,
     ) -> Optional[DirectionalMapping[NameType, SourceType]]:
         names_to_translate = self._resolve_names(translatable, names, ignore_names, parent)
-
-        name_to_source = self.mapper.apply(
-            names_to_translate,
-            self.sources,
-            override_function=None if override_function is None else self._wrap_override_function(override_function),
-        )
+        name_to_source = self.mapper.apply(names_to_translate, self.sources, override_function=override_function)
 
         unmapped = set() if names is None else set(as_list(names)).difference(name_to_source.left)
         if unmapped or not name_to_source.left:
@@ -465,27 +436,6 @@ class Translator(Generic[NameType, SourceType, IdType]):
                     )
 
         return name_to_source
-
-    @classmethod
-    def _wrap_override_function(
-        cls,
-        override_function: ExtendedOverrideFunction[NameType, SourceType, IdType],
-    ) -> UserOverrideFunction[NameType, SourceType, None]:
-        def func(v: NameType, c: Set[SourceType], _: None) -> Optional[SourceType]:
-            assert override_function is not None, "This shouldn't happen"  # noqa: S101
-            res = override_function(v, c, [])
-            if res is None:
-                return None
-            if isinstance(res, dict):
-                # This will probably be some kind of class in the future, as we need to do bookkeeping to keep track
-                # of where we should fetch our translations later.
-                raise NotImplementedError(
-                    "Name splitting is not yet supported. See https://github.com/rsundqvist/id-translation/issues/6"
-                )
-            else:
-                return res
-
-        return func
 
     def fetch(
         self,
@@ -702,7 +652,7 @@ class Translator(Generic[NameType, SourceType, IdType]):
         translatable: Translatable,
         names: NameTypes[NameType] = None,
         ignore_names: Names[NameType] = None,
-        override_function: ExtendedOverrideFunction[NameType, SourceType, IdType] = None,
+        override_function: UserOverrideFunction[NameType, SourceType, IdType] = None,
         force_fetch: bool = False,
         parent: Translatable = None,
     ) -> Tuple[Optional[TranslationMap[NameType, SourceType, IdType]], List[NameType]]:

@@ -2,24 +2,11 @@
 
 This module cannot be called just `types` as that will make MyPY complain.
 """
-from typing import (
-    TYPE_CHECKING,
-    Callable,
-    Dict,
-    Hashable,
-    Iterable,
-    List,
-    Optional,
-    Sequence,
-    Set,
-    TypeVar as _TypeVar,
-    Union,
-)
+from typing import TYPE_CHECKING, Callable, Dict, Hashable, Iterable, Sequence, TypeVar as _TypeVar, Union
 
 if TYPE_CHECKING:
     import pandas  # noqa: F401
     from numpy.typing import NDArray
-
 
 Translatable = _TypeVar(
     "Translatable",
@@ -52,25 +39,6 @@ IdType = _TypeVar("IdType", int, str)
 
 SourceType = _TypeVar("SourceType", bound=Hashable)
 """Type used to describe sources. Typically a string for things like files and database tables."""
-
-ExtendedOverrideFunction = Callable[
-    [NameType, Set[SourceType], List[IdType]], Optional[Union[SourceType, Dict[SourceType, List[IdType]]]]
-]
-"""Signature for a user-defined override function.
-
-Args:
-    name: A name to create a name-to-source match for.
-    sources: Potential matches for `name`.
-    ids: IDs for `name`.
-
-Returns:
-    Either ``None`` (let regular logic decide), a dict, or a source.
-
-    If a dict, it is expected to be on the form ``{source: [ids_for_source..]}``.
-
-See Also:
-    The :attr:`rics.mapping.types.UserOverrideFunction` type.
-"""
 
 NamesPredicate = Callable[[NameType], bool]
 """A predicate type on names."""
