@@ -2,7 +2,7 @@ import logging
 import warnings
 from dataclasses import dataclass
 from time import perf_counter
-from typing import Any, Dict, Iterable, List, Literal, Optional, Set
+from typing import Any, Dict, Iterable, List, Literal, Optional, Set, TypeVar
 from urllib.parse import quote_plus
 
 import sqlalchemy
@@ -41,11 +41,16 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         ValueError: If both `whitelist_tables` and `blacklist_tables` are given.
 
     Notes:
-        Inheriting classes may override on or more of the following methods to further customize operation:
+        Inheriting classes may override on or more of the following methods to further customize operation.
 
-            * :meth:`get_approximate_table_size`; default is ``SELECT count(*) FROM table``.
-            * :meth:`make_table_summary`; creates :class:`TableSummary` instances.
-            * :meth:`selection_filter_type`; control what kind of filtering (if any) should be done when selecting IDs.
+        * :meth:`create_engine`; initializes the SQLAlchemy engine. Calls ``create_engine``.
+        * :meth:`parse_connection_string`; does basic URL encoding. Reads from env var if any `'@'`-prefixes are found.
+        * :meth:`make_table_summary`; creates :class:`TableSummary` instances. Calls ``get_approximate_table_size``.
+        * :meth:`get_approximate_table_size`; default is ``SELECT count(*) FROM table``.
+        * :meth:`selection_filter_type`; control what kind of filtering (if any) should be done when selecting IDs.
+        * :meth:`finalize_statement`; adjust the final query, e.g. to apply additional filtering.
+
+        Overriding should be done with care, as these may call each other internally.
     """
 
     def __init__(
@@ -114,9 +119,32 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
             raise exceptions.ForbiddenOperationError(self._FETCH_ALL, f"disabled for table '{ts.name}'.")
 
         stmt = select if instr.ids is None else self._make_query(ts, select, set(instr.ids))
+        stmt = self.finalize_statement(stmt, ts.id_column, ts.id_column.table)
+
         with self.engine.connect() as conn:
             records = tuple(conn.execute(stmt))
         return PlaceholderTranslations(instr.source, tuple(columns), records)
+
+    StatementType = TypeVar("StatementType", bound=sqlalchemy.Executable)
+    """Input and return bounds for :meth:`finalize_statement`."""
+
+    def finalize_statement(
+        self,
+        statement: StatementType,
+        id_column: sqlalchemy.sql.schema.Column,  # type:ignore[type-arg]
+        table: sqlalchemy.sql.schema.Table,
+    ) -> StatementType:
+        """Finalize a statement before execution. Does nothing by default.
+
+        Args:
+            statement: A pre-build select query.
+            id_column: The ID column of `table`.
+            table: Table from which the selection `select` is made.
+
+        Returns:
+            The final statement to execute.
+        """
+        return statement
 
     def _make_query(
         self,
@@ -205,7 +233,11 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         """Parse a connection string. Read from environment if `connection_string` starts with `'@'`."""
         connection_string = read_env_or_literal(connection_string)
         if password:
-            connection_string = connection_string.format(password=quote_plus(read_env_or_literal(password)))
+            if "{password}" in connection_string:
+                connection_string = connection_string.format(password=quote_plus(read_env_or_literal(password)))
+            else:
+                # pragma: no cover
+                warnings.warn("A password was specified, but the connection string does not have a {password} key.")
         return connection_string
 
     def _get_summaries(self) -> Dict[str, "SqlFetcher.TableSummary"]:
@@ -279,8 +311,11 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         Returns:
             An approximate size for `table`.
         """
+        stmt = sqlalchemy.func.count(id_column)
+        stmt = self.finalize_statement(stmt, id_column, table)
+
         with self.engine.connect() as conn:
-            return int(conn.execute(sqlalchemy.func.count(id_column)).scalar())  # type: ignore[arg-type]
+            return int(conn.execute(stmt).scalar())  # type: ignore[arg-type]
 
     def get_metadata(self) -> sqlalchemy.MetaData:
         """Create a populated metadata object."""

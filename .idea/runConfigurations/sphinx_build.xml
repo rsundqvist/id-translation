@@ -12,7 +12,7 @@
     <option name="ADD_CONTENT_ROOTS" value="true" />
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
-    <option name="SCRIPT_NAME" value="$PROJECT_DIR$/.venv/lib/python3.10/site-packages/sphinx/cmd/build.py" />
+    <option name="SCRIPT_NAME" value="$PROJECT_DIR$/.venv/lib/python3.11/site-packages/sphinx/cmd/build.py" />
     <option name="PARAMETERS" value="-a -j auto -b html docs docs/_build" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />
