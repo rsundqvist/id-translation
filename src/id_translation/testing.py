@@ -59,12 +59,8 @@ class TestFetcher(_Fetcher[SourceType, IdType]):
         return True  # pragma: no cover
 
     @property
-    def sources(self) -> List[SourceType]:
-        return list(self._sources)
-
-    @property
     def placeholders(self) -> Dict[SourceType, List[str]]:
-        raise NotImplementedError
+        return {source: [] for source in self._sources}
 
     def fetch(
         self,

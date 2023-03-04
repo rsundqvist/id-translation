@@ -142,6 +142,8 @@ flake8-logging-format = ["+*",
 flake8-docstrings = ["-D102"]  # Docstrings are inherited
 [tool.flakeheaven.exceptions."src/id_translation/dio/"]
 flake8-docstrings = ["-D102"]  # Docstrings are inherited
+[tool.flakeheaven.exceptions."src/id_translation/offline/_translation_map.py"]
+flake8-docstrings = ["-D102"]  # Docstrings are inherited
 
 [tool.flakeheaven.exceptions."src/id_translation/testing.py"]
 flake8-docstrings = ["-DAR101", "-D102"]

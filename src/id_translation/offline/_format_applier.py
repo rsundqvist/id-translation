@@ -82,12 +82,12 @@ class FormatApplier(ABC, Generic[NameType, SourceType, IdType]):
     @property
     def source(self) -> SourceType:
         """Return translation source."""
-        return self._source  # pragma: no cover
+        return self._source
 
     @property
     def placeholders(self) -> List[str]:
         """Return placeholder names in sorted order."""
-        return list(self._placeholder_names)  # pragma: no cover
+        return list(self._placeholder_names)
 
     def __len__(self) -> int:
         return self._n_ids  # pragma: no cover

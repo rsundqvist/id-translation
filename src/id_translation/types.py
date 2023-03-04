@@ -2,19 +2,21 @@
 
 This module cannot be called just `types` as that will make MyPY complain.
 """
-from typing import TYPE_CHECKING, Callable, Dict, Hashable, Iterable, Sequence, TypeVar as _TypeVar, Union
+import abc as _abc
+import typing as _type
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     import pandas  # noqa: F401
     from numpy.typing import NDArray
 
-Translatable = _TypeVar(
+Translatable = _type.TypeVar(
     "Translatable",
     # Primitive types
     str,
     int,
-    Dict,  # type: ignore[type-arg]  # TODO: Need Higher-Kinded TypeVars
-    Sequence,  # type: ignore[type-arg]  # TODO: Need Higher-Kinded TypeVars
+    _type.Dict,  # type: ignore[type-arg]  # TODO: Need Higher-Kinded TypeVars
+    _type.Sequence,  # type: ignore[type-arg]  # TODO: Need Higher-Kinded TypeVars
     "NDArray",  # type: ignore[type-arg]  # TODO: Need Higher-Kinded TypeVars
     "pandas.DataFrame",
     "pandas.Index",
@@ -31,18 +33,38 @@ types.
 ID: str = "id"
 """Name of the ID placeholder."""
 
-NameType = _TypeVar("NameType", bound=Hashable)
+NameType = _type.TypeVar("NameType", bound=_type.Hashable)
 """Type used to label collections of IDs, such as the column names in a DataFrame or the keys of a dict."""
 
-IdType = _TypeVar("IdType", int, str)
+IdType = _type.TypeVar("IdType", int, str)
 """Type of the value being translated into human-readable labels."""
 
-SourceType = _TypeVar("SourceType", bound=Hashable)
+SourceType = _type.TypeVar("SourceType", bound=_type.Hashable)
 """Type used to describe sources. Typically a string for things like files and database tables."""
 
-NamesPredicate = Callable[[NameType], bool]
+NamesPredicate = _type.Callable[[NameType], bool]
 """A predicate type on names."""
-NameTypes = Union[NameType, Iterable[NameType]]
+NameTypes = _type.Union[NameType, _type.Iterable[NameType]]
 """A union of a name type, or an iterable thereof."""
-Names = Union[NameTypes[NameType], NamesPredicate[NameType]]
+Names = _type.Union[NameTypes[NameType], NamesPredicate[NameType]]
 """Acceptable name types."""
+
+
+class HasSources(_abc.ABC, _type.Generic[SourceType]):
+    """Indicates that `sources` and `placeholders` are available."""
+
+    @property
+    def sources(self) -> _type.List[SourceType]:
+        """A list of known Source names, such as ``cities`` or ``languages``."""
+        return list(self.placeholders)
+
+    @property
+    @_abc.abstractmethod
+    def placeholders(self) -> _type.Dict[SourceType, _type.List[str]]:
+        """Placeholders for all known Source names, such as ``id`` or ``name``.
+
+        These are the (possibly unmapped) placeholders that may be used for translation.
+
+        Returns:
+            A dict ``{source: [placeholders..]}``.
+        """  # noqa: DAR202

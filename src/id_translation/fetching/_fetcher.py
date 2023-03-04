@@ -1,12 +1,12 @@
-from abc import ABC, abstractmethod
-from typing import Dict, Generic, Iterable, List
+from abc import abstractmethod
+from typing import Generic, Iterable
 
 from ..offline.types import SourcePlaceholderTranslations
-from ..types import IdType, SourceType
+from ..types import HasSources, IdType, SourceType
 from .types import IdsToFetch
 
 
-class Fetcher(ABC, Generic[SourceType, IdType]):
+class Fetcher(Generic[SourceType, IdType], HasSources[SourceType]):
     """Interface for fetching translations from an external source."""
 
     @property
@@ -21,23 +21,6 @@ class Fetcher(ABC, Generic[SourceType, IdType]):
     @abstractmethod
     def online(self) -> bool:
         """Return connectivity status. If ``False``, no new translations may be fetched."""
-
-    @property
-    @abstractmethod
-    def sources(self) -> List[SourceType]:
-        """Source names known to the ``Fetcher``, such as ``cities`` or ``languages``."""
-
-    @property
-    @abstractmethod
-    def placeholders(self) -> Dict[SourceType, List[str]]:
-        """Placeholders for sources managed by the ``Fetcher``.
-
-        Returns:
-            A dict ``{source: [placeholders..]}``.
-
-        Notes:
-            Placeholders (and sources) are returned as they appear as they are known to the fetcher (without mapping).
-        """
 
     @abstractmethod
     def fetch(

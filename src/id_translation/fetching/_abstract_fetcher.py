@@ -102,16 +102,6 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         if not self.online:  # pragma: no cover
             raise ConnectionStatusError("disconnected")
 
-    @property
-    @abstractmethod
-    def sources(self) -> List[SourceType]:
-        raise NotImplementedError
-
-    @property
-    @abstractmethod
-    def placeholders(self) -> Dict[SourceType, List[str]]:
-        raise NotImplementedError
-
     def get_placeholders(self, source: SourceType) -> List[str]:
         """Get placeholders for `source`."""
         placeholders = self.placeholders

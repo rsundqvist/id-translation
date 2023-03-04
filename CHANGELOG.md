@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Minimum install requirement is now correctly set to `SQLAlchemy>=1.4`.
 - Now correctly always fetches all placeholders when performing a _FETCH_ALL_-operation.
+- Copy `allow_name_inheritance` in `Translator.copy()`.
 
 ### Removed
 - Redundant alias `types.ExtendedOverrideFunction` and related code.

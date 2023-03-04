@@ -23,7 +23,7 @@ from .fetching import Fetcher
 from .fetching.types import IdsToFetch
 from .offline import Format, TranslationMap
 from .offline.types import FormatType, PlaceholderTranslations, SourcePlaceholderTranslations
-from .types import ID, IdType, Names, NamesPredicate, NameType, NameTypes, SourceType, Translatable
+from .types import ID, HasSources, IdType, Names, NamesPredicate, NameType, NameTypes, SourceType, Translatable
 
 _NAME_ATTRIBUTES = ("name", "columns", "keys")
 
@@ -37,7 +37,7 @@ FetcherTypes = Union[
 ]
 
 
-class Translator(Generic[NameType, SourceType, IdType]):
+class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
     """Translate IDs to human-readable labels.
 
     For an introduction to translation, see the :ref:`translation-primer` page.
@@ -230,15 +230,14 @@ class Translator(Generic[NameType, SourceType, IdType]):
         kwargs: Dict[str, Any] = {
             "fmt": self._fmt,
             "default_fmt": self._default_fmt,
+            "allow_name_inheritance": self._allow_name_inheritance,
             **overrides,
         }
 
         if "mapper" not in kwargs:  # pragma: no cover
             kwargs["mapper"] = self.mapper.copy()
-
         if "default_fmt_placeholders" not in kwargs:
             kwargs["default_fmt_placeholders"] = self._default_fmt_placeholders
-
         if "fetcher" not in kwargs:
             kwargs["fetcher"] = self.fetcher if self.online else self._cached_tmap.copy()
 
@@ -390,8 +389,19 @@ class Translator(Generic[NameType, SourceType, IdType]):
 
     @property
     def sources(self) -> List[SourceType]:
-        """Return translation sources."""
-        return self.fetcher.sources if self.online else self._cached_tmap.sources
+        """A list of known Source names, such as ``cities`` or ``languages`` (from :attr:`fetcher` or :attr:`cache`)."""
+        return list(self.placeholders)
+
+    @property
+    def placeholders(self) -> Dict[SourceType, List[str]]:
+        """Placeholders for all known Source names, such as ``id`` or ``name`` (from :attr:`fetcher` or :attr:`cache`).
+
+        These are the (possibly unmapped) placeholders that may be used for translation.
+
+        Returns:
+            A dict ``{source: [placeholders..]}``.
+        """  # noqa: DAR202
+        return self._fetcher.placeholders if self.online else self._cached_tmap.placeholders
 
     def _map_inner(
         self,
@@ -447,8 +457,7 @@ class Translator(Generic[NameType, SourceType, IdType]):
 
         Args:
             translatable: A data structure to translate.
-            name_to_source: Mappings of names in `translatable` to :attr:`~.Fetcher.sources` as they are known to the
-                :attr:`fetcher`.
+            name_to_source: Mappings of names in `translatable` to the known :attr:`sources`.
             data_structure_io: Static namespace used to extract IDs from `translatable`.
 
         Returns:

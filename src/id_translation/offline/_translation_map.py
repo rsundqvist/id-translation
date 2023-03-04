@@ -4,7 +4,7 @@ from typing import Any, Dict, Generic, Iterator, List, Mapping, Optional, Set, T
 from rics.collections.dicts import InheritedKeysDict, reverse_dict
 from rics.misc import tname
 
-from ..types import IdType, NameType, SourceType
+from ..types import HasSources, IdType, NameType, SourceType
 from ._format import Format
 from ._format_applier import DefaultFormatApplier, FormatApplier
 from ._magic_dict import MagicDict
@@ -13,7 +13,11 @@ from .types import FormatType, SourcePlaceholderTranslations
 NameToSource = Dict[NameType, SourceType]
 
 
-class TranslationMap(Generic[NameType, SourceType, IdType], Mapping[Union[NameType, SourceType], MagicDict[IdType]]):
+class TranslationMap(
+    Generic[NameType, SourceType, IdType],
+    HasSources[SourceType],
+    Mapping[Union[NameType, SourceType], MagicDict[IdType]],
+):
     """Storage class for fetched translations.
 
     Args:
@@ -42,7 +46,7 @@ class TranslationMap(Generic[NameType, SourceType, IdType], Mapping[Union[NameTy
         self.default_fmt = default_fmt  # type: ignore
         self.default_fmt_placeholders = default_fmt_placeholders  # type: ignore
         self.fmt = fmt  # type: ignore
-        self._source_formatters: Dict[SourceType, FormatApplier[NameType, SourceType, IdType]] = {
+        self._format_appliers: Dict[SourceType, FormatApplier[NameType, SourceType, IdType]] = {
             source: self.FORMAT_APPLIER_TYPE(translations) for source, translations in source_translations.items()
         }
         self._names_and_sources: Set[Union[NameType, SourceType]] = set()
@@ -74,8 +78,10 @@ class TranslationMap(Generic[NameType, SourceType, IdType], Mapping[Union[NameTy
         fmt = Format.parse(fmt)
         default_fmt = self._default_fmt if default_fmt is None else Format.parse(default_fmt)
         source = self.name_to_source.get(name_or_source, name_or_source)  # type: ignore
-        translations: MagicDict[IdType] = self._source_formatters[source](
-            fmt, default_fmt=default_fmt, default_fmt_placeholders=self.default_fmt_placeholders.get(source)
+        translations: MagicDict[IdType] = self._format_appliers[source](
+            fmt,
+            default_fmt=default_fmt,
+            default_fmt_placeholders=self.default_fmt_placeholders.get(source),
         )
         return (
             MagicDict(
@@ -93,8 +99,11 @@ class TranslationMap(Generic[NameType, SourceType, IdType], Mapping[Union[NameTy
 
     @property
     def sources(self) -> List[SourceType]:
-        """Return translation sources."""
-        return list(self._source_formatters)
+        return list(self._format_appliers)
+
+    @property
+    def placeholders(self) -> Dict[SourceType, List[str]]:
+        return {applier.source: applier.placeholders for applier in self._format_appliers.values()}
 
     @property
     def name_to_source(self) -> NameToSource[NameType, SourceType]:
@@ -104,7 +113,7 @@ class TranslationMap(Generic[NameType, SourceType, IdType], Mapping[Union[NameTy
     @name_to_source.setter
     def name_to_source(self, value: NameToSource[NameType, SourceType]) -> None:
         self._name_to_source: NameToSource[NameType, SourceType] = value
-        self._names_and_sources = set(value).union(self._source_formatters)
+        self._names_and_sources = set(value).union(self._format_appliers)
 
     @property
     def fmt(self) -> Optional[Format]:
@@ -137,7 +146,7 @@ class TranslationMap(Generic[NameType, SourceType, IdType], Mapping[Union[NameTy
     def reverse_mode(self) -> bool:
         """Return reversed mode status flag.
 
-         If set, the mappings returned by :meth:`apply` (and therefore also ``__getitem__`` are reversed.
+         If set, the mappings returned by :meth:`apply` (and therefore also ``__getitem__``) are reversed.
 
         Returns:
             Reversal status flag.
@@ -162,10 +171,10 @@ class TranslationMap(Generic[NameType, SourceType, IdType], Mapping[Union[NameTy
         return iter(self._names_and_sources)
 
     def __bool__(self) -> bool:
-        return bool(self._source_formatters)
+        return bool(self._format_appliers)
 
     def __repr__(self) -> str:
         sources = ", ".join(
-            {f"'{formatter.source}': {len(formatter)} IDs" for formatter in self._source_formatters.values()}
+            {f"'{formatter.source}': {len(formatter)} IDs" for formatter in self._format_appliers.values()}
         )
         return f"{tname(self)}({sources})"
