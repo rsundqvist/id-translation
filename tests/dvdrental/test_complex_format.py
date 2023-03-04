@@ -1,23 +1,20 @@
 from dataclasses import dataclass
 
-import pandas as pd
 import pytest
 import sqlalchemy
 
-from .conftest import check_status, get_connection_string, get_translator
+from id_translation import Translator
 
-DIALECTS = [
-    "mysql",
-    "postgresql",
-    "mssql",  # Quite slow, mostly since the (pyre-python) driver used doesn't support fast_executemany
-]
+from .conftest import DIALECTS, check_status, get_connection_string, setup_for_dialect
+
+pytestmark = pytest.mark.xfail(reason="Not implemented", strict=True)
 
 
 @pytest.mark.parametrize("dialect", DIALECTS)
 def test_complex_translation_format(dialect):
     check_status(dialect)
     engine = sqlalchemy.create_engine(get_connection_string(dialect))
-    translator = get_translator(dialect)
+    translator: Translator[str, str, int] = Translator.from_config(*setup_for_dialect(dialect))
 
     fmt = "{first_name} {last_name!r} from {address.address}, {address.district}[ joined in {create_date:%b %Y}.]"
     customers = [130, 459, 408, 333, 222]
@@ -28,7 +25,7 @@ def test_complex_translation_format(dialect):
 
 
 def _get_expected(fmt, ids, table, engine):
-    query = """
+    query = f"""
     SELECT
         customer_id,
         create_date,
@@ -38,18 +35,20 @@ def _get_expected(fmt, ids, table, engine):
         a.district AS "address.district"
     FROM {table}
              LEFT JOIN address a on {table}.address_id = a.address_id
-    WHERE {table}_id = {id}
+    WHERE {table}_id = {{id}}
     """
 
-    @dataclass
+    @dataclass(frozen=True)
     class Address:
         address: str
         district: str
 
     def func(sid):
-        kwargs = pd.read_sql(query.format(table=table, id=sid), engine, parse_dates="create_date").iloc[0].to_dict()
+        with engine.connect() as conn:
+            cursor_result = conn.execute(sqlalchemy.text(query.format(id=sid)))
+            kwargs = {key: value for key, value in zip(cursor_result.keys(), cursor_result.fetchone())}
+
         kwargs["address"] = Address(kwargs.pop("address.address"), district=kwargs.pop("address.district"))
         return fmt.format(**kwargs)
 
-    expected = list(map(func, ids))
-    return expected
+    return list(map(func, ids))

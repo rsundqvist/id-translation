@@ -7,22 +7,20 @@ import pandas as pd
 import pytest
 import sqlalchemy
 
-from .conftest import QUERY, check_status, get_connection_string, get_translator
+from id_translation import Translator
 
-DIALECTS = [
-    "mysql",
-    "postgresql",
-    "mssql",  # Quite slow, mostly since the (pyre-python) driver used doesn't support fast_executemany
-]
+from .conftest import DIALECTS, QUERY, check_status, get_connection_string, setup_for_dialect
+
+pytestmark = pytest.mark.skipif(
+    getenv("CI") == "true" and platform != "linux", reason="No Docker for Mac and Windows in CI/CD."
+)
 
 
-@pytest.mark.filterwarnings("ignore:Did not recognize type:sqlalchemy.exc.SAWarning")
 @pytest.mark.parametrize("dialect, with_schema", product(DIALECTS, [False, True]))
-@pytest.mark.skipif(getenv("CI") == "true" and platform != "linux", reason="No Docker for Mac and Windows in CI/CD.")
 def test_dvd_rental(dialect, with_schema):
     check_status(dialect)
     engine = sqlalchemy.create_engine(get_connection_string(dialect))
-    translator = get_translator(dialect)
+    translator: Translator[str, str, int] = Translator.from_config(*setup_for_dialect(dialect))
 
     sql_fetcher = translator.fetcher.fetchers[1]  # type: ignore[attr-defined]
     assert sql_fetcher._schema is None
@@ -39,3 +37,13 @@ def test_dvd_rental(dialect, with_schema):
 
     assert actual is not None
     pd.testing.assert_frame_equal(actual, expected)
+
+
+@pytest.mark.parametrize("dialect", DIALECTS)
+def test_load_persistent_instance(tmp_path, dialect):
+    translator: Translator[str, str, int]
+    cfg = setup_for_dialect(dialect)
+
+    expected_metadata = Translator.load_persistent_instance(tmp_path, *cfg).config_metadata
+    actual_metadata = Translator.load_persistent_instance(tmp_path, *cfg).config_metadata
+    assert expected_metadata == actual_metadata
