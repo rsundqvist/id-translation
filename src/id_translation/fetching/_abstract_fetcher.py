@@ -4,6 +4,7 @@ from contextlib import contextmanager
 from time import perf_counter
 from typing import Any, Dict, Iterable, List, Literal, Optional, Set, Tuple
 
+from rics.action_level import ActionLevel
 from rics.collections.dicts import InheritedKeysDict, reverse_dict
 from rics.mapping import HeuristicScore, Mapper
 from rics.mapping.score_functions import modified_hamming
@@ -27,6 +28,15 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         mapper: A :class:`rics.mapping.Mapper` instance used to adapt placeholder names in sources to wanted names, ie
             the names of the placeholders that are in the translation :class:`.Format` being used.
         allow_fetch_all: If ``False``, an error will be raised when :meth:`fetch_all` is called.
+        fetch_all_unmapped_values_action: A temporary value to use for :attr:`Mapper.unmapped_values_action
+            <rics.mapping.Mapper.unmapped_values_action>` while :meth:`fetch_all` is executing. Setting
+            ``fetch_all_unmapped_values_action='raise'`` is mutually exclusive with ``selective_fetch_all=True``.
+        selective_fetch_all: If ``True``, fetch only from those :attr:`~.HasSources.sources` that contain the required
+            :attr:`~.HasSources.placeholders` (after mapping).
+
+    Raises:
+        rics.action_level.BadActionLevelError: If `selective_fetch_all` is ``True`` and
+            `fetch_all_unmapped_values_action` is ``'raise'``.
     """
 
     _FETCH: Literal["FETCH"] = "FETCH"
@@ -36,6 +46,8 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         self,
         mapper: Mapper[str, str, SourceType] = None,
         allow_fetch_all: bool = True,
+        fetch_all_unmapped_values_action: ActionLevel.ParseType = None,
+        selective_fetch_all: bool = True,
     ) -> None:
         self._mapper = mapper or Mapper(**self.default_mapper_kwargs())
         if self.mapper._overrides and not self.mapper.context_sensitive_overrides:  # pragma: no cover
@@ -44,6 +56,18 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         self._mapping_cache: Dict[SourceType, Dict[str, Optional[str]]] = {}
         self._allow_fetch_all = allow_fetch_all
         self._active_operation: Literal["FETCH", "FETCH_ALL", None] = None
+
+        self._fetch_all_unmapped_values_action = (
+            None
+            if fetch_all_unmapped_values_action is None
+            else ActionLevel.verify(
+                fetch_all_unmapped_values_action,
+                "AbstractFetcher.fetch_all_unmapped_values_action"
+                + (f" with {selective_fetch_all=}" if selective_fetch_all else ""),
+                forbidden=ActionLevel.RAISE if selective_fetch_all else None,
+            )
+        )
+        self._selective_fetch_all = selective_fetch_all
 
     def map_placeholders(
         self,
@@ -153,10 +177,57 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
             raise exceptions.ForbiddenOperationError(self._FETCH_ALL)
 
         with self._start_operation(self._FETCH_ALL):
-            return {
-                source: self._fetch_translations(source, tuple(placeholders), required_placeholders=set(required))
+            with self._fetch_all_mapping_context():
+                return self._fetch_all(tuple(placeholders), required_placeholders=set(required))
+
+    def _fetch_all(
+        self,
+        placeholders: PlaceholdersTuple,
+        required_placeholders: Set[str],
+    ) -> SourcePlaceholderTranslations[SourceType]:
+        if self._selective_fetch_all:
+            # There's nothing stopping us from doing this for regular fetching. But we assume that then the user wants
+            # fetching to fail if explicit IDs can't be translated as specified.
+            sources = [
+                source
                 for source in self.sources
-            }
+                if required_placeholders.issubset(self._wanted_to_actual(source, required_placeholders))
+            ]
+            discarded = set(self.sources).difference(sources)
+            if discarded:
+                LOGGER.info(
+                    f"Ignoring {len(discarded)} sources {discarded} since required "
+                    f"placeholders {sorted(required_placeholders)} could not be mapped by {self}."
+                )
+        else:
+            sources = self.sources
+
+        return {source: self._fetch_translations(source, placeholders, required_placeholders) for source in sources}
+
+    @contextmanager
+    def _fetch_all_mapping_context(self):  # type: ignore  # noqa
+        fetch_all_unmapped_values_action = self._fetch_all_unmapped_values_action
+        selective_fetch_all = self._selective_fetch_all
+        if fetch_all_unmapped_values_action is None and not selective_fetch_all:
+            yield
+            return
+
+        unmapped_values_action = fetch_all_unmapped_values_action or ActionLevel.IGNORE
+
+        if self.mapper.unmapped_values_action == unmapped_values_action:
+            yield
+            return
+
+        original_mapper = self._mapper
+        self._mapper = self._mapper.copy(unmapped_values_action=unmapped_values_action)
+        try:
+            LOGGER.info(
+                f"Using Mapper.{unmapped_values_action=} until the current {self._FETCH_ALL}-operation finishes, "
+                f"since {selective_fetch_all=} and {fetch_all_unmapped_values_action=}."
+            )
+            yield
+        finally:
+            self._mapper = original_mapper
 
     @abstractmethod
     def fetch_translations(
