@@ -4,7 +4,7 @@ import sys
 from dataclasses import dataclass
 from hashlib import sha256
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, List, Tuple, Type
+from typing import TYPE_CHECKING, Any, Dict, List, Tuple, Type
 
 if sys.version_info >= (3, 11):
     import tomllib
@@ -23,10 +23,8 @@ if TYPE_CHECKING:
 class ConfigMetadata:
     """Metadata pertaining to how a ``Translator`` instance was initialized from TOML configuration."""
 
-    id_translation_version: str
-    """The ``id_translation`` version under which this instance was created."""
-    rics_version: str
-    """The ``rics`` version under which this instance was created."""
+    versions: Dict[str, str]
+    """Top-level dependency versions under which this instance was created."""
     created: pd.Timestamp
     """The time at which the ``Translator`` was originally initialized. Second precision."""
     main: Tuple[Path, str]
@@ -36,7 +34,7 @@ class ConfigMetadata:
     clazz: str
     """String representation of the class type."""
 
-    def is_equivalent(self, other: "ConfigMetadata") -> bool:  # pragma: no cover
+    def is_equivalent(self, other: "ConfigMetadata") -> str:  # pragma: no cover
         """Check if this ``ConfigMetadata`` is equivalent to `other`.
 
         Configs are equivalent if:
@@ -51,52 +49,40 @@ class ConfigMetadata:
             other: Another ``ConfigMetadata`` instance.
 
         Returns:
-            Equivalence status.
+            Reason for non-equivalence, if any.
         """
-        if self.id_translation_version != other.id_translation_version:
-            LOGGER.debug(
-                f"Versions 'id_translation' not equal. Expected '{self.id_translation_version}', but got '{other.id_translation_version}'."
-            )
-            return False
-
-        if self.rics_version != other.rics_version:
-            LOGGER.debug(f"Versions 'rics' not equal. Expected '{self.rics_version}', but got '{other.rics_version}'.")
-            return False
+        for package, version in self.versions.items():
+            other_version = other.versions.get(package)
+            if other_version != version:
+                return f"Expected {package}=={version!r} (your environment) but got {package}=={other_version!r}"
 
         if self.clazz != other.clazz:
-            LOGGER.debug(f"Class not equal. Expected '{self.clazz}', but got '{other.clazz}'.")
-            return False
+            return f"Class not equal. Expected '{self.clazz}', but got '{other.clazz}'"
 
         if self.main[1] != other.main[1]:
-            LOGGER.debug(f"Main configuration changed. Expected fingerprint {self.main[1]}, but got {other.main[1]}.")
-            return False
+            return f"Main configuration changed. Expected fingerprint {self.main[1]}, but got {other.main[1]}"
 
         if len(self.extra_fetchers) != len(other.extra_fetchers):
-            LOGGER.debug(
+            return (
                 f"Number of auxiliary fetchers changed. Expected {len(self.extra_fetchers)}"
-                f" fetchers but got {len(other.extra_fetchers)}."
+                f" fetchers but got {len(other.extra_fetchers)}"
             )
-            return False
 
-        def func(i: int) -> bool:
-            path, fingerprint = self.extra_fetchers[i]
+        for i, (path, fingerprint) in enumerate(self.extra_fetchers):
             _, other_fingerprint = other.extra_fetchers[i]
             if fingerprint != other_fingerprint:
-                LOGGER.debug(
+                return (
                     f"Configuration changed for auxiliary fetcher #{i} at {path}. "
-                    f"Expected fingerprint {fingerprint}, but got {other_fingerprint}."
+                    f"Expected fingerprint {fingerprint}, but got {other_fingerprint}"
                 )
-                return False
-            return True
 
-        return all(map(func, range(len(self.extra_fetchers))))
+        return ""
 
     def to_json(self) -> str:
         """Get a JSON representation of this ``ConfigMetadata``."""
         raw = self.__dict__.copy()
         kwargs = dict(
-            id_translation_version=raw.pop("id_translation_version"),
-            rics_version=raw.pop("rics_version"),
+            versions=raw.pop("versions"),
             created=raw.pop("created").isoformat(),
             main=tuple(map(str, raw.pop("main"))),
             extra_fetchers=[tuple(map(str, t)) for t in raw.pop("extra_fetchers")],
@@ -114,8 +100,7 @@ class ConfigMetadata:
             return Path(args[0]), args[1]
 
         kwargs = dict(
-            id_translation_version=raw.pop("id_translation_version"),
-            rics_version=raw.pop("rics_version"),
+            versions=raw.pop("versions"),
             created=pd.Timestamp.fromisoformat(raw.pop("created")),
             main=to_path_tuple(raw.pop("main")),
             extra_fetchers=tuple(map(to_path_tuple, raw.pop("extra_fetchers"))),
@@ -131,9 +116,18 @@ def make_metadata(
     clazz: Type["Translator[Any, Any, Any]"],
 ) -> ConfigMetadata:
     """Convenience class for creating ``ConfigMetadata`` instances."""
-    from rics import __version__ as rics_version
+    from rics import __version__ as rics
+    from sqlalchemy import __version__ as sqlalchemy
 
-    from id_translation import __version__ as id_translation_version
+    from id_translation import __version__ as id_translation
+
+    versions = dict(
+        rics=rics,
+        id_translation=id_translation,
+        sqlalchemy=sqlalchemy,
+        pandas=pd.__version__,
+        tomllib=tomllib.__version__ if hasattr(tomllib, "__version__") else None,
+    )
 
     def create_path_tuple(str_path: str) -> Tuple[Path, str]:
         p = Path(str_path).expanduser().absolute()
@@ -142,8 +136,7 @@ def make_metadata(
         return p, sha256(json.dumps(content).encode()).hexdigest()
 
     return ConfigMetadata(
-        id_translation_version=id_translation_version,
-        rics_version=rics_version,
+        versions=versions,
         created=pd.Timestamp.now().round("s"),
         main=create_path_tuple(path),
         extra_fetchers=tuple(map(create_path_tuple, extra_fetchers)),
@@ -157,22 +150,26 @@ def use_cached_translator(
     max_age: pd.Timedelta,
 ) -> bool:
     """Returns ``True`` if given metadata indicates that the cached ``Translator`` is still viable."""
+
+    def log_reject(reason: str) -> None:
+        LOGGER.info(f"Create new Translator; {reason}. Metadata path='{metadata_path}'.")
+
     if not metadata_path.exists():
-        LOGGER.info(f"Metadata file '{metadata_path}' does not exist. Create new Translator.")
+        log_reject("no cache metadata found")
         return False
 
     stored_config = ConfigMetadata.from_json(metadata_path.read_text())
-    LOGGER.debug(f"Metadata found: {stored_config}")
 
-    if not wanted_config.is_equivalent(stored_config):
-        LOGGER.info(f"Configuration has changed. Reject cached Translator in '{metadata_path.parent}'.")
+    reason_not_equivalent = wanted_config.is_equivalent(stored_config)
+    if reason_not_equivalent:
+        log_reject(f"cached instance is not equivalent. {reason_not_equivalent}")
         return False
 
     expires_at = stored_config.created + max_age
     offset = abs(pd.Timestamp.now() - expires_at).round("s")
 
     if expires_at <= stored_config.created:
-        LOGGER.info(f"Reject cached Translator in '{metadata_path.parent}'. Expired at {expires_at} ({offset} ago).")
+        log_reject(f"cache expired at {expires_at} ({offset} ago)")
         return False
 
     LOGGER.info(f"Accept cached Translator in '{metadata_path.parent}'. Expires at {expires_at} (in {offset}).")
