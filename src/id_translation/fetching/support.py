@@ -15,6 +15,4 @@ def select_placeholders(instr: _FetchInstruction[SourceType, IdType], known_plac
     Returns:
         As many known placeholders from `instr` as possible.
     """
-    return list(
-        known_placeholders if instr.all_placeholders else filter(known_placeholders.__contains__, instr.placeholders)
-    )
+    return list(known_placeholders if instr.fetch_all else filter(known_placeholders.__contains__, instr.placeholders))

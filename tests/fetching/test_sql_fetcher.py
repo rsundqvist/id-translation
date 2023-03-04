@@ -54,7 +54,14 @@ def test_fetch_all(sql_fetcher, data, table_to_verify):
     ],
 )
 def test_heuristic(sql_fetcher, ids_to_fetch, expected):
-    ans = sql_fetcher.fetch_translations(FetchInstruction("huge_table", ids_to_fetch, ("id",), {"id"}, False)).records
+    ans = sql_fetcher.fetch_translations(
+        FetchInstruction(
+            "huge_table",
+            ("id",),
+            {"id"},
+            ids_to_fetch,
+        )
+    ).records
     assert ans == tuple((e,) for e in expected)
 
 
@@ -114,3 +121,20 @@ def test_bad_override(column, connection_string):
     with pytest.raises(exceptions.UnknownPlaceholderError, match=f"'{column}': 'bad_column'"):
         fetcher.fetch([IdsToFetch("humans", [-1])], (column,), (column,))  # Add ID to avoid fetch-all
     fetcher.close()
+
+
+@pytest.mark.parametrize(
+    "allow_fetch_all, fetch_all_limit, expected",
+    [
+        (False, 10000, False),
+        (False, 0, False),
+        (True, 0, False),
+        (True, 2000, True),
+        (True, 900, False),
+    ],
+)
+def test_fetch_all_limit(connection_string, allow_fetch_all, fetch_all_limit, expected):
+    assert (
+        SqlFetcher(connection_string, allow_fetch_all=allow_fetch_all, fetch_all_limit=fetch_all_limit).allow_fetch_all
+        == expected
+    )

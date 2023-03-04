@@ -1,7 +1,8 @@
 import logging
 from abc import abstractmethod
+from contextlib import contextmanager
 from time import perf_counter
-from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
+from typing import Any, Dict, Iterable, List, Literal, Optional, Set, Tuple
 
 from rics.collections.dicts import InheritedKeysDict, reverse_dict
 from rics.mapping import HeuristicScore, Mapper
@@ -28,7 +29,8 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         allow_fetch_all: If ``False``, an error will be raised when :meth:`fetch_all` is called.
     """
 
-    _FETCH_ALL: str = "FETCH_ALL"
+    _FETCH: Literal["FETCH"] = "FETCH"
+    _FETCH_ALL: Literal["FETCH_ALL"] = "FETCH_ALL"
 
     def __init__(
         self,
@@ -36,11 +38,12 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         allow_fetch_all: bool = True,
     ) -> None:
         self._mapper = mapper or Mapper(**self.default_mapper_kwargs())
-        if not self.mapper.context_sensitive_overrides:  # pragma: no cover
+        if self.mapper._overrides and not self.mapper.context_sensitive_overrides:  # pragma: no cover
             raise ValueError(f"Mapper must have context-sensitive overrides (type {InheritedKeysDict.__name__}).")
 
         self._mapping_cache: Dict[SourceType, Dict[str, Optional[str]]] = {}
         self._allow_fetch_all = allow_fetch_all
+        self._active_operation: Literal["FETCH", "FETCH_ALL", None] = None
 
     def map_placeholders(
         self,
@@ -71,6 +74,9 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
 
         candidates = set(self.get_placeholders(source) if candidates is None else candidates)
         placeholders = set(placeholders).difference(ans)  # Don't remap cached mappings
+
+        if not placeholders:
+            return ans  # Nothing new to map.
 
         for actual, wanted in self.mapper.apply(placeholders, candidates, context=source).left_to_right.items():
             ans[actual] = wanted[0]
@@ -113,31 +119,44 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
     def allow_fetch_all(self) -> bool:
         return self._allow_fetch_all
 
+    @contextmanager
+    def _start_operation(self, operation):  # type: ignore  # noqa
+        if self._active_operation:  # pragma: no cover
+            raise exceptions.ConcurrentOperationError(operation, self._active_operation)
+
+        self._active_operation = operation
+        try:
+            yield
+        finally:
+            self._active_operation = None
+
     def fetch(
         self,
         ids_to_fetch: Iterable[IdsToFetch[SourceType, IdType]],
         placeholders: Iterable[str] = (),
         required: Iterable[str] = (),
     ) -> SourcePlaceholderTranslations[SourceType]:
-        unknown_sources = set(t.source for t in ids_to_fetch).difference(self.sources)
-        if unknown_sources:
-            raise exceptions.UnknownSourceError(unknown_sources, self.sources)
-
-        if not self.allow_fetch_all and any(t.ids is None for t in ids_to_fetch):  # pragma: no cover
-            raise exceptions.ForbiddenOperationError(self._FETCH_ALL)
-
-        return self._fetch(ids_to_fetch, tuple(placeholders), set(required))
+        with self._start_operation(self._FETCH):
+            return {
+                itf.source: self._fetch_translations(
+                    itf.source, tuple(placeholders), required_placeholders=set(required), ids=itf.ids
+                )
+                for itf in ids_to_fetch
+            }
 
     def fetch_all(
         self,
         placeholders: Iterable[str] = (),
         required: Iterable[str] = (),
     ) -> SourcePlaceholderTranslations[SourceType]:
-        if not self.allow_fetch_all:
+        if not self._allow_fetch_all:
             raise exceptions.ForbiddenOperationError(self._FETCH_ALL)
 
-        ids_to_fetch: List[IdsToFetch[SourceType, IdType]] = [IdsToFetch(source, None) for source in self.sources]
-        return self._fetch(ids_to_fetch, tuple(placeholders), set(required))
+        with self._start_operation(self._FETCH_ALL):
+            return {
+                source: self._fetch_translations(source, tuple(placeholders), required_placeholders=set(required))
+                for source in self.sources
+            }
 
     @abstractmethod
     def fetch_translations(
@@ -156,46 +175,34 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
             UnknownPlaceholderError: If the placeholder is unknown to the fetcher.
         """
 
-    def _fetch(
-        self,
-        ids_to_fetch: Iterable[IdsToFetch[SourceType, IdType]],
-        placeholders: PlaceholdersTuple,
-        required_placeholders: Set[str],
-    ) -> SourcePlaceholderTranslations[SourceType]:
-
-        return {
-            translations.source: translations
-            for translations in self._fetch_translations(ids_to_fetch, placeholders, required_placeholders)
-        }
-
     def _fetch_translations(
         self,
-        ids_to_fetch: Iterable[IdsToFetch[SourceType, IdType]],
+        source: SourceType,
         placeholders: PlaceholdersTuple,
         required_placeholders: Set[str],
-    ) -> Iterable[PlaceholderTranslations[SourceType]]:
-        for itf in ids_to_fetch:
-            reverse_mappings, instr = self._make_fetch_instruction(itf, placeholders, required_placeholders)
+        ids: Iterable[IdType] = None,
+    ) -> PlaceholderTranslations[SourceType]:
+        reverse_mappings, instr = self._make_fetch_instruction(source, placeholders, required_placeholders, ids)
 
-            start = perf_counter()
-            translations = self.fetch_translations(instr)
-            if LOGGER.isEnabledFor(logging.DEBUG):
-                LOGGER.debug(
-                    f"Fetched placeholders {translations.placeholders} for {len(translations.records)} IDs "
-                    f"from source '{translations.source}' in {format_perf_counter(start)} using {self}."
-                )
+        start = perf_counter()
+        translations = self.fetch_translations(instr)
+        if LOGGER.isEnabledFor(logging.DEBUG):
+            LOGGER.debug(
+                f"Fetched placeholders {translations.placeholders} for {len(translations.records)} IDs "
+                f"from source '{translations.source}' in {format_perf_counter(start)} using {self}."
+            )
 
-            if reverse_mappings:
-                # The mapping is only in reverse from the Fetchers point-of-view; we're mapping back to "proper" values.
-                translations.placeholders = tuple(reverse_mappings.get(p, p) for p in translations.placeholders)
+        if reverse_mappings:
+            # The mapping is only in reverse from the Fetchers point-of-view; we're mapping back to "proper" values.
+            translations.placeholders = tuple(reverse_mappings.get(p, p) for p in translations.placeholders)
 
-            translations.id_pos = translations.placeholders.index(ID)
+        translations.id_pos = translations.placeholders.index(ID)
 
-            unmapped_required_placeholders = required_placeholders.difference(translations.placeholders)
-            if unmapped_required_placeholders:
-                self._verify_placeholders(reverse_mappings or {}, itf.source, unmapped_required_placeholders)
+        unmapped_required_placeholders = required_placeholders.difference(translations.placeholders)
+        if unmapped_required_placeholders:
+            self._verify_placeholders(reverse_mappings or {}, source, unmapped_required_placeholders)
 
-            yield translations
+        return translations
 
     def _verify_placeholders(self, reverse_mappings: Dict[str, str], source: SourceType, unmapped: Set[str]) -> None:
         hint = ""
@@ -213,17 +220,16 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
 
     def _make_fetch_instruction(
         self,
-        itf: IdsToFetch[SourceType, IdType],
+        source: SourceType,
         placeholders: PlaceholdersTuple,
         required_placeholders: Set[str],
+        ids: Optional[Iterable[IdType]],
     ) -> Tuple[Optional[Dict[str, str]], FetchInstruction[SourceType, IdType]]:
-        fetch_all_placeholders = itf.ids is None or not placeholders
-
         required_placeholders.add(ID)
         if ID not in placeholders:
             placeholders = (ID,) + placeholders
 
-        wanted_to_actual = self._make_mapping(itf, placeholders, required_placeholders)
+        wanted_to_actual = self._wanted_to_actual(source, placeholders)
 
         actual_to_wanted: Dict[str, str] = reverse_dict(wanted_to_actual)
         need_placeholder_mapping = actual_to_wanted != wanted_to_actual
@@ -238,20 +244,17 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         return (
             actual_to_wanted if need_placeholder_mapping else None,
             FetchInstruction(
-                source=itf.source,
-                ids=itf.ids,
+                source=source,
                 placeholders=placeholders,
                 required=required_placeholders,
-                all_placeholders=fetch_all_placeholders,
+                ids=ids,
             ),
         )
 
-    def _make_mapping(
-        self, itf: IdsToFetch[SourceType, IdType], placeholders: PlaceholdersTuple, required_placeholders: Set[str]
-    ) -> Dict[str, str]:
-        wanted_to_actual = self.map_placeholders(itf.source, placeholders)
+    def _wanted_to_actual(self, source: SourceType, wanted_placeholders: Iterable[str]) -> Dict[str, str]:
+        wanted_to_actual = self.map_placeholders(source, wanted_placeholders)
         if LOGGER.isEnabledFor(logging.DEBUG):
-            LOGGER.debug(f"Placeholder mappings for source={itf.source!r}: {wanted_to_actual}.")
+            LOGGER.debug(f"Placeholder mappings for source={source!r}: {wanted_to_actual}.")
         return {wanted: actual for wanted, actual in wanted_to_actual.items() if actual is not None}
 
     @classmethod

@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Finished `Translator.load_persistent_instance()` implementation (no longer experimental).
 - The `SqlFetcher.finalize_statement()` method, used to customize fetching behavior programmatically.
 - New INFO-level begin/end log messages for `Translator.translate()`.
+- Raise `ConcurrentOperationError` in `AbstractFetcher` to prevent race conditions.
 
 ### Changed
 - Improve error reporting for unmapped required placeholders; warn about potential override issues.

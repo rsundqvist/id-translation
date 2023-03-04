@@ -732,8 +732,6 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
     def _fetch(
         self, ids_to_fetch: Optional[List[IdsToFetch[SourceType, IdType]]]
     ) -> SourcePlaceholderTranslations[SourceType]:
-        fetcher = self.fetcher
-
         placeholders = self._fmt.placeholders
         required = self._fmt.required_placeholders
 
@@ -743,9 +741,9 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             required = required + (ID,)
 
         return (
-            fetcher.fetch_all(placeholders, required)
+            self.fetcher.fetch_all(placeholders, required)
             if ids_to_fetch is None
-            else fetcher.fetch(ids_to_fetch, placeholders, required)
+            else self.fetcher.fetch(ids_to_fetch, placeholders, required)
         )
 
     def _to_translation_map(

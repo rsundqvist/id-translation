@@ -18,6 +18,15 @@ class ForbiddenOperationError(FetcherError):
         self.operation = operation
 
 
+class ConcurrentOperationError(FetcherError):
+    """Exception indicating that an operation is already in progress."""
+
+    def __init__(self, operation: str, active_operation: str) -> None:  # pragma: no cover
+        super().__init__(f"Operation '{operation}' cannot begin while a '{active_operation}'-operation is in progress.")
+        self.operation = operation
+        self.active_operation = active_operation
+
+
 class ImplementationError(FetcherError):
     """An underlying implementation did something wrong."""
 
