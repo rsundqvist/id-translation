@@ -122,7 +122,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         stmt = self.finalize_statement(stmt, ts.id_column, ts.id_column.table)
 
         with self.engine.connect() as conn:
-            records = tuple(conn.execute(stmt))
+            records = tuple(map(tuple, conn.execute(stmt)))
         return PlaceholderTranslations(instr.source, tuple(columns), records)
 
     StatementType = TypeVar("StatementType", bound=sqlalchemy.sql.Executable)
@@ -277,7 +277,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
                     f"Known columns: {sorted(c.name for c in table.columns)}."
                 )
 
-            ans[name] = self.make_table_summary(table, table.columns[id_column])
+            ans[str(name)] = self.make_table_summary(table, table.columns[id_column])
 
         return ans
 
@@ -292,7 +292,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         if LOGGER.isEnabledFor(logging.DEBUG):
             LOGGER.debug(f"{self._estr}: Counted {size} rows of table '{table.name}' in {format_perf_counter(start)}.")
         fetch_all_permitted = self._fetch_all_limit is None or size < self._fetch_all_limit
-        return SqlFetcher.TableSummary(table.name, size, table.columns, fetch_all_permitted, id_column)
+        return SqlFetcher.TableSummary(str(table.name), size, table.columns, fetch_all_permitted, id_column)
 
     def get_approximate_table_size(
         self,
