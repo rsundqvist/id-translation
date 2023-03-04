@@ -1,10 +1,9 @@
 import os
 from pathlib import Path
+from typing import List, Tuple
 
 import sqlalchemy
 import yaml  # type: ignore
-
-from id_translation import Translator
 
 ROOT = Path(__file__).parent
 DOCKER_ROOT = ROOT.joinpath("docker")
@@ -17,6 +16,12 @@ for k, v in dict(
     CREDENTIALS[k]["driver"] = v
 
 QUERY = DOCKER_ROOT.joinpath("tests/query.sql").read_text()
+
+DIALECTS = [
+    "mysql",
+    "postgresql",
+    "mssql",  # Quite slow, mostly since the (pyre-python) driver used doesn't support fast_executemany
+]
 
 
 def check_status(dialect: str) -> None:
@@ -41,9 +46,10 @@ def get_connection_string(dialect: str, with_password: bool = True) -> str:
     return ans.format(password=kwargs["password"]) if with_password else ans
 
 
-def get_translator(dialect: str) -> Translator[str, str, int]:
+def setup_for_dialect(dialect: str) -> Tuple[Path, List[Path]]:
     os.environ["DVDRENTAL_PASSWORD"] = "Sofia123!"
     os.environ["DVDRENTAL_CONNECTION_STRING"] = get_connection_string(dialect, with_password=False)
-    extra_fetchers = [ROOT.joinpath("sql-fetcher.toml")]
-    config = ROOT.joinpath("translation.toml")
-    return Translator.from_config(config, extra_fetchers)
+    return (
+        ROOT.joinpath("translation.toml"),
+        [ROOT.joinpath("sql-fetcher.toml")],
+    )
