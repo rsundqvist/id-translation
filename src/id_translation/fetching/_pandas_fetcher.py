@@ -1,7 +1,7 @@
 import logging
 import os
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterable, List, Mapping, Union
+from typing import Any, Callable, Dict, List, Mapping, Union
 
 import pandas as pd
 from rics._internal_support.types import PathLikeType
@@ -25,11 +25,11 @@ class PandasFetcher(AbstractFetcher[str, IdType]):
     string `source` as the  first argument and returns a data frame can be used.
 
     Args:
-        read_function: A Pandas `read`-function.
+        read_function: A Pandas `read`-function. If a string is given, the function is resolved using
+            func:`rics.misc.get_by_full_name`. Unqualified named are assumed to belong to the ``pandas`` namespace.
         read_path_format: A formatting string or a callable to apply to a source before passing them to `read_function`.
             Must contain a `source` as its only placeholder. Example: ``data/{source}.pkl``. Leave as-is if ``None``.
             Valid URL schemes include http, ftp, s3, gs, and file.
-        read_function_args: Additional positional arguments for `read_function`.
         read_function_kwargs: Additional keyword arguments for `read_function`.
 
     See Also:
@@ -38,9 +38,8 @@ class PandasFetcher(AbstractFetcher[str, IdType]):
 
     def __init__(
         self,
-        read_function: Union[PandasReadFunction, str] = pd.read_pickle,
+        read_function: Union[PandasReadFunction, str] = "read_pickle",
         read_path_format: Union[str, FormatFn] = "data/{}.pkl",
-        read_function_args: Iterable[Any] = None,
         read_function_kwargs: Mapping[str, Any] = None,
         **kwargs: Any,
     ) -> None:
@@ -51,7 +50,6 @@ class PandasFetcher(AbstractFetcher[str, IdType]):
             self._format_source = read_path_format  # pragma: no cover
         else:
             self._format_source = read_path_format.format
-        self._args = read_function_args or ()
         self._kwargs = read_function_kwargs or {}
 
         self._source_paths: Dict[str, Path] = {}
@@ -67,7 +65,7 @@ class PandasFetcher(AbstractFetcher[str, IdType]):
         Returns:
             A deserialized ``DataFrame``.
         """
-        return self._read(source_path, *self._args, **self._kwargs)
+        return self._read(source_path, **self._kwargs)
 
     def find_sources(self) -> Dict[str, Path]:
         """Search for source paths to pass to `read_function` using `read_path_format`.

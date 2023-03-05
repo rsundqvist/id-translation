@@ -32,7 +32,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         blacklist_tables: The only tables the ``SqlFetcher`` may not access. Mutually exclusive with `whitelist_tables`.
         schema: Database schema to use. Typically needed only if `schema` is not the default schema for the user
             specified in the connection string.
-        include_views: If ``True``, discover views as well.
+        include_views: If ``True``, the fetcher will discover and query views as well.
         fetch_all_limit: Maximum size of table to allow a fetch all-operation. 0=never allow. Ignore if ``None``.
         engine_kwargs: A dict of keyword arguments for :func:`sqlalchemy.create_engine`.
         **kwargs: Primarily passed to ``super().__init__``, then used as :meth:`selection_filter_type` kwargs.
@@ -60,7 +60,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         whitelist_tables: Iterable[str] = None,
         blacklist_tables: Iterable[str] = (),
         schema: str = None,
-        include_views: bool = True,
+        include_views: bool = False,
         fetch_all_limit: Optional[int] = 100_000,
         engine_kwargs: Dict[str, Any] = None,
         **kwargs: Any,

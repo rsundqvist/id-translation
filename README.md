@@ -23,20 +23,32 @@ Country IDs translated using the standard `id:name`-format. Click [here][ecdc] f
 
 ## What is it?
 A package suite for translating integer IDs typically found in databases. Translation is highly configurable and tested
-for multiple different SQL dialects and schema naming paradigms. This is configurable using TOML, allowing power users
-to specify shared configurations that "just work" for other users; see the snippet below.
+for multiple different SQL dialects and schema naming paradigms. The included TOML configuration format as well as the
+support functions make it easy to create and share working configurations with anyone who needs them.
+
+# Cookiecutter template project
+The fastest way to get started with `id-translation` is the 🍪[id-translation-project] cookiecutter template. The 
+template [README](https://github.com/rsundqvist/id-translation-project/blob/master/README.md#quickstart) contains 
+step-by-step instructions for creating and verifying new generated projects.
+
+The template is designed to allow power users to quickly  specify shared configurations that "just work" for other 
+users; see the example below.
 
 ```python
-from id_translation import Translator
-
-translator = Translator.load_persistent_instance("/mnt/companyInc/id-translation/config.toml")
+from corporate_namespace.id_translation import translate
 print(
   "The first employee at Company Inc was:", 
-  translator.translate(1, names="employee_id"),
+  translate(1, names="employee_id"),
 )
 ```
 
-## Highlighted Features
+Check out this [demo project](https://github.com/rsundqvist/id-translation-project/tree/master/demo/ute-id-translation)
+to get a preview of what Your generated project might look like, or continue to the next section for a brief feature 
+overview.
+
+[id-translation-project]: https://github.com/rsundqvist/id-translation-project
+
+# Highlighted Features
 - Support for ``int`` and ``string`` IDs or a collection thereof, with automatic name and ID extraction.
 - Translation of [pandas types][pandas-translation], including `pandas.Index` types.
 - Intuitive [Format strings][format], with support for optional elements.
@@ -55,7 +67,7 @@ print(
 [translator-config]: https://id-translation.readthedocs.io/en/stable/documentation/translator-config.html
 
 
-## Installation
+# Installation
 The package is published through the [Python Package Index (PyPI)]. Source code
 is available on GitHub: https://github.com/rsundqvist/id-translation
 
@@ -69,13 +81,13 @@ most recent stable release.
 If you don't have [pip] installed, this [Python installation guide] can guide
 you through the process.
 
-## License
+# License
 [MIT](LICENSE.md)
 
-## Documentation
+# Documentation
 Hosted on Read the Docs: https://id-translation.readthedocs.io
 
-## Contributing
+# Contributing
 
 All contributions, bug reports, bug fixes, documentation improvements, enhancements, and ideas are welcome. To get 
 started, see the [Contributing Guide](CONTRIBUTING.md) and [Code of Conduct](CODE_OF_CONDUCT.md).

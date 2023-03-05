@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+Release 0.3.0, require `rics>=3.0.0`. Add the [id-translation-project](https://github.com/rsundqvist/id-translation-project)
+cookiecutter template.
 
 ### Added
 - New optional `schema` argument for `SqlFetcher`.
@@ -20,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Default `MultiFetcher.duplicate_source_discovered_action` increased from _'ignore'_ to _'warn'_.
 - Allow specifying `MultiFetcher` init arguments from the main TOML configuration file.
 - Set default value of `MultiFetcher.max_workers` to 1.
+- Set default value of `SqlFetcher.include_views` to `False`.
 
 ### Fixed
 - Minimum install requirement is now correctly set to `SQLAlchemy>=1.4`.
@@ -28,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 - Redundant alias `types.ExtendedOverrideFunction` and related code.
+- The `PandasFetcher.read_function_args` init argument, since `read_function_kwargs` is much less error-prone.
 
 ## [0.2.1] - 2023-02-04
 

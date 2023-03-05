@@ -6,9 +6,6 @@ blacklist_tables = [
     "store", "rental", "inventory", "payment",  # No name columns; can't translate these
 ]
 
-[fetching.SqlFetcher.engine_kwargs]
-# fast_executemany = true  # Not supported by the driver
-
 # ------------------------------------------------------------------------------
 # Placeholder mapping configuration. Binds actual names in sources (such as
 # column names in an SQL table) to wanted names, eg id = 'animal_id'.
@@ -26,15 +23,12 @@ fstring = "first_{value}"
 [[fetching.mapping.score_function_heuristics]]
 function = "value_fstring_alias"
 fstring = "{context}_{value}"
+[[fetching.mapping.score_function_heuristics]]
+function = "value_fstring_alias"
+fstring = "{context}"
+for_value = "name"
 
 [fetching.mapping.overrides.address]
 code = "postal_code"
-name = "address"
 [fetching.mapping.overrides.film]
 name = "title"
-
-# TODO Dessa överlappar - heuristik? Även 'address' ovan
-[fetching.mapping.overrides.country]
-name = "country"
-[fetching.mapping.overrides.city]
-name = "city"
