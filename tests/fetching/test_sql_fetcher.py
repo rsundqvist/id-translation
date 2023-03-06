@@ -59,7 +59,7 @@ def test_heuristic(sql_fetcher, ids_to_fetch, expected):
             "huge_table",
             ("id",),
             {"id"},
-            ids_to_fetch,
+            list(ids_to_fetch),
         )
     ).records
     assert ans == tuple((e,) for e in expected)

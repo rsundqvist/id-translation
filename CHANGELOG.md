@@ -16,6 +16,8 @@ cookiecutter template.
 - New INFO-level begin/end log messages for `Translator.translate()`.
 - Raise `ConcurrentOperationError` in `AbstractFetchers.fetch()` to prevent race conditions.
 - Limit `AbstractFetcher.fetch_all()` to sources that contain the required placeholders (after mapping) by default.
+- A large number of new debug messages with `extra`-dict values set. These all have keys `event_key` and `event_stage`
+  as well as an `executon_time` argument when `event_stage='EXIT'`. Additional extras depend on context.
 
 ### Changed
 - Improve error reporting for unmapped required placeholders; warn about potential override issues.
