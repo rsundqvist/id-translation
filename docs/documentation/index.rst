@@ -9,3 +9,4 @@ Examples and documentation.
    cookbook/index
    translator-config
    translation-primer
+   translation-logging

@@ -113,9 +113,12 @@ class Format:
     def _parse_format_string(cls, format_string: str) -> List[parse_format_string.Element]:
         return parse_format_string.get_elements(format_string)
 
-    def __repr__(self) -> str:
+    def __str__(self) -> str:
         def repr_part(e: parse_format_string.Element) -> str:
             s = e.part.replace("[", "[[").replace("]", "]]")
             return s if e.required else f"[{s}]"
 
-        return f"{tname(self)}('{''.join(map(repr_part, self._elements))}')"
+        return "".join(map(repr_part, self._elements))
+
+    def __repr__(self) -> str:
+        return f"{tname(self)}({self.__str__()!r})"

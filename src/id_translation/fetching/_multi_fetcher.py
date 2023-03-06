@@ -9,7 +9,7 @@ from typing import Dict, Iterable, List, Tuple
 from rics.action_level import ActionLevel, ActionLevelHelper
 from rics.collections.dicts import reverse_dict
 from rics.misc import tname
-from rics.performance import format_perf_counter
+from rics.performance import format_seconds
 
 from ..offline.types import SourcePlaceholderTranslations
 from ..types import IdType, SourceType
@@ -94,25 +94,60 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         required: Iterable[str] = (),
     ) -> SourcePlaceholderTranslations[SourceType]:
         tasks: Dict[int, List[IdsToFetch[SourceType, IdType]]] = {}
-        num_instructions = 0
+        sources = []
         for idt in ids_to_fetch:
             tasks.setdefault(self._source_to_fetcher_id[idt.source], []).append(idt)
-            num_instructions += 1
+            sources.append(idt.source)
 
         placeholders = tuple(placeholders)
         required = tuple(required)
 
+        n_sources_and_fetchers = f"{len(sources)} sources using {len(tasks)} different fetchers"
+
         start = perf_counter()
-        LOGGER.debug(f"Dispatch {num_instructions} jobs to {len(tasks)} fetchers using {self.max_workers} threads.")
+        if LOGGER.isEnabledFor(logging.DEBUG):
+            event_key = f"{self.__class__.__name__.upper()}.FETCH"
+            LOGGER.debug(
+                f"Dispatch FETCH jobs for {n_sources_and_fetchers} on {self.max_workers} threads.",
+                extra=dict(
+                    event_key=event_key,
+                    event_stage="ENTER",
+                    event_title=f"{event_key}.ENTER",
+                    sources=sources,
+                    placeholders=placeholders,
+                    required_placeholders=required,
+                    max_workers=self.max_workers,
+                    num_fetchers=len(tasks),
+                    fetch_all=False,
+                ),
+            )
 
         def fetch(fid: int) -> FetchResult[SourceType]:
-            return fid, self._id_to_fetcher[fid].fetch(tasks[fid], placeholders, required=required)
+            fetcher = self._id_to_fetcher[fid]
+            if LOGGER.isEnabledFor(logging.DEBUG):
+                LOGGER.debug(f"Begin FETCH job for {len(tasks[fid])} sources using {self._fmt_fetcher(fetcher)}.")
+            return fid, fetcher.fetch(tasks[fid], placeholders, required=required)
 
         with ThreadPoolExecutor(max_workers=self.max_workers, thread_name_prefix=tname(self)) as executor:
             futures = [executor.submit(fetch, fid) for fid in tasks]
             ans = self._gather(futures)
 
-        LOGGER.debug(f"Completed {num_instructions} jobs in {format_perf_counter(start)}.")
+        if LOGGER.isEnabledFor(logging.DEBUG):
+            execution_time = perf_counter() - start
+            LOGGER.debug(
+                f"Completed FETCH jobs for {n_sources_and_fetchers} in {format_seconds(execution_time)}.",
+                extra=dict(
+                    event_key=event_key,
+                    event_stage="ENTER",
+                    event_title=f"{event_key}.ENTER",
+                    execution_time=execution_time,
+                    sources=len(ans),
+                    max_workers=self.max_workers,
+                    num_fetchers=len(tasks),
+                    fetch_all=False,
+                ),
+            )
+
         return ans
 
     def fetch_all(
@@ -122,16 +157,47 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         required = tuple(required)
 
         start = perf_counter()
-        LOGGER.debug(f"Dispatch FETCH_ALL jobs to {len(self.fetchers)} fetchers using {self.max_workers} threads.")
+        if LOGGER.isEnabledFor(logging.DEBUG):
+            event_key = f"{self.__class__.__name__.upper()}.FETCH_ALL"
+            LOGGER.debug(
+                f"Dispatch FETCH_ALL jobs for {len(self.fetchers)} fetchers on {self.max_workers} threads.",
+                extra=dict(
+                    event_key=event_key,
+                    event_stage="ENTER",
+                    event_title=f"{event_key}.ENTER",
+                    placeholders=placeholders,
+                    required_placeholders=required,
+                    max_workers=self.max_workers,
+                    num_fetchers=len(self.fetchers),
+                    fetch_all=True,
+                ),
+            )
 
         def fetch_all(fetcher: Fetcher[SourceType, IdType]) -> FetchResult[SourceType]:
+            if LOGGER.isEnabledFor(logging.DEBUG):
+                LOGGER.debug(f"Begin FETCH_ALL job using {self._fmt_fetcher(fetcher)}.")
             return id(fetcher), fetcher.fetch_all(placeholders, required=required)
 
         with ThreadPoolExecutor(max_workers=self.max_workers, thread_name_prefix=tname(self)) as executor:
             futures = [executor.submit(fetch_all, fetcher) for fetcher in self.fetchers]
             ans = self._gather(futures)
 
-        LOGGER.debug(f"Completed all FETCH_ALL jobs completed in {format_perf_counter(start)}.")
+        if LOGGER.isEnabledFor(logging.DEBUG):
+            execution_time = perf_counter() - start
+            LOGGER.debug(
+                f"Completed FETCH_ALL jobs for {len(ans)} sources using "
+                f"{len(self.fetchers)} fetchers in {format_seconds(execution_time)}.",
+                extra=dict(
+                    event_key=event_key,
+                    event_stage="EXIT",
+                    event_title=f"{event_key}.EXIT",
+                    execution_time=execution_time,
+                    sources=list(ans),
+                    max_workers=self.max_workers,
+                    num_fetchers=len(self.fetchers),
+                    fetch_all=True,
+                ),
+            )
         return ans
 
     @property

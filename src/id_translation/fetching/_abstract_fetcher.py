@@ -9,7 +9,7 @@ from rics.collections.dicts import InheritedKeysDict, reverse_dict
 from rics.mapping import HeuristicScore, Mapper
 from rics.mapping.score_functions import modified_hamming
 from rics.misc import tname
-from rics.performance import format_perf_counter
+from rics.performance import format_seconds
 
 from ..exceptions import ConnectionStatusError
 from ..offline.types import PlaceholdersTuple, PlaceholderTranslations, SourcePlaceholderTranslations
@@ -92,6 +92,8 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         Raises:
             UnknownPlaceholderError: If any of `required_placeholders` are incorrectly mapped, or not mapped at all.
         """
+        start = perf_counter()
+
         if clear_cache or source not in self._mapping_cache:
             self._mapping_cache[source] = {}
         ans = self._mapping_cache[source]
@@ -102,11 +104,43 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         if not placeholders:
             return ans  # Nothing new to map.
 
-        for actual, wanted in self.mapper.apply(placeholders, candidates, context=source).left_to_right.items():
+        if LOGGER.isEnabledFor(logging.DEBUG):
+            event_key = f"{self.__class__.__name__.upper()}.MAP_PLACEHOLDERS"
+            LOGGER.debug(
+                f"Begin wanted-to-actual placeholder mapping of {placeholders=} to actual placeholders={candidates}"
+                f" for {source=}.",
+                extra=dict(
+                    event_key=event_key,
+                    event_stage="ENTER",
+                    event_title=f"{event_key}.ENTER",
+                    values=list(placeholders),
+                    candidates=list(candidates),
+                    context=source,
+                ),
+            )
+
+        dm = self.mapper.apply(placeholders, candidates, context=source)
+
+        for actual, wanted in dm.left_to_right.items():
             ans[actual] = wanted[0]
 
         for not_mapped in placeholders.difference(ans):
             ans[not_mapped] = None
+
+        if LOGGER.isEnabledFor(logging.DEBUG):
+            execution_time = perf_counter() - start
+            LOGGER.debug(
+                f"Finished wanted-to-actual placeholder mapping of {placeholders=} to actual placeholders={candidates}"
+                f" for {source=}: {dm.left_to_right}.",
+                extra=dict(
+                    event_key=event_key,
+                    event_stage="EXIT",
+                    event_title=f"{event_key}.EXIT",
+                    execution_time=execution_time,
+                    mapping=dm.left_to_right,
+                    context=source,
+                ),
+            )
 
         return ans
 
@@ -255,12 +289,38 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
     ) -> PlaceholderTranslations[SourceType]:
         reverse_mappings, instr = self._make_fetch_instruction(source, placeholders, required_placeholders, ids)
 
+        if LOGGER.isEnabledFor(logging.DEBUG):
+            event_key = f"{self.__class__.__name__.upper()}.FETCH_TRANSLATIONS"
+            LOGGER.debug(
+                f"Begin fetching {placeholders=} from {source=} for {'all' if instr.ids is None else len(instr.ids)} IDs.",
+                extra=dict(
+                    event_key=event_key,
+                    event_stage="ENTER",
+                    event_title=f"{event_key}.ENTER",
+                    source=source,
+                    placeholders=instr.placeholders,
+                    required_placeholders=list(instr.required),
+                    num_ids=None if instr.ids is None else len(instr.ids),
+                    fetch_all=instr.fetch_all,
+                ),
+            )
         start = perf_counter()
         translations = self.fetch_translations(instr)
         if LOGGER.isEnabledFor(logging.DEBUG):
+            execution_time = perf_counter() - start
             LOGGER.debug(
-                f"Fetched placeholders {translations.placeholders} for {len(translations.records)} IDs "
-                f"from source '{translations.source}' in {format_perf_counter(start)} using {self}."
+                f"Finished fetching placeholders={translations.placeholders} for {len(translations.records)} IDs "
+                f"from source '{translations.source}' in {format_seconds(execution_time)} using {self}.",
+                extra=dict(
+                    event_key=event_key,
+                    event_stage="EXIT",
+                    event_title=f"{event_key}.EXIT",
+                    execution_time=execution_time,
+                    source=source,
+                    placeholders=translations.placeholders,
+                    num_ids=len(translations.records),
+                    fetch_all=instr.fetch_all,
+                ),
             )
 
         if reverse_mappings:
@@ -318,7 +378,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
                 source=source,
                 placeholders=placeholders,
                 required=required_placeholders,
-                ids=ids,
+                ids=None if ids is None else list(ids),
             ),
         )
 

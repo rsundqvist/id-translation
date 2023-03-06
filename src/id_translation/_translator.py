@@ -14,7 +14,7 @@ from rics.mapping import DirectionalMapping, Mapper
 from rics.mapping.exceptions import MappingError, MappingWarning
 from rics.mapping.types import UserOverrideFunction
 from rics.misc import tname
-from rics.performance import format_perf_counter
+from rics.performance import format_perf_counter, format_seconds
 
 from . import _config_utils, factory
 from .dio import DataStructureIO, resolve_io
@@ -287,18 +287,36 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                 known, and ``self.mapper.unknown_user_override_action != 'ignore'``.
         """  # noqa: DAR101 darglint is bugged here
         start = perf_counter()
-        if LOGGER.isEnabledFor(logging.INFO):
-            type_name = tname(translatable, prefix_classname=True)
-            if attribute:
-                type_name = f"{type_name}.{attribute}"
-            type_name = f"'{type_name}'"
 
-            name_info = f"Will be derived based on {type_name}" if names is None else str(names)
+        should_emit_key_event = LOGGER.isEnabledFor(logging.INFO) if self.online else LOGGER.isEnabledFor(logging.DEBUG)
+        if should_emit_key_event:
+            event_key = f"{self.__class__.__name__.upper()}.TRANSLATE"
+
+            type_name = _resolve_type_name(translatable, attribute)
+            name_info = f"Will be derived based on {type_name!r}" if names is None else str(names)
             if ignore_names is not None:
                 name_info += f", excluding those given by {ignore_names=}"
 
             sources = self.sources  # Ensures that the fetcher is warmed up; good for log organization.
-            LOGGER.info(f"Begin translation of {type_name} using {sources=}. Names to translate: {name_info}.")
+            LOGGER.log(
+                level=logging.INFO if self.online else logging.DEBUG,
+                msg=f"Begin translation of {type_name!r} using {sources=}. Names to translate: {name_info}.",
+                extra=dict(
+                    event_key=event_key,
+                    event_stage="ENTER",
+                    event_title=f"{event_key}.ENTER",
+                    translatable_type=type_name,
+                    names=names,
+                    ignore_names=tname(ignore_names, prefix_classname=True) if callable(ignore_names) else ignore_names,
+                    inplace=inplace,
+                    sources=sources,
+                    fmt=repr(self._fmt),
+                    maximal_untranslated_fraction=maximal_untranslated_fraction,
+                    attribute=attribute,
+                    reverse=reverse,
+                    online=self.online,
+                ),
+            )
 
         if self.online and reverse:  # pragma: no cover
             raise ConnectionStatusError("Reverse translation cannot be performed online.")
@@ -335,15 +353,32 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
         if attribute and not inplace and ans is not None:
             setattr(obj, attribute, ans)
-            # Hacky special handling for eg pandas.Index
+            # Hacky special handling for e.g. pandas.Index
             if hasattr(ans, "name") and hasattr(translatable, "name"):  # pragma: no cover
                 ans.name = translatable.name
             ans = obj
 
-        if LOGGER.isEnabledFor(logging.INFO):
-            inplace_info = f"Values in {type_name} have been replaced " if inplace else "Returning a translated copy"
-            LOGGER.info(
-                f"Finished translation of {type_name} in {format_perf_counter(start)}. {inplace_info} since {inplace=}."
+        if should_emit_key_event:
+            execution_time = perf_counter() - start
+            inplace_info = f"Values in {type_name!r} have been replaced " if inplace else "Returning a translated copy"
+            LOGGER.log(
+                level=logging.INFO if self.online else logging.DEBUG,
+                msg=f"Finished translation of {type_name!r} in {format_seconds(execution_time)}. {inplace_info} since {inplace=}.",
+                extra=dict(
+                    event_key=event_key,
+                    event_stage="EXIT",
+                    event_title=f"{event_key}.EXIT",
+                    execution_time=execution_time,
+                    translatable_type=type_name,
+                    names=names_to_translate,
+                    name_to_source_mapping=translation_map.name_to_source,
+                    inplace=inplace,
+                    fmt=repr(translation_map.fmt),
+                    maximal_untranslated_fraction=maximal_untranslated_fraction,
+                    attribute=attribute,
+                    reverse=reverse,
+                    online=self.online,
+                ),
             )
 
         return ans
@@ -411,8 +446,41 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         override_function: UserOverrideFunction[NameType, SourceType, IdType] = None,
         parent: Translatable = None,
     ) -> Optional[DirectionalMapping[NameType, SourceType]]:
+        start = perf_counter()
         names_to_translate = self._resolve_names(translatable, names, ignore_names, parent)
+
+        if LOGGER.isEnabledFor(logging.DEBUG):
+            event_key = f"{self.__class__.__name__.upper()}.MAP"
+            type_name = _resolve_type_name(translatable)
+            sources = self.sources
+            LOGGER.debug(
+                f"Begin name-to-source mapping of names={names_to_translate} in {type_name} against {sources=}.",
+                extra=dict(
+                    event_key=event_key,
+                    event_stage="ENTER",
+                    event_title=f"{event_key}.ENTER",
+                    translatable_type=type_name,
+                    values=names_to_translate,
+                    candidates=sources,
+                    context=None,
+                ),
+            )
         name_to_source = self.mapper.apply(names_to_translate, self.sources, override_function=override_function)
+        if LOGGER.isEnabledFor(logging.DEBUG):
+            execution_time = perf_counter() - start
+            LOGGER.debug(
+                f"Finished name-to-source mapping of names={names_to_translate} in {type_name} against {sources=}:"
+                f" {name_to_source.left_to_right}.",
+                extra=dict(
+                    event_key=event_key,
+                    event_stage="EXIT",
+                    event_title=f"{event_key}.EXIT",
+                    execution_time=execution_time,
+                    translatable_type=type_name,
+                    mapping=name_to_source.left_to_right,
+                    context=None,
+                ),
+            )
 
         unmapped = set() if names is None else set(as_list(names)).difference(name_to_source.left)
         if unmapped or not name_to_source.left:
@@ -444,7 +512,6 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                         f"Name-to-source mapping {name_to_source.left_to_right} is ambiguous; {value} -> {candidates}."
                         f"\nHint: Choose a different cardinality such that Mapper.cardinality.many_right is False."
                     )
-
         return name_to_source
 
     def fetch(
@@ -896,3 +963,10 @@ def _handle_default(
         dt = dt or InheritedKeysDict()
 
     return dt, dfmt
+
+
+def _resolve_type_name(translatable: Translatable, attribute: str = None) -> str:
+    type_name = tname(translatable, prefix_classname=True)
+    if attribute:
+        type_name = f"{type_name}.{attribute}"
+    return type_name
