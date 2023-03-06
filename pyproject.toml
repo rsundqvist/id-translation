@@ -48,7 +48,7 @@ optional = true
 # description: https://github.com/astropy/astropy/issues/11723
 # https://github.com/astropy/astropy/pull/12270
 sphinx = "^5.1.1"
-pydata-sphinx-theme = "^0.9.0"
+pydata-sphinx-theme = ">=0.9,<0.14"
 myst-parser = "^0.18.0"
 nbsphinx = "^0.8.9"
 ipython = "<8.7.0"
