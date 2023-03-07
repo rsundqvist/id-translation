@@ -56,7 +56,7 @@ class TestFetcher(_Fetcher[SourceType, IdType]):
 
     @property
     def online(self) -> bool:
-        return True  # pragma: no cover
+        return False  # pragma: no cover
 
     @property
     def placeholders(self) -> Dict[SourceType, List[str]]:

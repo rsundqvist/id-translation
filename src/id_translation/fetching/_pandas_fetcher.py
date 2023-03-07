@@ -31,6 +31,8 @@ class PandasFetcher(AbstractFetcher[str, IdType]):
             Must contain a `source` as its only placeholder. Example: ``data/{source}.pkl``. Leave as-is if ``None``.
             Valid URL schemes include http, ftp, s3, gs, and file.
         read_function_kwargs: Additional keyword arguments for `read_function`.
+        online: Setting ``online=False`` typically indicates that files are hosted at a location where there are access
+            limitations, e.g. through data transfer fees.
 
     See Also:
         The official `Pandas IO documentation <https://pandas.pydata.org/pandas-docs/stable/user_guide/io.html>`_
@@ -41,6 +43,7 @@ class PandasFetcher(AbstractFetcher[str, IdType]):
         read_function: Union[PandasReadFunction, str] = "read_pickle",
         read_path_format: Union[str, FormatFn] = "data/{}.pkl",
         read_function_kwargs: Mapping[str, Any] = None,
+        online: bool = False,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -50,6 +53,7 @@ class PandasFetcher(AbstractFetcher[str, IdType]):
             self._format_source = read_path_format  # pragma: no cover
         else:
             self._format_source = read_path_format.format
+        self._online = online
         self._kwargs = read_function_kwargs or {}
 
         self._source_paths: Dict[str, Path] = {}
@@ -120,6 +124,10 @@ class PandasFetcher(AbstractFetcher[str, IdType]):
             instr.source,
             self.read(self._source_paths[instr.source]),
         )
+
+    @property
+    def online(self) -> bool:
+        return self._online
 
     def __repr__(self) -> str:
         read_path_format = self._format_source("{source}")

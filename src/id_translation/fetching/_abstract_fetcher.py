@@ -155,7 +155,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
 
     @property
     def online(self) -> bool:
-        return True  # pragma: no cover
+        return False  # pragma: no cover
 
     def assert_online(self) -> None:
         """Raise an error if offline.

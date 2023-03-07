@@ -1,3 +1,5 @@
+import json
+import logging
 from functools import partialmethod
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
@@ -15,6 +17,14 @@ from id_translation.offline.types import PlaceholderTranslations
 ROOT: Path = Path(__file__).parent
 
 Mapper.__init__ = partialmethod(Mapper.__init__, verbose_logging=True)  # type: ignore[assignment]
+
+
+class CheckSerializeToJson(logging.Handler):
+    def emit(self, record: logging.LogRecord) -> None:
+        json.dumps(record.__dict__)
+
+
+logging.root.addHandler(CheckSerializeToJson())
 
 
 class HexFetcher(AbstractFetcher[str, int]):
