@@ -12,7 +12,8 @@ from rics._internal_support.types import PathLikeType
 from rics.collections import dicts
 from rics.mapping import HeuristicScore as _HeuristicScore, Mapper as _Mapper
 
-from . import _config_utils, exceptions, fetching
+from . import exceptions, fetching
+from ._config_utils import ConfigMetadata as _ConfigMetadata
 from .types import IdType, NameType, SourceType
 
 if TYPE_CHECKING:
@@ -157,7 +158,7 @@ class TranslatorFactory(_Generic[NameType, SourceType, IdType]):
             **translator_config,
         )
 
-        ans._config_metadata = _config_utils.make_metadata(
+        ans._config_metadata = _ConfigMetadata.from_toml_paths(
             self.file,
             self.extra_fetchers,
             self.clazz,

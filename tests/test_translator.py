@@ -46,8 +46,11 @@ class Translator(RealTranslator[str, str, IdType]):
         return super()._map_inner(translatable, names, ignore_names, override_function, parent)
 
 
-@dataclass(frozen=True)
+@dataclass
 class ConfigMetadataForTest(_config_utils.ConfigMetadata):
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+
     def __post_init__(self) -> None:
         assert self.clazz in ("id_translation._translator.Translator", "tests.test_translator.Translator")
 
