@@ -209,6 +209,9 @@ nitpick_ignore = [
     ("py:class", "re.Pattern"),
     ("py:class", "module"),
 ]
+nitpick_ignore_regex = [
+    ("py:obj", r".*\.Any"),
+]
 
 # -- Autodoc configuration -----------------------------------------------------
 autodoc_typehints = "signature"

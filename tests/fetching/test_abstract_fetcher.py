@@ -82,7 +82,7 @@ def test_cache_with_call_count(
     expected_call_counts,
     clear,
 ):
-    CacheAccess.base_cache_dir = lambda _: fetch_all_cache_dir.joinpath("test_cache_with_call_count")  # type: ignore
+    CacheAccess.base_cache_dir_for_all_fetchers = lambda _: fetch_all_cache_dir.joinpath("test_cache_with_call_count")  # type: ignore
 
     assert len(operations) == len(expected_call_counts)
     expected_data = fetcher.fetch_all()
@@ -106,7 +106,7 @@ def test_cache_with_call_count(
 
 
 def test_cache_doesnt_refresh_itself(data, fetch_all_cache_dir):
-    CacheAccess.base_cache_dir = lambda _: fetch_all_cache_dir.joinpath("doesnt_refresh_itself")  # type: ignore
+    CacheAccess.base_cache_dir_for_all_fetchers = lambda _: fetch_all_cache_dir.joinpath("doesnt_refresh_itself")  # type: ignore
     test_fetcher = CacheTestFetcher(data, key="doesnt_refresh_itself")
     test_fetcher.fetch_all()
     metadata_path = test_fetcher._create_cache_access().metadata_path
@@ -121,7 +121,7 @@ def test_cache_doesnt_refresh_itself(data, fetch_all_cache_dir):
 
 def test_corrupted_cache(caplog, fetcher, fetch_all_cache_dir):
     test_root = fetch_all_cache_dir.joinpath("test_corrupted_cache")
-    CacheAccess.base_cache_dir = lambda *_: test_root  # type: ignore
+    CacheAccess.base_cache_dir_for_all_fetchers = lambda *_: test_root  # type: ignore
     test_fetcher = CacheTestFetcher(fetcher._data, key="test_corrupted_cache")
     test_fetcher.fetch_all()
     caplog.clear()
@@ -149,7 +149,7 @@ def test_corrupted_cache(caplog, fetcher, fetch_all_cache_dir):
 
 
 def test_placeholders_invalidate_cache(data, fetch_all_cache_dir):
-    CacheAccess.base_cache_dir = lambda _: fetch_all_cache_dir.joinpath("placeholders")  # type: ignore
+    CacheAccess.base_cache_dir_for_all_fetchers = lambda _: fetch_all_cache_dir.joinpath("placeholders")  # type: ignore
     data = data.copy()
 
     original_metadata = CacheTestFetcher(data, key="new_placeholders")._create_cache_access()._metadata

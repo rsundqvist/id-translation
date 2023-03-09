@@ -12,6 +12,27 @@ The recommended way of creating and configuring translators is the :meth:`Transl
 
 For an introduction to the translation process itself, see the :ref:`translation-primer`.
 
+Meta configuration
+------------------
+The ``metaconf.toml``-file must be placed next to the main TOML configuration file, and determines how other files are
+processed by the the factory. There are only a few options here.
+
+.. list-table:: Sections: ``[env]``
+   :header-rows: 1
+   :widths: 15 60 25
+
+   * - Top-level section
+     - Description
+     - Details
+   * - ``[env]``
+     - | Control environment-variable interpolation; ``${VAR}`` or
+       | ``${VAR:default}``. Default is ``true`` for :meth:`~.Translator.from_config`.
+     - :func:`~id_translation.load_toml_file`.
+
+.. note::
+
+   The ``metaconf.toml``-file is `always` read as-is, without any processing.
+
 Sections
 --------
 The only valid top-level keys are ``translator``, ``unknown_ids``, and ``fetching``. Only the ``fetching`` section is

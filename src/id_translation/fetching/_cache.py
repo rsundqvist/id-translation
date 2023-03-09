@@ -92,7 +92,7 @@ class CacheAccess(Generic[SourceType, IdType]):
     """
 
     @classmethod
-    def base_cache_dir(cls) -> Path:
+    def base_cache_dir_for_all_fetchers(cls) -> Path:
         """Top-level cache dir for all fetchers managed by any ``CacheAccess``-instance."""
         return Path.home().absolute().joinpath(".cache/id-translation/cached-fetcher-data/")
 
@@ -101,7 +101,7 @@ class CacheAccess(Generic[SourceType, IdType]):
         """Remove the entire cache directory tree for ALL instances."""
         import shutil
 
-        cache_dir = cls.base_cache_dir()
+        cache_dir = cls.base_cache_dir_for_all_fetchers()
         print(f"Deleting the common cache directory tree at:\n    '{cache_dir}'")
         shutil.rmtree(cache_dir)
 
@@ -111,17 +111,23 @@ class CacheAccess(Generic[SourceType, IdType]):
         metadata: CacheMetadata[SourceType, IdType],
     ) -> None:
         pd_timedelta = pd.Timedelta(max_age)
-        if pd_timedelta <= pd.Timedelta(0):
+        if pd_timedelta < pd.Timedelta(0):
             raise ValueError("fetch_all_cache_max_age must be non-negative")  # pragma: no cover
         self._max_age = pd_timedelta.to_pytimedelta()
         self._metadata: CacheMetadata[SourceType, IdType] = metadata
         top_level_key = next(iter(self._metadata.cache_keys))
-        self._base_dir = self.base_cache_dir().joinpath(top_level_key)
+        self._base_dir = self.base_cache_dir_for_all_fetchers().joinpath(top_level_key)
         self._logger = logging.getLogger(__package__).getChild("CacheAccess").getChild(top_level_key)
 
     @property
     def cache_dir(self) -> Path:
-        """The cache directory for a fetcher, created from :meth:`base_cache_dir` and the first value of :attr:`CacheMetadata.cache_keys`."""
+        """Get the cache directory used by this ``CacheAccess``.
+
+        Created from :meth:`base_cache_dir_for_all_fetchers` and the first value of :attr:`CacheMetadata.cache_keys`.
+
+        Returns:
+            Cache dir for a single fetcher.
+        """
         return self._base_dir
 
     @property

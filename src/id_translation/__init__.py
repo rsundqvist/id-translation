@@ -7,6 +7,7 @@ import logging
 
 from ._base_metadata import BaseMetadata
 from ._config_utils import ConfigMetadata
+from ._load_toml import load_toml_file
 from ._translator import Translator
 from .factory import TranslatorFactory
 
@@ -19,6 +20,7 @@ __all__ = [
     "TranslatorFactory",
     "BaseMetadata",
     "ConfigMetadata",
+    "load_toml_file",
     "__version__",  # Make MyPy happy
 ]
 

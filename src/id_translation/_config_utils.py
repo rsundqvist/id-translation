@@ -1,16 +1,11 @@
 import json
 import logging
-import sys
 from hashlib import sha256
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Tuple, Type
 
 from ._base_metadata import BaseMetadata
-
-if sys.version_info >= (3, 11):
-    import tomllib
-else:
-    import tomli as tomllib  # pragma: no cover
+from ._load_toml import load_toml_file
 
 LOGGER = logging.getLogger(__package__).getChild("Translator").getChild("config")
 
@@ -113,6 +108,5 @@ class ConfigMetadata(BaseMetadata):
 
 def _create_path_tuple(str_path: str) -> Tuple[Path, str]:
     p = Path(str_path).expanduser().absolute()
-    with p.open("rb") as f:
-        content = tomllib.load(f)
+    content = load_toml_file(p)
     return p, sha256(json.dumps(content).encode()).hexdigest()

@@ -19,6 +19,11 @@ cookiecutter template.
 - A large number of new debug messages with `extra`-dict values set. These all have keys `event_key` and `event_stage`
   as well as an `executon_time` argument when `event_stage='EXIT'`. Additional extras depend on context.
 - Caching logic to `AbstractFetcher`. Only active when explicitly enabled and `AbstractFetcher.online` is `False`.
+- Environment variable interpolation is now possible anywhere TOML config files. Key points:
+  * Cache logic does NOT consider actual values (only names)
+  * By default, simple interpolation is enabled.
+  * TOML config metaconfig can be placed in `metaconf.toml`, next to main config.
+  * Interpolation can be configured under `[env]` in metaconf.
 
 ### Changed
 - Improve error reporting for unmapped required placeholders; warn about potential override issues.
@@ -35,6 +40,7 @@ cookiecutter template.
 ### Removed
 - Redundant alias `types.ExtendedOverrideFunction` and related code.
 - The `PandasFetcher.read_function_args` init argument, since `read_function_kwargs` is much less error-prone.
+- Custom handling of environment variables in `SqlFetcher`.
 
 ## [0.2.1] - 2023-02-04
 
