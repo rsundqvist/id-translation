@@ -13,18 +13,18 @@ def _initialize_versions() -> Dict[str, str]:
 
     from id_translation import __version__ as id_translation
 
-    if sys.version_info >= (3, 11):
-        import tomllib
-    else:
-        import tomli as tomllib  # pragma: no cover
-
-    return dict(
+    ans = dict(
         rics=rics,
         id_translation=id_translation,
         sqlalchemy=sqlalchemy,
         pandas=pandas_version,
-        tomllib=tomllib.__version__ if hasattr(tomllib, "__version__") else None,
     )
+
+    if sys.version_info < (3, 11):  # pragma: no cover
+        import tomli
+
+        ans["tomli"] = tomli.__version__
+    return ans
 
 
 class BaseMetadata(ABC):

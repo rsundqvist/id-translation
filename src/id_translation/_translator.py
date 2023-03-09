@@ -782,10 +782,10 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                 # Float IDs aren't officially supported, but is common when using Pandas since int types cannot be NaN.
                 # This is sometimes a problem for the built-in set (see https://github.com/numpy/numpy/issues/9358), and
                 # for several database drivers.
-                ids = numpy.unique(ids)
-                keep_mask = ~numpy.isnan(ids)
+                arr = numpy.unique(ids)
+                keep_mask = ~numpy.isnan(arr)
                 num_coerced += keep_mask.sum()  # Somewhat inaccurate; includes repeat IDs from other names
-                source_to_ids[n2s[name]].update(ids[keep_mask].astype(int, copy=False))
+                source_to_ids[n2s[name]].update(arr[keep_mask].astype(int, copy=False))
             else:
                 source_to_ids[n2s[name]].update(ids)  # type: ignore[arg-type]
 
