@@ -18,6 +18,7 @@ cookiecutter template.
 - Limit `AbstractFetcher.fetch_all()` to sources that contain the required placeholders (after mapping) by default.
 - A large number of new debug messages with `extra`-dict values set. These all have keys `event_key` and `event_stage`
   as well as an `executon_time` argument when `event_stage='EXIT'`. Additional extras depend on context.
+- Caching logic to `AbstractFetcher`. Only active when explicitly enabled and `AbstractFetcher.online` is `False`.
 
 ### Changed
 - Improve error reporting for unmapped required placeholders; warn about potential override issues.

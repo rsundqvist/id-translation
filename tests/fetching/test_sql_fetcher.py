@@ -1,8 +1,3 @@
-import os
-import time
-from os.path import join
-from tempfile import TemporaryDirectory
-
 import pytest as pytest
 import sqlalchemy
 from rics.collections.dicts import InheritedKeysDict
@@ -75,15 +70,12 @@ def sql_fetcher(connection_string):
 
 
 @pytest.fixture(scope="module")
-def connection_string(data):
-    with TemporaryDirectory() as tmpdir:
-        db_file = join(tmpdir, "sqlfetcher-test-database.sqlite")
-        connection_string = f"sqlite:///{db_file}"
-        insert_data(connection_string, data)
-        yield connection_string
-        if os.name == "nt":
-            # Windows seems more sensitive to this. Sleep a while to make sure all engines close their connections.
-            time.sleep(5)
+def connection_string(data, windows_hack_temp_dir):
+    db_file = windows_hack_temp_dir.joinpath(windows_hack_temp_dir, "sql-fetcher-data")
+    db_file.mkdir(parents=True, exist_ok=True)
+    connection_string = f"sqlite:///{db_file.joinpath('db.sqlite')}"
+    insert_data(connection_string, data)
+    yield connection_string
 
 
 def insert_data(connection_string, data):

@@ -1,3 +1,6 @@
+from pathlib import Path
+from shutil import rmtree
+from tempfile import TemporaryDirectory
 from typing import Dict
 
 import pandas as pd
@@ -14,3 +17,12 @@ def data() -> Dict[str, pd.DataFrame]:
         "big_table": pd.DataFrame({"id": range(100)}),
         "huge_table": pd.DataFrame({"id": range(1000)}),
     }
+
+
+@pytest.fixture(scope="module")
+def windows_hack_temp_dir():
+    with TemporaryDirectory() as tmpdir:  # 3.10; ignore_cleanup_errors=True
+        tmp_root = Path(tmpdir).parent
+    ans = tmp_root.joinpath("windows-resistant-tempdir")
+    yield ans
+    rmtree(ans, ignore_errors=True)
