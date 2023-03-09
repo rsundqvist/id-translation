@@ -381,6 +381,8 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                     online=self.online,
                 ),
             )
+        else:
+            pass  # pragma: no cover
 
         return ans
 

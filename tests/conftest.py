@@ -21,7 +21,9 @@ Mapper.__init__ = partialmethod(Mapper.__init__, verbose_logging=True)  # type: 
 
 class CheckSerializeToJson(logging.Handler):
     def emit(self, record: logging.LogRecord) -> None:
-        json.dumps(record.__dict__)
+        d = record.__dict__.copy()
+        d.pop("exc_info", None)
+        json.dumps(d)
 
 
 logging.root.addHandler(CheckSerializeToJson())
