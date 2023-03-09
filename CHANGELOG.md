@@ -55,12 +55,12 @@ cookiecutter template.
 - Switch `id_translation.ttypes` back to just `types`.
 
 ## [0.1.0] - 2022-11-26
-* Branch from [rics@v1.0.0](https://github.com/rsundqvist/rics/blob/v1.0.0/CHANGELOG.md).
+- Branch from [rics@v1.0.0](https://github.com/rsundqvist/rics/blob/v1.0.0/CHANGELOG.md).
 
 ### Changed
-* Move out of `rics` namespace.
-* Switch to relative imports.
-* Fix some intersphinx issues.
+- Move out of `rics` namespace.
+- Switch to relative imports.
+- Fix some intersphinx issues.
 
 [Unreleased]: https://github.com/rsundqvist/id-translation/compare/v0.2.1...HEAD
 [0.2.1]: https://github.com/rsundqvist/id-translator/compare/v0.2.0...v0.2.1
