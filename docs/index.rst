@@ -2,6 +2,11 @@ ID Translation
 ==============
 Turn meaningless IDs into human-readable labels.
 
+Cookiecutter template
+---------------------
+The fastest way to get started with ``id-translation``. See the `README <README.html#cookiecutter-template-project>`__
+for more information.
+
 .. toctree::
    :hidden:
 

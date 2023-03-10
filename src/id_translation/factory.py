@@ -1,18 +1,15 @@
 """Factory functions for translation classes."""
-import sys
+from pathlib import Path as _Path
 from typing import TYPE_CHECKING, Any, Callable, Dict, Generic as _Generic, Iterable, List, Optional, Tuple, Type, Union
-
-if sys.version_info >= (3, 11):
-    import tomllib
-else:
-    import tomli as tomllib  # pragma: no cover
 
 from rics import misc
 from rics._internal_support.types import PathLikeType
 from rics.collections import dicts
 from rics.mapping import HeuristicScore as _HeuristicScore, Mapper as _Mapper
 
-from . import _config_utils, exceptions, fetching
+from . import exceptions, fetching
+from ._config_utils import ConfigMetadata as _ConfigMetadata
+from ._load_toml import load_toml_file as _load_toml_file
 from .types import IdType, NameType, SourceType
 
 if TYPE_CHECKING:
@@ -131,18 +128,24 @@ class TranslatorFactory(_Generic[NameType, SourceType, IdType]):
         self.file = str(file)
         self.extra_fetchers = list(map(str, extra_fetchers))
         self.clazz: Type[Translator[NameType, SourceType, IdType]] = self.resolve_class(clazz)
+        self._metaconf = _read_metaconf(self.file)
 
     def create(self) -> "Translator[NameType, SourceType, IdType]":
         """Create a ``Translator`` from a TOML file."""
-        with open(self.file, "rb") as f:
-            config: Dict[str, Any] = tomllib.load(f)
+        config: Dict[str, Any] = self.load_toml_file(self.file)
+
+        config_metadata = _ConfigMetadata.from_toml_paths(
+            self.file,
+            self.extra_fetchers,
+            self.clazz,
+        )
 
         _check_allowed_keys(["translator", "mapping", "fetching", "unknown_ids"], config, "<root>")
 
         translator_config = config.pop("translator", {})
 
         fetcher: fetching.Fetcher[SourceType, IdType] = self._handle_fetching(
-            config.pop("fetching", {}), self.extra_fetchers
+            config.pop("fetching", {}), self.extra_fetchers, _cache_keys_from_config_metadata(config_metadata)
         )
 
         mapper = self._make_mapper("translator", translator_config)
@@ -157,13 +160,15 @@ class TranslatorFactory(_Generic[NameType, SourceType, IdType]):
             **translator_config,
         )
 
-        ans._config_metadata = _config_utils.make_metadata(
-            self.file,
-            self.extra_fetchers,
-            self.clazz,
-        )
+        ans._config_metadata = config_metadata
 
         return ans
+
+    def load_toml_file(self, path: str) -> Dict[str, Any]:
+        """Read a TOML file from `path`."""
+        config = dict(allow_interpolation=True)
+        config.update(self._metaconf.get("env", {}))
+        return _load_toml_file(path, **config)
 
     @classmethod
     def resolve_class(
@@ -183,17 +188,19 @@ class TranslatorFactory(_Generic[NameType, SourceType, IdType]):
     def _handle_fetching(
         self,
         config: Dict[str, Any],
-        extra_fetchers: Iterable[str],
+        extra_fetchers: List[str],
+        default_cache_keys: List[List[str]],
     ) -> fetching.Fetcher[SourceType, IdType]:
         multi_fetcher_kwargs = config.pop("MultiFetcher", {})
 
         fetchers: List[fetching.Fetcher[SourceType, IdType]] = []
         if config:
-            fetchers.append(self._make_fetcher(**config))  # Add primary fetcher
+            fetchers.append(self._make_fetcher(default_cache_keys[0], **config))  # Add primary fetcher
 
-        for file_fetcher_file in extra_fetchers:
-            with open(file_fetcher_file, "rb") as f:
-                fetchers.append(self._make_fetcher(**tomllib.load(f)["fetching"]))
+        for i, file_fetcher_file in enumerate(extra_fetchers, start=1):
+            fetchers.append(
+                self._make_fetcher(default_cache_keys[i], **self.load_toml_file(file_fetcher_file)["fetching"])
+            )
 
         if not fetchers:
             raise exceptions.ConfigurationError(
@@ -215,7 +222,7 @@ class TranslatorFactory(_Generic[NameType, SourceType, IdType]):
         return TranslatorFactory.MAPPER_FACTORY(config, for_fetcher)
 
     @classmethod
-    def _make_fetcher(cls, **config: Any) -> fetching.AbstractFetcher[SourceType, IdType]:
+    def _make_fetcher(cls, cache_keys: List[str], **config: Any) -> fetching.AbstractFetcher[SourceType, IdType]:
         mapper = cls._make_mapper("fetching", config) if "mapping" in config else None
 
         if len(config) == 0:  # pragma: no cover
@@ -226,6 +233,8 @@ class TranslatorFactory(_Generic[NameType, SourceType, IdType]):
             )
 
         clazz, kwargs = next(iter(config.items()))
+
+        kwargs["cache_keys"] = kwargs.get("cache_keys", cache_keys)
         kwargs["mapper"] = mapper
         return TranslatorFactory.FETCHER_FACTORY(clazz, kwargs)
 
@@ -253,3 +262,18 @@ def _split_overrides(overrides: Any) -> Any:
     specific = {k: v for k, v in overrides.items() if isinstance(v, dict)}
     shared = {k: v for k, v in overrides.items() if k not in specific}
     return shared, specific
+
+
+def _cache_keys_from_config_metadata(config_metadata: _ConfigMetadata) -> List[List[str]]:
+    # Use the config filename and sha hash as the default keys
+    return list(map(lambda t: [t[0].name, t[1]], (config_metadata.main,) + config_metadata.extra_fetchers))
+
+
+def _read_metaconf(file: str) -> Dict[str, Any]:
+    path = _Path(file).with_name("metaconf.toml")
+    if path.exists():
+        metaconf = _load_toml_file(path)
+    else:
+        return {}
+
+    return metaconf

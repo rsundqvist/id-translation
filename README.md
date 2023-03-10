@@ -35,7 +35,7 @@ The template is designed to allow power users to quickly  specify shared configu
 users; see the example below.
 
 ```python
-from corporate_namespace.id_translation import translate
+from your_namespace.id_translation import translate
 print(
   "The first employee at Company Inc was:", 
   translate(1, names="employee_id"),
@@ -46,7 +46,9 @@ Check out this [demo project](https://github.com/rsundqvist/id-translation-proje
 to get a preview of what Your generated project might look like, or continue to the next section for a brief feature 
 overview.
 
-[id-translation-project]: https://github.com/rsundqvist/id-translation-project
+Click [here][id-translation-project] to go to the template project.
+
+[id-translation-project]: https://github.com/rsundqvist/id-translation-project/#id-translation-cookiecutter-template
 
 # Highlighted Features
 - Support for ``int`` and ``string`` IDs or a collection thereof, with automatic name and ID extraction.

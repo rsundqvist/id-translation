@@ -16,9 +16,10 @@ from rics.mapping.types import UserOverrideFunction
 from rics.misc import tname
 from rics.performance import format_perf_counter, format_seconds
 
-from . import _config_utils, factory
+from ._config_utils import ConfigMetadata
 from .dio import DataStructureIO, resolve_io
 from .exceptions import ConnectionStatusError, TooManyFailedTranslationsError
+from .factory import TranslatorFactory
 from .fetching import Fetcher
 from .fetching.types import IdsToFetch
 from .offline import Format, TranslationMap
@@ -176,7 +177,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         # Misc config
         self._allow_name_inheritance = allow_name_inheritance
 
-        self._config_metadata: Optional[_config_utils.ConfigMetadata] = None
+        self._config_metadata: Optional[ConfigMetadata] = None
 
     @classmethod
     def from_config(
@@ -197,14 +198,14 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         Returns:
             A new ``Translator`` instance with a :attr:`config_metadata` attribute.
         """
-        return factory.TranslatorFactory(
+        return TranslatorFactory(
             path,
             extra_fetchers,
             clazz or cls,  # TODO: Higher-Kinded TypeVars
         ).create()
 
     @property
-    def config_metadata(self) -> _config_utils.ConfigMetadata:
+    def config_metadata(self) -> ConfigMetadata:
         """Return :func:`from_config` initialization metadata."""
         if self._config_metadata is None:
             raise ValueError("Not created using Translator.from_config()")  # pragma: no cover
@@ -380,6 +381,8 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                     online=self.online,
                 ),
             )
+        else:
+            pass  # pragma: no cover
 
         return ans
 
@@ -581,8 +584,8 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         * There is no `'metadata'` file, or
         * the original ``Translator`` is too old (see `max_age`), or
         * the current configuration -- as defined by ``(config_path, extra_fetchers, clazz)`` -- has changed in such a
-          way that it is no longer :meth:`equivalent <.ConfigMetadata.is_equivalent>` to the
-          configuration used to create the original ``Translator``.
+          way that it is no longer equivalent configuration used to create the original ``Translator``. For details, see
+          :class:`ConfigMetadata`.
 
         .. warning:: This method is **not** thread safe.
 
@@ -612,12 +615,12 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
         extra_fetcher_paths: List[str] = list(map(str, extra_fetchers))
 
-        metadata = _config_utils.make_metadata(
+        metadata = ConfigMetadata.from_toml_paths(
             str(path),
             extra_fetcher_paths,
-            clazz=factory.TranslatorFactory.resolve_class(clazz),
+            clazz=TranslatorFactory.resolve_class(clazz),
         )
-        if _config_utils.use_cached_translator(metadata_path, metadata, pd.Timedelta(max_age)):
+        if metadata.use_cached(metadata_path, pd.Timedelta(max_age).to_pytimedelta()):
             return cls.restore(cache_path)
         else:
             ans: Translator[NameType, SourceType, IdType] = cls.from_config(path, extra_fetcher_paths, clazz)
@@ -779,10 +782,10 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                 # Float IDs aren't officially supported, but is common when using Pandas since int types cannot be NaN.
                 # This is sometimes a problem for the built-in set (see https://github.com/numpy/numpy/issues/9358), and
                 # for several database drivers.
-                ids = numpy.unique(ids)
-                keep_mask = ~numpy.isnan(ids)
+                arr = numpy.unique(ids)
+                keep_mask = ~numpy.isnan(arr)
                 num_coerced += keep_mask.sum()  # Somewhat inaccurate; includes repeat IDs from other names
-                source_to_ids[n2s[name]].update(ids[keep_mask].astype(int, copy=False))
+                source_to_ids[n2s[name]].update(arr[keep_mask].astype(int, copy=False))
             else:
                 source_to_ids[n2s[name]].update(ids)  # type: ignore[arg-type]
 

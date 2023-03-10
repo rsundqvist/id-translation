@@ -12,6 +12,27 @@ The recommended way of creating and configuring translators is the :meth:`Transl
 
 For an introduction to the translation process itself, see the :ref:`translation-primer`.
 
+Meta configuration
+------------------
+The ``metaconf.toml``-file must be placed next to the main TOML configuration file, and determines how other files are
+processed by the the factory. There are only a few options here.
+
+.. list-table:: Sections: ``[env]``
+   :header-rows: 1
+   :widths: 15 60 25
+
+   * - Top-level section
+     - Description
+     - Details
+   * - ``[env]``
+     - | Control environment-variable interpolation; ``${VAR}`` or
+       | ``${VAR:default}``. Default is ``true`` for :meth:`~.Translator.from_config`.
+     - :func:`~id_translation.load_toml_file`.
+
+.. note::
+
+   The ``metaconf.toml``-file is `always` read as-is, without any processing.
+
 Sections
 --------
 The only valid top-level keys are ``translator``, ``unknown_ids``, and ``fetching``. Only the ``fetching`` section is
@@ -75,13 +96,37 @@ a :class:`~id_translation.fetching.MemoryFetcher` would be created by adding a `
      - Control access to :func:`~id_translation.fetching.Fetcher.fetch_all`.
      - Some fetchers types redefine or ignore this key.
 
-* The :class:`~id_translation.fetching.AbstractFetcher` class uses a :class:`~rics.mapping.Mapper` to bind actual
-  :attr:`placeholder <id_translation.fetching.Fetcher.placeholders>` names in
-  :attr:`~id_translation.fetching.Fetcher.sources` to desired
-  :attr:`placeholder names <id_translation.offline.Format.placeholders>` requested by the calling Translator instance.
-  See: :ref:`Subsection: Mapping` for details (context = :attr:`source <id_translation.types.SourceType>`).
-* Additional parameters vary based on the chosen implementation. See the :mod:`id_translation.fetching` module for
-  choices.
+
+   * - | fetch_all_unmapped
+       | _values_action
+     - `raise | warn | ignore`
+     - Special action level for :func:`~id_translation.fetching.Fetcher.fetch_all`.
+     - Interacts with `selective_fetch_all`.
+   * - selective_fetch_all
+     - :py:class:`bool`
+     - Sources without required keys are are not fetched.
+     - | Implicit `fetch_all_unmapped`
+       | `_values_action='ignore'`
+   * - | fetch_all_cache
+       | _max_age
+     - :class:`pandas.Timedelta`
+     - Specified as a string, eg `'12h'` or `'30d'`.
+     - Set to non-zero value to enable.
+   * - cache_keys
+     - :py:class:`Sequence[str] <typing.Sequence>`.
+     - Hierarchical identifier for the cache.
+     - Provided automatically if not given.
+
+The keys listed above are for the :class:`~id_translation.fetching.AbstractFetcher` class, which all fetchers created by
+TOML configuration must inherit. Additional parameters vary based on the chosen implementation. See the
+:mod:`id_translation.fetching` module for choices.
+
+The ``AbstractFetcher`` uses a  a :class:`~rics.mapping.Mapper` to bind actual
+:attr:`placeholder <id_translation.fetching.Fetcher.placeholders>` names in
+:attr:`~id_translation.fetching.Fetcher.sources` to desired
+:attr:`placeholder names <id_translation.offline.Format.placeholders>` requested by the calling Translator instance.
+See: :ref:`Subsection: Mapping` for details. For all mapping operations performed by the ``AbstractFetcher``, context =
+:attr:`source <id_translation.types.SourceType>`.
 
 .. hint::
 

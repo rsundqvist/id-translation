@@ -6,7 +6,7 @@ from typing import Any, Dict, Iterable, List, Literal, Optional, Set, TypeVar
 from urllib.parse import quote_plus
 
 import sqlalchemy
-from rics.misc import read_env_or_literal, tname
+from rics.misc import tname
 from rics.performance import format_perf_counter
 
 from ..offline.types import PlaceholderTranslations
@@ -22,12 +22,9 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
     """Fetch data from a SQL source. Requires SQLAlchemy.
 
     Args:
-        connection_string: A SQLAlchemy connection string. Read from environment variable if `connection_string` starts
-            with `'@'` followed by the name. Example: ``@TRANSLATION_DB_CONNECTION_STRING`` reads from
-            the `TRANSLATION_DB_CONNECTION_STRING` environment variable.
+        connection_string: A SQLAlchemy connection string.
         password: Password to insert into the connection string. Will be escaped to allow for special characters. If
-            given, the connection string must contain a password key, eg; ``dialect://user:{password}@host:port``. Can
-            be an environment variable just like `connection_string`.
+            given, the connection string must contain a password key, eg; ``dialect://user:{password}@host:port``.
         whitelist_tables: The only tables the ``SqlFetcher`` may access. Mutually exclusive with `blacklist_tables`.
         blacklist_tables: The only tables the ``SqlFetcher`` may not access. Mutually exclusive with `whitelist_tables`.
         schema: Database schema to use. Typically needed only if `schema` is not the default schema for the user
@@ -44,7 +41,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         Inheriting classes may override on or more of the following methods to further customize operation.
 
         * :meth:`create_engine`; initializes the SQLAlchemy engine. Calls ``create_engine``.
-        * :meth:`parse_connection_string`; does basic URL encoding. Reads from env var if any `'@'`-prefixes are found.
+        * :meth:`parse_connection_string`; does basic URL encoding.
         * :meth:`make_table_summary`; creates :class:`TableSummary` instances. Calls ``get_approximate_table_size``.
         * :meth:`get_approximate_table_size`; default is ``SELECT count(*) FROM table``.
         * :meth:`selection_filter_type`; control what kind of filtering (if any) should be done when selecting IDs.
@@ -215,8 +212,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         :class:`class docstring <SqlFetcher>`.
 
         Args:
-            connection_string: A SQLAlchemy connection string. Read from environment variable if `connection_string`
-                starts with `'@'` followed by the name.
+            connection_string: A SQLAlchemy connection string.
             password: Password to insert into the connection string.
             engine_kwargs: A dict of keyword arguments for :func:`sqlalchemy.create_engine`.
 
@@ -230,13 +226,11 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
 
     @classmethod
     def parse_connection_string(cls, connection_string: str, password: Optional[str]) -> str:  # pragma: no cover
-        """Parse a connection string. Read from environment if `connection_string` starts with `'@'`."""
-        connection_string = read_env_or_literal(connection_string)
+        """Parse a connection string."""
         if password:
             if "{password}" in connection_string:
-                connection_string = connection_string.format(password=quote_plus(read_env_or_literal(password)))
-            else:
-                # pragma: no cover
+                connection_string = connection_string.format(password=quote_plus(password))
+            else:  # pragma: no cover
                 warnings.warn("A password was specified, but the connection string does not have a {password} key.")
         return connection_string
 
