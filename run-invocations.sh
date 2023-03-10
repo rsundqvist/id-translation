@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 echo "---------- run-invocations.sh -----------"
 echo "1/7: Clean ------------------------------"

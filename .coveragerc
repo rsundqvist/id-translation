@@ -10,7 +10,7 @@ source = id_translation
 [report]
 omit =
 
-fail_under = 5
+fail_under = 90
 
 exclude_lines =
     @overload

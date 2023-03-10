@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 # Enabling execution time
 # Settings -> Advanced Settings Editor -> Notebook -> Insert ``{ "recordTiming": true }``
