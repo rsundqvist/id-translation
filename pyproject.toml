@@ -80,7 +80,7 @@ black = { version = "^22", extras = ["jupyter"] }
 [tool.poetry.group.test.dependencies]
 pytest = "^7.2.0"
 xdoctest = "^1.1.0"
-coverage = "^6.5.0"
+coverage = ">=6.5,<8.0"
 pytest-cov = "^4.0.0"
 codespell = "^2.2.2"
 
