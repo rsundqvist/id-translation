@@ -5,11 +5,11 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Generic as _Generic, Iter
 from rics import misc
 from rics._internal_support.types import PathLikeType
 from rics.collections import dicts
-from rics.mapping import HeuristicScore as _HeuristicScore, Mapper as _Mapper
 
 from . import exceptions, fetching
 from ._config_utils import ConfigMetadata as _ConfigMetadata
 from ._load_toml import load_toml_file as _load_toml_file
+from .mapping import HeuristicScore as _HeuristicScore, Mapper as _Mapper
 from .types import IdType, NameType, SourceType
 
 if TYPE_CHECKING:

@@ -65,7 +65,7 @@ corresponding ``'ENTER'``-event. The snippet that produced these logs looks some
 
    from id_translation import Translator
    import logging
-   from rics.mapping.support import enable_verbose_debug_messages
+   from id_translation.mapping.support import enable_verbose_debug_messages
 
    translator = Translator.from_config(main_config, [extra_fetchers..])
    logging.basicConfig(level=logging.DEBUG, handlers=[SomeJsonExporter()])

@@ -9,12 +9,12 @@ from typing import Any, Dict, Iterable, List, Literal, Optional, Sequence, Set, 
 import pandas as pd
 from rics.action_level import ActionLevel
 from rics.collections.dicts import InheritedKeysDict, reverse_dict
-from rics.mapping import HeuristicScore, Mapper
-from rics.mapping.score_functions import modified_hamming
 from rics.misc import tname
 from rics.performance import format_seconds
 
 from ..exceptions import ConnectionStatusError
+from ..mapping import HeuristicScore, Mapper
+from ..mapping.score_functions import modified_hamming
 from ..offline.types import PlaceholdersTuple, PlaceholderTranslations, SourcePlaceholderTranslations
 from ..types import ID, IdType, SourceType
 from . import exceptions
@@ -29,11 +29,11 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
     """Base class for retrieving translations from an external source.
 
     Args:
-        mapper: A :class:`rics.mapping.Mapper` instance used to adapt placeholder names in sources to wanted names, ie
+        mapper: A :class:`.Mapper` instance used to adapt placeholder names in sources to wanted names, ie
             the names of the placeholders that are in the translation :class:`.Format` being used.
         allow_fetch_all: If ``False``, an error will be raised when :meth:`fetch_all` is called.
         fetch_all_unmapped_values_action: A temporary value to use for :attr:`Mapper.unmapped_values_action
-            <rics.mapping.Mapper.unmapped_values_action>` while :meth:`fetch_all` is executing. Setting
+            <.Mapper.unmapped_values_action>` while :meth:`fetch_all` is executing. Setting
             ``fetch_all_unmapped_values_action='raise'`` is mutually exclusive with ``selective_fetch_all=True``.
         selective_fetch_all: If ``True``, fetch only from those :attr:`~.HasSources.sources` that contain the required
             :attr:`~.HasSources.placeholders` (after mapping).

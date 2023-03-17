@@ -7,12 +7,12 @@ from typing import Any, List, Optional
 import numpy as np
 import pandas as pd
 import pytest
-from rics.mapping import Mapper
-from rics.mapping.exceptions import MappingError, MappingWarning, UserMappingError
 
 from id_translation import Translator as RealTranslator, _config_utils
 from id_translation.dio.exceptions import NotInplaceTranslatableError, UntranslatableTypeError
 from id_translation.exceptions import ConfigurationError, TooManyFailedTranslationsError
+from id_translation.mapping import Mapper
+from id_translation.mapping.exceptions import MappingError, MappingWarning, UserMappingError
 from id_translation.types import IdType
 
 from .conftest import ROOT
@@ -450,9 +450,8 @@ def test_inherited_name(translator):
 
 
 def test_float_ids(translator):
-    from rics.mapping import DirectionalMapping
-
     from id_translation.dio import resolve_io
+    from id_translation.mapping import DirectionalMapping
 
     translatable = [0.0, 0, 1, 0.1, float("nan"), np.nan, 3, np.nan]
     ids_to_fetch = translator._get_ids_to_fetch(

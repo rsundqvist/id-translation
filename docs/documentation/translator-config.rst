@@ -121,7 +121,7 @@ The keys listed above are for the :class:`~id_translation.fetching.AbstractFetch
 TOML configuration must inherit. Additional parameters vary based on the chosen implementation. See the
 :mod:`id_translation.fetching` module for choices.
 
-The ``AbstractFetcher`` uses a  a :class:`~rics.mapping.Mapper` to bind actual
+The ``AbstractFetcher`` uses a  a :class:`~id_translation.mapping.Mapper` to bind actual
 :attr:`placeholder <id_translation.fetching.Fetcher.placeholders>` names in
 :attr:`~id_translation.fetching.Fetcher.sources` to desired
 :attr:`placeholder names <id_translation.offline.Format.placeholders>` requested by the calling Translator instance.
@@ -182,9 +182,9 @@ For more information about the mapping procedure, please refer to the :ref:`mapp
      - Description
      - Comments
    * - score_function
-     - :attr:`~rics.mapping.types.ScoreFunction`
+     - :attr:`~id_translation.mapping.types.ScoreFunction`
      - Compute value/candidate-likeness
-     - See: :mod:`rics.mapping.score_functions`
+     - See: :mod:`id_translation.mapping.score_functions`
    * - unmapped_values_action
      - `raise | warn | ignore`
      - Handle unmatched values.
@@ -192,12 +192,12 @@ For more information about the mapping procedure, please refer to the :ref:`mapp
    * - cardinality
      - `OneToOne | ManyToOne`
      - Determine how many candidates to map a single value to.
-     - See: :class:`rics.mapping.Cardinality`
+     - See: :class:`id_translation.mapping.Cardinality`
 
 * Score functions which take additional keyword arguments should be specified in a child section, eg
-  ``[*.mapping.<score-function-name>]``. See: :mod:`rics.mapping.score_functions` for options.
+  ``[*.mapping.<score-function-name>]``. See: :mod:`id_translation.mapping.score_functions` for options.
 * External functions may be used by putting fully qualified names in single quotation marks. Names which do not contain
-  any dot characters (``'.'``) are assumed to refer to functions in the appropriate ``rics.mapping`` submodule.
+  any dot characters (``'.'``) are assumed to refer to functions in the appropriate ``id_translation.mapping`` submodule.
 
 .. hint::
 
@@ -218,14 +218,14 @@ matches, for example SQL tables which should not be used or a ``DataFrame`` colu
    * - function
      - :py:class:`str`
      - Function name.
-     - See: :mod:`rics.mapping.filter_functions`
+     - See: :mod:`id_translation.mapping.filter_functions`
 
 .. note::
 
    Additional keys depend on the chosen function implementation.
 
 As an example, the next snippet ensures that only names ending with an ``_id``-suffix will be translated by using a
-:func:`~rics.mapping.filter_functions.require_regex_match` filter.
+:func:`~id_translation.mapping.filter_functions.require_regex_match` filter.
 
 .. code-block:: toml
 
@@ -237,17 +237,18 @@ As an example, the next snippet ensures that only names ending with an ``_id``-s
 
 Score function
 ~~~~~~~~~~~~~~
-There are some :attr:`~rics.mapping.types.ScoreFunction` s which take additional keyword arguments. These must
-be declared in a ``[*.overrides.<score-function-name>]``-subsection. See: :mod:`rics.mapping.score_functions` for options.
+There are some :attr:`~id_translation.mapping.types.ScoreFunction` s which take additional keyword arguments. These must
+be declared in a ``[*.overrides.<score-function-name>]``-subsection. See: :mod:`id_translation.mapping.score_functions`
+for options.
 
 Score function heuristics
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 Heuristics may be used to aid an underlying `score_function` to make more difficult matches. There are two types of
-heuristic functions: :attr:`~rics.mapping.types.AliasFunction` s and Short-circuiting functions (which are
-really just differently interpreted :attr:`~rics.mapping.types.FilterFunction` s).
+heuristic functions: :attr:`~id_translation.mapping.types.AliasFunction` s and Short-circuiting functions (which are
+really just differently interpreted :attr:`~id_translation.mapping.types.FilterFunction` s).
 
 Heuristics are given in ``[[*.mapping.score_function_heuristics]]`` **list**-subsections (note the double brackets) and
-are applied in the order in which they are given by the :class:`~rics.mapping.HeuristicScore` wrapper
+are applied in the order in which they are given by the :class:`~id_translation.mapping.HeuristicScore` wrapper
 class.
 
 .. list-table:: Section keys: ``[[*.mapping.score_function_heuristics]]``
@@ -260,7 +261,7 @@ class.
    * - function
      - :py:class:`str`
      - Function name.
-     - See: :mod:`rics.mapping.heuristic_functions`
+     - See: :mod:`id_translation.mapping.heuristic_functions`
    * - mutate
      - :py:class:`bool`
      - Keep changes made by `function`.
@@ -271,7 +272,7 @@ class.
    Additional keys depend on the chosen function implementation.
 
 As an example, the next snippet lets us match table columns such as `animal_id` to the `id` placeholder by using a
-:func:`~rics.mapping.heuristic_functions.value_fstring_alias` heuristic.
+:func:`~id_translation.mapping.heuristic_functions.value_fstring_alias` heuristic.
 
 .. code-block:: toml
 
@@ -312,8 +313,8 @@ source, respectively. They both inherit the `from` and `to` keys which rare set 
 .. warning::
 
    Overrides have no fixed keys. No validation is performed and errors may be silent. The
-   :attr:`mapping process <rics.mapping.Mapper.apply>` provides detailed information in debug mode, which may be used to
-   discover issues.
+   :attr:`mapping process <id_translation.mapping.Mapper.apply>` provides detailed information in debug mode, which may
+   be used to discover issues.
 
 .. hint::
 

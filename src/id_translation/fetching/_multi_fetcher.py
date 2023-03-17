@@ -290,7 +290,7 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
                 LOGGER.error(msg)
                 raise exceptions.DuplicateSourceError(msg)
             else:
-                warnings.warn(msg, exceptions.DuplicateSourceWarning)
+                warnings.warn(msg, exceptions.DuplicateSourceWarning, stacklevel=2)
                 LOGGER.warning(msg)
 
     def __repr__(self) -> str:

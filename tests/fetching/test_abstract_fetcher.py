@@ -3,10 +3,10 @@ from typing import Dict
 import pandas as pd
 import pytest
 from rics.collections.misc import as_list
-from rics.mapping import Mapper
 
 from id_translation.fetching import AbstractFetcher, CacheAccess, MemoryFetcher, exceptions
 from id_translation.fetching.types import IdsToFetch
+from id_translation.mapping import Mapper
 
 
 @pytest.fixture(scope="module")

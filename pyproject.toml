@@ -138,6 +138,9 @@ flake8-logging-format = ["+*",
     "-G004", # Logging statements should not use fstring. - I think this is fine IFF under enabledFor-guard
 ]
 
+
+[tool.flakeheaven.exceptions."src/id_translation/mapping/score_functions.py"]
+flake8-darglint = ["-DAR101", "-DAR301"]
 [tool.flakeheaven.exceptions."src/id_translation/fetching/"]
 flake8-docstrings = ["-D102"]  # Docstrings are inherited
 [tool.flakeheaven.exceptions."src/id_translation/dio/"]

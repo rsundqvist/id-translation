@@ -116,16 +116,16 @@ Name-to-source mapping
    :width: 420
    :align: right
 
-The :mod:`rics.mapping` namespace modules are used to perform `name-to-source` mapping. By default, names and sources
-must match exactly which is rarely the case in practice. In our case, there are two names that should be matched to one
-source each.
+The :mod:`id_translation.mapping` namespace modules are used to perform `name-to-source` mapping. By default, names and
+sources must match exactly which is rarely the case in practice. In our case, there are two names that should be matched
+to one source each.
 
 * Mapping `human_id → humans`. Mappings like these are common and may be solved using the built-in
-  :func:`~rics.mapping.heuristic_functions.like_database_table` heuristic.
+  :func:`~id_translation.mapping.heuristic_functions.like_database_table` heuristic.
 
   .. code-block:: python
 
-     from rics.mapping import HeuristicScore
+     from id_translation.mapping import HeuristicScore
      score_function = HeuristicScore('equality', heuristics=['like_database_table'])
 
 * Mapping `bitten_by → animals`. This is an impossible mapping without high-level understanding of the context. Using
@@ -135,18 +135,18 @@ source each.
 
      overrides = {'bitten_by': 'animals'}
 
-We're now ready to create the :class:`~rics.mapping.Mapper` instance.
+We're now ready to create the :class:`~id_translation.mapping.Mapper` instance.
 
 .. code-block:: python
 
-   from rics.mapping import Mapper
+   from id_translation.mapping import Mapper
    mapper = Mapper(score_function, overrides=overrides)
 
 .. important::
 
-   In the language of the ``Mapper``, `names` become :attr:`values <rics.mapping.types.ValueType>` and the `sources` are
-   referred to as the :attr:`candidates <rics.mapping.types.CandidateType>`. See the :ref:`mapping-primer` page for more
-   information.
+   In the language of the ``Mapper``, `names` become :attr:`values <id_translation.mapping.types.ValueType>` and the
+   `sources` are referred to as the :attr:`candidates <id_translation.mapping.types.CandidateType>`. See the
+   :ref:`mapping-primer` page for more information.
 
 Translation format
 ------------------
@@ -186,16 +186,17 @@ found in the source.
 
 .. important::
 
-   In the language of the ``Mapper``, `wanted placeholders` become :attr:`values <rics.mapping.types.ValueType>` and
-   the `actual placeholders` are referred to as the :attr:`candidates <rics.mapping.types.CandidateType>`. The `source`
-   or file which we are performing mapping for is referred to as the :attr:`context <rics.mapping.types.ContextType>`.
+   In the language of the ``Mapper``, `wanted placeholders` become :attr:`values <id_translation.mapping.types.ValueType>`
+   and the `actual placeholders` are referred to as the :attr:`candidates <id_translation.mapping.types.CandidateType>`.
+   The `source` or file which we are performing mapping for is referred to as the
+   :attr:`context <id_translation.mapping.types.ContextType>`.
 
 All placeholder names also match exactly, except for the ``'animal_id'`` placeholder in the ``'animals'`` source. The
 easiest solution is to use an override. However, as this kind of naming is common, a more generic solution makes sense.
 There's no suitable built-in function for this, so we'll have to create our own. The result is shown in the snippet below.
 
 .. code-block:: python
-   :caption: A custom :attr:`~rics.mapping.types.AliasFunction` heuristic to turn ``'animal_id'`` into just ``'id'``.
+   :caption: A custom :attr:`~id_translation.mapping.types.AliasFunction` heuristic to turn ``'animal_id'`` into just ``'id'``.
 
    def smurf_column_heuristic(value, candidates, context):
        """Heuristic for matching columns that use the "smurf" convention."""

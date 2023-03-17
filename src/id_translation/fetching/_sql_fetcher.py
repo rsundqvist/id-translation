@@ -94,7 +94,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
                 self.close()
                 msg = f"Got empty 'whitelist_tables' argument. No tables will be available to {self}."
                 LOGGER.warning(msg)
-                warnings.warn(msg)
+                warnings.warn(msg, stacklevel=2)
 
             self._whitelist = set(whitelist_tables)
 
@@ -231,7 +231,9 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
             if "{password}" in connection_string:
                 connection_string = connection_string.format(password=quote_plus(password))
             else:  # pragma: no cover
-                warnings.warn("A password was specified, but the connection string does not have a {password} key.")
+                warnings.warn(
+                    "A password was specified, but the connection string does not have a {password} key.", stacklevel=3
+                )
         return connection_string
 
     def _get_summaries(self) -> Dict[str, "SqlFetcher.TableSummary"]:
