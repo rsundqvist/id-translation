@@ -274,7 +274,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                 ``setattr(translatable, attribute, <translated-attribute>)``.
 
         Returns:
-            A copy of translated copy of `translatable` if ``inplace=False``, otherwise ``None``.
+            A translated copy of `translatable` if ``inplace=False``, otherwise ``None``.
 
         Raises:
             UntranslatableTypeError: If ``type(translatable)`` cannot be translated.
@@ -575,8 +575,6 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         clazz: Union[str, Type["Translator[NameType, SourceType, IdType]"]] = None,
     ) -> "Translator[NameType, SourceType, IdType]":
         """Load or create a persistent :attr:`~.Fetcher.fetch_all`-instance.
-
-        .. warning:: Experimental method; may change or disappear without warning.
 
         Instances are created, stored and loaded as determined by a metadata file located in the given `cache_dir`. A
         new ``Translator`` will be created if:

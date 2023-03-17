@@ -70,7 +70,7 @@ Section: Unknown IDs
      - Comments
    * - fmt
      - :class:`~id_translation.offline.Format`
-     - Specify an format for untranslated IDs.
+     - Specify a format for untranslated IDs.
      - Can be a plain string ``fmt='Unknown'``, or ``fmt='{id}'`` to leave as-is.
 
 * Alternative :attr:`placeholder <id_translation.offline.Format.placeholders>`-values for unknown IDs can be declared
@@ -144,11 +144,11 @@ order determines rank, affecting Name-to-:attr:`source <id_translation.fetching.
 example, for a ``Translator`` created by running
 
 >>> from id_translation import Translator
->>> extra_fetchers=["fetcher.toml", "backup-fetcher.toml"]
+>>> extra_fetchers=["primary-fetcher.toml", "secondary-fetcher.toml"]
 >>> Translator.from_config("translation.toml", extra_fetchers=extra_fetchers)
 
 the :func:`Translator.map <id_translation.Translator.map>`-function will first consider the sources of the fetcher
-defined in `translation.toml` (if there is one), then `fetcher.toml` and finally `backup-fetcher.toml`.
+defined in `translation.toml` (if there is one), then `primary-fetcher.toml` and finally `secondary-fetcher.toml`.
 
 .. list-table:: Section keys: ``[fetching.MultiFetcher]`` (main config only)
    :header-rows: 1
