@@ -22,8 +22,6 @@ from ._cache import CacheAccess, CacheMetadata
 from ._fetcher import Fetcher
 from .types import FetchInstruction, IdsToFetch
 
-LOGGER = logging.getLogger(__package__).getChild("AbstractFetcher")
-
 
 class AbstractFetcher(Fetcher[SourceType, IdType]):
     """Base class for retrieving translations from an external source.
@@ -86,6 +84,11 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         self._fetch_all_cache_max_age = fetch_all_cache_max_age
         self._cache_keys: Optional[List[str]] = None if cache_keys is None else list(cache_keys)
 
+        logger = logging.getLogger(__package__)
+        self._logger = logger if cache_keys is None else logger.getChild(cache_keys[0].replace(".", "-"))
+        mapping = logging.getLogger("id_translation.mapping.placeholders")
+        self._mapper.logger = mapping if cache_keys is None else mapping.getChild(cache_keys[0].replace(".", "-"))
+
     def map_placeholders(
         self,
         source: SourceType,
@@ -121,9 +124,9 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         if not placeholders:
             return ans  # Nothing new to map.
 
-        if LOGGER.isEnabledFor(logging.DEBUG):
+        if self.logger.isEnabledFor(logging.DEBUG):
             event_key = f"{self.__class__.__name__.upper()}.MAP_PLACEHOLDERS"
-            LOGGER.debug(
+            self.logger.debug(
                 f"Begin wanted-to-actual placeholder mapping of {placeholders=} to actual placeholders={candidates}"
                 f" for {source=}.",
                 extra=dict(
@@ -144,9 +147,9 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         for not_mapped in placeholders.difference(ans):
             ans[not_mapped] = None
 
-        if LOGGER.isEnabledFor(logging.DEBUG):
+        if self.logger.isEnabledFor(logging.DEBUG):
             execution_time = perf_counter() - start
-            LOGGER.debug(
+            self.logger.debug(
                 f"Finished wanted-to-actual placeholder mapping of {placeholders=} to actual placeholders={candidates}"
                 f" for {source=}: {dm.left_to_right}.",
                 extra=dict(
@@ -204,6 +207,15 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
     def allow_fetch_all(self) -> bool:
         return self._allow_fetch_all
 
+    @property
+    def logger(self) -> logging.Logger:
+        """Return the ``Logger`` that is used by this instance."""
+        return self._logger
+
+    @logger.setter
+    def logger(self, logger: logging.Logger) -> None:
+        self._logger = logger
+
     @contextmanager
     def _start_operation(self, operation):  # type: ignore  # noqa
         if self._active_operation:  # pragma: no cover
@@ -258,7 +270,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
             ]
             discarded = set(self.sources).difference(sources)
             if discarded:
-                LOGGER.info(
+                self.logger.info(
                     f"Ignoring {len(discarded)} sources {discarded} since required "
                     f"placeholders {sorted(required_placeholders)} could not be mapped by {self}."
                 )
@@ -294,7 +306,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         original_mapper = self._mapper
         self._mapper = self._mapper.copy(unmapped_values_action=unmapped_values_action)
         try:
-            LOGGER.info(
+            self.logger.info(
                 f"Using Mapper.{unmapped_values_action=} until the current {self._FETCH_ALL}-operation finishes, "
                 f"since {selective_fetch_all=} and {fetch_all_unmapped_values_action=}."
             )
@@ -330,12 +342,12 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
 
         cached_translations = self._get_cached_translations(instr.source)
         if cached_translations is not None:
-            LOGGER.debug(f"Returning cached translations for {source=}.")
+            self.logger.debug(f"Returning cached translations for {source=}.")
             return cached_translations, True
 
-        if LOGGER.isEnabledFor(logging.DEBUG):
+        if self.logger.isEnabledFor(logging.DEBUG):
             event_key = f"{self.__class__.__name__.upper()}.FETCH_TRANSLATIONS"
-            LOGGER.debug(
+            self.logger.debug(
                 f"Begin fetching {placeholders=} from {source=} for {'all' if instr.ids is None else len(instr.ids)} IDs.",
                 extra=dict(
                     event_key=event_key,
@@ -350,9 +362,9 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
             )
         start = perf_counter()
         translations = self.fetch_translations(instr)
-        if LOGGER.isEnabledFor(logging.DEBUG):
+        if self.logger.isEnabledFor(logging.DEBUG):
             execution_time = perf_counter() - start
-            LOGGER.debug(
+            self.logger.debug(
                 f"Finished fetching placeholders={translations.placeholders} for {len(translations.records)} IDs "
                 f"from source '{translations.source}' in {format_seconds(execution_time)} using {self}.",
                 extra=dict(
@@ -428,8 +440,6 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
 
     def _wanted_to_actual(self, source: SourceType, wanted_placeholders: Iterable[str]) -> Dict[str, str]:
         wanted_to_actual = self.map_placeholders(source, wanted_placeholders)
-        if LOGGER.isEnabledFor(logging.DEBUG):
-            LOGGER.debug(f"Placeholder mappings for source={source!r}: {wanted_to_actual}.")
         return {wanted: actual for wanted, actual in wanted_to_actual.items() if actual is not None}
 
     def _create_cache_access(self) -> CacheAccess[SourceType, IdType]:

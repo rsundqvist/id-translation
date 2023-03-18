@@ -118,52 +118,58 @@ Unmapped values are allowed by default. If mapping failure is not an acceptable 
 the ``Mapper`` with ``unmapped_values_action='raise'`` to ensure that an error is raised for unmapped values, along with
 more detailed log messages which are emitted on the error level.
 
-Mapper ``.details``-messages
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-The ``'id_translation.mapping.Mapper.accept.details'`` and ``'id_translation.mapping.Mapper.unmapped.details'`` loggers
-emit per-combination mapping scores when matches are made (`accept.details`), or when values are left without a match
-(`unmapped.details`). Records from these loggers are always emitted on the debug-level.
+Mapper ``verbose``-messages
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The ``id_translation.mapping.*.verbose`` loggers emit per-combination mapping scores when matches are made or when
+values are left without a match. Records from these loggers are always emitted on the ``DEBUG``-level.
+
+.. note::
+
+   All ``verbose`` messages are suppressed unless :attr:`.Mapper.verbose_logging` is ``True``.
+
+The messages below are from a test case in a strange world where only one kind of animal is allowed to have a specific
+number of legs.
 
 .. code-block:: python
-    :caption: The ``'id_translation.mapping.Mapper.accept.details'``-logger lists matches that were rejected in favour of the current match.
+    :caption: A listing of matches that were rejected in favour of the current match.
 
-    id_translation.mapping.Mapper.accept: Accepted: 'v0' -> 'c0'; score=1.000 >= 1.0.
-    id_translation.mapping.Mapper.accept.details: This match supersedes 2 other matches:
-        'v0' -> 'c1'; score=1.000 (superseded on value='v0').
-        'v1' -> 'c0'; score=1.000 (superseded on candidate='c0').
+    id_translation.mapping.Mapper.verbose: Accepted: 'dog' -> '4'; score=inf (short-circuit or override).
+    id_translation.mapping.Mapper.verbose: This match supersedes 7 other matches:
+        'cat' -> '4'; score=1.000 (superseded on candidate=4).
+        'three-legged cat' -> '4'; score=0.000 < 0.9 (below threshold).
+        'human' -> '4'; score=0.000 < 0.9 (below threshold).
+
+The severity of unmapped values depends on the application. As such, the level for these kinds of messages is determined
+by the :attr:`.Mapper.unmapped_values_action`-attribute.
 
 .. code-block:: python
-   :caption: The ``'id_translation.mapping.Mapper.unmapped.details'``-logger explains why values were left unmapped.
+   :caption: Explanation of why a match was not made.
 
-    id_translation.mapping.Mapper.unmapped.details: Could not map value='v1':
-        'v1' -> 'c0'; score=1.000 (superseded on candidate='c0': 'v0' -> 'c0'; score=1.000).
-        'v1' -> 'c1'; score=0.000 < 1.0 (below threshold).
+    id_translation.mapping.Mapper.verbose: Could not map value='cat':
+        'cat' -> '4'; score=1.000 (superseded on candidate=4: 'dog' -> '4'; score=inf).
+        'cat' -> '0'; score=0.000 < 0.9 (below threshold).
 
-Unlike the ``unmapped.details``-logger, the level of the records emitted by its parent (the ``unmapped``-logger) is
-determined by the :attr:`Mapper.unmapped_values_action <id_translation.mapping.Mapper.unmapped_values_action>`-attribute
-(``'ignore'`` emits on the debug-level).
+Even if ``unmapped_values_action='ignore'``, records are still emitted on the ``DEBUG``-level under the ``verbose``
+logger namespace.
 
-Verbose messages
-~~~~~~~~~~~~~~~~
-If ``.details``-logging is not enough, the last resort (before opening a debugger) is to enable verbose logging. The
-recommended way of doing this is by using the :meth:`~id_translation.mapping.support.enable_verbose_debug_messages`
--method, which acts as a context manager.
+Managing verbosity
+~~~~~~~~~~~~~~~~~~
+Verbose messages may be permanently enabled by initializing with ``verbose_logging=True``. To enable temporarily, use
+the :meth:`~id_translation.mapping.support.enable_verbose_debug_messages` context.
 
 .. code-block:: python
 
    from id_translation.mapping import Mapper, support
    with support.enable_verbose_debug_messages():
-       Mapper(<config>).apply(<values>, <candidates>)
+       Mapper().apply(<values>, <candidates>)
 
-Verbose mode enables debug-level log messages from individual functions involved in the decision making and mapping
-procedure, describing the internal operation of the ``Mapper`` in great detail.
+The ``Mapper`` uses this same function internally when the verbose flag is set.
 
 .. code-block:: python
-   :caption: A few verbose messages.
+   :caption: Messages from the scoring procedure.
 
-   id_translation.mapping.Mapper.accept: Accepted: 'a' -> 'ab'; score=inf (short-circuit or override).
-   id_translation.mapping.filter_functions.require_regex_match: Refuse matching for name='a': Matches pattern=re.compile('.*a.*', re.IGNORECASE).
-   id_translation.mapping.HeuristicScore: Heuristics scores for value='staff_id': ['store': 0.00 -> 0.50 (+0.50), 'payment': 0.07 -> 0.07 (+0.00), 'inventory': 0.00 -> 0.07 (+0.07), 'language': 0.00 -> 0.08 (+0.08), 'category': 0.00 -> 0.04 (+0.04), 'film': 0.05 -> 0.10 (+0.05), 'address': 0.00 -> 0.08 (+0.08), 'rental': 0.00 -> 0.08 (+0.08), 'customer_list': 0.00 -> 0.02 (+0.02), 'staff': 0.00 -> 1.00 (+1.00), 'staff_list': 0.00 -> 0.03 (+0.03), 'city': 0.00 -> 0.10 (+0.10), 'country': 0.00 -> 0.06 (+0.06), 'customer': 0.00 -> 0.04 (+0.04), 'actor': 0.00 -> 0.17 (+0.17)]
-   id_translation.mapping.filter_functions.require_regex_match: Refuse matching for name='return_date': Does not match pattern=re.compile('.*_id$', re.IGNORECASE).
+   id_translation.mapping.verbose.filter_functions.require_regex_match: Refuse matching for name='a': Matches pattern=re.compile('.*a.*', re.IGNORECASE).
+   id_translation.mapping.verbose.HeuristicScore: Heuristics scores for value='staff_id': ['store': 0.00 -> 0.50 (+0.50), 'payment': 0.07 -> 0.07 (+0.00), 'inventory': 0.00 -> 0.07 (+0.07), 'language': 0.00 -> 0.08 (+0.08), 'category': 0.00 -> 0.04 (+0.04), 'film': 0.05 -> 0.10 (+0.05), 'address': 0.00 -> 0.08 (+0.08), 'rental': 0.00 -> 0.08 (+0.08), 'customer_list': 0.00 -> 0.02 (+0.02), 'staff': 0.00 -> 1.00 (+1.00), 'staff_list': 0.00 -> 0.03 (+0.03), 'city': 0.00 -> 0.10 (+0.10), 'country': 0.00 -> 0.06 (+0.06), 'customer': 0.00 -> 0.04 (+0.04), 'actor': 0.00 -> 0.17 (+0.17)]
+   id_translation.mapping.verbose.filter_functions.require_regex_match: Refuse matching for name='return_date': Does not match pattern=re.compile('.*_id$', re.IGNORECASE).
 
-To permanently enable verbose logging, initialize with ``enable_verbose_logging=True``.
+The mapping procedure may emit a large amount of records in verbose mode.

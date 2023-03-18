@@ -10,7 +10,7 @@ import warnings
 from collections import defaultdict as _defaultdict
 from contextlib import contextmanager as _contextmanager
 from dataclasses import dataclass as _dataclass
-from typing import Dict, Generator, Generic as _Generic, Iterable, List, Optional, Tuple
+from typing import Dict, Generic as _Generic, Iterable, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -20,34 +20,33 @@ from ._directional_mapping import DirectionalMapping as _DirectionalMapping
 from .exceptions import AmbiguousScoreError as _AmbiguousScoreError
 from .types import CandidateType, ValueType
 
-_MAPPER_LOGGER = logging.getLogger(__package__).getChild("Mapper")
-ACCEPT_LOGGER = _MAPPER_LOGGER.getChild("accept")
-SUPERSESSION_LOGGER = ACCEPT_LOGGER.getChild("details")
-UNMAPPED_LOGGER = _MAPPER_LOGGER.getChild("unmapped").getChild("details")
-
 warnings.warn(
     "This module is considered an implementation detail, and may change without notice.", UserWarning, stacklevel=2
 )
+_MATCH_SCORES_LOGGER = logging.getLogger(__package__).getChild("MatchScores")
 
 
 @_contextmanager
-def enable_verbose_debug_messages() -> Generator[None, None, None]:  # typing.ContextManager doesn't work?
+def enable_verbose_debug_messages():  # type: ignore  # noqa
     """Temporarily enable verbose DEBUG-level logger messages.
 
     Returns a context manager. Calling the function without the ``with`` statement does nothing.
 
     >>> from id_translation.mapping import Mapper, support
     >>> with support.enable_verbose_debug_messages():
-    ...     Mapper().apply('ab', candidates='abc')
+    ...     Mapper().apply("ab", candidates="abc")
     """  # noqa: DAR301
-    from id_translation.mapping import filter_functions, heuristic_functions, score_functions
+    from id_translation.mapping import VERBOSE_LOGGER, _mapper, filter_functions, heuristic_functions, score_functions
 
-    before = filter_functions.VERBOSE, heuristic_functions.VERBOSE, score_functions.VERBOSE
+    before = filter_functions.VERBOSE, heuristic_functions.VERBOSE, score_functions.VERBOSE, VERBOSE_LOGGER.disabled
+    enable = (True, True, True, False)
     try:
-        filter_functions.VERBOSE, heuristic_functions.VERBOSE, score_functions.VERBOSE = True, True, True
+        filter_functions.VERBOSE, heuristic_functions.VERBOSE, score_functions.VERBOSE, VERBOSE_LOGGER.disabled = enable
+        _mapper.FORCE_VERBOSE = True
         yield
     finally:
-        filter_functions.VERBOSE, heuristic_functions.VERBOSE, score_functions.VERBOSE = before
+        filter_functions.VERBOSE, heuristic_functions.VERBOSE, score_functions.VERBOSE, VERBOSE_LOGGER.disabled = before
+        _mapper.FORCE_VERBOSE = False
 
 
 class MatchScores:
@@ -56,11 +55,18 @@ class MatchScores:
     Args:
         scores: A score matrix, where ``scores.index`` are values and ``score.columns`` are treated as the candidates.
         min_score: Minimum score to consider make a `value -> candidate` match.
+        logger: Explicit ``Logger`` instance to use.
     """
 
-    def __init__(self, scores: pd.DataFrame, min_score: float) -> None:
+    def __init__(self, scores: pd.DataFrame, min_score: float, logger: logging.Logger = None) -> None:
         self._min_score = min_score
         self._matrix = scores
+        self._logger = _MATCH_SCORES_LOGGER if logger is None else logger
+
+    @property
+    def logger(self) -> logging.Logger:
+        """Return the ``Logger`` that is used by this instance."""
+        return self._logger
 
     def to_directional_mapping(self, cardinality: _Cardinality = None) -> _DirectionalMapping[ValueType, CandidateType]:
         """Create a ``DirectionalMapping`` with a given target ``Cardinality``.
@@ -79,29 +85,29 @@ class MatchScores:
         left_to_right = _defaultdict(list)
         for record in list(matches):
             supersedes: List[MatchScores.Reject[ValueType, CandidateType]] = []
-            if SUPERSESSION_LOGGER.isEnabledFor(logging.DEBUG) and rejections:
+            if self.logger.isEnabledFor(logging.DEBUG) and rejections:
                 for rr in rejections:
                     if record in (rr.superseding_value, rr.superseding_candidate):
                         supersedes.append(rr)
 
-            if ACCEPT_LOGGER.isEnabledFor(logging.INFO):
+            if self.logger.isEnabledFor(logging.INFO):
                 reason = "(short-circuit or override)" if record.score == np.inf else f">= {self._min_score}"
-                ACCEPT_LOGGER.debug(f"Accepted: {record} {reason}.")
+                self.logger.debug(f"Accepted: {record} {reason}.")
 
             if supersedes:
                 s = "\n".join("    " + rr.explain(self._min_score) for rr in supersedes)
-                SUPERSESSION_LOGGER.debug(f"This match supersedes {len(supersedes)} other matches:\n{s}")
+                self.logger.debug(f"This match supersedes {len(supersedes)} other matches:\n{s}")
 
             left_to_right[record.value].append(record.candidate)
 
-        if rejections and UNMAPPED_LOGGER.isEnabledFor(logging.DEBUG):
+        if rejections and self.logger.isEnabledFor(logging.DEBUG):
             unmapped_values = set(self._matrix.index.difference(left_to_right))
             for value in unmapped_values:
                 lst = []
                 for rr in filter(lambda r: r.record.value == value, rejections):  # noqa: B023
                     lst.append(f"    {rr.explain(self._min_score, full=True)}")
                 value_reasons = "\n".join(lst)
-                UNMAPPED_LOGGER.debug(f"Could not map {value=}:\n{value_reasons}")
+                self.logger.debug(f"Could not map {value=}:\n{value_reasons}")
 
         return _DirectionalMapping(
             cardinality=cardinality,
@@ -115,11 +121,11 @@ class MatchScores:
         self, cardinality: _Cardinality = None
     ) -> Tuple[List["MatchScores.Record[ValueType, CandidateType]"], List["Reject[ValueType, CandidateType]"]]:
         rejections: Optional[List[MatchScores.Reject[ValueType, CandidateType]]] = None
-        records: List["MatchScores.Record[ValueType, CandidateType]"] = self.above()
+        records: List["MatchScores.Record[ValueType, CandidateType]"] = self.get_above()
 
-        if SUPERSESSION_LOGGER.isEnabledFor(logging.DEBUG) or UNMAPPED_LOGGER.isEnabledFor(logging.DEBUG):
+        if self.logger.isEnabledFor(logging.DEBUG):
             rejections = []
-            records.extend(self.below())
+            records.extend(self.get_below())
 
         if cardinality is _Cardinality.OneToOne:
             matches = self._select_one_to_one(records, rejections)
@@ -137,12 +143,12 @@ class MatchScores:
         sorted_scores.sort_values(ascending=False, inplace=True)
         return sorted_scores
 
-    def above(self) -> List["MatchScores.Record[ValueType, CandidateType]"]:
+    def get_above(self) -> List["MatchScores.Record[ValueType, CandidateType]"]:
         """Get all records with scores `above` the threshold."""
         s = self._get_sorted()
         return self._from_series(s[s >= self._min_score])
 
-    def below(self) -> List["MatchScores.Record[ValueType, CandidateType]"]:
+    def get_below(self) -> List["MatchScores.Record[ValueType, CandidateType]"]:
         """Get all records with scores `below` the threshold."""
         s = self._get_sorted()
         return self._from_series(s[s < self._min_score])

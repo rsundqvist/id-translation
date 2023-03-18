@@ -6,7 +6,7 @@ from rics.misc import get_by_full_name, tname
 from . import filter_functions, heuristic_functions, score_functions
 from .types import CandidateType, ContextType, HeuristicsTypes, ScoreFunction, ValueType
 
-LOGGER = logging.getLogger(__package__).getChild("HeuristicScore")
+LOGGER = logging.getLogger(__package__).getChild("verbose").getChild("HeuristicScore")
 
 
 class HeuristicScore(Generic[ValueType, CandidateType, ContextType]):
@@ -110,14 +110,14 @@ class HeuristicScore(Generic[ValueType, CandidateType, ContextType]):
                 if log_aliases:
                     mutating = "mutating" if mutate else "non-mutating"
 
-                    res_value_repr = f"{res_value!r}" if (h_value != res_value) else "-"
-                    res_candidates_repr = f"{res_candidates!r}" if (h_candidates != res_candidates) else "-"
+                    res_value_repr = f"{res_value!r}" if (h_value != res_value) else "*"
+                    res_candidates_repr = f"{res_candidates!r}" if (h_candidates != res_candidates) else "*"
 
                     res_score_repr = [round(s, 3) for s in res_scores]
                     LOGGER.debug(
-                        f"Called {mutating} alias function {_stringify((func, func_kwargs))} in {context=}: "
+                        f"Called {mutating} alias function {_stringify((func, func_kwargs))} in {context=}:\n    "
                         f"({h_value!r}, {h_candidates!r}) -> ({res_value_repr}, {res_candidates_repr})."
-                        f" Positional penalty={positional_penalty:.3f}. Scores before penalty: {res_score_repr}."
+                        f"\n    Positional penalty={positional_penalty:.3f}. Scores before penalty: {res_score_repr}."
                     )
                 else:
                     pass  # pragma: no cover

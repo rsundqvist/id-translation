@@ -20,7 +20,7 @@ with warnings.catch_warnings():
     warnings.simplefilter("ignore", category=UserWarning)
     from .support import MatchScores, enable_verbose_debug_messages
 
-LOGGER = logging.getLogger(__package__).getChild("Mapper")
+FORCE_VERBOSE: bool = False  # Magic variable used by the verbose context
 
 
 class Mapper(Generic[ValueType, CandidateType, ContextType]):
@@ -76,6 +76,7 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):
             for func, kwargs in filter_functions
         ]
         self._verbose = verbose_logging
+        self._logger = logging.getLogger(__package__).getChild("Mapper")  # This will almost always be overwritten
 
     def apply(
         self,
@@ -128,17 +129,18 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):
             candidates = set(scores)
             self._report_unmapped(f"Could not map {unmapped}{extra} to any of {candidates=}.")
 
-        if LOGGER.isEnabledFor(logging.DEBUG):
+        verbose_logger = self._get_verbose_logger()
+        if verbose_logger.isEnabledFor(logging.DEBUG):
             values = list(scores.index)
             candidates = list(scores.columns)
             cardinality = "automatic" if self.cardinality is None else self.cardinality.name
 
             l2r = dm.left_to_right
             matches = " Matches:\n" + "\n".join(
-                (f"    {v!r} -> {repr(l2r[v]) if v in l2r else '<no match>'}" for v in values)
+                (f"    {v!r} -> {repr(l2r[v]) if v in l2r else '<no matches>'}" for v in values)
             )
 
-            LOGGER.debug(
+            verbose_logger.debug(
                 f"Mapping with {cardinality=} completed for {values}x{candidates} in {format_perf_counter(start)}."
                 f"{matches}\nMatched {len(dm.left)}/{len(values)} values with {len(dm.right)} different candidates."
             )
@@ -146,7 +148,6 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):
         return dm
 
     def _report_unmapped(self, msg: str) -> None:
-        logger = LOGGER.getChild("unmapped")
         if self.unmapped_values_action is ActionLevel.RAISE:
             msg += (
                 "\nHint: set "
@@ -154,13 +155,13 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):
                 f"unmapped_values_action='{ActionLevel.IGNORE.value}' "
                 "to allow unmapped values."
             )
-            logger.error(msg)
+            self.logger.error(msg)
             raise MappingError(msg)
         elif self.unmapped_values_action is ActionLevel.WARN:
-            logger.warning(msg)
+            self.logger.warning(msg)
             warnings.warn(msg, MappingWarning, stacklevel=2)
         else:
-            logger.debug(msg)
+            self._get_verbose_logger().debug(msg)
 
     def compute_scores(
         self,
@@ -203,37 +204,38 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):
         extra = f" in {context=}" if context else ""
 
         if scores.empty:
-            if LOGGER.isEnabledFor(logging.DEBUG):
+            if self.logger.isEnabledFor(logging.DEBUG):
                 candidates = list(scores.columns)
                 values = list(scores.index)
-                end = "" if values or candidates else ", but got neither"
-                LOGGER.debug(
+                end = "" if (values or candidates) else ", but got neither"
+                self.logger.warning(
                     f"Abort mapping{extra} of {values}x{candidates}. Both values and candidates must be given{end}."
                 )
             return scores
 
-        if LOGGER.isEnabledFor(logging.DEBUG):
+        if self.logger.isEnabledFor(logging.DEBUG):
             candidates = list(scores.columns)
             values = list(scores.index)
-            LOGGER.debug(f"Begin computing match scores{extra} for {values}x{candidates} using {self._score}.")
+            self.logger.debug(f"Begin computing match scores{extra} for {values}x{candidates} using {self._score}.")
 
         unmapped_values = self._handle_overrides(scores, context, override_function)
         if not unmapped_values:
             return scores
 
+        verbose_logger = self._get_verbose_logger()
         for value in unmapped_values:
             filtered_candidates = self._apply_filters(value, scores.columns, context, kwargs)
             if not filtered_candidates:
                 continue
 
-            if self.verbose_logging and LOGGER.isEnabledFor(logging.DEBUG):
-                LOGGER.debug(f"Compute match scores for {value=}.")
+            if verbose_logger.isEnabledFor(logging.DEBUG):
+                verbose_logger.debug(f"Compute match scores for {value=}.")
             scores_for_value = self._score(value, filtered_candidates, context, **self._score_kwargs, **kwargs)
             for score, candidate in zip(scores_for_value, filtered_candidates):
                 scores.loc[value, candidate] = score
 
-        if LOGGER.isEnabledFor(logging.DEBUG):
-            LOGGER.debug(
+        if verbose_logger.isEnabledFor(logging.DEBUG):
+            verbose_logger.debug(
                 f"Computed {len(scores.index)}x{len(scores.columns)} "
                 f"match scores in {format_perf_counter(start)}:\n{scores.to_string()}"
             )
@@ -255,7 +257,12 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):
         See Also:
             :meth:`.MatchScores.to_directional_mapping`
         """
-        return MatchScores(scores, self._min_score).to_directional_mapping(self.cardinality)
+        return MatchScores(scores, self._min_score, self._get_verbose_logger()).to_directional_mapping(self.cardinality)
+
+    def _get_verbose_logger(self) -> logging.Logger:
+        logger = self.logger.getChild("verbose")
+        logger.disabled = not (FORCE_VERBOSE or self.verbose_logging)
+        return logger
 
     @property
     def cardinality(self) -> Optional[Cardinality]:
@@ -289,6 +296,15 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):
         """Return ``True`` if verbose debug-level messages are enabled."""
         return self._verbose
 
+    @property
+    def logger(self) -> logging.Logger:
+        """Return the ``Logger`` that is used by this instance."""
+        return self._logger
+
+    @logger.setter
+    def logger(self, logger: logging.Logger) -> None:
+        self._logger = logger
+
     def _handle_overrides(
         self,
         scores: pd.DataFrame,
@@ -309,8 +325,8 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):
             for value, override_candidate in self._get_function_overrides(
                 override_function, scores.index, scores.columns, context
             ):
-                if LOGGER.isEnabledFor(logging.DEBUG):
-                    LOGGER.debug(
+                if self.logger.isEnabledFor(logging.DEBUG):
+                    self.logger.debug(
                         f"Using override {repr(value)} -> {repr(override_candidate)} returned by {override_function}."
                     )
                 apply(value, override_candidate)
@@ -318,11 +334,13 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):
         for value, override_candidate in self._get_static_overrides(unmapped_values, context):
             apply(value, override_candidate)
 
-        if LOGGER.isEnabledFor(logging.DEBUG) and (self._overrides or override_function is not None):
+        if self.logger.isEnabledFor(logging.DEBUG) and (self._overrides or override_function is not None):
             num_overrides = len(self._overrides) + int(override_function is not None)
             result = f"and found {len(applied)} matches={applied} in" if applied else "but none were a match for"
             done = "All values mapped by overrides. " if (not unmapped_values and applied) else ""
-            LOGGER.debug(f"{done}Applied {num_overrides} overrides, {result} the given values={list(scores.index)}.")
+            self.logger.debug(
+                f"{done}Applied {num_overrides} overrides, {result} the given values={list(scores.index)}."
+            )
 
         return unmapped_values
 
@@ -366,11 +384,11 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):
                     f" {value=}. If this is intended behaviour, set unknown_user_override_action='ignore' to allow."
                 )
                 if self.unknown_user_override_action is ActionLevel.RAISE:
-                    LOGGER.error(msg)
+                    self.logger.error(msg)
                     raise UserMappingError(msg, value, candidates)
                 elif self.unknown_user_override_action is ActionLevel.WARN:
                     msg += " The override has been ignored."
-                    LOGGER.warning(msg)
+                    self.logger.warning(msg)
                     warnings.warn(msg, UserMappingWarning, stacklevel=2)
                 continue
 
@@ -401,11 +419,11 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):
             if not filtered_candidates:
                 break
 
-        if self.verbose_logging and LOGGER.isEnabledFor(logging.DEBUG) and len(self._filters):
+        if self.verbose_logging and self.logger.isEnabledFor(logging.DEBUG) and len(self._filters):
             diff = set(candidates).difference(filtered_candidates)
             removed = f"removing candidates={diff}" if diff else "but did not remove any candidates"
             done = "All candidates removed by filtering. " if not filtered_candidates else ""
-            LOGGER.debug(f"{done}Applied {len(self._filters)} filters for {value=}, {removed}.")
+            self.logger.debug(f"{done}Applied {len(self._filters)} filters for {value=}, {removed}.")
 
         return filtered_candidates
 

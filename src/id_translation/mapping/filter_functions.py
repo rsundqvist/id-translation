@@ -5,8 +5,6 @@ import logging
 import re
 from typing import Collection, Iterable, List, Literal, Optional, Set, Tuple, Union
 
-LOGGER = logging.getLogger(__name__)
-
 WhereOptions = Literal["name", "context", "candidate"]
 WHERE_OPTIONS = ("name", "candidate", "context")
 WhereArg = Union[WhereOptions, Iterable[WhereOptions]]
@@ -18,6 +16,7 @@ VERBOSE: bool = False
 Notes:
     Not all functions have verbose messages.
 """
+LOGGER = logging.getLogger(__package__).getChild("verbose").getChild("filter_functions")
 
 
 def require_regex_match(

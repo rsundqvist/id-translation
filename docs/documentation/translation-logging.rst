@@ -76,14 +76,14 @@ We can of course tell that this is the end from the messages itself:
 
 .. code-block:: python
 
-   Finished translation of 'DataFrame' in 0.26858 sec. Returning a translated
+   Finished translation of 'DataFrame' in 0.118961 sec. Returning a translated
    copy since inplace=False.
 
 But, there are also also keys present that may be used for indexing by log ingestion frameworks:
 
 .. literalinclude:: dvdrental-records.json
-   :lines: 7438-7441
-   :lineno-start: 7438
+   :lines: 7852-7855
+   :lineno-start: 7852
 
 The exact data that is included varies naturally depending on the message. Any record with ``event_stage='EXIT'`` will
 include a ``execution_time``-value in seconds. Messages related to mapping will contain
@@ -92,8 +92,8 @@ include a ``execution_time``-value in seconds. Messages related to mapping will 
 
 .. literalinclude:: dvdrental-records.json
    :caption: A ``TRANSLATOR.TRANSLATE.EXIT``-record emitted on the ``INFO``-level.
-   :lines: 7417-
-   :lineno-start: 7417
+   :lines: 7831-
+   :lineno-start: 7831
    :emphasize-lines: 2,5,15,22-25,33-38,44-45
 
 Click :download:`🗒️here <dvdrental-records.json>` to download the entire log file in JSON format. The line numbers shown

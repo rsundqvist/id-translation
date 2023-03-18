@@ -15,8 +15,6 @@ from . import exceptions, support
 from ._abstract_fetcher import AbstractFetcher
 from .types import FetchInstruction
 
-LOGGER = logging.getLogger(__package__).getChild("SqlFetcher")
-
 
 class SqlFetcher(AbstractFetcher[str, IdType]):
     """Fetch data from a SQL source. Requires SQLAlchemy.
@@ -93,7 +91,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
             if len(whitelist_tables) == 0:
                 self.close()
                 msg = f"Got empty 'whitelist_tables' argument. No tables will be available to {self}."
-                LOGGER.warning(msg)
+                self.logger.getChild("sql").warning(msg)
                 warnings.warn(msg, stacklevel=2)
 
             self._whitelist = set(whitelist_tables)
@@ -195,7 +193,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         if self._engine is None:
             return
 
-        LOGGER.debug("Dispose %s", self._estr)
+        self.logger.getChild("sql").debug("Dispose %s", self._estr)
         self._table_ts_dict = {}
         self._engine.dispose()
 
@@ -240,8 +238,9 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         start = perf_counter()
         metadata = self.get_metadata()
 
-        if LOGGER.isEnabledFor(logging.DEBUG):
-            LOGGER.debug(f"{self._estr}: Metadata created in {format_perf_counter(start)}.")
+        logger = self.logger.getChild("sql").getChild("discovery")
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug(f"{self._estr}: Metadata created in {format_perf_counter(start)}.")
 
         table_names = {t.name for t in metadata.tables.values()}
         if self._whitelist:
@@ -257,7 +256,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
             else:
                 extra = ""
 
-            LOGGER.warning(f"{self._estr}: No sources found{extra}. Available tables: {table_names}")
+            logger.warning(f"{self._estr}: No sources found{extra}. Available tables: {table_names}")
 
         ans = {}
         for name in tables:
@@ -285,8 +284,9 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         """Create a table summary."""
         start = perf_counter()
         size = self.get_approximate_table_size(table, id_column)
-        if LOGGER.isEnabledFor(logging.DEBUG):
-            LOGGER.debug(f"{self._estr}: Counted {size} rows of table '{table.name}' in {format_perf_counter(start)}.")
+        logger = self.logger.getChild("sql")
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug(f"{self._estr}: Counted {size} rows of table '{table.name}' in {format_perf_counter(start)}.")
         fetch_all_permitted = self._fetch_all_limit is None or size < self._fetch_all_limit
         return SqlFetcher.TableSummary(str(table.name), size, table.columns, fetch_all_permitted, id_column)
 
@@ -358,7 +358,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         # Just fetch everything if we're getting "most of" the data anyway
         if size <= fetch_all_below or num_ids / size > fetch_all_above_ratio:
             if num_ids > size:  # pragma: no cover
-                warnings.warn(f"Fetching {num_ids} unique IDs from {table=} which only has {size} rows.")
+                warnings.warn(f"Fetching {num_ids} unique IDs from {table=} which only has {size} rows.", stacklevel=2)
             return None
 
         if num_ids < fetch_in_below:

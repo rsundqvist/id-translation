@@ -178,6 +178,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             raise TypeError(type(fetcher))  # pragma: no cover
 
         self._mapper: Mapper[NameType, SourceType, None] = mapper or Mapper()
+        self._mapper.logger = logging.getLogger(__package__).getChild("mapping").getChild("name-to-source")
 
         # Misc config
         self._allow_name_inheritance = allow_name_inheritance
