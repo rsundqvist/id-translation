@@ -5,12 +5,12 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 import pytest
-from rics.mapping import Mapper
 
 from id_translation import Translator
 from id_translation.fetching import AbstractFetcher, support
 from id_translation.fetching.exceptions import UnknownIdError
 from id_translation.fetching.types import FetchInstruction
+from id_translation.mapping import Mapper
 from id_translation.offline import TranslationMap
 from id_translation.offline.types import PlaceholderTranslations
 

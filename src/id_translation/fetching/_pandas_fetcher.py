@@ -1,4 +1,3 @@
-import logging
 import os
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Mapping, Union
@@ -12,7 +11,6 @@ from ..types import IdType
 from ._abstract_fetcher import AbstractFetcher
 from .types import FetchInstruction
 
-LOGGER = logging.getLogger(__package__).getChild("PandasFetcher")
 PandasReadFunction = Callable[[PathLikeType, Any, Any], pd.DataFrame]
 FormatFn = Callable[[PathLikeType], str]
 
@@ -106,7 +104,7 @@ class PandasFetcher(AbstractFetcher[str, IdType]):
             if not self._source_paths:
                 self._source_paths = self.find_sources()
             self._sources = list(self._source_paths)
-            LOGGER.debug("Sources initialized: %s", self._sources)
+            self.logger.getChild("pandas").getChild("discovery").debug("Sources initialized: %s", self._sources)
 
         return self._sources
 

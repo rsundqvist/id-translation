@@ -50,7 +50,7 @@ optional = true
 sphinx = "^5.1.1"
 pydata-sphinx-theme = ">=0.9,<0.14"
 myst-parser = "^0.18.0"
-nbsphinx = "^0.8.9"
+nbsphinx = "^0.9.0"
 ipython = "<8.12.0"
 sphinxcontrib-programoutput = "^0.17"
 
@@ -66,8 +66,8 @@ tqdm = "*"
 flakeheaven = "^3.0.0"
 flake8-builtins = ">=1.5.3,<3.0.0"
 flake8-blind-except = "^0.2.1"
-flake8-logging-format = "^0.7.5"
-flake8-bugbear = ">=22.9.11,<24.0.0"
+flake8-logging-format = "^0.9.0"
+flake8-bugbear = "^23.3.12"
 flake8-annotations = "^2.9.1"
 flake8-docstrings = "^1.6.0"
 flake8-bandit = "^3.0.0"
@@ -80,15 +80,15 @@ black = { version = "^22", extras = ["jupyter"] }
 [tool.poetry.group.test.dependencies]
 pytest = "^7.2.0"
 xdoctest = "^1.1.0"
-coverage = "^6.5.0"
+coverage = "^7.2.1"
 pytest-cov = "^4.0.0"
-codespell = "^2.2.2"
+codespell = "^2.2.4"
 
 # db drivers and related dependencies
 pg8000 = "^1.29.2"
 pymssql = "^2.2.5"
 pymysql = "^1.0.2"
-cryptography = "^38.0.3"
+cryptography = ">=38.0.3,<40.0.0"
 
 [tool.poetry.group.types.dependencies]
 types-requests = ">=2.28.10"
@@ -138,6 +138,9 @@ flake8-logging-format = ["+*",
     "-G004", # Logging statements should not use fstring. - I think this is fine IFF under enabledFor-guard
 ]
 
+
+[tool.flakeheaven.exceptions."src/id_translation/mapping/score_functions.py"]
+flake8-darglint = ["-DAR101", "-DAR301"]
 [tool.flakeheaven.exceptions."src/id_translation/fetching/"]
 flake8-docstrings = ["-D102"]  # Docstrings are inherited
 [tool.flakeheaven.exceptions."src/id_translation/dio/"]

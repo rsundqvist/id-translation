@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Convert `rics.mapping` into an internal package. ID translation now uses `id_translation.mapping`.
+- Reduce the amount of records emitted in non-verbose mode.
+- Structure mapping log messages by use case; `*.mapping.name-to-source` and `*.mapping.name-to-source.placeholders`.
+- Fetchers inheriting from `AbstractFetcher` now include the primary cache key in the logger name (config filename).
+
 ## [0.3.0] - 2023-03-10
 Release 0.3.0, require `rics>=3.0.0`. Add the [id-translation-project](https://github.com/rsundqvist/id-translation-project)
 cookiecutter template.

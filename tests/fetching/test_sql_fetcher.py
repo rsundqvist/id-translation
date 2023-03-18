@@ -1,10 +1,10 @@
 import pytest as pytest
 import sqlalchemy
 from rics.collections.dicts import InheritedKeysDict
-from rics.mapping import Mapper
 
 from id_translation.fetching import SqlFetcher, exceptions
 from id_translation.fetching.types import FetchInstruction, IdsToFetch
+from id_translation.mapping import Mapper
 
 ALL_TABLES = {"animals", "humans", "big_table", "huge_table"}
 

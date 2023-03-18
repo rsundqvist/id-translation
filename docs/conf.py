@@ -21,8 +21,8 @@ type_modules = (
     "id_translation.types",
     "id_translation.fetching",
     "id_translation.fetching.types",
+    "id_translation.mapping.types",
     # rics
-    "rics.mapping.types",
     "rics.collections.dicts",
     "rics.collections.misc",
 )
@@ -42,6 +42,14 @@ def callback(_app, _env, node, _contnode):  # noqa
 
     if reftarget == "id_translation.fetching._sql_fetcher.StatementType":
         reftarget = "id_translation.fetching.SqlFetcher.StatementType"
+
+    if reftarget == "id_translation.mapping.support.Record":
+        ans_hax = reference(
+            refuri="id_translation.mapping.support.html#id_translation.mapping.support.MatchScores.Record",
+            reftitle="Record",
+        )
+        ans_hax.children.append(Text(reftarget.rpartition(".")[-1]))
+        return ans_hax
 
     for m in type_modules:
         if reftarget.startswith(m):

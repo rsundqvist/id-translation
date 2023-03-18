@@ -2,11 +2,11 @@
 from typing import Any, Collection, Dict, Iterable, List, Tuple
 
 import pandas as pd
-from rics.mapping import DirectionalMapping as _DirectionalMapping, Mapper as _Mapper
-from rics.mapping.types import ContextType, UserOverrideFunction, ValueType
 
 from .fetching import Fetcher as _Fetcher
 from .fetching.types import IdsToFetch as _IdsToFetch
+from .mapping import DirectionalMapping as _DirectionalMapping, Mapper as _Mapper
+from .mapping.types import ContextType, UserOverrideFunction, ValueType
 from .offline.types import (
     PlaceholderTranslations as _PlaceholderTranslations,
     SourcePlaceholderTranslations as _SourcePlaceholderTranslations,

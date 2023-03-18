@@ -10,9 +10,6 @@ import pandas as pd
 from rics._internal_support.types import PathLikeType
 from rics.collections.dicts import InheritedKeysDict, MakeType
 from rics.collections.misc import as_list
-from rics.mapping import DirectionalMapping, Mapper
-from rics.mapping.exceptions import MappingError, MappingWarning
-from rics.mapping.types import UserOverrideFunction
 from rics.misc import tname
 from rics.performance import format_perf_counter, format_seconds
 
@@ -22,6 +19,9 @@ from .exceptions import ConnectionStatusError, TooManyFailedTranslationsError
 from .factory import TranslatorFactory
 from .fetching import Fetcher
 from .fetching.types import IdsToFetch
+from .mapping import DirectionalMapping, Mapper
+from .mapping.exceptions import MappingError, MappingWarning
+from .mapping.types import UserOverrideFunction
 from .offline import Format, TranslationMap
 from .offline.types import FormatType, PlaceholderTranslations, SourcePlaceholderTranslations
 from .types import ID, HasSources, IdType, Names, NamesPredicate, NameType, NameTypes, SourceType, Translatable
@@ -48,14 +48,14 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
     The `Translator` is the main entry point for all translation tasks. Simplified translation process steps:
 
-        1. The :attr:`map` method performs name-to-source mapping (see :class:`rics.mapping.DirectionalMapping`).
+        1. The :attr:`map` method performs name-to-source mapping (see :class:`.mapping.DirectionalMapping`).
         2. The :attr:`fetch` method extracts IDs to translate and retrieves data (see :class:`.TranslationMap`).
         3. Finally, the :attr:`translate` method applies the translations and returns to the caller.
 
     Args:
         fetcher: A :class:`.Fetcher` or ready-to-use translations.
         fmt: String :class:`.Format` specification for translations.
-        mapper: A :class:`rics.mapping.Mapper` instance for binding names to sources.
+        mapper: A :class:`~.mapping.Mapper` instance for binding names to sources.
         default_fmt: Alternative :class:`.Format` to use instead of `fmt` for fallback translation of unknown IDs.
         default_fmt_placeholders: Shared and/or source-specific default placeholder values for unknown IDs. See
             :meth:`rics.collections.dicts.InheritedKeysDict.make` for details.
@@ -124,7 +124,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
         Since we didn't give an explicit `default_fmt_placeholders`, the regular `fmt` is used instead. Formats can be
         plain strings, in which case translation will never explicitly fail unless the name itself fails to map and
-        :attr:`Mapper.unmapped_values_action <rics.mapping.Mapper.unmapped_values_action>` is set to
+        :attr:`Mapper.unmapped_values_action <.mapping.Mapper.unmapped_values_action>` is set to
         :attr:`ActionLevel.RAISE <rics.action_level.ActionLevel.RAISE>`.
     """
 
@@ -153,10 +153,15 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                 warnings.warn(
                     f"Mapper instance {mapper} given; consider creating a TestFetcher([sources..])-instance manually.",
                     UserWarning,
+                    stacklevel=2,
                 )
             else:
                 mapper = TestMapper()  # type: ignore
-            warnings.warn("No fetcher given. Translation data will be automatically generated.", UserWarning)
+            warnings.warn(
+                "No fetcher given. Translation data will be automatically generated.",
+                UserWarning,
+                stacklevel=2,
+            )
         elif isinstance(fetcher, Fetcher):
             self._fetcher = fetcher
         elif isinstance(fetcher, dict):
@@ -173,6 +178,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             raise TypeError(type(fetcher))  # pragma: no cover
 
         self._mapper: Mapper[NameType, SourceType, None] = mapper or Mapper()
+        self._mapper.logger = logging.getLogger(__package__).getChild("mapping").getChild("name-to-source")
 
         # Misc config
         self._allow_name_inheritance = allow_name_inheritance
@@ -264,8 +270,8 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             names: Explicit names to translate. Derive from `translatable` if ``None``.
             ignore_names: Names **not** to translate, or a predicate ``(str) -> bool``.
             inplace: If ``True``, translate in-place and return ``None``.
-            override_function: A callable ``(name, fetcher.sources, ids) -> Source | None``. See
-                :meth:`Mapper.apply <rics.mapping.Mapper.apply>` for details.
+            override_function: A callable ``(name, fetcher.sources, ids) -> Source | None``. See :meth:`.Mapper.apply`
+                for details.
             maximal_untranslated_fraction: The maximum fraction of IDs for which translation may fail before an error is
                 raised. 1=disabled. Ignored in `reverse` mode.
             reverse: If ``True``, perform translations back to IDs. Offline mode only.
@@ -274,18 +280,18 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                 ``setattr(translatable, attribute, <translated-attribute>)``.
 
         Returns:
-            A copy of translated copy of `translatable` if ``inplace=False``, otherwise ``None``.
+            A translated copy of `translatable` if ``inplace=False``, otherwise ``None``.
 
         Raises:
             UntranslatableTypeError: If ``type(translatable)`` cannot be translated.
             AttributeError: If `names` are not given and cannot be derived from `translatable`.
-            rics.mapping.exceptions.MappingError: If any required (explicitly given) names fail to map to a source.
-            rics.mapping.exceptions.MappingError: If name-to-source mapping is ambiguous.
+            MappingError: If any required (explicitly given) names fail to map to a source.
+            MappingError: If name-to-source mapping is ambiguous.
             ValueError: If `maximal_untranslated_fraction` is not a valid fraction.
             TooManyFailedTranslationsError: If translation fails for more than `maximal_untranslated_fraction` of IDs.
             ConnectionStatusError: If ``reverse=True`` while the ``Translator`` is online.
-            rics.mapping.exceptions.UserMappingError: If `override_function` returns a source which is not
-                known, and ``self.mapper.unknown_user_override_action != 'ignore'``.
+            UserMappingError: If `override_function` returns a source which is not known, and
+                ``self.mapper.unknown_user_override_action != 'ignore'``.
         """  # noqa: DAR101 darglint is bugged here
         start = perf_counter()
 
@@ -400,16 +406,16 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             names: Explicit names to translate. Derive from `translatable` if ``None``.
             ignore_names: Names **not** to translate, or a predicate ``(str) -> bool``.
             override_function: A callable ``(name, fetcher.sources, ids) -> Source | None``. See
-                :meth:`Mapper.apply <rics.mapping.Mapper.apply>` for details.
+                :meth:`Mapper.apply <.mapping.Mapper.apply>` for details.
 
         Returns:
             A mapping of names to translation sources. Returns ``None`` if mapping failed.
 
         Raises:
             AttributeError: If `names` are not given and cannot be derived from `translatable`.
-            rics.mapping.exceptions.MappingError: If any required (explicitly given) names fail to map to a source.
-            rics.mapping.exceptions.MappingError: If name-to-source mapping is ambiguous.
-            rics.mapping.exceptions.UserMappingError: If `override_function` returns a source which is not known, and
+            MappingError: If any required (explicitly given) names fail to map to a source.
+            MappingError: If name-to-source mapping is ambiguous.
+            UserMappingError: If `override_function` returns a source which is not known, and
                 ``self.mapper.unknown_user_override_action != 'ignore'``.
         """
         return self._map_inner(translatable, names, ignore_names=ignore_names, override_function=override_function)
@@ -499,7 +505,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             if names is None:
                 derived_names = self._extract_from_attribute_or_parent(translatable, parent)
                 msg = f"Translation aborted; none of the derived names {derived_names} {params_info}."
-                warnings.warn(msg, MappingWarning)
+                warnings.warn(msg, MappingWarning, stacklevel=2)
                 LOGGER.warning(msg)
                 return None
             elif unmapped:
@@ -575,8 +581,6 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         clazz: Union[str, Type["Translator[NameType, SourceType, IdType]"]] = None,
     ) -> "Translator[NameType, SourceType, IdType]":
         """Load or create a persistent :attr:`~.Fetcher.fetch_all`-instance.
-
-        .. warning:: Experimental method; may change or disappear without warning.
 
         Instances are created, stored and loaded as determined by a metadata file located in the given `cache_dir`. A
         new ``Translator`` will be created if:
@@ -682,7 +686,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
         Raises:
             ForbiddenOperationError: If :meth:`.Fetcher.fetch_all` is disabled and ``translatable=None``.
-            rics.mapping.exceptions.MappingError: If :meth:`map` fails (only when `translatable` is given).
+            MappingError: If :meth:`map` fails (only when `translatable` is given).
 
         Notes:
             The ``Translator`` is guaranteed to be :func:`~rics.misc.serializable` once offline. Fetchers often
@@ -794,7 +798,8 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                 f"To ensure proper fetcher operation, {num_coerced} float-type IDs have been coerced to integers. "
                 f"Enforcing supported data types for IDs (str and int) in your {tname(translatable)}-data may improve "
                 f"performance. Affected names ({len(float_names)}): {float_names}."
-                "\nHint: Going offline will suppress this warning."
+                "\nHint: Going offline will suppress this warning.",
+                stacklevel=3,
             )
 
         return [IdsToFetch(source, ids) for source, ids in source_to_ids.items()]
@@ -919,7 +924,9 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         predicate = _IgnoredNamesPredicate(ignored_names).apply
         names_to_translate = list(filter(predicate, names))
         if not names_to_translate and names:
-            warnings.warn(f"No names left to translate. Ignored names: {ignored_names}, explicit names: {names}.")
+            warnings.warn(
+                f"No names left to translate. Ignored names: {ignored_names}, explicit names: {names}.", stacklevel=3
+            )
         return names_to_translate
 
 
