@@ -845,7 +845,6 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         translatable_io: Type[DataStructureIO],
         maximal_untranslated_fraction: float,
     ) -> None:
-        start = perf_counter()
         copied_map = translation_map.copy()
         # TODO: Remove the ignores when https://github.com/python/mypy/issues/3004 (5+ years old..) is fixed.
         copied_map.fmt = "found"  # type: ignore
@@ -853,20 +852,31 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         ans = translatable_io.insert(translatable, names=names_to_translate, tmap=copied_map, copy=True)
         extracted = translatable_io.extract(ans, names=names_to_translate)
 
+        total_untranslated = 0
         for name, translations in extracted.items():
-            fraction = sum(t == "" for t in translations) / len(translations)
+            num = sum(t == "" for t in translations)
+            total_untranslated += num
 
-            source = translation_map.name_to_source[name]
-            msg = f"Failed to translate {fraction:.3%} of IDs for {name=} using {source=}."
-            if LOGGER.isEnabledFor(logging.DEBUG):
+            if num == 0:
+                continue
+
+            frac = num / len(translations)
+            if LOGGER.isEnabledFor(logging.DEBUG) or frac > maximal_untranslated_fraction:
+                source = translation_map.name_to_source[name]
+                msg = f"Failed to translate {num}/{len(translations)} ({frac:.3%}) of IDs for {name=} using {source=}."
                 LOGGER.debug(msg)
-            if fraction > maximal_untranslated_fraction:
-                raise TooManyFailedTranslationsError(
-                    msg + f" Limit: maximal_untranslated_fraction={maximal_untranslated_fraction:.3%}"
-                )
+                if frac > maximal_untranslated_fraction:
+                    raise TooManyFailedTranslationsError(
+                        msg + f" Limit: maximal_untranslated_fraction={maximal_untranslated_fraction:.3%}"
+                    )
 
-        n_ids = sum(map(len, extracted.values()))
-        LOGGER.debug(f"Verified {n_ids} IDs from {len(extracted)} different sources in {format_perf_counter(start)}.")
+        if total_untranslated or LOGGER.isEnabledFor(logging.DEBUG):
+            n_ids = sum(map(len, extracted.values()))
+            LOGGER.log(
+                logging.WARNING if maximal_untranslated_fraction < 1 else logging.DEBUG,
+                f"Failed to translate {total_untranslated}/{n_ids} ({total_untranslated / n_ids:.3%}) "
+                f"of IDs extracted from {len(extracted)} different names.",
+            )
 
     def __repr__(self) -> str:
         more = f"fetcher={self.fetcher}" if self.online else f"cache={self.cache}"
