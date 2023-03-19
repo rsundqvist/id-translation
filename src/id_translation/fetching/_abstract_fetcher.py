@@ -26,8 +26,12 @@ from .types import FetchInstruction, IdsToFetch
 class AbstractFetcher(Fetcher[SourceType, IdType]):
     """Base class for retrieving translations from an external source.
 
+    .. hint::
+
+       Clear caches with :meth:`.CacheAccess.clear_all_cache_data`.
+
     Args:
-        mapper: A :class:`.Mapper` instance used to adapt placeholder names in sources to wanted names, ie
+        mapper: A :class:`.Mapper` instance used to adapt placeholder names in sources to wanted names, i.e.
             the names of the placeholders that are in the translation :class:`.Format` being used.
         allow_fetch_all: If ``False``, an error will be raised when :meth:`fetch_all` is called.
         fetch_all_unmapped_values_action: A temporary value to use for :attr:`Mapper.unmapped_values_action
@@ -38,7 +42,8 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         fetch_all_cache_max_age: If given, determines validity lifetime of data cached when :func:`fetch_all`-calls are
             made. The regular ``fetch`` function will draw from this cache as well, but only ``fetch_all`` will update
             the cache. Furthermore, caching will never be used (read or write) if :attr:`online` is ``False``.
-        cache_keys: A collection of hierarchical cache-key elements, see :class:`CacheMetadata`.
+        cache_keys: A collection of hierarchical cache-key elements, see :class:`CacheMetadata`. If given, element zero
+            of the `cache_keys` is added to the :attr:`logger` name for the fetcher.
 
     Raises:
         rics.action_level.BadActionLevelError: If `selective_fetch_all` is ``True`` and
@@ -96,7 +101,13 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         candidates: Iterable[str] = None,
         clear_cache: bool = False,
     ) -> Dict[str, Optional[str]]:
-        """Map `placeholder` names to the actual names used in `source`.
+        """Map `placeholder` names to the actual names seen in `source`.
+
+        This method calls ``Mapper.apply(values=placeholders, candidates=candidates, context=source)`` using this
+        fetchers :attr:`.AbstractFetcher.mapper` instance. It is assumed that names in sources rarely change, so
+        mappings are cached until the fetcher is recreated or until this method is called with ``clear_cache=True``.
+
+        Placeholder mapping caching should not be confused with ``FETCH_ALL`` data caching.
 
         Args:
             source: The source to map placeholders for.
@@ -111,6 +122,9 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
 
         Raises:
             UnknownPlaceholderError: If any of `required_placeholders` are incorrectly mapped, or not mapped at all.
+
+        See Also:
+            🔑 This is a key event method. See :ref:`key-events` for details.
         """
         start = perf_counter()
 
@@ -329,6 +343,9 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
 
         Raises:
             UnknownPlaceholderError: If the placeholder is unknown to the fetcher.
+
+        See Also:
+            🔑 This is a key event method. See :ref:`key-events` for details.
         """
 
     def _fetch_translations(

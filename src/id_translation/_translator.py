@@ -292,6 +292,9 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             ConnectionStatusError: If ``reverse=True`` while the ``Translator`` is online.
             UserMappingError: If `override_function` returns a source which is not known, and
                 ``self.mapper.unknown_user_override_action != 'ignore'``.
+
+        See Also:
+            🔑 This is a key event method. See :ref:`key-events` for details.
         """  # noqa: DAR101 darglint is bugged here
         start = perf_counter()
 
@@ -417,6 +420,9 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             MappingError: If name-to-source mapping is ambiguous.
             UserMappingError: If `override_function` returns a source which is not known, and
                 ``self.mapper.unknown_user_override_action != 'ignore'``.
+
+        See Also:
+            🔑 This is a key event method. See :ref:`key-events` for details.
         """
         return self._map_inner(translatable, names, ignore_names=ignore_names, override_function=override_function)
 

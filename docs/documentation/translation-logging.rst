@@ -7,6 +7,8 @@ manually, especially with loggers working on the ``DEBUG``-level with extra verb
 these processes are discussed in the :ref:`translation-primer` and :ref:`mapping-primer` pages. If you haven't looked at
 them already, you may want to do so before continuing.
 
+.. _key-events:
+
 Key Event Records
 -----------------
 Key event records are emitted on the ``INFO`` and ``DEBUG`` level, see the table below. These messages are structured
@@ -44,7 +46,7 @@ for ingestion and will always contain the ``event_key``-key, as well as some oth
      - ``<CLASSNAME>.FETCH_TRANSLATIONS``
      - fetch_all, source, placeholders, num_ids
 
-These were chosen since they are key events in the translation flow.
+These were chosen since translation issue tend to fall clearly within one of these domains.
 
 .. important::
 
