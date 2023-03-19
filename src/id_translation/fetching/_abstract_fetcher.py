@@ -87,12 +87,21 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
             raise ValueError("Must specify at least one cache key with 'fetch_all_cache_max_age'.")
         self._translation_cache_access: Optional[CacheAccess[SourceType, IdType]] = None
         self._fetch_all_cache_max_age = fetch_all_cache_max_age
-        self._cache_keys: Optional[List[str]] = None if cache_keys is None else list(cache_keys)
 
         logger = logging.getLogger(__package__)
-        self._logger = logger if cache_keys is None else logger.getChild(cache_keys[0].replace(".", "-"))
-        mapping = logging.getLogger("id_translation.mapping.placeholders")
-        self._mapper.logger = mapping if cache_keys is None else mapping.getChild(cache_keys[0].replace(".", "-"))
+        mapper_logger = logging.getLogger("id_translation.mapping.placeholders")
+        if cache_keys is not None:
+            cache_keys = list(cache_keys)
+            adder = _ExtrasAdder(config_file=cache_keys[0])
+            key0 = cache_keys[0].replace(".", "-")
+            logger = logger.getChild(key0)
+            mapper_logger = mapper_logger.getChild(key0)
+            logger.addFilter(adder)
+            mapper_logger.addFilter(adder)
+
+        self._cache_keys: Optional[List[str]] = cache_keys
+        self._logger = logger
+        self._mapper.logger = mapper_logger
 
     def map_placeholders(
         self,
@@ -498,3 +507,14 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
     def __str__(self) -> str:
         sources = self.sources if self.sources else "<no sources>"
         return f"{tname(self)}({sources=})"
+
+
+class _ExtrasAdder(logging.Filter):
+    def __init__(self, **extras: Any) -> None:
+        super().__init__()
+        self.extras = extras
+
+    def filter(self, record: logging.LogRecord) -> bool:  # noqa: A003
+        for name, value in self.extras.items():
+            setattr(record, name, value)
+        return True
