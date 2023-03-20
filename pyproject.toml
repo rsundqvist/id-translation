@@ -47,11 +47,11 @@ optional = true
 # duplicate object warnings for sphinx>=4
 # description: https://github.com/astropy/astropy/issues/11723
 # https://github.com/astropy/astropy/pull/12270
-sphinx = "^5.1.1"
+sphinx = ">=5.1.1,<7.0.0"
 pydata-sphinx-theme = ">=0.9,<0.14"
-myst-parser = "^0.18.0"
+myst-parser = ">=0.18,<1.1"
 nbsphinx = "^0.9.0"
-ipython = "<8.12.0"
+ipython = "<8.13.0"
 sphinxcontrib-programoutput = "^0.17"
 
 [tool.poetry.group.notebooks]
@@ -75,7 +75,7 @@ darglint = "^1.8.1"
 
 [tool.poetry.group.codestyle.dependencies]
 isort = "^5.10.1"
-black = { version = "^22", extras = ["jupyter"] }
+black = { version = ">=22,<24", extras = ["jupyter"] }
 
 [tool.poetry.group.test.dependencies]
 pytest = "^7.2.0"
@@ -88,7 +88,7 @@ codespell = "^2.2.4"
 pg8000 = "^1.29.2"
 pymssql = "^2.2.5"
 pymysql = "^1.0.2"
-cryptography = ">=38.0.3,<40.0.0"
+cryptography = ">=38.0.3,<41.0.0"
 
 [tool.poetry.group.types.dependencies]
 types-requests = ">=2.28.10"
