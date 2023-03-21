@@ -49,7 +49,7 @@ optional = true
 # https://github.com/astropy/astropy/pull/12270
 sphinx = "^5.1.1"
 pydata-sphinx-theme = ">=0.9,<0.14"
-myst-parser = "^0.18.0"
+myst-parser = ">=0.18,<1.1"
 nbsphinx = "^0.9.0"
 ipython = "<8.12.0"
 sphinxcontrib-programoutput = "^0.17"
