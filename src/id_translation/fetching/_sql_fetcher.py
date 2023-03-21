@@ -121,7 +121,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         return PlaceholderTranslations(instr.source, tuple(columns), records)
 
     StatementType = TypeVar("StatementType", bound=sqlalchemy.sql.Executable)
-    """Input and return bounds for :meth:`finalize_statement`."""
+    """Input and return bounds for :meth:`.finalize_statement`."""
 
     def finalize_statement(
         self,
