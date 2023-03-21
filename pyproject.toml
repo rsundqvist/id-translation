@@ -75,7 +75,7 @@ darglint = "^1.8.1"
 
 [tool.poetry.group.codestyle.dependencies]
 isort = "^5.10.1"
-black = { version = "^22", extras = ["jupyter"] }
+black = { version = ">=22,<24", extras = ["jupyter"] }
 
 [tool.poetry.group.test.dependencies]
 pytest = "^7.2.0"
