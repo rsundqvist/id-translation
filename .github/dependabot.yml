@@ -4,7 +4,9 @@ updates:
     directory: "/"
     schedule:
       interval: weekly
+    target-branch: "automatic-version-bumps"
   - package-ecosystem: pip
     directory: "/"
     schedule:
       interval: weekly
+    target-branch: "automatic-version-bumps"
