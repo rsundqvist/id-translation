@@ -5,7 +5,7 @@ Mapping primer
 The main entry point for mapping tasks is the :class:`id_translation.mapping.Mapper` class.
 
 .. seealso::
-   Mapping is used extensively by the (external) :ref:`id-translation <translation-primer>` package suite.
+   If you haven't already, consider checking out the :ref:`translation-primer` before continuing.
 
 There are two principal steps involved in the mapping procedure: The :ref:`Step 1/2: Scoring procedure` (see
 :meth:`Mapper.compute_scores <id_translation.mapping.Mapper.compute_scores>`) and the subsequent :ref:`Step 2/2: Matching procedure`
