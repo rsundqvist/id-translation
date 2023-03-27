@@ -88,7 +88,7 @@ codespell = "^2.2.4"
 pg8000 = "^1.29.2"
 pymssql = "^2.2.5"
 pymysql = "^1.0.2"
-cryptography = ">=38.0.3,<40.0.0"
+cryptography = ">=38.0.3,<41.0.0"
 
 [tool.poetry.group.types.dependencies]
 types-requests = ">=2.28.10"
