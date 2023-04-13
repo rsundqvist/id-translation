@@ -1,3 +1,4 @@
+from collections import defaultdict
 from typing import Any, Dict, List, Optional, Sequence, TypeVar
 
 import pandas as pd
@@ -24,7 +25,11 @@ class PandasIO(DataStructureIO):
     @staticmethod
     def extract(translatable: T, names: List[NameType]) -> Dict[NameType, Sequence[IdType]]:
         if isinstance(translatable, pd.DataFrame):
-            return {name: _cast_series(translatable[name]).tolist() for name in names}
+            ans = defaultdict(list)
+            for i, name in enumerate(translatable.columns):
+                if name in names:
+                    ans[name].extend(_cast_series(translatable.iloc[:, i]))
+            return dict(ans)
         else:
             return SequenceIO.extract(_cast_series(translatable), names)
 
@@ -35,8 +40,9 @@ class PandasIO(DataStructureIO):
         translatable = translatable.copy() if copy else translatable
 
         if isinstance(translatable, pd.DataFrame):
-            for name in names:
-                translatable[name] = translatable[name].map(tmap[name].get)
+            for i, name in enumerate(translatable.columns):
+                if name in names:
+                    translatable.iloc[:, i] = translatable.iloc[:, i].map(tmap[name].get)
         else:
             verify_names(len(translatable), names)
             translatable.update(pd.Series(translate_sequence(translatable, names, tmap), index=translatable.index))

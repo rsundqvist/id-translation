@@ -503,7 +503,19 @@ def test_load_persistent_instance(tmp_path):
     ],
 )
 def test_repeated_names(translator, ids, names, expected_untranslated):
-    actual = translator.translate(ids, list(names))
+    names = list(names)
+
+    actual = translator.translate(ids, names)
     assert len(actual) == len(ids)
     for i in expected_untranslated:
         assert actual[i] is None
+
+    if len(ids) != len(names):
+        return
+
+    # DataFrames are unique in that they are dict-like but permit duplicated keys (column labels)
+    df = pd.DataFrame([[n] for n in ids]).T
+    df.columns = names
+    actual = translator.translate(df)
+    for i in expected_untranslated:
+        assert actual.iloc[0, i] is None
