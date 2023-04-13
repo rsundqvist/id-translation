@@ -82,10 +82,10 @@ def test_dummy_translation_doesnt_crash(with_id, with_override, store):
 
 def test_translate_without_id(hex_fetcher):
     without_id = "{hex}, positive={positive}"
-    ans = Translator(hex_fetcher, fmt=without_id).translate({"positive_numbers": list(range(-1, 2))})
+    ans = Translator(hex_fetcher, fmt=without_id).translate({"positive_numbers": [-1, 0, 1]})
     assert ans == {
         "positive_numbers": [
-            "-0x1, positive=False",
+            None,
             "0x0, positive=True",
             "0x1, positive=True",
         ]
@@ -118,16 +118,18 @@ def test_mapping_error(translator):
 
 
 def _translate(translator):
-    ans = translator.translate({"positive_numbers": list(range(-3, 3))})
+    ans = translator.translate({"positive_numbers": [-1, 0, 1, 2], "negative_numbers": [-1, 0]})
     assert ans == {
         "positive_numbers": [
-            "-3:-0x3, positive=False",
-            "-2:-0x2, positive=False",
-            "-1:-0x1, positive=False",
+            None,
             "0:0x0, positive=True",
             "1:0x1, positive=True",
             "2:0x2, positive=True",
-        ]
+        ],
+        "negative_numbers": [
+            "-1:-0x1, positive=False",
+            "0:0x0, positive=True",
+        ],
     }
 
 
@@ -256,10 +258,10 @@ def test_complex_default(hex_fetcher):
         hex_fetcher, fmt=fmt, default_fmt=default_fmt, default_fmt_placeholders=default_fmt_placeholders
     ).store()
 
-    in_range = t.translate({"positive_numbers": list(range(-1, 2))})
+    in_range = t.translate({"positive_numbers": [-1, 0, 1]})
     assert in_range == {
         "positive_numbers": [
-            "-1:-0x1, positive=False",
+            "-1 - HEX - POSITIVE/NEGATIVE",
             "0:0x0, positive=True",
             "1:0x1, positive=True",
         ]
@@ -279,10 +281,10 @@ def test_id_only_default(hex_fetcher):
     default_fmt = "{id} is not known"
     t = Translator(hex_fetcher, fmt=fmt, default_fmt=default_fmt).store()
 
-    in_range = t.translate({"positive_numbers": list(range(-1, 2))})
+    in_range = t.translate({"positive_numbers": [-1, 0, 1]})
     assert in_range == {
         "positive_numbers": [
-            "-1:-0x1, positive=False",
+            "-1 is not known",
             "0:0x0, positive=True",
             "1:0x1, positive=True",
         ]
@@ -317,10 +319,10 @@ def test_plain_default(hex_fetcher):
     default_fmt = "UNKNOWN"
     t = Translator(hex_fetcher, fmt=fmt, default_fmt=default_fmt).store()
 
-    in_range = t.translate({"positive_numbers": list(range(-1, 2))})
+    in_range = t.translate({"positive_numbers": [-1, 0, 1]})
     assert in_range == {
         "positive_numbers": [
-            "-1:-0x1, positive=False",
+            "UNKNOWN",
             "0:0x0, positive=True",
             "1:0x1, positive=True",
         ]
@@ -333,10 +335,10 @@ def test_plain_default(hex_fetcher):
 def test_no_default(hex_fetcher):
     fmt = "{id}:{hex}[, positive={positive}]"
     t = Translator(hex_fetcher, fmt=fmt).store()
-    in_range = t.translate({"positive_numbers": list(range(-1, 2))})
+    in_range = t.translate({"positive_numbers": [-1, 0, 1]})
     assert in_range == {
         "positive_numbers": [
-            "-1:-0x1, positive=False",
+            None,
             "0:0x0, positive=True",
             "1:0x1, positive=True",
         ]
@@ -387,23 +389,22 @@ def test_reverse(hex_fetcher):
     fmt = "{id}:{hex}[, positive={positive}]"
     t = Translator(hex_fetcher, fmt=fmt).store()
 
-    expected = {"positive_numbers": list(range(-1, 2))}
     translated = {
         "positive_numbers": [
-            "-1:-0x1, positive=False",
+            None,
             "0:0x0, positive=True",
             "1:0x1, positive=True",
         ]
     }
-    assert translated == t.translate(expected, inplace=False)
+    assert translated == t.translate({"positive_numbers": [-1, 0, 1]}, inplace=False)
 
     actual = t.translate(translated, reverse=True)
-    assert expected == actual, "Original format"
+    assert {"positive_numbers": [None, 0, 1]} == actual, "Original format"
 
     translated = {"positive_numbers": ["-0x1", "0x0", "0x1"]}
     tc = t.copy(fmt="{hex}")
     actual = tc.translate(translated, reverse=True)
-    assert expected == actual, "New format"
+    assert {"positive_numbers": [None, 0, 1]} == actual, "New format"
 
 
 def test_simple_function_overrides(translator):
@@ -458,6 +459,7 @@ def test_float_ids(translator):
         DirectionalMapping(left_to_right={"whatever": ("whatever",)}),
         translatable,
         resolve_io(translatable),
+        None,
     )
     assert len(ids_to_fetch) == 1
     assert ids_to_fetch[0].ids == {0, 1, 3}
@@ -489,3 +491,21 @@ def test_load_persistent_instance(tmp_path):
     assert isinstance(real_translator, RealTranslator)
     assert real_translator.translate(*args) == expected
     assert not isinstance(real_translator, Translator)
+
+
+@pytest.mark.parametrize(
+    "ids, names, expected_untranslated",
+    [
+        ([1, -1, 2], "pnp", []),
+        ([1, -1, 2], "nnp", [0]),
+        ([1, 1, -2], "ppp", [2]),
+        ([1, 1, -2], "p", [2]),
+    ],
+)
+def test_repeated_names(translator, ids, names, expected_untranslated):
+    names = list(names)
+
+    actual = translator.translate(ids, names)
+    assert len(actual) == len(ids)
+    for i in expected_untranslated:
+        assert actual[i] is None
