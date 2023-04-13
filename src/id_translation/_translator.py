@@ -339,6 +339,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         else:
             obj = None
 
+        names = None if names is None else as_list(names)
         translation_map, names_to_translate = self._get_updated_tmap(
             translatable,
             names,
@@ -352,12 +353,21 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         translatable_io = resolve_io(translatable)
         if LOGGER.isEnabledFor(logging.DEBUG) or maximal_untranslated_fraction < 1:
             self._verify_translations(
-                translatable, names_to_translate, translation_map, translatable_io, maximal_untranslated_fraction
+                translatable,
+                names_to_translate if names is None else names,
+                translation_map,
+                translatable_io,
+                maximal_untranslated_fraction,
             )
 
         translation_map.reverse_mode = reverse
         try:
-            ans = translatable_io.insert(translatable, names=names_to_translate, tmap=translation_map, copy=not inplace)
+            ans = translatable_io.insert(
+                translatable,
+                names=names_to_translate if names is None else names,
+                tmap=translation_map,
+                copy=not inplace,
+            )
         finally:
             translation_map.reverse_mode = False
 
@@ -534,6 +544,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         translatable: Translatable,
         name_to_source: DirectionalMapping[NameType, SourceType],
         data_structure_io: Type[DataStructureIO] = None,
+        names: List[NameType] = None,
     ) -> TranslationMap[NameType, SourceType, IdType]:
         """Fetch translations.
 
@@ -541,6 +552,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             translatable: A data structure to translate.
             name_to_source: Mappings of names in `translatable` to the known :attr:`sources`.
             data_structure_io: Static namespace used to extract IDs from `translatable`.
+            names: A list of explicit names fetch translations for. Must mappable using the given `name_to_source`.
 
         Returns:
             A ``TranslationMap``.
@@ -549,7 +561,10 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             ConnectionStatusError: If disconnected from the fetcher, i.e. not :attr:`online`.
         """
         ids_to_fetch = self._get_ids_to_fetch(
-            name_to_source, translatable, data_structure_io or resolve_io(translatable)
+            name_to_source,
+            translatable,
+            data_structure_io or resolve_io(translatable),
+            names,
         )
         source_translations = self._fetch(ids_to_fetch)
         return self._to_translation_map(source_translations)
@@ -758,13 +773,16 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         """
         translatable_io = resolve_io(translatable)  # Fail fast if untranslatable type
 
+        names = None if names is None else as_list(names)
         name_to_source = self._map_inner(translatable, names, ignore_names, override_function, parent)
         if name_to_source is None:
             # Nothing to translate.
             return None, []  # pragma: no cover
 
         translation_map = (
-            self.fetch(translatable, name_to_source, translatable_io) if force_fetch or not self.cache else self.cache
+            self.fetch(translatable, name_to_source, translatable_io, names)
+            if force_fetch or not self.cache
+            else self.cache
         )
 
         n2s = name_to_source.flatten()
@@ -776,6 +794,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         name_to_source: DirectionalMapping[NameType, SourceType],
         translatable: Translatable,
         dio: Type[DataStructureIO],
+        names: Optional[List[NameType]],
     ) -> List[IdsToFetch[SourceType, IdType]]:
         # Aggregate and remove duplicates.
         source_to_ids: Dict[SourceType, Set[IdType]] = {source: set() for source in name_to_source.right}
@@ -783,7 +802,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
         float_names: List[NameType] = []
         num_coerced = 0
-        for name, ids in dio.extract(translatable, list(n2s)).items():
+        for name, ids in dio.extract(translatable, list(n2s) if names is None else names).items():
             if len(ids) == 0:
                 continue
 

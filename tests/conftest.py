@@ -87,7 +87,8 @@ def hex_fetcher() -> HexFetcher:
 
 @pytest.fixture(scope="session")
 def translator(hex_fetcher: HexFetcher) -> Translator[str, str, int]:
-    return Translator(hex_fetcher, fmt="{id}:{hex}[, positive={positive}]")
+    mapper: Mapper[str, str, None] = Mapper(overrides={"p": "positive_numbers", "n": "negative_numbers"})
+    return Translator(hex_fetcher, mapper=mapper, fmt="{id}:{hex}[, positive={positive}]")
 
 
 @pytest.fixture(scope="session")

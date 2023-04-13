@@ -503,9 +503,7 @@ def test_load_persistent_instance(tmp_path):
     ],
 )
 def test_repeated_names(translator, ids, names, expected_untranslated):
-    names = list(names)
-
-    actual = translator.translate(ids, names)
+    actual = translator.translate(ids, list(names))
     assert len(actual) == len(ids)
     for i in expected_untranslated:
         assert actual[i] is None
