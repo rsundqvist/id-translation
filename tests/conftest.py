@@ -37,16 +37,18 @@ class HexFetcher(AbstractFetcher[str, int]):
     def fetch_translations(self, instr: FetchInstruction[str, int]) -> PlaceholderTranslations[str]:
         self.num_fetches += 1
 
+        assert instr.source in self.sources
+
         placeholders = support.select_placeholders(instr, ["id", "hex", "positive"])
 
         return PlaceholderTranslations(
             instr.source,
             tuple(placeholders),
-            tuple(self._run(placeholders, instr.ids)),
+            tuple(self._run(placeholders, instr.ids, instr.source)),
         )
 
     @staticmethod
-    def _run(placeholders: List[str], ids: Optional[Iterable[int]]) -> Iterable[Tuple[Any, ...]]:
+    def _run(placeholders: List[str], ids: Optional[Iterable[int]], source: str) -> Iterable[Tuple[Any, ...]]:
         ids = tuple(range(-10, 10) if ids is None else ids)
         if max(ids) > 9 or min(ids) < -10:
             raise UnknownIdError()
@@ -58,6 +60,11 @@ class HexFetcher(AbstractFetcher[str, int]):
         }
 
         for idx in ids:
+            if idx < 0 and source == "positive_numbers":
+                continue
+            if idx > 0 and source == "negative_numbers":
+                continue
+
             yield tuple(funcs[p](idx) for p in placeholders)
 
     @property
@@ -80,7 +87,8 @@ def hex_fetcher() -> HexFetcher:
 
 @pytest.fixture(scope="session")
 def translator(hex_fetcher: HexFetcher) -> Translator[str, str, int]:
-    return Translator(hex_fetcher, fmt="{id}:{hex}[, positive={positive}]")
+    mapper: Mapper[str, str, None] = Mapper(overrides={"p": "positive_numbers", "n": "negative_numbers"})
+    return Translator(hex_fetcher, mapper=mapper, fmt="{id}:{hex}[, positive={positive}]")
 
 
 @pytest.fixture(scope="session")

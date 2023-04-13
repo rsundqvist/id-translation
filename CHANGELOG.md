@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Duplicate explicit names are now supported for most types (closes #4).
+- Duplicate column names for the `pandas.DataFrame` translatable type are no supported.
+
 ## [0.3.1] - 2023-03-19
 
 ### Changed
