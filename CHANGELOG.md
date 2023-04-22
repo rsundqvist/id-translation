@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Duplicate explicit names are now supported for most types (closes #4).
 - Duplicate column names for the `pandas.DataFrame` translatable type are no supported.
+- The `AbstractFetcher` class now uses a warning to inform the user about consequences when 
+  `unmapped_values_action='raise'` is used.
 
 ## [0.3.1] - 2023-03-19
 

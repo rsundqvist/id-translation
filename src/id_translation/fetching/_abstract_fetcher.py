@@ -1,5 +1,6 @@
 import logging
 import pickle  # noqa: 403
+import warnings
 from abc import abstractmethod
 from contextlib import contextmanager
 from datetime import timedelta
@@ -14,6 +15,7 @@ from rics.performance import format_seconds
 
 from ..exceptions import ConnectionStatusError
 from ..mapping import HeuristicScore, Mapper
+from ..mapping.exceptions import MappingWarning
 from ..mapping.score_functions import modified_hamming
 from ..offline.types import PlaceholdersTuple, PlaceholderTranslations, SourcePlaceholderTranslations
 from ..types import ID, IdType, SourceType
@@ -66,6 +68,13 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         self._mapper = mapper or Mapper(**self.default_mapper_kwargs())
         if self.mapper._overrides and not self.mapper.context_sensitive_overrides:  # pragma: no cover
             raise ValueError(f"Mapper must have context-sensitive overrides (type {InheritedKeysDict.__name__}).")
+        if self._mapper.unmapped_values_action is ActionLevel.RAISE:
+            warnings.warn(
+                "Using unmapped_values_action='raise' will treat optional placeholders as "
+                "required placeholders during normal operation.",
+                category=MappingWarning,
+                stacklevel=2,
+            )
 
         self._mapping_cache: Dict[SourceType, Dict[str, Optional[str]]] = {}
         self._allow_fetch_all = allow_fetch_all

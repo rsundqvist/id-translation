@@ -7,6 +7,7 @@ from rics.collections.misc import as_list
 from id_translation.fetching import AbstractFetcher, CacheAccess, MemoryFetcher, exceptions
 from id_translation.fetching.types import IdsToFetch
 from id_translation.mapping import Mapper
+from id_translation.mapping.exceptions import MappingWarning
 
 
 @pytest.fixture(scope="module")
@@ -45,11 +46,12 @@ def test_unknown_placeholders(fetcher):
     ],
 )
 def test_selective_fetch_all(data, selective_fetch_all, required, expected):
-    fetcher: AbstractFetcher[str, int] = MemoryFetcher(
-        data,
-        selective_fetch_all=selective_fetch_all,
-        mapper=Mapper(unmapped_values_action="raise"),
-    )
+    with pytest.warns(MappingWarning, match="unmapped_values_action='raise'"):
+        fetcher: AbstractFetcher[str, int] = MemoryFetcher(
+            data,
+            selective_fetch_all=selective_fetch_all,
+            mapper=Mapper(unmapped_values_action="raise"),
+        )
     assert set(fetcher.fetch_all(required=required)) == expected
 
 
