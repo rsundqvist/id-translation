@@ -40,10 +40,23 @@ class UnknownIdError(FetcherError):
 
 
 class UnknownSourceError(FetcherError):
-    """Caller requested unknown source(s)."""
+    """Caller requested unknown source(s).
 
-    def __init__(self, unknown_sources: Iterable[Any], sources: Iterable[Any]) -> None:
-        super().__init__(f"Sources {set(unknown_sources)} not recognized: Known {sources=}.")
+    Args:
+        unknown_sources: The sources which are not known to the Fetcher.
+        sources: Sources known to the fetcher.
+        msg: A format string that takes `unknown_sources` and `sources`.
+    """
+
+    def __init__(
+        self,
+        unknown_sources: Iterable[Any],
+        sources: Iterable[Any],
+        msg: str = "Sources {unknown_sources} not recognized. Known sources: {sources}.",
+    ) -> None:
+        self.sources = set(sources)
+        self.unknown_sources = set(unknown_sources)
+        super().__init__(msg.format(unknown_sources=self.unknown_sources, sources=self.sources))
 
 
 class DuplicateSourceWarning(FetcherWarning):

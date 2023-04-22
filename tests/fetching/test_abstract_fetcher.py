@@ -16,13 +16,13 @@ def fetcher(data):
 
 
 def test_unknown_sources(fetcher):
-    with pytest.raises(exceptions.UnknownSourceError) as ec:
+    with pytest.raises(exceptions.UnknownSourceError, match="edible_humans") as ec:
         fetcher.fetch([IdsToFetch("humans", [1, 2]), IdsToFetch("edible_humans", [1, 2])])
-    assert str({"edible_humans"}) in str(ec.value)
+    assert {"edible_humans"} == ec.value.unknown_sources
 
-    with pytest.raises(exceptions.UnknownSourceError) as ec:
+    with pytest.raises(exceptions.UnknownSourceError, match="edible_humans") as ec:
         fetcher.get_placeholders("edible_humans")
-    assert str({"edible_humans"}) in str(ec.value)
+    assert {"edible_humans"} == ec.value.unknown_sources
 
 
 def test_fetch_all_forbidden(data):
