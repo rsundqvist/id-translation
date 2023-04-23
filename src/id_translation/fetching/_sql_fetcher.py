@@ -10,9 +10,10 @@ from rics.misc import tname
 from rics.performance import format_perf_counter
 
 from ..offline.types import PlaceholderTranslations
-from ..types import IdType
+from ..types import ID, IdType
 from . import exceptions, support
 from ._abstract_fetcher import AbstractFetcher
+from .exceptions import FetcherWarning
 from .types import FetchInstruction
 
 
@@ -92,7 +93,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
                 self.close()
                 msg = f"Got empty 'whitelist_tables' argument. No tables will be available to {self}."
                 self.logger.getChild("sql").warning(msg)
-                warnings.warn(msg, stacklevel=2)
+                warnings.warn(msg, category=FetcherWarning, stacklevel=2)
 
             self._whitelist = set(whitelist_tables)
 
@@ -244,7 +245,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
 
         table_names = {t.name for t in metadata.tables.values()}
         if self._whitelist:
-            tables = self._whitelist  # pragma: no cover
+            tables = self._whitelist
         else:
             tables = table_names.difference(self._blacklist) if self._blacklist else table_names
 
@@ -263,16 +264,29 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
             qualified_name = name if self._schema is None else f"{self._schema}.{name}"
             table = metadata.tables[qualified_name]
             id_column = self.id_column(table.name, (c.name for c in table.columns))
-            if id_column is None:  # pragma: no cover
-                continue  # Mapper would've raised an error if we required all non-filtered tables to be mapped
-            if id_column not in table.columns:
-                raise exceptions.UnknownPlaceholderError(
-                    f"The ID column {id_column!r} is not present in table={table.name!r}. The override "
-                    f"configuration {self.mapper._overrides} may be incorrect. "
+            if id_column in table.columns.keys():
+                ans[str(name)] = self.make_table_summary(table, table.columns[id_column])
+            else:
+                whitelisted = table.name in self._whitelist
+                unmapped = id_column is None
+
+                if unmapped and not whitelisted:
+                    self.logger.debug("Discarding table='%s'; no suitable ID column found.", qualified_name)
+                    continue
+
+                messages = []
+                if whitelisted:
+                    messages.append("Misconfigured whitelist table.")
+                messages.append(
+                    f"No suitable ID column found for the table {qualified_name!r}. "
                     f"Known columns: {sorted(c.name for c in table.columns)}."
                 )
-
-            ans[str(name)] = self.make_table_summary(table, table.columns[id_column])
+                if not unmapped:
+                    messages.append(
+                        f"This is likely caused by a bad override. "
+                        f"Update or remove the override {ID!r} -> {id_column!r} from your mapping configuration."
+                    )
+                raise exceptions.UnknownPlaceholderError(" ".join(messages))
 
         return ans
 

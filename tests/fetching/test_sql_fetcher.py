@@ -3,6 +3,7 @@ import sqlalchemy
 from rics.collections.dicts import InheritedKeysDict
 
 from id_translation.fetching import SqlFetcher, exceptions
+from id_translation.fetching.exceptions import FetcherWarning
 from id_translation.fetching.types import FetchInstruction, IdsToFetch
 from id_translation.mapping import Mapper
 
@@ -100,17 +101,32 @@ def test_whitelist(connection_string, whitelist, expected):
 
 
 def test_empty_whitelist(connection_string):
-    with pytest.warns(UserWarning, match="empty"):
+    with pytest.warns(FetcherWarning, match="empty"):
         fetcher = SqlFetcher(connection_string, whitelist_tables=())
         assert tuple(fetcher.sources) == ()
     fetcher.close()
+
+
+@pytest.mark.parametrize("use_override", [False, True])
+def test_unmappable_whitelist_table(use_override, connection_string):
+    def score_fn(value, candidates, context):
+        return ([0] * len(candidates)) if context == "big_table" else [float(value == c) for c in candidates]
+
+    overrides = InheritedKeysDict(specific={"big_table": {"id": "bad-column"}} if use_override else None)
+    mapper = Mapper(score_fn, overrides=overrides)
+    fetcher = SqlFetcher(connection_string, mapper=mapper, whitelist_tables=["animals", "big_table", "huge_table"])
+
+    with pytest.raises(exceptions.UnknownPlaceholderError, match="whitelist") as e:
+        fetcher._get_summaries()
+    fetcher.close()
+    assert ("'id' -> 'bad-column'" in str(e.value)) is use_override
 
 
 @pytest.mark.parametrize("column", ["id", "name"])
 def test_bad_override(column, connection_string):
     mapper: Mapper[str, str, str] = Mapper(overrides=InheritedKeysDict(default={column: "bad_column"}))
     fetcher = SqlFetcher(connection_string, mapper=mapper)
-    with pytest.raises(exceptions.UnknownPlaceholderError, match=f"'{column}': 'bad_column'"):
+    with pytest.raises(exceptions.UnknownPlaceholderError, match=repr(column)):
         fetcher.fetch([IdsToFetch("humans", [-1])], (column,), (column,))  # Add ID to avoid fetch-all
     fetcher.close()
 

@@ -5,6 +5,7 @@ import pytest
 
 from id_translation import Translator
 from id_translation.fetching import AbstractFetcher, MemoryFetcher, MultiFetcher, SqlFetcher, exceptions
+from id_translation.fetching.exceptions import FetcherWarning
 from id_translation.fetching.types import IdsToFetch
 from id_translation.offline.types import PlaceholderTranslations, SourcePlaceholderTranslations
 
@@ -17,7 +18,7 @@ def fetchers(data: Dict[str, pd.DataFrame]) -> Collection[AbstractFetcher[str, i
     empty_fetcher: MemoryFetcher[str, int] = MemoryFetcher()
     everything_fetcher: MemoryFetcher[str, int] = MemoryFetcher(data)
 
-    with pytest.warns(UserWarning, match="empty"):
+    with pytest.warns(FetcherWarning, match="empty"):
         sql_fetcher: SqlFetcher[int] = SqlFetcher("sqlite://", whitelist_tables=())  # No tables allowed!
     return humans_fetcher, empty_fetcher, everything_fetcher, sql_fetcher
 

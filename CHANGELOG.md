@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Duplicate column names for the `pandas.DataFrame` translatable type are no supported.
 - The `AbstractFetcher` class now uses a warning to inform the user about consequences when 
   `unmapped_values_action='raise'` is used.
+- Instead of silently failing, the `SqlFetcher` now raises when ID column mapping fails for a whitelisted table.
 
 ## [0.3.1] - 2023-03-19
 
