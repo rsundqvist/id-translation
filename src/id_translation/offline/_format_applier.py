@@ -1,4 +1,3 @@
-from abc import ABC, abstractmethod
 from typing import Any, Dict, Generic, List
 
 from rics.misc import tname
@@ -9,8 +8,8 @@ from ._magic_dict import MagicDict
 from .types import PlaceholdersTuple, PlaceholderTranslations, TranslatedIds
 
 
-class FormatApplier(ABC, Generic[NameType, SourceType, IdType]):
-    """Base class for application of ``Format`` specifications.
+class FormatApplier(Generic[NameType, SourceType, IdType]):
+    """Application of ``Format`` specifications.
 
     Args:
         translations: Matrix of ID translation components returned by fetchers.
@@ -20,6 +19,7 @@ class FormatApplier(ABC, Generic[NameType, SourceType, IdType]):
     """
 
     def __init__(self, translations: PlaceholderTranslations[SourceType]) -> None:
+        self._translations = translations
         self._source = translations.source
         self._placeholder_names = translations.placeholders
         self._n_ids = len(translations.records)
@@ -46,7 +46,7 @@ class FormatApplier(ABC, Generic[NameType, SourceType, IdType]):
             # Use as many placeholders as possible.
             placeholders = tuple(filter(self._placeholder_names.__contains__, fmt.placeholders))
 
-        fstring = fmt.fstring(placeholders, self.positional)
+        fstring = fmt.fstring(placeholders, positional=True)
         real_translations = self._apply(fstring, placeholders)
 
         if default_fmt or default_fmt_placeholders:
@@ -60,7 +60,6 @@ class FormatApplier(ABC, Generic[NameType, SourceType, IdType]):
             default_fstring,
         )
 
-    @abstractmethod
     def _apply(self, fstring: str, placeholders: PlaceholdersTuple) -> TranslatedIds[IdType]:
         """Apply fstring to all IDs.
 
@@ -73,44 +72,28 @@ class FormatApplier(ABC, Generic[NameType, SourceType, IdType]):
         Returns:
             A dict ``{idx: translated_id}``.
         """
+        id_pos, records = self._translations.id_pos, self._translations.records
 
-    @property
-    def positional(self) -> bool:
-        """If ``True``, names are stripped from fstring placeholders."""
-        return True
+        if self._placeholder_names == placeholders:
+            return {record[id_pos]: fstring.format(*record) for record in records}
+        else:
+            pos = tuple(map(self._placeholder_names.index, placeholders))
+            return {record[id_pos]: fstring.format(*(record[i] for i in pos)) for record in records}
 
     @property
     def source(self) -> SourceType:
         """Return translation source."""
-        return self._source
+        return self._translations.source
 
     @property
     def placeholders(self) -> List[str]:
         """Return placeholder names in sorted order."""
-        return list(self._placeholder_names)
+        return list(self._translations.placeholders)
 
     def __len__(self) -> int:
-        return self._n_ids  # pragma: no cover
+        return len(self._translations.records)
 
     def __repr__(self) -> str:
         placeholders = tuple(self._placeholder_names)
         source = self._source
         return f"{tname(self)}({len(self)} IDs, {placeholders=}, {source=})"
-
-
-class DefaultFormatApplier(FormatApplier[NameType, SourceType, IdType]):
-    """Default format applier implementation."""
-
-    def __init__(
-        self,
-        translations: PlaceholderTranslations[SourceType],
-    ) -> None:
-        super().__init__(translations)
-        self._pht = translations
-
-    def _apply(self, fstring: str, placeholders: PlaceholdersTuple) -> TranslatedIds[IdType]:
-        if self._placeholder_names == placeholders:
-            return {record[self._pht.id_pos]: fstring.format(*record) for record in self._pht.records}
-        else:
-            pos = tuple(map(self._placeholder_names.index, placeholders))
-            return {record[self._pht.id_pos]: fstring.format(*(record[i] for i in pos)) for record in self._pht.records}

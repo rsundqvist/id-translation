@@ -1,12 +1,12 @@
 from copy import copy
-from typing import Any, Dict, Generic, Iterator, List, Mapping, Optional, Set, Type, Union
+from typing import Any, Dict, Generic, Iterator, List, Mapping, Optional, Set, Union
 
 from rics.collections.dicts import InheritedKeysDict, reverse_dict
 from rics.misc import tname
 
 from ..types import HasSources, IdType, NameType, SourceType
 from ._format import Format
-from ._format_applier import DefaultFormatApplier, FormatApplier
+from ._format_applier import FormatApplier
 from ._magic_dict import MagicDict
 from .types import FormatType, SourcePlaceholderTranslations
 
@@ -32,9 +32,6 @@ class TranslationMap(
         `mypy#3004 <https://github.com/python/mypy/issues/3004>`_
     """
 
-    FORMAT_APPLIER_TYPE: Type[FormatApplier[NameType, SourceType, IdType]] = DefaultFormatApplier
-    """Format application implementation type. Overwrite attribute to customize."""
-
     def __init__(
         self,
         source_translations: SourcePlaceholderTranslations[SourceType],
@@ -47,7 +44,7 @@ class TranslationMap(
         self.default_fmt_placeholders = default_fmt_placeholders  # type: ignore
         self.fmt = fmt  # type: ignore
         self._format_appliers: Dict[SourceType, FormatApplier[NameType, SourceType, IdType]] = {
-            source: self.FORMAT_APPLIER_TYPE(translations) for source, translations in source_translations.items()
+            source: FormatApplier(translations) for source, translations in source_translations.items()
         }
         self._names_and_sources: Set[Union[NameType, SourceType]] = set()
         self.name_to_source = name_to_source or {}
@@ -57,7 +54,7 @@ class TranslationMap(
     def apply(
         self, name_or_source: Union[NameType, SourceType], fmt: FormatType = None, default_fmt: FormatType = None
     ) -> MagicDict[IdType]:
-        """Create translations for names. Note: ``__getitem__`` delegates to this method.
+        """Create translations for a given name or source.
 
         Args:
             name_or_source: A name or source to translate.
@@ -70,6 +67,9 @@ class TranslationMap(
         Raises:
             ValueError: If ``fmt=None`` and initialized without `fmt`.
             KeyError: If trying to translate `name` which is not known.
+
+        Notes:
+             This method is called by ``__getitem__``.
         """
         fmt = self._fmt if fmt is None else fmt
         if fmt is None:

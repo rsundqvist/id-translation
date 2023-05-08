@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `unmapped_values_action='raise'` is used.
 - Instead of silently failing, the `SqlFetcher` now raises when ID column mapping fails for a whitelisted table.
 
+### Removed
+- The `FormatApplier` class is no longer abstract. Removed `DefaultFormatApplier`.
+
 ## [0.3.1] - 2023-03-19
 
 ### Changed
