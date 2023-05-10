@@ -106,7 +106,7 @@ extensions = [
     "myst_parser",
     "sphinxcontrib.programoutput",
 ]
-autosummary_ignore_module_all = False
+autosummary_ignore_module_all = True
 autosummary_imported_members = True
 # autoclass_content = "both"  # Add __init__ doc (ie. params) to class summaries
 html_show_sourcelink = False  # Remove 'view source code' from top of page (for html, not python)

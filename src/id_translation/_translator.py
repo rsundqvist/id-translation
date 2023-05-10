@@ -67,7 +67,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
     Notes:
         Untranslatable IDs will be ``None`` by default if neither `default_fmt` nor `default_fmt_placeholders` is given.
-        Adding the `maximal_untranslated_fraction` option to :meth:`translate` will raise an exceptions if too many IDs
+        Adding the `maximal_untranslated_fraction` option to :meth:`translate` will raise an exception if too many IDs
         are left untranslated. Note however that this verifiction step may be expensive.
 
     Examples:
@@ -268,6 +268,10 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
         For an introduction to translation, see the :ref:`translation-primer` page.
 
+        See Also:
+            🔑 This is a key event method. See :ref:`key-events` for details. Events are emitted on the ``ℹ️INFO``-level
+            if the ``Translator`` is :attr:`online`.
+
         Args:
             translatable: A data structure to translate.
             names: Explicit names to translate. Derive from `translatable` if ``None``.
@@ -295,9 +299,6 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             ConnectionStatusError: If ``reverse=True`` while the ``Translator`` is online.
             UserMappingError: If `override_function` returns a source which is not known, and
                 ``self.mapper.unknown_user_override_action != 'ignore'``.
-
-        See Also:
-            🔑 This is a key event method. See :ref:`key-events` for details.
         """  # noqa: DAR101 darglint is bugged here
         start = perf_counter()
 
