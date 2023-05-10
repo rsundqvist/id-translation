@@ -9,6 +9,7 @@ RUN wget --quiet https://raw.githubusercontent.com/jOOQ/sakila/main/postgres-sak
 RUN wget --quiet https://raw.githubusercontent.com/jOOQ/sakila/main/postgres-sakila-db/postgres-sakila-insert-data.sql
 RUN mv ./postgres-sakila-schema.sql  /docker-entrypoint-initdb.d/0_schema.sql
 RUN mv ./postgres-sakila-insert-data.sql /docker-entrypoint-initdb.d/1_data.sql
+COPY uuid.sql /docker-entrypoint-initdb.d/uuid.sql
 
 RUN ["sed", "-i", "s/exec \"$@\"/echo \"skipping...\"/", "/usr/local/bin/docker-entrypoint.sh"]
 
