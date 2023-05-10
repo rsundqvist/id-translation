@@ -7,9 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- The `uuid.UUID`-type has been added to `IdType`s.
+
 ### Fixed
 - Duplicate explicit names are now supported for most types (closes #4).
-- Duplicate column names for the `pandas.DataFrame` translatable type are no supported.
+- Duplicate column names for the `pandas.DataFrame` translatable type are now supported.
 - The `AbstractFetcher` class now uses a warning to inform the user about consequences when 
   `unmapped_values_action='raise'` is used.
 - Instead of silently failing, the `SqlFetcher` now raises when ID column mapping fails for a whitelisted table.

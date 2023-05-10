@@ -1,4 +1,5 @@
 from typing import Any, Dict, List, Sequence
+from uuid import UUID
 
 from ..offline import TranslationMap
 from ..types import IdType, NameType, SourceType
@@ -11,7 +12,7 @@ class SingleValueIO(DataStructureIO):
 
     @staticmethod
     def handles_type(arg: Any) -> bool:
-        return isinstance(arg, (int, str))
+        return isinstance(arg, (int, str, UUID))
 
     @staticmethod
     def extract(translatable: IdType, names: List[NameType]) -> Dict[NameType, Sequence[IdType]]:
