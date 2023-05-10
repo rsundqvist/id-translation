@@ -26,6 +26,7 @@ class TranslationMap(
         fmt: A translation format. Must be given to use as a mapping.
         default_fmt: Alternative format specification to use instead of `fmt` for fallback translation.
         default_fmt_placeholders: Per-source default placeholder values.
+        enable_uuid_heuristics: Enabling may improve matching when :py:class:`~uuid.UUID`-like IDs are in use.
 
     Notes:
         Type checking of `fmt` and `default_fmt_placeholders` attributes may fail due to
@@ -39,6 +40,7 @@ class TranslationMap(
         fmt: FormatType = None,
         default_fmt: FormatType = None,
         default_fmt_placeholders: InheritedKeysDict[SourceType, str, Any] = None,
+        enable_uuid_heuristics: bool = True,
     ) -> None:
         self.default_fmt = default_fmt  # type: ignore
         self.default_fmt_placeholders = default_fmt_placeholders  # type: ignore
@@ -50,6 +52,7 @@ class TranslationMap(
         self.name_to_source = name_to_source or {}
 
         self._reverse_mode: bool = False
+        self.enable_uuid_heuristics = enable_uuid_heuristics
 
     def apply(
         self, name_or_source: Union[NameType, SourceType], fmt: FormatType = None, default_fmt: FormatType = None
@@ -82,11 +85,13 @@ class TranslationMap(
             fmt,
             default_fmt=default_fmt,
             default_fmt_placeholders=self.default_fmt_placeholders.get(source),
+            enable_uuid_heuristics=self.enable_uuid_heuristics,
         )
         return (
             MagicDict(
                 reverse_dict(translations),  # type: ignore
                 default_value=None,  # force failure for unknown keys
+                enable_uuid_heuristics=False,
             )
             if self.reverse_mode
             else translations
@@ -156,6 +161,15 @@ class TranslationMap(
     @reverse_mode.setter
     def reverse_mode(self, value: bool) -> None:
         self._reverse_mode = value
+
+    @property
+    def enable_uuid_heuristics(self) -> bool:
+        """Return automatic UUID mitigation status."""
+        return self._enable_uuid_heuristics
+
+    @enable_uuid_heuristics.setter
+    def enable_uuid_heuristics(self, value: bool) -> None:
+        self._enable_uuid_heuristics = value
 
     def copy(self) -> "TranslationMap[NameType, SourceType, IdType]":
         """Make a copy of this ``TranslationMap``."""

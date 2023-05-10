@@ -50,3 +50,14 @@ def test_no_default():
     assert subject[1999] == "My name is Sofia and my number is 1999."
     with pytest.raises(KeyError):
         subject[-1]
+
+
+def test_bad_uuids():
+    with pytest.raises(TypeError):
+        MagicDict(
+            {
+                "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee": "",
+                "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE": "",
+            },
+            enable_uuid_heuristics=True,
+        )

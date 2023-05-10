@@ -1,4 +1,6 @@
 from dataclasses import dataclass
+from os import getenv
+from sys import platform
 
 import pytest
 import sqlalchemy
@@ -7,7 +9,13 @@ from id_translation import Translator
 
 from .conftest import DIALECTS, check_status, get_connection_string, setup_for_dialect
 
-pytestmark = pytest.mark.xfail(reason="Not implemented", strict=True)
+pytestmark = [
+    pytest.mark.xfail(reason="Not implemented", strict=True),
+    pytest.mark.skipif(
+        getenv("CI") == "true" and platform != "linux",
+        reason="No Docker for Mac and Windows in CI/CD.",
+    ),
+]
 
 
 @pytest.mark.parametrize("dialect", DIALECTS)

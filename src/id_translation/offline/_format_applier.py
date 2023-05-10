@@ -30,6 +30,7 @@ class FormatApplier(Generic[NameType, SourceType, IdType]):
         placeholders: PlaceholdersTuple = None,
         default_fmt: Format = None,
         default_fmt_placeholders: Dict[str, Any] = None,
+        enable_uuid_heuristics: bool = True,
     ) -> MagicDict[IdType]:
         """Translate IDs.
 
@@ -37,7 +38,8 @@ class FormatApplier(Generic[NameType, SourceType, IdType]):
             fmt: Translation format to use.
             placeholders: Placeholders to include in the formatted output. Use as many as possible if ``None``.
             default_fmt: Alternative format for default translation.
-            default_fmt_placeholders: Default placeholders
+            default_fmt_placeholders: Default placeholders.
+            enable_uuid_heuristics: Enabling may improve matching when :py:class:`~uuid.UUID`-like IDs are in use.
 
         Returns:
             A dict ``{idx: translated_id}``.
@@ -55,10 +57,7 @@ class FormatApplier(Generic[NameType, SourceType, IdType]):
         else:
             default_fstring = None
 
-        return MagicDict(
-            real_translations,
-            default_fstring,
-        )
+        return MagicDict(real_translations, default_fstring, enable_uuid_heuristics)
 
     def _apply(self, fstring: str, placeholders: PlaceholdersTuple) -> TranslatedIds[IdType]:
         """Apply fstring to all IDs.

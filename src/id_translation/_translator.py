@@ -13,6 +13,7 @@ from rics.collections.misc import as_list
 from rics.misc import tname
 from rics.performance import format_perf_counter, format_seconds
 
+from . import _uuid_utils
 from ._config_utils import ConfigMetadata
 from .dio import DataStructureIO, resolve_io
 from .exceptions import ConnectionStatusError, TooManyFailedTranslationsError
@@ -62,6 +63,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         allow_name_inheritance: If ``True``, enable name resolution fallback to the parent `translatable` when
             translating with the ``attribute``-option. Allows nameless ``pandas.Index`` instances to inherit the name of
             a ``pandas.Series``.
+        enable_uuid_heuristics: Enabling may improve matching when :py:class:`~uuid.UUID`-like IDs are in use.
 
     Notes:
         Untranslatable IDs will be ``None`` by default if neither `default_fmt` nor `default_fmt_placeholders` is given.
@@ -136,12 +138,15 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         default_fmt: FormatType = None,
         default_fmt_placeholders: MakeType[SourceType, str, Any] = None,
         allow_name_inheritance: bool = True,
+        enable_uuid_heuristics: bool = False,
     ) -> None:
         self._fmt = fmt if isinstance(fmt, Format) else Format(fmt)
         self._default_fmt_placeholders: Optional[InheritedKeysDict[SourceType, str, Any]]
         self._default_fmt_placeholders, self._default_fmt = _handle_default(
             self._fmt, default_fmt, default_fmt_placeholders
         )
+        self._allow_name_inheritance = allow_name_inheritance
+        self._enable_uuid_heuristics = enable_uuid_heuristics
 
         self._cached_tmap: TranslationMap[NameType, SourceType, IdType] = TranslationMap({})
         self._fetcher: Fetcher[SourceType, IdType]
@@ -179,9 +184,6 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
         self._mapper: Mapper[NameType, SourceType, None] = mapper or Mapper()
         self._mapper.logger = logging.getLogger(__package__).getChild("mapping").getChild("name-to-source")
-
-        # Misc config
-        self._allow_name_inheritance = allow_name_inheritance
 
         self._config_metadata: Optional[ConfigMetadata] = None
 
@@ -238,6 +240,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             "fmt": self._fmt,
             "default_fmt": self._default_fmt,
             "allow_name_inheritance": self._allow_name_inheritance,
+            "enable_uuid_heuristics": self._enable_uuid_heuristics,
             **overrides,
         }
 
@@ -783,6 +786,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             else self.cache
         )
 
+        translation_map.enable_uuid_heuristics = self._enable_uuid_heuristics
         n2s = name_to_source.flatten()
         translation_map.name_to_source = n2s  # Update
         return translation_map, list(n2s)
@@ -814,6 +818,9 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                 num_coerced += keep_mask.sum()  # Somewhat inaccurate; includes repeat IDs from other names
                 source_to_ids[n2s[name]].update(arr[keep_mask].astype(int, copy=False))
             else:
+                if self._enable_uuid_heuristics:
+                    ids = _uuid_utils.try_cast_many(ids)
+
                 source_to_ids[n2s[name]].update(ids)  # type: ignore[arg-type]
 
         if num_coerced > 100 and self.online:  # pragma: no cover
@@ -852,6 +859,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             fmt=self._fmt,
             default_fmt=self._default_fmt,
             default_fmt_placeholders=self._default_fmt_placeholders,
+            enable_uuid_heuristics=self._enable_uuid_heuristics,
         )
 
     @staticmethod
