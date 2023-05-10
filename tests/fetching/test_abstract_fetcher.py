@@ -91,7 +91,7 @@ def test_cache_with_call_count(
 
     test_fetcher = CacheTestFetcher(fetcher._data, key="test_cache_with_call_count")
     if clear:
-        test_fetcher.clear_cache("test case")
+        test_fetcher.clear_cache("test_cache_with_call_count(clear=True)")
 
     for i, (op, expected_count) in enumerate(zip(operations, expected_call_counts)):
         msg = f"Step {i}: {op}({expected_count})"

@@ -78,8 +78,8 @@ We can of course tell that this is the end from the messages itself:
 
 .. code-block:: python
 
-   Finished translation of 'DataFrame' in 0.118961 sec. Returning a translated
-   copy since inplace=False.
+   Finished translation of 'DataFrame'-type data in 0.118961
+   sec. Returning a translated copy (since inplace=False).
 
 But, there are also also keys present that may be used for indexing by log ingestion frameworks:
 

@@ -4903,7 +4903,7 @@
   },
   {
     "name": "id_translation.Translator",
-    "msg": "Begin translation of 'DataFrame' using sources=['category', 'country', 'film', 'customer', 'language', 'staff', 'city', 'actor', 'address']. Names to translate: Will be derived based on 'DataFrame'.",
+    "msg": "Begin translation of 'DataFrame'-type data using sources=['category', 'country', 'film', 'customer', 'language', 'staff', 'city', 'actor', 'address']. Names to translate: Derive based on type.",
     "args": [],
     "levelname": "INFO",
     "levelno": 20,
@@ -4945,7 +4945,7 @@
     "attribute": null,
     "reverse": false,
     "online": true,
-    "message": "Begin translation of 'DataFrame' using sources=['category', 'country', 'film', 'customer', 'language', 'staff', 'city', 'actor', 'address']. Names to translate: Will be derived based on 'DataFrame'."
+    "message": "Begin translation of 'DataFrame'-type data using sources=['category', 'country', 'film', 'customer', 'language', 'staff', 'city', 'actor', 'address']. Names to translate: Derive based on type."
   },
   {
     "name": "id_translation.Translator",
@@ -7830,7 +7830,7 @@
   },
   {
     "name": "id_translation.Translator",
-    "msg": "Finished translation of 'DataFrame' in 0.118961 sec. Returning a translated copy since inplace=False.",
+    "msg": "Finished translation of 'DataFrame'-type data in 0.118961 sec. Returning a translated copy (since inplace=False).",
     "args": [],
     "levelname": "INFO",
     "levelno": 20,
@@ -7872,6 +7872,6 @@
     "attribute": null,
     "reverse": false,
     "online": true,
-    "message": "Finished translation of 'DataFrame' in 0.118961 sec. Returning a translated copy since inplace=False."
+    "message": "Finished translation of 'DataFrame'-type data in 0.118961 sec. Returning a translated copy (since inplace=False)."
   }
 ]

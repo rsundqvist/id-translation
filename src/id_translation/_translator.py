@@ -303,14 +303,14 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             event_key = f"{self.__class__.__name__.upper()}.TRANSLATE"
 
             type_name = _resolve_type_name(translatable, attribute)
-            name_info = f"Will be derived based on {type_name!r}" if names is None else str(names)
+            name_info = "Derive based on type" if names is None else repr(names)
             if ignore_names is not None:
                 name_info += f", excluding those given by {ignore_names=}"
 
             sources = self.sources  # Ensures that the fetcher is warmed up; good for log organization.
             LOGGER.log(
                 level=logging.INFO if self.online else logging.DEBUG,
-                msg=f"Begin translation of {type_name!r} using {sources=}. Names to translate: {name_info}.",
+                msg=f"Begin translation of {type_name!r}-type data using {sources=}. Names to translate: {name_info}.",
                 extra=dict(
                     event_key=event_key,
                     event_stage="ENTER",
@@ -380,10 +380,10 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
         if should_emit_key_event:
             execution_time = perf_counter() - start
-            inplace_info = f"Values in {type_name!r} have been replaced " if inplace else "Returning a translated copy"
+            inplace_info = "Original values have been replaced" if inplace else "Returning a translated copy"
             LOGGER.log(
                 level=logging.INFO if self.online else logging.DEBUG,
-                msg=f"Finished translation of {type_name!r} in {format_seconds(execution_time)}. {inplace_info} since {inplace=}.",
+                msg=f"Finished translation of {type_name!r}-type data in {format_seconds(execution_time)}. {inplace_info} (since {inplace=}).",
                 extra=dict(
                     event_key=event_key,
                     event_stage="EXIT",
@@ -400,8 +400,6 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                     online=self.online,
                 ),
             )
-        else:
-            pass  # pragma: no cover
 
         return ans
 
