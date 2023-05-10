@@ -1,6 +1,6 @@
 """Mapping implementations for matching groups of elements.
 
-For and introduction to mapping, see :ref:`mapping-primer`.
+For an introduction to mapping, see :ref:`mapping-primer`.
 """
 import logging as _logging
 
@@ -16,6 +16,6 @@ __all__ = [
     "Mapper",
 ]
 
-VERBOSE_LOGGER = _logging.getLogger(__package__).getChild("verbose")
+_VERBOSE_LOGGER = _logging.getLogger(__package__).getChild("verbose")
 """Verbose logger. Only logs messages on the ``DEBUG`` level. Disabled by default."""
-VERBOSE_LOGGER.disabled = True
+_VERBOSE_LOGGER.disabled = True

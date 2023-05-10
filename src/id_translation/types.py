@@ -5,6 +5,7 @@ This module cannot be called just `types` as that will make MyPY complain.
 import abc as _abc
 import typing as _type
 from typing import TYPE_CHECKING
+from uuid import UUID as _UUID
 
 if TYPE_CHECKING:
     import pandas  # noqa: F401
@@ -36,7 +37,7 @@ ID: str = "id"
 NameType = _type.TypeVar("NameType", bound=_type.Hashable)
 """Type used to label collections of IDs, such as the column names in a DataFrame or the keys of a dict."""
 
-IdType = _type.TypeVar("IdType", int, str)
+IdType = _type.TypeVar("IdType", int, str, _UUID)
 """Type of the value being translated into human-readable labels."""
 
 SourceType = _type.TypeVar("SourceType", bound=_type.Hashable)

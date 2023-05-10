@@ -173,8 +173,6 @@ class CacheAccess(Generic[SourceType, IdType]):
 
     def clear(self, reason: str, log_level: int = logging.DEBUG, *, exc_info: bool = False) -> None:
         """Remove cached data for the current instance."""
-        reason = ": " + reason
-
         deleted = []
 
         if self.data_path.exists():
