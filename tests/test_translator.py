@@ -519,3 +519,20 @@ def test_repeated_names(translator, ids, names, expected_untranslated):
     actual = translator.translate(df)
     for i in expected_untranslated:
         assert actual.iloc[0, i] is None
+
+
+def test_temporary_translate_fmt(translator, monkeypatch):
+    def crash(*_, **__):
+        raise AssertionError("Should not call this method!")
+
+    monkeypatch.setattr(RealTranslator, "copy", crash)
+    with pytest.raises(AssertionError, match="Should not call this method!"):
+        translator.copy()
+
+    assert translator.translate([0, 1], names="positive_numbers") == ["0:0x0, positive=True", "1:0x1, positive=True"]
+
+    expected_fmt = translator._fmt
+    assert translator.translate([0, 1], names="positive_numbers", fmt="{id}:{hex}") == ["0:0x0", "1:0x1"]
+    assert translator._fmt == expected_fmt
+
+    assert translator.translate([0, 1], names="positive_numbers") == ["0:0x0, positive=True", "1:0x1, positive=True"]

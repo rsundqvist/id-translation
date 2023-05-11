@@ -1,6 +1,7 @@
 import logging
 import warnings
 from datetime import timedelta
+from inspect import signature
 from pathlib import Path
 from time import perf_counter
 from typing import Any, Dict, Generic, Iterable, List, Optional, Set, Tuple, Type, Union
@@ -263,6 +264,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         maximal_untranslated_fraction: float = 1.0,
         reverse: bool = False,
         attribute: str = None,
+        fmt: FormatType = None,
     ) -> Optional[Translatable]:
         """Translate IDs to human-readable strings.
 
@@ -285,6 +287,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             attribute: If given, translate ``translatable.attribute`` instead. If ``inplace=False``, the translated
                 attribute will be assigned to `translatable` using
                 ``setattr(translatable, attribute, <translated-attribute>)``.
+            fmt: Format to use. If ``None``, fall back to init format.
 
         Returns:
             A translated copy of `translatable` if ``inplace=False``, otherwise ``None``.
@@ -300,6 +303,18 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             UserMappingError: If `override_function` returns a source which is not known, and
                 ``self.mapper.unknown_user_override_action != 'ignore'``.
         """  # noqa: DAR101 darglint is bugged here
+        if fmt is not None:
+            real_fmt = self._fmt
+            try:
+                parameters = set(signature(Translator.translate).parameters)
+                parameters.remove("self")
+                parameters.remove("fmt")
+                kwargs = {key: value for key, value in locals().items() if key in parameters}
+                self._fmt = Format.parse(fmt)
+                return self.translate(**kwargs)
+            finally:
+                self._fmt = real_fmt
+
         start = perf_counter()
 
         should_emit_key_event = LOGGER.isEnabledFor(logging.INFO) if self.online else LOGGER.isEnabledFor(logging.DEBUG)

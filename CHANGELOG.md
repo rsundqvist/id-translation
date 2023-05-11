@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - The `uuid.UUID`-type has been added to `IdType`s.
 - Add the `Translator.enable_uuid_heuristics` flag (default=`False`).
+- The `Translator.translate()`-method now accepts an optional `fmt`-argument (had to use 
+  `Translator.copy(fmt=fmt).translate(...)` before).
 
 ### Fixed
 - Duplicate explicit names are now supported for most types (closes #4).
