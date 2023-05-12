@@ -62,6 +62,9 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):
         cardinality: Optional[Cardinality.ParseType] = Cardinality.ManyToOne,
         verbose_logging: bool = False,
     ) -> None:
+        if min_score <= 0 or np.isinf(min_score):
+            raise ValueError(f"Got {min_score=}. The score limit should be a finite positive value.")
+
         self._score = get_by_full_name(score_function, sf) if isinstance(score_function, str) else score_function
         self._score_kwargs = score_function_kwargs or {}
         self._min_score = min_score

@@ -1,9 +1,8 @@
 import logging
 import pickle  # noqa: 403
 from dataclasses import dataclass
-from datetime import timedelta
 from pathlib import Path
-from typing import Any, Dict, Generic, List, Optional, Union
+from typing import Any, Dict, Generic, List, Optional
 
 import pandas as pd
 
@@ -107,13 +106,12 @@ class CacheAccess(Generic[SourceType, IdType]):
 
     def __init__(
         self,
-        max_age: Union[str, pd.Timedelta, timedelta],
+        max_age: pd.Timedelta,
         metadata: CacheMetadata[SourceType, IdType],
     ) -> None:
-        pd_timedelta = pd.Timedelta(max_age)
-        if pd_timedelta < pd.Timedelta(0):
+        if max_age < pd.Timedelta(0):
             raise ValueError("fetch_all_cache_max_age must be non-negative")  # pragma: no cover
-        self._max_age = pd_timedelta.to_pytimedelta()
+        self._max_age = max_age.to_pytimedelta()  # Avoids serializing pandas types.
         self._metadata: CacheMetadata[SourceType, IdType] = metadata
         top_level_key = next(iter(self._metadata.cache_keys))
         self._base_dir = self.base_cache_dir_for_all_fetchers().joinpath(top_level_key)
