@@ -260,7 +260,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         names: NameTypes[NameType] = None,
         ignore_names: Names[NameType] = None,
         inplace: bool = False,
-        override_function: UserOverrideFunction[NameType, SourceType, IdType] = None,
+        override_function: UserOverrideFunction[NameType, SourceType, None] = None,
         maximal_untranslated_fraction: float = 1.0,
         reverse: bool = False,
         attribute: str = None,
@@ -427,7 +427,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         translatable: Translatable,
         names: NameTypes[NameType] = None,
         ignore_names: Names[NameType] = None,
-        override_function: UserOverrideFunction[NameType, SourceType, IdType] = None,
+        override_function: UserOverrideFunction[NameType, SourceType, None] = None,
     ) -> Optional[DirectionalMapping[NameType, SourceType]]:
         """Map names to translation sources.
 
@@ -458,7 +458,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         translatable: Translatable,
         names: NameTypes[NameType] = None,
         ignore_names: Names[NameType] = None,
-        override_function: UserOverrideFunction[NameType, SourceType, IdType] = None,
+        override_function: UserOverrideFunction[NameType, SourceType, None] = None,
     ) -> pd.DataFrame:
         """Returns raw match scores for name-to-source mapping. See :meth:`map` for details."""
         names_to_translate = self._resolve_names(translatable, names, ignore_names)
@@ -485,7 +485,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         translatable: Translatable,
         names: NameTypes[NameType] = None,
         ignore_names: Names[NameType] = None,
-        override_function: UserOverrideFunction[NameType, SourceType, IdType] = None,
+        override_function: UserOverrideFunction[NameType, SourceType, None] = None,
         parent: Translatable = None,
     ) -> Optional[DirectionalMapping[NameType, SourceType]]:
         start = perf_counter()
@@ -773,7 +773,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         translatable: Translatable,
         names: NameTypes[NameType] = None,
         ignore_names: Names[NameType] = None,
-        override_function: UserOverrideFunction[NameType, SourceType, IdType] = None,
+        override_function: UserOverrideFunction[NameType, SourceType, None] = None,
         force_fetch: bool = False,
         parent: Translatable = None,
     ) -> Tuple[Optional[TranslationMap[NameType, SourceType, IdType]], List[NameType]]:
