@@ -2,7 +2,7 @@ import pytest
 from rics.collections.dicts import InheritedKeysDict
 
 from id_translation.mapping import Cardinality, Mapper, exceptions
-from id_translation.mapping.exceptions import ScoringDisabledError, UserMappingError, UserMappingWarning
+from id_translation.mapping.exceptions import MappingError, ScoringDisabledError, UserMappingError, UserMappingWarning
 from id_translation.mapping.types import MatchTuple
 
 
@@ -25,7 +25,6 @@ def test_default(candidates):
 
 def test_with_overrides(candidates):
     mapper: Mapper[str, str, None] = Mapper(overrides={"a": "fixed"})
-    assert not mapper.context_sensitive_overrides
     assert mapper.apply(["a"], candidates).left_to_right == {"a": ("fixed",)}
     assert mapper.apply(["b"], candidates).left_to_right == {"b": ("b",)}
     assert mapper.apply(["a", "b"], candidates).left_to_right == {"a": ("fixed",), "b": ("b",)}
@@ -174,18 +173,6 @@ def test_conflicting_function_overrides_prioritizes_first(values, expected):
     assert mapper.apply(values, reversed(values), override_function=lambda *_: 0).flatten() == expected
 
 
-@pytest.mark.parametrize(
-    "overrides, expected",
-    [
-        (None, False),
-        ({"foo": "bar"}, False),
-        (InheritedKeysDict(), True),
-    ],
-)
-def test_blank_overrides(overrides, expected):
-    assert Mapper(overrides=overrides).context_sensitive_overrides is expected
-
-
 def test_context_sensitive_overrides():
     mapper = Mapper(
         overrides=InheritedKeysDict(
@@ -196,14 +183,13 @@ def test_context_sensitive_overrides():
             },
         )
     )
-    assert mapper.context_sensitive_overrides
     values = ["value0", "value1"]
     assert mapper.apply(values, [""], 0).flatten() == {"value0": "c0-override-0", "value1": "default1"}
     assert mapper.apply(values, [""], 1).flatten() == {"value0": "c1-override-0", "value1": "default1"}
     assert mapper.apply(values, [""], 1999).flatten() == {"value0": "default0", "value1": "default1"}
 
-    with pytest.raises(ValueError, match="Must pass a context"):
-        mapper.apply(values, [])
+    with pytest.raises(MappingError, match="Must pass a context"):
+        mapper.apply(values, [""])
 
 
 def test_copy():

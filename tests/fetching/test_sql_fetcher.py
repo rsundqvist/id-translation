@@ -1,6 +1,5 @@
 import pytest as pytest
 import sqlalchemy
-from rics.collections.dicts import InheritedKeysDict
 
 from id_translation.fetching import SqlFetcher, exceptions
 from id_translation.fetching.exceptions import FetcherWarning
@@ -112,8 +111,7 @@ def test_unmappable_whitelist_table(use_override, connection_string):
     def score_fn(value, candidates, context):
         return ([0] * len(candidates)) if context == "big_table" else [float(value == c) for c in candidates]
 
-    overrides = InheritedKeysDict(specific={"big_table": {"id": "bad-column"}} if use_override else None)
-    mapper = Mapper(score_fn, overrides=overrides)
+    mapper = Mapper(score_fn, overrides={"id": "bad-column"} if use_override else None)
     fetcher = SqlFetcher(connection_string, mapper=mapper, whitelist_tables=["animals", "big_table", "huge_table"])
 
     with pytest.raises(exceptions.UnknownPlaceholderError, match="whitelist") as e:
@@ -124,7 +122,7 @@ def test_unmappable_whitelist_table(use_override, connection_string):
 
 @pytest.mark.parametrize("column", ["id", "name"])
 def test_bad_override(column, connection_string):
-    mapper: Mapper[str, str, str] = Mapper(overrides=InheritedKeysDict(default={column: "bad_column"}))
+    mapper: Mapper[str, str, str] = Mapper(overrides={column: "bad_column"})
     fetcher = SqlFetcher(connection_string, mapper=mapper)
     with pytest.raises(exceptions.UnknownPlaceholderError, match=repr(column)):
         fetcher.fetch([IdsToFetch("humans", {-1})], (column,), (column,))  # Add ID to avoid fetch-all

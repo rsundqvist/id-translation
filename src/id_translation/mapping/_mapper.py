@@ -91,7 +91,7 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):
         Args:
             values: Iterable of elements to match to candidates.
             candidates: Iterable of candidates to match with `value`. Duplicate elements will be discarded.
-            context: Context in which mapping is being done. Required when using context-sensitive overrides.
+            context: Context in which mapping is being done.
             override_function: A callable that takes inputs ``(value, candidates, context)`` that returns either
                 ``None`` (let the regular mapping logic decide) or one of the `candidates`. How non-candidates returned
                 is handled is determined by the :attr:`unknown_user_override_action` property.
@@ -99,7 +99,7 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):
                 not known when the ``Mapper`` is initialized.
 
         Returns:
-            A :class:`.DirectionalMapping` on the form ``{value: [matched_candidates, ...]}``. May be turned into a
+            A :class:`.DirectionalMapping` on the form ``{value: [matched_candidates..]}``. May be turned into a
             plain dict ``{value: candidate}`` by using the :meth:`.DirectionalMapping.flatten` function (only if
             :attr:`.DirectionalMapping.cardinality` is of type :attr:`.Cardinality.one_right`).
 
@@ -108,12 +108,10 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):
             BadFilterError: If a filter returns candidates that are not a subset of the original candidates.
             UserMappingError: If `override_function` returns an unknown candidate and
                 ``unknown_user_override_action != 'ignore'``
-            ValueError: If passing ``context=None`` (the default) when  :attr:`context_sensitive_overrides` is ``True``.
+            MappingError: If passing ``context=None`` (the default) when using context-sensitive overrides (type
+                :class:`rics.collections.dicts.InheritedKeysDict`).
         """
         start = perf_counter()
-
-        if isinstance(self._overrides, InheritedKeysDict) and context is None:
-            raise ValueError("Must pass a context in context-sensitive mode.")
 
         if self.verbose_logging:
             with enable_verbose_debug_messages():
@@ -287,11 +285,6 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):
         return self._bad_candidate_action
 
     @property
-    def context_sensitive_overrides(self) -> bool:
-        """Return ``True`` if the overrides are context-sensitive."""
-        return isinstance(self._overrides, InheritedKeysDict)
-
-    @property
     def verbose_logging(self) -> bool:
         """Return ``True`` if verbose debug-level messages are enabled."""
         return self._verbose
@@ -331,7 +324,7 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):
                     )
                 apply(value, override_candidate)
 
-        for value, override_candidate in self._get_static_overrides(unmapped_values, context):
+        for value, override_candidate in self._get_static_overrides(unmapped_values, context).items():
             apply(value, override_candidate)
 
         if self.logger.isEnabledFor(logging.DEBUG) and (self._overrides or override_function is not None):
@@ -348,21 +341,18 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):
         self,
         values: Iterable[ValueType],
         context: Optional[ContextType],
-    ) -> List[Tuple[ValueType, CandidateType]]:
+    ) -> Dict[ValueType, CandidateType]:
         if not self._overrides:
-            return []
+            return {}
 
-        # The assertions are redundant (checked earlier), but makes mypy happy without type-ignores.
-        if self.context_sensitive_overrides:
-            assert isinstance(self._overrides, InheritedKeysDict), "Makes mypy happy."  # noqa: S101
-            assert context is not None, "Makes mypy happy."  # noqa: S101
+        if isinstance(self._overrides, InheritedKeysDict):
+            if context is None:
+                raise MappingError("Must pass a context in context-sensitive mode.")
             overrides = self._overrides.get(context, {})
         else:
-            assert not isinstance(self._overrides, InheritedKeysDict), "Makes mypy happy."  # noqa: S101
-            assert context is None, "Makes mypy happy."  # noqa: S101
             overrides = self._overrides
 
-        return [(value, overrides[value]) for value in filter(overrides.__contains__, values)]
+        return {value: overrides[value] for value in overrides if value in values}
 
     def _get_function_overrides(
         self,
