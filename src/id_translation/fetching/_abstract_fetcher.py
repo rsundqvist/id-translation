@@ -66,8 +66,6 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         cache_keys: Sequence[str] = None,
     ) -> None:
         self._mapper = mapper or Mapper(**self.default_mapper_kwargs())
-        if self.mapper._overrides and not self.mapper.context_sensitive_overrides:  # pragma: no cover
-            raise ValueError(f"Mapper must have context-sensitive overrides (type {InheritedKeysDict.__name__}).")
         if self._mapper.unmapped_values_action is ActionLevel.RAISE:
             warnings.warn(
                 "Using unmapped_values_action='raise' will treat optional placeholders as "

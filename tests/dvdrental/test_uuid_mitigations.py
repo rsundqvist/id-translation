@@ -6,7 +6,6 @@ from uuid import UUID
 
 import pandas as pd
 import pytest
-from rics.collections.dicts import InheritedKeysDict
 from rics.misc import tname
 
 from id_translation import Translator
@@ -81,6 +80,6 @@ def test_uuid_migrations(dialect: str, enable_uuid_heuristics: bool) -> None:
 def make_fetcher(dialect: str, id_column: str) -> SqlFetcher[Any]:
     return SqlFetcher(
         get_connection_string(dialect),
-        mapper=Mapper(overrides=InheritedKeysDict(default={"id": id_column, "name": "comment"})),
+        mapper=Mapper(overrides={"id": id_column, "name": "comment"}),
         whitelist_tables=[TABLE_NAME],
     )

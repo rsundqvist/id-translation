@@ -23,6 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 - The `FormatApplier` class is no longer abstract. Removed `DefaultFormatApplier`.
+- The `Mapper.context_sensitive_overrides` property. Plain overrides are now treated as shared/default overrides when a
+  context is given. The type check in `AbstractFetcher` has been removed (config-based fetching will work as before).
 
 ## [0.3.1] - 2023-03-19
 
