@@ -95,7 +95,7 @@ def test_fetch(multi_fetcher: MultiFetcher[str, int], data: Dict[str, pd.DataFra
     required = {"id"}
     placeholders = {"name", "is_nice"}
 
-    sampled = [IdsToFetch(source, list(df.id)) for source, df in data.items()]
+    sampled = [IdsToFetch(source, set(df.id)) for source, df in data.items()]
     memory_fetcher: MemoryFetcher[str, int] = MemoryFetcher(data)
     expected: SourcePlaceholderTranslations[str] = memory_fetcher.fetch(sampled, placeholders, required=required)
     actual = multi_fetcher.fetch(sampled, placeholders, required=required)

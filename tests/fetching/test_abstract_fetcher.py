@@ -17,7 +17,7 @@ def fetcher(data):
 
 def test_unknown_sources(fetcher):
     with pytest.raises(exceptions.UnknownSourceError, match="edible_humans") as ec:
-        fetcher.fetch([IdsToFetch("humans", [1, 2]), IdsToFetch("edible_humans", [1, 2])])
+        fetcher.fetch([IdsToFetch("humans", {1, 2}), IdsToFetch("edible_humans", {1, 2})])
     assert {"edible_humans"} == ec.value.unknown_sources
 
     with pytest.raises(exceptions.UnknownSourceError, match="edible_humans") as ec:
@@ -35,7 +35,7 @@ def test_fetch_all_forbidden(data):
 
 def test_unknown_placeholders(fetcher):
     with pytest.raises(exceptions.UnknownPlaceholderError, match="{'number_of_legs'} not recognized"):
-        fetcher.fetch([IdsToFetch("humans", [])], ("id", "number_of_legs"), {"number_of_legs"})
+        fetcher.fetch([IdsToFetch("humans", set())], ("id", "number_of_legs"), {"number_of_legs"})
 
 
 @pytest.mark.parametrize(
@@ -100,7 +100,7 @@ def test_cache_with_call_count(
             fetch_all_actual = test_fetcher.fetch_all()
             assert fetch_all_actual == expected_data, msg
         else:
-            fetch_actual = test_fetcher.fetch([IdsToFetch("humans", [1, 2])])["humans"]
+            fetch_actual = test_fetcher.fetch([IdsToFetch("humans", {1, 2})])["humans"]
             expected = expected_data["humans"]
             assert fetch_actual == expected, msg
 

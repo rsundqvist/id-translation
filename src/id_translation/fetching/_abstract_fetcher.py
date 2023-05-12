@@ -371,7 +371,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         source: SourceType,
         placeholders: PlaceholdersTuple,
         required_placeholders: Set[str],
-        ids: Iterable[IdType] = None,
+        ids: Set[IdType] = None,
     ) -> Tuple[PlaceholderTranslations[SourceType], bool]:
         reverse_mappings, instr = self._make_fetch_instruction(source, placeholders, required_placeholders, ids)
 
@@ -445,7 +445,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         source: SourceType,
         placeholders: PlaceholdersTuple,
         required_placeholders: Set[str],
-        ids: Optional[Iterable[IdType]],
+        ids: Optional[Set[IdType]],
     ) -> Tuple[Optional[Dict[str, str]], FetchInstruction[SourceType, IdType]]:
         required_placeholders.add(ID)
         if ID not in placeholders:
@@ -469,7 +469,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
                 source=source,
                 placeholders=placeholders,
                 required=required_placeholders,
-                ids=None if ids is None else list(ids),
+                ids=None if ids is None else set(ids),
             ),
         )
 

@@ -55,7 +55,7 @@ def test_heuristic(sql_fetcher, ids_to_fetch, expected):
             "huge_table",
             ("id",),
             {"id"},
-            list(ids_to_fetch),
+            set(ids_to_fetch),
         )
     ).records
     assert ans == tuple((e,) for e in expected)
@@ -127,7 +127,7 @@ def test_bad_override(column, connection_string):
     mapper: Mapper[str, str, str] = Mapper(overrides=InheritedKeysDict(default={column: "bad_column"}))
     fetcher = SqlFetcher(connection_string, mapper=mapper)
     with pytest.raises(exceptions.UnknownPlaceholderError, match=repr(column)):
-        fetcher.fetch([IdsToFetch("humans", [-1])], (column,), (column,))  # Add ID to avoid fetch-all
+        fetcher.fetch([IdsToFetch("humans", {-1})], (column,), (column,))  # Add ID to avoid fetch-all
     fetcher.close()
 
 
