@@ -84,10 +84,6 @@ class HeuristicScore(Generic[ValueType, CandidateType, ContextType]):
         """Apply `score_function` with heuristics and short-circuiting."""
         candidates = list(candidates)
 
-        if value in candidates:
-            yield from (float("inf") if c == value else -float("inf") for c in candidates)
-            return
-
         base_score = list(self.score_function(value, candidates, context, **kwargs))  # Unmodified score
         best = list(base_score)
 

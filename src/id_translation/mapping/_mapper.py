@@ -229,9 +229,13 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):
             if not filtered_candidates:
                 continue
 
-            if verbose_logger.isEnabledFor(logging.DEBUG):
-                verbose_logger.debug(f"Compute match scores for {value=}.")
-            scores_for_value = self._score(value, filtered_candidates, context, **self._score_kwargs, **kwargs)
+            if value in filtered_candidates:
+                scores_for_value = [(np.inf if value == c else -np.inf) for c in filtered_candidates]
+            else:
+                if verbose_logger.isEnabledFor(logging.DEBUG):
+                    verbose_logger.debug(f"Compute match scores for {value=}.")
+                scores_for_value = self._score(value, filtered_candidates, context, **self._score_kwargs, **kwargs)
+
             for score, candidate in zip(scores_for_value, filtered_candidates):
                 scores.loc[value, candidate] = score
 
