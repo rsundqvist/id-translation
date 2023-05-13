@@ -65,7 +65,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         fetch_all_cache_max_age: Union[str, pd.Timedelta, timedelta] = None,
         cache_keys: Sequence[str] = None,
     ) -> None:
-        self._mapper = mapper or Mapper(**self.default_mapper_kwargs())
+        self._mapper: Mapper[str, str, SourceType] = mapper or Mapper(**self.default_mapper_kwargs())
         if self._mapper.unmapped_values_action is ActionLevel.RAISE:
             warnings.warn(
                 "Using unmapped_values_action='raise' will treat optional placeholders as "
@@ -75,10 +75,10 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
             )
 
         self._mapping_cache: Dict[SourceType, Dict[str, Optional[str]]] = {}
-        self._allow_fetch_all = allow_fetch_all
+        self._allow_fetch_all: bool = allow_fetch_all
         self._active_operation: Literal["FETCH", "FETCH_ALL", None] = None
 
-        self._fetch_all_unmapped_values_action = (
+        self._fetch_all_unmapped_values_action: Optional[ActionLevel] = (
             None
             if fetch_all_unmapped_values_action is None
             else ActionLevel.verify(
@@ -88,12 +88,14 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
                 forbidden=ActionLevel.RAISE if selective_fetch_all else None,
             )
         )
-        self._selective_fetch_all = selective_fetch_all
+        self._selective_fetch_all: bool = selective_fetch_all
 
         if fetch_all_cache_max_age and not cache_keys:  # pragma: no cover
             raise ValueError("Must specify at least one cache key with 'fetch_all_cache_max_age'.")
         self._translation_cache_access: Optional[CacheAccess[SourceType, IdType]] = None
-        self._fetch_all_cache_max_age = fetch_all_cache_max_age
+        self._fetch_all_cache_max_age: Optional[pd.Timedelta] = (
+            None if fetch_all_cache_max_age is None else pd.Timedelta(fetch_all_cache_max_age)
+        )
 
         logger = logging.getLogger(__package__)
         mapper_logger = logging.getLogger("id_translation.mapping.placeholders")
@@ -107,7 +109,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
             mapper_logger.addFilter(adder)
 
         self._cache_keys: Optional[List[str]] = cache_keys
-        self._logger = logger
+        self.logger = logger
         self._mapper.logger = mapper_logger
 
     def map_placeholders(

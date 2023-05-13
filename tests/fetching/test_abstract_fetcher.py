@@ -50,7 +50,7 @@ def test_selective_fetch_all(data, selective_fetch_all, required, expected):
         fetcher: AbstractFetcher[str, int] = MemoryFetcher(
             data,
             selective_fetch_all=selective_fetch_all,
-            mapper=Mapper(unmapped_values_action="raise"),
+            mapper=Mapper("equality", unmapped_values_action="raise"),
         )
     assert set(fetcher.fetch_all(required=required)) == expected
 

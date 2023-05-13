@@ -5,14 +5,10 @@ See Also:
 """
 from typing import Iterable, Optional
 
+from . import exceptions
 from .types import CandidateType, ContextType, ValueType
 
 VERBOSE: bool = False
-"""If ``True`` enable optional DEBUG-level log messages on each score function invocation.
-
-Notes:
-    Not all functions have verbose messages.
-"""
 
 
 def modified_hamming(
@@ -31,11 +27,11 @@ def modified_hamming(
 
     Examples:
         >>> from id_translation.mapping.score_functions import modified_hamming
-        >>> print(list(modified_hamming('aa', ['aa', 'a', 'ab', 'aa'], context=None)))
+        >>> list(modified_hamming('aa', ['aa', 'a', 'ab', 'aa'], context=None))
         [1.0, 0.499, 0.498, 0.997]
-        >>> print(list(modified_hamming('aa', ['aa', 'a', 'ab', 'aa'], context=None, positional_penalty=0)))
+        >>> list(modified_hamming('aa', ['aa', 'a', 'ab', 'aa'], context=None, positional_penalty=0))
         [1.0, 0.5, 0.5, 1.0]
-        >>> print(list(modified_hamming('face', ['face', 'FAce', 'race', 'place'], context=None)))
+        >>> list(modified_hamming('face', ['face', 'FAce', 'race', 'place'], context=None))
         [1.0, 0.499, 0.748, 0.372]
     """
 
@@ -56,22 +52,34 @@ def equality(value: ValueType, candidates: Iterable[CandidateType], context: Opt
 
     Examples:
         >>> from id_translation.mapping.score_functions import equality
-        >>> print(list(equality('a', 'aAb', context=None)))
+        >>> list(equality('a', 'aAb', context=None))
         [1.0, 0.0, 0.0]
     """
     yield from map(float, (value == c for c in candidates))
 
 
-def disabled(value: ValueType, candidates: Iterable[CandidateType], context: Optional[ContextType]) -> Iterable[float]:
+def disabled(
+    value: ValueType,
+    candidates: Iterable[CandidateType],
+    context: Optional[ContextType],
+    strict: bool = True,
+) -> Iterable[float]:
     """Special value to indicate that scoring logic has been disabled.
 
     This is a workaround to allow users to indicate that the scoring logic is disabled, and that overrides should be
     used instead. The ``disabled``-function has no special meaning to the mapper, and will be called as any other
-    scoring function. This in turn will immediately raise a ``ScoringDisabledError``.
+    scoring function.
+
+    Returns:
+        If `strict` is ``False``, negative infinity for all `candidates`, serving as a catch-all removal filter.
 
     Raises:
-        ScoringDisabledError: Always.
-    """
-    from .exceptions import ScoringDisabledError
+        ScoringDisabledError: If `strict` is ``True``.
 
-    raise ScoringDisabledError(value, candidates, context)
+    See Also:
+        The :ref:`override-only-mapping` documentation.
+    """
+    if strict:
+        raise exceptions.ScoringDisabledError(value, candidates, context)
+
+    return [float("-inf")] * sum(1 for _ in candidates)

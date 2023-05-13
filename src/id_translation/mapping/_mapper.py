@@ -48,7 +48,7 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):
 
     def __init__(
         self,
-        score_function: Union[str, ScoreFunction[ValueType, CandidateType, ContextType]] = "equality",
+        score_function: Union[str, ScoreFunction[ValueType, CandidateType, ContextType]] = "disabled",
         score_function_kwargs: Dict[str, Any] = None,
         filter_functions: Iterable[
             Tuple[Union[str, FilterFunction[ValueType, CandidateType, ContextType]], Dict[str, Any]]
@@ -62,6 +62,9 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):
         cardinality: Optional[Cardinality.ParseType] = Cardinality.ManyToOne,
         verbose_logging: bool = False,
     ) -> None:
+        if min_score <= 0 or np.isinf(min_score):
+            raise ValueError(f"Got {min_score=}. The score limit should be a finite positive value.")
+
         self._score = get_by_full_name(score_function, sf) if isinstance(score_function, str) else score_function
         self._score_kwargs = score_function_kwargs or {}
         self._min_score = min_score
@@ -192,10 +195,12 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):
         """
         start = perf_counter()
 
+        candidates = list(candidates)
+        values = list(values)
         scores = pd.DataFrame(
             data=-np.inf,
-            columns=pd.Index(list(candidates), name="candidates").drop_duplicates(),
-            index=pd.Index(list(values), name="values").drop_duplicates(),
+            columns=pd.Index(candidates, name="candidates").drop_duplicates(),
+            index=pd.Index(values, name="values").drop_duplicates(),
             dtype=float,
         )
 
@@ -203,8 +208,6 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):
 
         if scores.empty:
             if self.logger.isEnabledFor(logging.DEBUG):
-                candidates = list(scores.columns)
-                values = list(scores.index)
                 end = "" if (values or candidates) else ", but got neither"
                 self.logger.warning(
                     f"Abort mapping{extra} of {values}x{candidates}. Both values and candidates must be given{end}."
@@ -212,8 +215,6 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):
             return scores
 
         if self.logger.isEnabledFor(logging.DEBUG):
-            candidates = list(scores.columns)
-            values = list(scores.index)
             self.logger.debug(f"Begin computing match scores{extra} for {values}x{candidates} using {self._score}.")
 
         unmapped_values = self._handle_overrides(scores, context, override_function)
@@ -222,13 +223,17 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):
 
         verbose_logger = self._get_verbose_logger()
         for value in unmapped_values:
-            filtered_candidates = self._apply_filters(value, scores.columns, context, kwargs)
+            filtered_candidates = self._apply_filters(value, candidates, context, kwargs)
             if not filtered_candidates:
                 continue
 
-            if verbose_logger.isEnabledFor(logging.DEBUG):
-                verbose_logger.debug(f"Compute match scores for {value=}.")
-            scores_for_value = self._score(value, filtered_candidates, context, **self._score_kwargs, **kwargs)
+            if value in filtered_candidates:
+                scores_for_value = [(np.inf if value == c else -np.inf) for c in filtered_candidates]  # Identity match
+            else:
+                if verbose_logger.isEnabledFor(logging.DEBUG):
+                    verbose_logger.debug(f"Compute match scores for {value=}.")
+                scores_for_value = self._score(value, filtered_candidates, context, **self._score_kwargs, **kwargs)
+
             for score, candidate in zip(scores_for_value, filtered_candidates):
                 scores.loc[value, candidate] = score
 

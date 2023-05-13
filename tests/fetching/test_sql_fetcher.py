@@ -111,7 +111,12 @@ def test_unmappable_whitelist_table(use_override, connection_string):
     def score_fn(value, candidates, context):
         return ([0] * len(candidates)) if context == "big_table" else [float(value == c) for c in candidates]
 
-    mapper = Mapper(score_fn, overrides={"id": "bad-column"} if use_override else None)
+    mapper = Mapper(
+        score_fn,
+        overrides={"id": "bad-column"} if use_override else None,
+        filter_functions=[("remove_placeholders", dict(regex=""))],
+    )
+
     fetcher = SqlFetcher(connection_string, mapper=mapper, whitelist_tables=["animals", "big_table", "huge_table"])
 
     with pytest.raises(exceptions.UnknownPlaceholderError, match="whitelist") as e:

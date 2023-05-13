@@ -1,151 +1,203 @@
-"""Functions that remove candidates."""
+"""Functions that return a subset of candidates with which to continue the matching procedure."""
+
 from __future__ import annotations
 
 import logging
 import re
-from typing import Collection, Iterable, List, Literal, Optional, Set, Tuple, Union
+from typing import Any, Iterable, Set
 
-WhereOptions = Literal["name", "context", "candidate"]
-WHERE_OPTIONS = ("name", "candidate", "context")
-WhereArg = Union[WhereOptions, Iterable[WhereOptions]]
-"""Determines how where matches must be found during filtering operations."""
+from id_translation.mapping import exceptions
+from id_translation.types import ID
 
 VERBOSE: bool = False
-"""If ``True`` enable optional DEBUG-level log messages on each heuristic function invocation.
-
-Notes:
-    Not all functions have verbose messages.
-"""
 LOGGER = logging.getLogger(__package__).getChild("verbose").getChild("filter_functions")
 
 
-def require_regex_match(
-    name: str,
+def keep_names(
+    value: str,
     candidates: Iterable[str],
-    context: Optional[str],
-    regex: Union[str, re.Pattern[str]],
-    where: WhereArg,
-    keep_if_match: bool = True,
-    purpose: str = "matching",
+    context: Any,
+    regex: str,
 ) -> Set[str]:
-    """Require a regex match in `name`, `context`, and/or `candidates`.
+    """Only translate names that match a regex.
 
     Args:
-        name: A name.
-        candidates: Potential matches for `name`.
-        context: Context in which the function is being called.
-        regex: A regex pattern to pass to :py:func:`re.compile`.
-        where: Which of ('name', 'candidate', 'context') to match in.
-        keep_if_match: If ``False``, require that `regex` does _not_ match to keep candidates.
-        purpose: A purpose-string used for logging.
+        value: A name that should be mapped one of the sources in `candidates`.
+        candidates: Candidate sources.
+        context: Should be ``None``. Always ignored, exists for compatibility.
+        regex: A regex pattern. Will be matched against the `value`.
 
     Returns:
-        Approved candidates.
+        The original candidates if `value` matches the given `regex`. An empty set, otherwise.
 
-    Raises:
-        ValueError: If `where` contains `'context'` when `context` is not given.
+    Examples:
+        Ensuring that untranslatable IDs are left as-is.
 
-    See Also:
-        The :meth:`banned_substring` method.
+        >>> candidates, context = ["id", "name", "birth_date"], None
+        >>> value = "employee_id"
+        >>> allowed = keep_names(
+        ...     value, candidates, context,
+        ...     regex=".*_id$"
+        ... )
+        >>> sorted(allowed)
+        ['birth_date', 'id', 'name']
+
+        The expression used selects names that end with `'_id'`.
     """
-    where = _parse_where_args(where)
+    _check_context(context, name=keep_names.__name__, want_none=True)
 
-    pattern = re.compile(regex, flags=re.IGNORECASE) if isinstance(regex, str) else regex
-    logger = LOGGER.getChild("require_regex_match")
+    pattern = re.compile(regex, re.IGNORECASE)
+    keep = pattern.match(value) is not None
+
+    if not keep and VERBOSE:
+        logger = LOGGER.getChild(keep_names.__name__)
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug(f"Discard name={value!r}; does not match {pattern=}.")
+
+    return set(candidates) if keep else set()
+
+
+def remove_names(
+    value: str,
+    candidates: Iterable[str],
+    context: Any,
+    regex: str,
+) -> Set[str]:
+    """Ignore names that match a regex.
+
+    Args:
+        value: A name that should be mapped one of the sources in `candidates`.
+        candidates: Candidate sources.
+        context: Should be ``None``. Always ignored, exists for compatibility.
+        regex: A regex pattern. Will be matched against the `value`.
+
+    Returns:
+        An empty set if `value` matches the given `regex`. The original candidates, otherwise.
+
+    Examples:
+        Ensuring that untranslatable IDs are left as-is.
+
+        >>> candidates, context = ["ignored"], None
+        >>> value = "card_id"
+        >>> allowed = remove_names(
+        ...     value, candidates, context,
+        ...     regex="^.*(card|session)_id$"
+        ... )
+        >>> len(allowed) == 0
+        True
+
+        The expression used filters out names that end in either `'card_id'` or `'session_id'`.
+    """
+    _check_context(context, name=remove_names.__name__, want_none=True)
+
+    pattern = re.compile(regex, re.IGNORECASE)
+    keep = pattern.match(value) is None
+
+    if not keep and VERBOSE:
+        logger = LOGGER.getChild(remove_names.__name__)
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug(f"Discard name={value!r}; matches {pattern=}.")
+
+    return set(candidates) if keep else set()
+
+
+def remove_sources(
+    value: str,
+    candidates: Iterable[str],
+    context: Any,
+    regex: str,
+) -> Set[str]:
+    """Disallow fetching from matching sources.
+
+    Args:
+        value: Target placeholder. Return immediately if `value` != `'id'` to avoid unnecessary work.
+        candidates: Available placeholders in the source named by `context`. Always ignored, exists for compatibility.
+        context: The source to which the `candidates` belong.
+        regex: A regex pattern. Will be matched against the `context`.
+
+    Returns:
+        The original candidates if `context` does NOT match the given `regex`. An empty set, otherwise.
+
+    Examples:
+        Avoiding uninteresting sources (for ID translation purposes).
+
+        >>> value, candidates = "id", ["ignored"]
+        >>> context = "some_metadata_table"
+        >>> allowed = remove_sources(
+        ...     "id", candidates, context,
+        ...     regex=".*metadata.*"
+        ... )
+        >>> len(allowed) == 0
+        True
+
+        The expression used filters out sources that contain the word `'metadata'`.
+    """
+    if value != ID:
+        return set(candidates)
+
+    _check_context(context, name=remove_sources.__name__, want_none=False)
+
+    pattern = re.compile(regex, re.IGNORECASE)
+    keep = pattern.match(context) is None
+
+    if VERBOSE:
+        logger = LOGGER.getChild(remove_sources.__name__)
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug(f"Discard source={context!r}; matches {pattern=}.")
+
+    return set(candidates) if keep else set()
+
+
+def remove_placeholders(
+    value: str,
+    candidates: Iterable[str],
+    context: Any,
+    regex: str,
+) -> Set[str]:
+    """Disallow fetching of matching placeholders.
+
+    Args:
+        value: Target placeholder. Always ignored, exists for compatibility.
+        candidates: Available placeholders in the source named by `context`.
+        context: The source to which the `candidates` belong.
+        regex: A regex pattern. Will be matched against elements of the `candidtes`.
+
+    Returns:
+        Placeholders that may be used.
+
+    Examples:
+        Removing irrelevant but possibly confusing columns.
+
+        >>> value, context = "ignored", "ignored"
+        >>> candidates = ["id", "name", "old_id", "previous_id"]
+        >>> allowed = remove_placeholders(
+        ...     value, candidates, context,
+        ...     regex="^(old|previous).*"
+        ... )
+        >>> sorted(allowed)
+        ['id', 'name']
+    """
+    _check_context(context, name=remove_placeholders.__name__, want_none=False)
+
+    pattern = re.compile(regex, flags=re.IGNORECASE)
     candidates = set(candidates)
+    ans = {c for c in candidates if not pattern.match(c)}
 
-    # Short-circuit full refusal
-    if "name" in where:
-        match = pattern.match(name)
-        if keep_if_match and not match:
-            if VERBOSE:
-                logger.debug(f"Refuse {purpose} for {name=}: Does not match {pattern=}.")
-            return set()
-        if match and not keep_if_match:
-            if VERBOSE:
-                logger.debug(f"Refuse {purpose} for {name=}: Matches {pattern=}.")
-            return set()
+    if VERBOSE:
+        logger = LOGGER.getChild(remove_placeholders.__name__)
+        if logger.isEnabledFor(logging.DEBUG):
+            if len(ans) < len(candidates):
+                removed = candidates.difference(ans)
+                logger.debug(f"Discard placeholders={removed!r} in source={context!r}; matches {pattern=}.")
 
-    if "context" in where:
-        if context is None:
-            raise ValueError(f"No context given but 'context' was found in {where=}.")  # pragma: no cover
-
-        match = pattern.match(context)
-        if keep_if_match and not match:
-            if VERBOSE:
-                logger.debug(f"Refuse {purpose} for {context=}: Does not match {pattern=}.")
-            return set()
-        if match and not keep_if_match:
-            if VERBOSE:
-                logger.debug(f"Refuse {purpose} for {context=}: Matches {pattern=}.")
-            return set()
-
-    if "candidate" not in where:
-        return candidates
-
-    kept: List[str] = []
-    rejected: List[str] = []
-    for cand in candidates:
-        lst = kept if (bool(pattern.match(cand)) is keep_if_match) else rejected
-        lst.append(cand)
-
-    if VERBOSE and logger.isEnabledFor(logging.DEBUG):
-        logger.debug(f"Filtering with {keep_if_match=} and {pattern=}; kept {sorted(kept)}, rejected {rejected}.")
-
-    return set(kept)
+    return ans
 
 
-def banned_substring(
-    name: str,
-    candidates: Iterable[str],
-    context: Optional[str],
-    substrings: Collection[str],
-    where: WhereArg,
-) -> Set[str]:
-    """Prevent mapping if banned substrings are found.
+def _check_context(context: Any, name: str, want_none: bool) -> None:
+    if (context is None) is want_none:
+        return
 
-    Matching on `name` or `context` halts all mapping. Matching candidates excludes only those candidates.
-
-    Args:
-        name: An element to find matches for.
-        candidates: Potential matches for `name` (not used).
-        context: Context in which the function is being called.
-        substrings: Substrings which may not be present in `name`.
-        where: Which of ('name', 'candidate', 'context') to match in. Empty=all.
-
-    Returns:
-        Approved candidates.
-
-    See Also:
-        The :meth:`require_regex_match` method, which performs the actual work.
-    """
-    where = _parse_where_args(where)
-
-    remaining = set(candidates)
-
-    for subs in substrings:
-        if not remaining:
-            break
-
-        matches = require_regex_match(
-            name,
-            remaining,
-            context,
-            regex=re.compile(f".*{subs}.*", flags=re.IGNORECASE),
-            where=where,
-            keep_if_match=False,
-        )
-        remaining = remaining.intersection(matches)
-
-    return remaining
-
-
-def _parse_where_args(args: WhereArg) -> Tuple[WhereOptions, ...]:
-    if not args:
-        raise ValueError(f"At least one of {WHERE_OPTIONS} must be given.")
-
-    args_tuple = tuple((args,) if isinstance(args, str) else tuple(args))
-    for where in args_tuple:
-        if where not in WHERE_OPTIONS:
-            raise ValueError(f"Bad where-argument {repr(args)}; {where=} not in {WHERE_OPTIONS}.")
-    return args_tuple
+    raise exceptions.BadFilterError(
+        f"Function {__name__}.{name!r} should only be used for {'name-to-source' if want_none else 'placeholder'} "
+        f"mapping. Bad [[<'translation' or 'fetching'>.mapping.filter_functions]]-section in the TOML configuration?"
+    )

@@ -84,10 +84,6 @@ class HeuristicScore(Generic[ValueType, CandidateType, ContextType]):
         """Apply `score_function` with heuristics and short-circuiting."""
         candidates = list(candidates)
 
-        if value in candidates:
-            yield from (float("inf") if c == value else -float("inf") for c in candidates)
-            return
-
         base_score = list(self.score_function(value, candidates, context, **kwargs))  # Unmodified score
         best = list(base_score)
 
@@ -126,7 +122,7 @@ class HeuristicScore(Generic[ValueType, CandidateType, ContextType]):
                     h_value, h_candidates = res_value, res_candidates
 
                 positional_penalty += 0.005
-            elif res:  # Filter function
+            elif res:  # Filter function, triggers short-circuiting
                 if mutate:
                     raise TypeError(f"Filter function {_stringify((func, func_kwargs))} cannot use {mutate=}.")
 
@@ -136,7 +132,7 @@ class HeuristicScore(Generic[ValueType, CandidateType, ContextType]):
                     info = f"{tname(func)}({', '.join([base_args, extra_args])})"
                     LOGGER.debug(f"Short-circuit {value=} -> candidates={repr(res)}, triggered by {info}.")
                 yield from (float("inf") if c in res else -float("inf") for c in h_candidates)
-                return  # Short-circuit
+                return
 
         if heuristic_functions.VERBOSE and LOGGER.isEnabledFor(logging.DEBUG):
             changes = [

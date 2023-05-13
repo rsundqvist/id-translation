@@ -13,11 +13,6 @@ There are two principal steps involved in the mapping procedure: The :ref:`Step 
 automatically combined when using the :meth:`Mapper.apply <id_translation.mapping.Mapper.apply>`-function, though they
 may be invoked separately by users.
 
-.. hint::
-   Setting ``score_function='disabled'`` when creating the ``Mapper`` will force override-only mode. This will require
-   manually defined mappings to be defined for every values that should be mapped. Trying to map values without an
-   override will raise a :class:`~id_translation.mapping.exceptions.ScoringDisabledError` in this mode.
-
 Step 1/2: Scoring procedure
 ---------------------------
 The ``Mapper`` first applies :ref:`Overrides and filtering`, after which the actual :ref:`Score computations` are
@@ -45,6 +40,10 @@ and runtime overrides takes precedence over static overrides.
    chosen candidate, and ``score=-∞`` for others.
 
 3. Filtering (type: :attr:`~id_translation.mapping.types.FilterFunction`); set ``score=-∞`` for undesirable matches only.
+
+.. hint::
+   Score-based mapping trades precision for convenience. This may be undesirable, especially for fetching as this may
+   incur additional costs. See the :ref:`Override-only mapping` section for details.
 
 Score computations
 ~~~~~~~~~~~~~~~~~~
@@ -108,9 +107,8 @@ Notice that `val1` was left without a match, even though it could've been assign
 matching `val0 → cand1` had been chosen first.
 
 .. note::
-
-   As of version 3.0.0, a score matrix like this will raise :class:`.AmbiguousScoreError` for any cardinality that
-   requires a single candidate (including `1:1`).
+   A score matrix like this will raise :class:`.AmbiguousScoreError` for any cardinality that requires a single
+   candidate (including `1:1`).
 
 Troubleshooting
 ---------------
@@ -173,3 +171,28 @@ The ``Mapper`` uses this same function internally when the verbose flag is set.
    id_translation.mapping.verbose.filter_functions.require_regex_match: Refuse matching for name='return_date': Does not match pattern=re.compile('.*_id$', re.IGNORECASE).
 
 The mapping procedure may emit a large amount of records in verbose mode.
+
+.. _override-only-mapping:
+
+Override-only mapping
+---------------------
+Score-based mapping is a convenient solution, especially for name-to-source mapping since the names (such as DataFrame
+columns) that should be translated have a tendency to change. For fetching however, scoring may add an unnecessary
+element of uncertainty. Database columns also don't change as often, so specifying these manually often isn't as
+time-consuming.
+
+.. literalinclude:: override-only-fetching.toml
+   :language: toml
+   :caption: A conservative mapping configuration for an ``SqlFetcher``. Some "syntactic sugar" is used to make the
+             ``strict``-flag stand out more.
+   :linenos:
+
+Disabling the scoring logic is easy; just set ``score_function='disabled'`` in your mapping configuration. This is the
+only user-configurable argument accepted by the :func:`~id_translation.mapping.score_functions.disabled`-function.
+Setting non-strict mode will automatically reject new mappings by filtering them. In strict mode, a
+:class:`~id_translation.mapping.exceptions.ScoringDisabledError` is raised instead.
+
+Identity mappings will still be made made automatically (no need for ``id = "id"`` overrides). To block these matches,
+you may create a dummy override such as ``id = "_"``. All other matches must be made using a combination of overrides,
+:mod:`filter functions <id_translation.mapping.filter_functions>` and
+:func:`short-circuiting <id_translation.mapping.heuristic_functions.short_circuit>`.

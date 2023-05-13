@@ -13,9 +13,8 @@ blacklist_tables = [
 unmapped_values_action = "ignore"
 
 [[fetching.mapping.filter_functions]]
-function = "banned_substring"
-substrings = ["p2007"]
-where = "context"
+function = "remove_sources"
+regex = ".*p2007.*"
 
 [[fetching.mapping.score_function_heuristics]]
 function = "value_fstring_alias"
