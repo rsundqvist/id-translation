@@ -10,11 +10,6 @@ import re
 from typing import Any, Iterable, List, Set, Tuple, Union
 
 VERBOSE: bool = False
-"""If ``True`` enable optional DEBUG-level log messages on each heuristic function invocation.
-
-Notes:
-    Not all functions have verbose messages.
-"""
 LOGGER = logging.getLogger(__package__).getChild("verbose").getChild("heuristic_functions")
 
 

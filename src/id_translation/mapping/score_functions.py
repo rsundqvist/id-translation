@@ -9,11 +9,6 @@ from . import exceptions
 from .types import CandidateType, ContextType, ValueType
 
 VERBOSE: bool = False
-"""If ``True`` enable optional DEBUG-level log messages on each score function invocation.
-
-Notes:
-    Not all functions have verbose messages.
-"""
 
 
 def modified_hamming(
@@ -32,11 +27,11 @@ def modified_hamming(
 
     Examples:
         >>> from id_translation.mapping.score_functions import modified_hamming
-        >>> print(list(modified_hamming('aa', ['aa', 'a', 'ab', 'aa'], context=None)))
+        >>> list(modified_hamming('aa', ['aa', 'a', 'ab', 'aa'], context=None))
         [1.0, 0.499, 0.498, 0.997]
-        >>> print(list(modified_hamming('aa', ['aa', 'a', 'ab', 'aa'], context=None, positional_penalty=0)))
+        >>> list(modified_hamming('aa', ['aa', 'a', 'ab', 'aa'], context=None, positional_penalty=0))
         [1.0, 0.5, 0.5, 1.0]
-        >>> print(list(modified_hamming('face', ['face', 'FAce', 'race', 'place'], context=None)))
+        >>> list(modified_hamming('face', ['face', 'FAce', 'race', 'place'], context=None))
         [1.0, 0.499, 0.748, 0.372]
     """
 
@@ -57,7 +52,7 @@ def equality(value: ValueType, candidates: Iterable[CandidateType], context: Opt
 
     Examples:
         >>> from id_translation.mapping.score_functions import equality
-        >>> print(list(equality('a', 'aAb', context=None)))
+        >>> list(equality('a', 'aAb', context=None))
         [1.0, 0.0, 0.0]
     """
     yield from map(float, (value == c for c in candidates))

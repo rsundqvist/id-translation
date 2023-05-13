@@ -54,6 +54,9 @@ Section: Translator
      - :py:class:`bool`
      - If ``True``, enable name resolution fallback to the parent `translatable` when calling the
        :meth:`~id_translation.Translator.translate`-function with the ``attribute``-option.
+   * - enable_uuid_heuristics
+     - :py:class:`bool`
+     - Enabling may improve matching when :py:class:`~uuid.UUID`-like IDs are in use.
 
 * Parameters for :attr:`Name <id_translation.types.NameType>`-to-:attr:`source <id_translation.types.SourceType>`
   mapping are specified in a ``[translator.mapping]``-subsection. See: :ref:`Subsection: Mapping` for details (context =
@@ -319,6 +322,8 @@ source, respectively. They both inherit the `from` and `to` keys which rare set 
 
    Overrides may also be used to `prevent` mapping certain values.
 
+Preventing unwanted mappings
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 For example, let's assume that a SQL source table called `title_basics` with two columns `title` and `name` with
 identical contents. We would like to use a format ``'[{title}. ]{name}'`` to output translations such as
 `'Mr. Astaire'`. To avoid output such as `'Top Hat. Top Hat'` for movies, we may add

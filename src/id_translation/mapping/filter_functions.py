@@ -10,7 +10,6 @@ from id_translation.mapping import exceptions
 from id_translation.types import ID
 
 VERBOSE: bool = False
-"""If ``True`` enable optional DEBUG-level log messages on each heuristic function invocation."""
 LOGGER = logging.getLogger(__package__).getChild("verbose").getChild("filter_functions")
 
 
