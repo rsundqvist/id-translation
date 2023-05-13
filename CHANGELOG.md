@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Clean up and rename a large number of heuristic and filter functions.
+- Changed the default score function of the `Mapper` from `equality` to `disabled`.
 
 ### Fixed
 - Duplicate explicit names are now supported for most types (closes #4).

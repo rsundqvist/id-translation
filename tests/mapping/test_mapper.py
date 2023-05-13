@@ -1,3 +1,5 @@
+from typing import Iterable
+
 import pytest
 from rics.collections.dicts import InheritedKeysDict
 
@@ -6,9 +8,15 @@ from id_translation.mapping.exceptions import MappingError, ScoringDisabledError
 from id_translation.mapping.types import MatchTuple
 
 
-def _substring_score(k, c, _):
-    for ci in c:
-        yield float(k in ci) / len(ci)
+def _weird_score(value: str, candidates: Iterable[int], context: None) -> Iterable[float]:
+    """Hacky scores function that matches string values do integer candidates. Used to bypass the identity matching."""
+    assert len(value) == 1
+
+    mapping = {"1": "a", "2": "b"}
+
+    for string_cand in map(str, map(str, candidates)):
+        ab_cand = [mapping[sc] for sc in string_cand]
+        yield float(value in ab_cand) / len(ab_cand)
 
 
 @pytest.fixture(scope="module")
@@ -16,11 +24,11 @@ def candidates() -> MatchTuple[str]:
     return "a", "ab", "b"
 
 
-def test_default(candidates):
-    mapper: Mapper[str, str, None] = Mapper()
-    assert mapper.apply(candidates, ["a"]).left_to_right == {"a": ("a",)}
-    assert mapper.apply(candidates, ["b"]).left_to_right == {"b": ("b",)}
-    assert mapper.apply(candidates, ["a", "b"]).left_to_right == {"a": ("a",), "b": ("b",)}
+def test_equality(candidates):
+    mapper: Mapper[str, str, None] = Mapper("equality")
+    assert mapper.apply(candidates, ["a"]).flatten() == {"a": "a"}
+    assert mapper.apply(candidates, ["b"]).flatten() == {"b": "b"}
+    assert mapper.apply(candidates, ["a", "b"]).flatten() == {"a": "a", "b": "b"}
 
 
 def test_with_overrides(candidates):
@@ -56,42 +64,42 @@ def test_user_overrides_ignore_unknown(candidates):
 @pytest.mark.parametrize(
     "values, expected, allow_multiple",
     [
-        ("a", {"a": ("a", "ab")}, True),
-        ("b", {"b": ("b", "ab")}, True),
-        ("ab", {"a": ("a", "ab"), "b": ("b", "ab")}, True),
-        ("a", {"a": ("a",)}, False),
-        ("b", {"b": ("b",)}, False),
-        ("ab", {"a": ("a",), "b": ("b",)}, False),
+        ("a", {"a": (1, 12)}, True),
+        ("b", {"b": (2, 12)}, True),
+        ("ab", {"a": (1, 12), "b": (2, 12)}, True),
+        ("a", {"a": (1,)}, False),
+        ("b", {"b": (2,)}, False),
+        ("ab", {"a": (1,), "b": (2,)}, False),
     ],
 )
-def test_multiple_matches(values, expected, allow_multiple, candidates):
-    mapper: Mapper[str, str, None] = Mapper(
+def test_multiple_matches(values, expected, allow_multiple):
+    mapper: Mapper[str, int, None] = Mapper(
         min_score=0.1,
-        score_function=_substring_score,
+        score_function=_weird_score,
         cardinality=None if allow_multiple else Cardinality.OneToOne,
     )
-    assert mapper.apply(values, candidates).left_to_right == expected
+    assert mapper.apply(values, {1, 2, 12}).left_to_right == expected
 
 
 @pytest.mark.parametrize(
     "values, expected, allow_multiple",
     [
-        ("a", {"a": ("fixed",)}, True),
-        ("b", {"b": ("b", "ab")}, True),
-        ("ab", {"a": ("fixed",), "b": ("b", "ab")}, True),
-        ("a", {"a": ("fixed",)}, False),
-        ("b", {"b": ("b",)}, False),
-        ("ab", {"a": ("fixed",), "b": ("b",)}, False),
+        ("a", {"a": (-1,)}, True),
+        ("b", {"b": (2, 12)}, True),
+        ("ab", {"a": (-1,), "b": (2, 12)}, True),
+        ("a", {"a": (-1,)}, False),
+        ("b", {"b": (2,)}, False),
+        ("ab", {"a": (-1,), "b": (2,)}, False),
     ],
 )
-def test_multiple_matches_with_overrides(values, expected, allow_multiple, candidates):
-    mapper: Mapper[str, str, None] = Mapper(
-        overrides={"a": "fixed"},
+def test_multiple_matches_with_overrides(values, expected, allow_multiple):
+    mapper: Mapper[str, int, None] = Mapper(
+        overrides={"a": -1},
         min_score=0.1,
-        score_function=_substring_score,
+        score_function=_weird_score,
         cardinality=None if allow_multiple else Cardinality.OneToOne,
     )
-    assert mapper.apply(values, candidates).left_to_right == expected
+    assert mapper.apply(values, {1, 2, 12}).left_to_right == expected
 
 
 def test_mapping_failure(candidates):
@@ -158,35 +166,16 @@ def test_copy():
     assert Mapper() == Mapper().copy()
 
 
-@pytest.mark.parametrize(
-    "values, expected",
-    [
-        ("a", {"a": "fixed"}),
-        ("aa", {"a": "fixed"}),
-        ("ab", {"a": "fixed"}),  # Allow; 'b' is implicitly filtered
-        ("b", {}),
-    ],
-)
-def test_disabled(values, expected, candidates):
-    mapper: Mapper[str, str, None] = Mapper("disabled", dict(strict=False), overrides={"a": "fixed"})
-    assert mapper.apply(values, candidates).flatten() == expected
+def test_disabled():
+    mapper: Mapper[str, int, None]
 
+    mapper = Mapper("disabled", overrides={"a": 1}, score_function_kwargs=dict(strict=True))
 
-@pytest.mark.parametrize(
-    "values, expected",
-    [
-        ("a", {"a": "fixed"}),
-        ("aa", {"a": "fixed"}),
-        ("ab", None),  # Crash; b must be explicitly filtered
-        ("b", None),
-    ],
-)
-def test_disabled_strict(values, expected, candidates):
-    mapper: Mapper[str, str, None] = Mapper("disabled", dict(strict=True), overrides={"a": "fixed"})
+    assert mapper.apply("a", {1}).flatten() == {"a": 1}
+    with pytest.raises(ScoringDisabledError) as e:
+        mapper.compute_scores("ab", {1})
+    assert e.value.value == "b"
 
-    if expected is None:
-        with pytest.raises(ScoringDisabledError) as e:
-            mapper.apply(values, candidates)
-        assert e.value.value == "b"
-    else:
-        assert mapper.apply(values, candidates).flatten() == expected
+    mapper = Mapper("disabled", overrides={"a": 1}, score_function_kwargs=dict(strict=False))
+    assert mapper.apply("ab", {1}).flatten() == {"a": 1}
+    assert mapper.apply("b", {1}).flatten() == {}

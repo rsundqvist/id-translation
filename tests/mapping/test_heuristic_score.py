@@ -21,16 +21,8 @@ def _run(value, candidates, expected):
     assert actual == expected
 
 
-@pytest.mark.parametrize(
-    "value, candidates, expected",
-    [
-        ("value", ["value", "VALUE"], [CS, F]),
-        ("value", ["VALUE", "value"], [F, CS]),
-        ("value", ["VALUE", "NOT_VALUE", "VALUE"], [1, 0, 1]),
-    ],
-)
-def test_plain(value, candidates, expected):
-    _run(value, candidates, expected)
+def test_plain():
+    _run("value", candidates=["VALUE", "NOT_VALUE", "value"], expected=[1, 0, 1])
 
 
 @pytest.mark.parametrize(
@@ -40,8 +32,6 @@ def test_plain(value, candidates, expected):
         ("re_value", ["candidate0", "target"], [F, CS]),  # Both met
         ("value", ["candidate0", "target"], [0, 0]),  # Only target condition
         ("re_value", ["candidate0", "candidate1"], [0, 0]),  # Only value condition
-        ("re_value", ["candidate0", "target", "re_value"], [F, F, CS]),  # Exact match supersedes CS..
-        ("re_value", ["candidate0", "target", "CS_VALUE"], [F, CS, F]),  # ..before heuristics only
     ],
 )
 def test_short_circuiting(value, candidates, expected):
@@ -54,7 +44,6 @@ def test_short_circuiting(value, candidates, expected):
         ("VALUE", ["candidate0", "prefixed_value", "prefixed_VALUE", "prefixed"], [0, 0.995, 0.995, 0]),
         ("value", ["candidate0", "prefixed_value", "prefixed", "prefixed_VALUE"], [0, 0.995, 0, 0.995]),
         ("value", ["candidate0", "prefixed_value", "VALUE"], [0, 0.995, 1]),  # VALUE matches after fewer steps
-        ("value", ["candidate0", "prefixed_value", "value"], [F, F, CS]),  # Exact match takes precedence
     ],
 )
 def test_alias(value, candidates, expected):

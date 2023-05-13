@@ -17,8 +17,12 @@ class ScoringDisabledError(MappingError):
 
     def __init__(self, value: Any, candidates: Any, context: Any) -> None:
         super().__init__(
-            "Scoring disabled; the Mapper is working in strict override-only mode. Add an override or filter for "
-            f"{value=} in {context=} to resolve this issue.",
+            "Scoring disabled.\n"
+            f"The Mapper is working in strict override-only mode, so the {value=} in {context=} "
+            f"cannot be mapped to any of the {candidates=}. Possible solutions:\n"
+            "    * Add an override or filter for this value, or\n"
+            "    * Set strict=False (silently refuse to map instead of raising), or\n"
+            "    * Choose an appropriate score function to use.",
             ref="override-only-mapping",
         )
         self.value = value
