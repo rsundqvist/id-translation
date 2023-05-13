@@ -2,33 +2,60 @@ import pytest
 
 from id_translation.mapping import HeuristicScore
 
-inf = float("inf")
+CS = float("inf")  # Short-circuited/chosen by override
+F = float("-inf")  # Filtered
 
 
-@pytest.fixture(scope="module")
-def heuristic_score():
-    return HeuristicScore(
+def _run(value, candidates, expected):
+    assert len(candidates) == len(expected)
+
+    heuristic_score: HeuristicScore[str, str, None] = HeuristicScore(
         "equality",
         heuristics=[
             ("force_lower_case", dict(mutate=True)),
-            ("short_circuit_to_value", dict(regex=".*MATCH$", target="target_value")),
+            ("short_circuit", dict(value_regex="^re_.*", target_candidate="target")),
             ("value_fstring_alias", dict(fstring="prefixed_{value}")),
         ],
     )
+    actual = list(heuristic_score(value, candidates, None))
+    assert actual == expected
 
 
 @pytest.mark.parametrize(
     "value, candidates, expected",
     [
-        ("TARGET_VALUE", ["cand0", "cand1"], [0, 0]),
-        ("cand0", ["cand0", "cand1"], [inf, -inf]),
-        ("CAND0", ["cand0", "cand1"], [1, 0]),
-        ("TARGET_VALUE", ["cand0", "correct_MATCH"], [-inf, inf]),
-        ("TARGET_VALUE", ["cand0", "correct_match", "MATCH_but_not_quite_right"], [-inf, inf, -inf]),
-        ("VALUE", ["cand0", "prefixed_value", "prefixed", "prefixed_VALUE"], [0, 0.995, 0, 0.995]),
-        ("EXACT_MATCH", ["EXACT_MATCH", "correct_match", "correct_MATCH"], [inf, -inf, -inf]),
+        ("value", ["value", "VALUE"], [CS, F]),
+        ("value", ["VALUE", "value"], [F, CS]),
+        ("value", ["VALUE", "NOT_VALUE", "VALUE"], [1, 0, 1]),
     ],
 )
-def test_heuristic_score(value, candidates, expected, heuristic_score):
-    actual = list(heuristic_score(value, candidates, None))
-    assert actual == expected
+def test_plain(value, candidates, expected):
+    _run(value, candidates, expected)
+
+
+@pytest.mark.parametrize(
+    "value, candidates, expected",
+    [
+        ("re_value", ["candidate0", "candidate1"], [0, 0]),  # Neither condition met
+        ("re_value", ["candidate0", "target"], [F, CS]),  # Both met
+        ("value", ["candidate0", "target"], [0, 0]),  # Only target condition
+        ("re_value", ["candidate0", "candidate1"], [0, 0]),  # Only value condition
+        ("re_value", ["candidate0", "target", "re_value"], [F, F, CS]),  # Exact match supersedes CS..
+        ("re_value", ["candidate0", "target", "CS_VALUE"], [F, CS, F]),  # ..before heuristics only
+    ],
+)
+def test_short_circuiting(value, candidates, expected):
+    _run(value, candidates, expected)
+
+
+@pytest.mark.parametrize(
+    "value, candidates, expected",
+    [
+        ("VALUE", ["candidate0", "prefixed_value", "prefixed_VALUE", "prefixed"], [0, 0.995, 0.995, 0]),
+        ("value", ["candidate0", "prefixed_value", "prefixed", "prefixed_VALUE"], [0, 0.995, 0, 0.995]),
+        ("value", ["candidate0", "prefixed_value", "VALUE"], [0, 0.995, 1]),  # VALUE matches after fewer steps
+        ("value", ["candidate0", "prefixed_value", "value"], [F, F, CS]),  # Exact match takes precedence
+    ],
+)
+def test_alias(value, candidates, expected):
+    _run(value, candidates, expected)

@@ -5,11 +5,9 @@ See Also:
 """
 from __future__ import annotations
 
+import logging
 import re
-from typing import Any, Iterable, List, Optional, Set, Tuple, Union
-
-from . import filter_functions as ff
-from .types import ContextType
+from typing import Any, Iterable, List, Set, Tuple, Union
 
 VERBOSE: bool = False
 """If ``True`` enable optional DEBUG-level log messages on each heuristic function invocation.
@@ -17,12 +15,13 @@ VERBOSE: bool = False
 Notes:
     Not all functions have verbose messages.
 """
+LOGGER = logging.getLogger(__package__).getChild("verbose").getChild("heuristic_functions")
 
 
 def like_database_table(
     name: str,
     candidates: Iterable[str],
-    context: Optional[ContextType],
+    context: Any,
 ) -> Tuple[str, List[str]]:
     """Try to make `value` look like the name of a database table."""
 
@@ -35,81 +34,64 @@ def like_database_table(
     return apply(name), list(map(apply, candidates))
 
 
-def short_circuit_to_value(
+def short_circuit(
     value: str,
-    candidates: Iterable[str],
-    context: Optional[str],
-    regex: Union[str, re.Pattern[str]],
-    target: str,
+    candidates: Set[str],
+    context: Any,
+    value_regex: Union[str, re.Pattern[str]],
+    target_candidate: str,
 ) -> Set[str]:
-    """Short circuit candidates which match a given `regex` a given to-value.
+    """Short circuit `value` to the target candidate if the target and regex conditions are met.
+
+    If `target_candidate` is in `candidates` and `value` matches the given `value_regex`, a single-element set
+    ``{target_candidate}`` is returned which will trigger short-circuiting in the calling ``Mapper``. If either of
+    these conditions fail, an empty set is returned and the mapping procedure will continue.
 
     Args:
         value: A value to map.
         candidates: Candidates for `value`.
-        context: Context in which the function is being called.
-        regex: A pattern in `candidates` which should trigger forced short-circuit matching.
-        target: The target value. If ``value != target``, an empty set is always returned.
+        context: Always ignored, exists for compatibility.
+        value_regex: A pattern match against `value`. Case-insensitive by default.
+        target_candidate: The candidate to short circuit to.
 
     Returns:
-        Candidates which match `regex`, or an empty set.
+        A single-element set ``{target_candidate}``, iff both conditions are met. An empty set otherwise.
 
-    Notes:
-        This is technically a filter function and may be used as such.
-    """
-    return (
+
+    Examples:
+        The main purpose of this method is to bind any name (a `value`) matching the given regex pattern to a
+        pre-defined source (a `candidate`, e.g. a table in a SQL database). For example, to always match any bite
+        victim-columns to the `humans` table (see the :ref:`translation-primer` page), we might specify:
+
+        >>> value = "first_bite_victim"
+        >>> value_regex= ".*_bite_victim$"  # If the column ends with '_bite_victim'..
+        >>> target_candidate = "humans"  # Match it to the 'humans' table.
+        >>> short_circuit(value, {"humans", "animals"}, None, value_regex, target_candidate)
+        {'humans'}
+
+        Short-circuiting will only trigger of both conditions are met. If the example below, we can see that no value is
+        returned since the target candidate is not among the given candidates.
+
+        >>> short_circuit(value, {"animals"}, None, value_regex, target_candidate)
         set()
-        if value != target
-        else ff.require_regex_match(
-            value,
-            candidates,
-            context,
-            regex=regex,
-            where="candidate",
-            purpose=f"short-circuiting to value-{target=}",
-        )
-    )
-
-
-def short_circuit_to_candidate(
-    value: str,
-    candidates: Iterable[str],
-    context: Optional[str],
-    regex: Union[str, re.Pattern[str]],
-    target: str,
-) -> Set[str]:
-    """Short circuit candidates which match a given `regex` to a given to-candidate.
-
-    Args:
-        value: A value to map.
-        candidates: Candidates for `value`.
-        context: Context in which the function is being called.
-        regex: A pattern in `candidates` which should trigger forced short-circuit matching.
-        target: A target candidate. Must be present in `candidates`, or empty set is always returned.
-
-    Returns:
-        Candidates which match `regex`, or an empty set.
-
-    Notes:
-        This is technically a filter function and may be used as such.
     """
-    return (
-        set()
-        if target not in candidates
-        else ff.require_regex_match(
-            value,
-            [target],
-            context,
-            regex=regex,
-            where="name",
-            purpose=f"short-circuiting to candidate-{target=}",
+    candidates = set(candidates)
+    pattern = re.compile(value_regex, flags=re.IGNORECASE) if isinstance(value_regex, str) else value_regex
+
+    if target_candidate not in candidates:
+        LOGGER.getChild("short_circuit").debug(
+            f"Short-circuiting failed for {value=}: The {target_candidate=} is an input candidate."
         )
-    )
+        return set()
+
+    if not pattern.match(value):
+        LOGGER.getChild("short_circuit").debug(f"Short-circuiting failed for {value=}: Does not match {pattern=}.")
+        return set()
+
+    return {target_candidate}
 
 
-def force_lower_case(
-    value: str, candidates: Iterable[str], context: Optional[ContextType]
-) -> Tuple[str, Iterable[str]]:
+def force_lower_case(value: str, candidates: Iterable[str], context: Any) -> Tuple[str, Iterable[str]]:
     """Force lower-case in `value` and `candidates`."""
     return value.lower(), list(map(str.lower, candidates))
 
@@ -117,7 +99,7 @@ def force_lower_case(
 def value_fstring_alias(
     value: str,
     candidates: Iterable[str],
-    context: Optional[ContextType],
+    context: Any,
     fstring: str,
     for_value: str = None,
     **kwargs: Any,
@@ -155,7 +137,7 @@ def value_fstring_alias(
 def candidate_fstring_alias(
     value: str,
     candidates: Iterable[str],
-    context: Optional[ContextType],
+    context: Any,
     fstring: str,
     **kwargs: Any,
 ) -> Tuple[str, Iterable[str]]:

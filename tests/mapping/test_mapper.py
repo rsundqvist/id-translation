@@ -107,45 +107,6 @@ def test_bad_filter(candidates):
 
 
 @pytest.mark.parametrize(
-    "filters, expected",
-    [
-        (
-            [
-                # Removes "b" as a candidate
-                ("require_regex_match", dict(regex="^a.*", where="candidate"))
-            ],
-            {"a": ("a", "ab"), "b": ("ab",)},
-        ),
-        (
-            [
-                # Removes "b" and "ab" as a candidate
-                ("require_regex_match", dict(regex="^a.*", where="candidate")),
-                ("banned_substring", dict(substrings="b", where="name")),
-            ],
-            {"a": ("a", "ab")},
-        ),
-        (
-            [
-                # Removes all candidates
-                ("banned_substring", dict(substrings=list("abc"), where="name")),
-            ],
-            {},
-        ),
-    ],
-)
-def test_filter(filters, expected, candidates):
-    mapper: Mapper[str, str, None] = Mapper(
-        min_score=0.1,
-        score_function=_substring_score,
-        filter_functions=filters,
-        cardinality=Cardinality.ManyToMany,  # Anything goes
-    )
-
-    actual = mapper.apply("abc", candidates).left_to_right
-    assert actual == expected
-
-
-@pytest.mark.parametrize(
     "values, expected",
     [
         ([1] + [2] * 999, {1: 0}),

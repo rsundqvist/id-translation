@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The `Translator.translate()`-method now accepts an optional `fmt`-argument (had to use 
   `Translator.copy(fmt=fmt).translate(...)` before).
 
+### Changed
+- Clean up and rename a large number of heuristic and filter functions.
+
 ### Fixed
 - Duplicate explicit names are now supported for most types (closes #4).
 - Duplicate column names for the `pandas.DataFrame` translatable type are now supported.

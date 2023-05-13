@@ -15,9 +15,8 @@ score_function = "modified_hamming"
 function = "like_database_table"
 
 [[translator.mapping.filter_functions]]
-function = "require_regex_match"
+function = "keep_names"
 regex = ".*_id$"
-where = "name"
 
 ################################################################################
 # Parallel fetching configuration.

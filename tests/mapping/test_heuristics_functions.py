@@ -22,33 +22,17 @@ def test_like_database_table(value, expected_match):
 
 
 @pytest.mark.parametrize(
-    "value, candidates, expected",
+    "value, candidates, expect_match",
     [
-        ("target-miss", ["MATCH0", "MATCH1"], []),
-        ("TARGET", ["wrong0", "wrong1"], []),
-        ("TARGET", ["MATCH0", "wrong1"], ["MATCH0"]),
-        ("TARGET", ["MATCH0", "wrong1", "MATCH1"], ["MATCH0", "MATCH1"]),
+        ("first_bite_victim", {"humans", "animals"}, True),
+        ("second_bite_victim", {"humans", "animals"}, True),
+        ("second_bite_victim", {"animals"}, False),
+        ("bitten_by", ["humans", "animals"], False),
     ],
 )
-def test_short_circuit_to_value(value, candidates, expected):
-    actual = sorted(list(hf.short_circuit_to_value(value, candidates, None, ".*MATCH.*", target="TARGET")))
-    assert actual == expected
-
-
-@pytest.mark.parametrize(
-    "value, add_target, expected",
-    [
-        ("match", False, []),
-        ("miss", True, []),
-        ("match", True, ["TARGET"]),
-    ],
-)
-def test_short_circuit_to_candidate(value, add_target, expected):
-    candidates = ["cand"]
-    if add_target:
-        candidates.append("TARGET")
-    actual = list(hf.short_circuit_to_candidate(value, candidates, None, ".*MATCH.*", target="TARGET"))
-    assert actual == expected
+def test_short_circuit(value, candidates, expect_match):
+    actual = hf.short_circuit(value, candidates, None, value_regex=".*_bite_victim$", target_candidate="humans")
+    assert actual == ({"humans"} if expect_match else set())
 
 
 @pytest.mark.parametrize(
