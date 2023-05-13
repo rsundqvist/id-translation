@@ -1,0 +1,16 @@
+[fetching.SqlFetcher]
+connection_string = "postgresql+pg8000://postgres:Sofia123!@localhost:5002/sakila"
+allow_fetch_all = false
+whitelist_tables = ["customer", "category", "country"]
+
+[fetching.mapping.score_function.disabled]
+strict = true
+
+[fetching.mapping.overrides.customer]
+id = "customer_id"
+name = "first_name"
+[fetching.mapping.overrides.category]
+id = "category_id"
+[fetching.mapping.overrides.country]
+id = "country_id"
+name = "country"

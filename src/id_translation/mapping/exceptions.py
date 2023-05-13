@@ -5,11 +5,11 @@ from typing import Any, Set
 class MappingError(ValueError):
     """Something failed to map."""
 
-    def __init__(self, msg: str) -> None:
-        super().__init__(
-            msg + "\n\nFor help, please refer to the "
-            "https://id-translation.readthedocs.io/en/stable/documentation/mapping-primer.html page."
-        )
+    def __init__(self, msg: str, ref: str = "") -> None:
+        link = "https://id-translation.readthedocs.io/en/stable/documentation/mapping-primer.html"
+        if ref:
+            link += f"#{ref}"
+        super().__init__(f"{msg}\n\nFor help, please refer to the {link} page.")
 
 
 class ScoringDisabledError(MappingError):
@@ -18,7 +18,8 @@ class ScoringDisabledError(MappingError):
     def __init__(self, value: Any, candidates: Any, context: Any) -> None:
         super().__init__(
             "Scoring disabled; the Mapper is working in strict override-only mode. Add an override or filter for "
-            f"{value=} in {context=} to resolve this issue."
+            f"{value=} in {context=} to resolve this issue.",
+            ref="override-only-mapping",
         )
         self.value = value
         self.candidates = candidates

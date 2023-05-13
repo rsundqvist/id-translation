@@ -161,18 +161,32 @@ def test_copy():
 @pytest.mark.parametrize(
     "values, expected",
     [
-        ("a", {"a": ("fixed",)}),
-        ("aa", {"a": ("fixed",)}),
-        ("ab", None),
-        ("b", None),
-        ("", {}),
+        ("a", {"a": "fixed"}),
+        ("aa", {"a": "fixed"}),
+        ("ab", {"a": "fixed"}),  # Allow; 'b' is implicitly filtered
+        ("b", {}),
     ],
 )
 def test_disabled(values, expected, candidates):
-    mapper: Mapper[str, str, None] = Mapper(score_function="disabled", overrides={"a": "fixed"})
+    mapper: Mapper[str, str, None] = Mapper("disabled", dict(strict=False), overrides={"a": "fixed"})
+    assert mapper.apply(values, candidates).flatten() == expected
+
+
+@pytest.mark.parametrize(
+    "values, expected",
+    [
+        ("a", {"a": "fixed"}),
+        ("aa", {"a": "fixed"}),
+        ("ab", None),  # Crash; b must be explicitly filtered
+        ("b", None),
+    ],
+)
+def test_disabled_strict(values, expected, candidates):
+    mapper: Mapper[str, str, None] = Mapper("disabled", dict(strict=True), overrides={"a": "fixed"})
 
     if expected is None:
-        with pytest.raises(ScoringDisabledError, match="disabled"):
+        with pytest.raises(ScoringDisabledError) as e:
             mapper.apply(values, candidates)
+        assert e.value.value == "b"
     else:
-        assert mapper.apply(values, candidates).left_to_right == expected
+        assert mapper.apply(values, candidates).flatten() == expected

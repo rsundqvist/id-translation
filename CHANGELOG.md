@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add the `Translator.enable_uuid_heuristics` flag (default=`False`).
 - The `Translator.translate()`-method now accepts an optional `fmt`-argument (had to use 
   `Translator.copy(fmt=fmt).translate(...)` before).
+- Improved support and added documentation for override-only mapping.
 
 ### Changed
 - Clean up and rename a large number of heuristic and filter functions.

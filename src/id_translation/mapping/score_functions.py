@@ -5,6 +5,7 @@ See Also:
 """
 from typing import Iterable, Optional
 
+from . import exceptions
 from .types import CandidateType, ContextType, ValueType
 
 VERBOSE: bool = False
@@ -62,16 +63,28 @@ def equality(value: ValueType, candidates: Iterable[CandidateType], context: Opt
     yield from map(float, (value == c for c in candidates))
 
 
-def disabled(value: ValueType, candidates: Iterable[CandidateType], context: Optional[ContextType]) -> Iterable[float]:
+def disabled(
+    value: ValueType,
+    candidates: Iterable[CandidateType],
+    context: Optional[ContextType],
+    strict: bool = True,
+) -> Iterable[float]:
     """Special value to indicate that scoring logic has been disabled.
 
     This is a workaround to allow users to indicate that the scoring logic is disabled, and that overrides should be
     used instead. The ``disabled``-function has no special meaning to the mapper, and will be called as any other
-    scoring function. This in turn will immediately raise a ``ScoringDisabledError``.
+    scoring function.
+
+    Returns:
+        If `strict` is ``False``, negative infinity for all `candidates`, serving as a catch-all removal filter.
 
     Raises:
-        ScoringDisabledError: Always.
-    """
-    from .exceptions import ScoringDisabledError
+        ScoringDisabledError: If `strict` is ``True``.
 
-    raise ScoringDisabledError(value, candidates, context)
+    See Also:
+        The :ref:`override-only-mapping` documentation.
+    """
+    if strict:
+        raise exceptions.ScoringDisabledError(value, candidates, context)
+
+    return [float("-inf")] * sum(1 for _ in candidates)
