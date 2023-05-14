@@ -114,7 +114,7 @@ def test_unmappable_whitelist_table(use_override, connection_string):
     mapper = Mapper(
         score_fn,
         overrides={"id": "bad-column"} if use_override else None,
-        filter_functions=[("remove_placeholders", dict(regex=""))],
+        filter_functions=[("filter_placeholders", dict(regex="", remove=True))],
     )
 
     fetcher = SqlFetcher(connection_string, mapper=mapper, whitelist_tables=["animals", "big_table", "huge_table"])

@@ -228,14 +228,14 @@ matches, for example SQL tables which should not be used or a ``DataFrame`` colu
    Additional keys depend on the chosen function implementation.
 
 As an example, the next snippet ensures that only names ending with an ``'_id'``-suffix will be translated by using a
-:func:`~id_translation.mapping.filter_functions.keep_names`-filter.
+:func:`~id_translation.mapping.filter_functions.filter_names`-filter.
 
 .. code-block:: toml
 
     [[translator.mapping.filter_functions]]
-    function = "keep_names"
+    function = "filter_names"
     regex = ".*_id$"
-
+    remove = false  # This is the default (like the built-in filter).
 
 Score function
 ~~~~~~~~~~~~~~

@@ -13,8 +13,9 @@ blacklist_tables = [
 unmapped_values_action = "ignore"
 
 [[fetching.mapping.filter_functions]]
-function = "remove_sources"
+function = "filter_sources"
 regex = ".*p2007.*"
+remove = true
 
 [[fetching.mapping.score_function_heuristics]]
 function = "value_fstring_alias"
