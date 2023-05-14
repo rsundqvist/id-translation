@@ -132,37 +132,37 @@ class TranslatorFactory(_Generic[NameType, SourceType, IdType]):
 
     def create(self) -> "Translator[NameType, SourceType, IdType]":
         """Create a ``Translator`` from a TOML file."""
-        config: Dict[str, Any] = self.load_toml_file(self.file)
-
         config_metadata = _ConfigMetadata.from_toml_paths(
             self.file,
             self.extra_fetchers,
             self.clazz,
         )
-
-        _check_allowed_keys(["translator", "mapping", "fetching", "unknown_ids"], config, "<root>")
-
-        translator_config = config.pop("translator", {})
+        config: Dict[str, Any] = self.load_toml_file(self.file)
 
         fetcher: fetching.Fetcher[SourceType, IdType] = self._handle_fetching(
             config.pop("fetching", {}), self.extra_fetchers, _cache_keys_from_config_metadata(config_metadata)
         )
 
-        mapper = self._make_mapper("translator", translator_config)
-        default_fmt_placeholders: Optional[dicts.InheritedKeysDict[SourceType, str, Any]]
-        default_fmt, default_fmt_placeholders = _make_default_translations(**config.pop("unknown_ids", {}))
+        try:
+            _check_allowed_keys(["translator", "mapping", "fetching", "unknown_ids"], config, "<root>")
+            translator_config = config.pop("translator", {})
+            mapper = self._make_mapper("translator", translator_config)
+            default_fmt_placeholders: Optional[dicts.InheritedKeysDict[SourceType, str, Any]]
+            default_fmt, default_fmt_placeholders = _make_default_translations(**config.pop("unknown_ids", {}))
 
-        ans = self.clazz(
-            fetcher,
-            mapper=mapper,
-            default_fmt=default_fmt,
-            default_fmt_placeholders=default_fmt_placeholders,
-            **translator_config,
-        )
+            ans = self.clazz(
+                fetcher,
+                mapper=mapper,
+                default_fmt=default_fmt,
+                default_fmt_placeholders=default_fmt_placeholders,
+                **translator_config,
+            )
 
-        ans._config_metadata = config_metadata
+            ans._config_metadata = config_metadata
 
-        return ans
+            return ans
+        except Exception as e:  # noqa: B902
+            raise _ConfigurationErrorWithFile(e, file=self.file) from e
 
     def load_toml_file(self, path: str) -> Dict[str, Any]:
         """Read a TOML file from `path`."""
@@ -194,17 +194,25 @@ class TranslatorFactory(_Generic[NameType, SourceType, IdType]):
         multi_fetcher_kwargs = config.pop("MultiFetcher", {})
 
         fetchers: List[fetching.Fetcher[SourceType, IdType]] = []
+
         if config:
-            fetchers.append(self._make_fetcher(default_cache_keys[0], **config))  # Add primary fetcher
+            try:
+                fetchers.append(self._make_fetcher(default_cache_keys[0], **config))  # Add primary fetcher
+            except Exception as e:  # noqa: B902
+                raise _ConfigurationErrorWithFile(e, file=self.file) from e
 
         for i, file_fetcher_file in enumerate(extra_fetchers, start=1):
-            fetchers.append(
-                self._make_fetcher(default_cache_keys[i], **self.load_toml_file(file_fetcher_file)["fetching"])
-            )
+            try:
+                fetchers.append(
+                    self._make_fetcher(default_cache_keys[i], **self.load_toml_file(file_fetcher_file)["fetching"])
+                )
+            except Exception as e:  # noqa: B902
+                raise _ConfigurationErrorWithFile(e, file_fetcher_file) from e
 
         if not fetchers:
-            raise exceptions.ConfigurationError(
-                "Section [fetching] is required when no pre-initialized AbstractFetcher is given."
+            raise _ConfigurationErrorWithFile(
+                "Section [fetching] is required when no pre-initialized AbstractFetcher is given.",
+                file=self.file,
             )
 
         return fetchers[0] if len(fetchers) == 1 else fetching.MultiFetcher(*fetchers, **multi_fetcher_kwargs)
@@ -277,3 +285,14 @@ def _read_metaconf(file: str) -> Dict[str, Any]:
         return {}
 
     return metaconf
+
+
+class _ConfigurationErrorWithFile(exceptions.ConfigurationError):
+    def __init__(self, arg: Union[str, Exception], file: str) -> None:
+        super().__init__(self._format_with_file(arg, file))
+
+    @staticmethod
+    def _format_with_file(arg: Union[str, Exception], file: str) -> str:
+        assert not isinstance(arg, _ConfigurationErrorWithFile)  # noqa: S101
+        msg = arg if isinstance(arg, str) else f"{type(arg).__name__}: {arg}"
+        return f"{msg}\n   raised when parsing file: {file}"
