@@ -1,11 +1,13 @@
-from typing import Any, Optional, Type
+from typing import Any, Type
 
 import pytest
 
 from id_translation import Translator
-from id_translation.factory import TranslatorFactory, default_fetcher_factory
+from id_translation.factory import TranslatorFactory, _ConfigurationErrorWithFile, default_fetcher_factory
 from id_translation.fetching import AbstractFetcher, MemoryFetcher
 from id_translation.types import IdType, SourceType
+
+from .conftest import ROOT
 
 
 class AnotherFetcherType(MemoryFetcher[SourceType, IdType]):
@@ -28,6 +30,20 @@ def test_default_fetcher_factory(
     assert isinstance(fetcher, expected_type)
 
 
-@pytest.mark.parametrize("arg", [None, "id_translation.Translator", "id_translation._translator.Translator"])
-def test_resolve_class(arg: Optional[Type[Translator[Any, Any, Any]]]) -> None:
-    assert TranslatorFactory.resolve_class(arg) == Translator
+@pytest.mark.parametrize(
+    "clazz",
+    [
+        None,
+        "id_translation.Translator",
+        "id_translation._translator.Translator",
+        Translator,
+    ],
+)
+def test_resolve_class(clazz):
+    assert TranslatorFactory.resolve_class(clazz) == Translator
+
+
+def test_missing_config():
+    with pytest.raises(_ConfigurationErrorWithFile) as e:
+        Translator.from_config(ROOT.joinpath("bad-config.toml"))
+    assert "bad-config.toml" in str(e.value)

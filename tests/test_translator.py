@@ -10,7 +10,7 @@ import pytest
 
 from id_translation import Translator as RealTranslator, _config_utils
 from id_translation.dio.exceptions import NotInplaceTranslatableError, UntranslatableTypeError
-from id_translation.exceptions import ConfigurationError, TooManyFailedTranslationsError
+from id_translation.exceptions import TooManyFailedTranslationsError
 from id_translation.mapping import Mapper
 from id_translation.mapping.exceptions import MappingError, MappingWarning, UserMappingError
 from id_translation.types import IdType
@@ -148,11 +148,6 @@ def test_bad_translatable(translator, data, clazz, kwargs):
 
 def test_from_config():
     Translator.from_config(ROOT.joinpath("config.toml"))
-
-
-def test_missing_config():
-    with pytest.raises(ConfigurationError):
-        Translator.from_config(ROOT.joinpath("bad-config.toml"))
 
 
 def test_store_and_restore(hex_fetcher, tmp_path):
