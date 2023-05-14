@@ -13,19 +13,24 @@ VERBOSE: bool = False
 LOGGER = logging.getLogger(__package__).getChild("verbose").getChild("filter_functions")
 
 
-def keep_names(
+def filter_names(
     value: str,
     candidates: Iterable[str],
     context: Any,
     regex: str,
+    remove: bool = False,
 ) -> Set[str]:
     """Only translate names that match a regex.
+
+    Analogous to the built-in :py:func:`filter`-function, ``filter_names`` keep only the names that match the given
+    `regex`. This behavior may be reversed by setting the `remove` flag to ``True``.
 
     Args:
         value: A name that should be mapped one of the sources in `candidates`.
         candidates: Candidate sources.
         context: Should be ``None``. Always ignored, exists for compatibility.
         regex: A regex pattern. Will be matched against the `value`.
+        remove: If ``True``, remove matching values.
 
     Returns:
         The original candidates if `value` matches the given `regex`. An empty set, otherwise.
@@ -33,79 +38,37 @@ def keep_names(
     Examples:
         Ensuring that untranslatable IDs are left as-is.
 
-        >>> candidates, context = ["id", "name", "birth_date"], None
+        >>> candidates, context = {"id", "name", "birth_date"}, None
         >>> value = "employee_id"
-        >>> allowed = keep_names(
+        >>> allowed = filter_names(
         ...     value, candidates, context,
-        ...     regex=".*_id$"
+        ...     regex=".*_id$",
+        ...     remove=False  # This is the default (like the built-in filter).
         ... )
         >>> sorted(allowed)
         ['birth_date', 'id', 'name']
 
         The expression used selects names that end with `'_id'`.
     """
-    _check_context(context, name=keep_names.__name__, want_none=True)
-
-    pattern = re.compile(regex, re.IGNORECASE)
-    keep = pattern.match(value) is not None
-
-    if not keep and VERBOSE:
-        logger = LOGGER.getChild(keep_names.__name__)
-        if logger.isEnabledFor(logging.DEBUG):
-            logger.debug(f"Discard name={value!r}; does not match {pattern=}.")
-
+    function_name = filter_names.__name__
+    _check_context(function_name, context=context, want_none=True)
+    keep = _filter_single(
+        value,
+        regex=regex,
+        remove=remove,
+        label="name",
+        function_name=function_name,
+        action="Do not translate",
+    )
     return set(candidates) if keep else set()
 
 
-def remove_names(
+def filter_sources(
     value: str,
     candidates: Iterable[str],
     context: Any,
     regex: str,
-) -> Set[str]:
-    """Ignore names that match a regex.
-
-    Args:
-        value: A name that should be mapped one of the sources in `candidates`.
-        candidates: Candidate sources.
-        context: Should be ``None``. Always ignored, exists for compatibility.
-        regex: A regex pattern. Will be matched against the `value`.
-
-    Returns:
-        An empty set if `value` matches the given `regex`. The original candidates, otherwise.
-
-    Examples:
-        Ensuring that untranslatable IDs are left as-is.
-
-        >>> candidates, context = ["ignored"], None
-        >>> value = "card_id"
-        >>> allowed = remove_names(
-        ...     value, candidates, context,
-        ...     regex="^.*(card|session)_id$"
-        ... )
-        >>> len(allowed) == 0
-        True
-
-        The expression used filters out names that end in either `'card_id'` or `'session_id'`.
-    """
-    _check_context(context, name=remove_names.__name__, want_none=True)
-
-    pattern = re.compile(regex, re.IGNORECASE)
-    keep = pattern.match(value) is None
-
-    if not keep and VERBOSE:
-        logger = LOGGER.getChild(remove_names.__name__)
-        if logger.isEnabledFor(logging.DEBUG):
-            logger.debug(f"Discard name={value!r}; matches {pattern=}.")
-
-    return set(candidates) if keep else set()
-
-
-def remove_sources(
-    value: str,
-    candidates: Iterable[str],
-    context: Any,
-    regex: str,
+    remove: bool = False,
 ) -> Set[str]:
     """Disallow fetching from matching sources.
 
@@ -114,6 +77,7 @@ def remove_sources(
         candidates: Available placeholders in the source named by `context`. Always ignored, exists for compatibility.
         context: The source to which the `candidates` belong.
         regex: A regex pattern. Will be matched against the `context`.
+        remove: If ``True``, remove matching values.
 
     Returns:
         The original candidates if `context` does NOT match the given `regex`. An empty set, otherwise.
@@ -121,11 +85,12 @@ def remove_sources(
     Examples:
         Avoiding uninteresting sources (for ID translation purposes).
 
-        >>> value, candidates = "id", ["ignored"]
+        >>> value, candidates = "id", {"ignored"}
         >>> context = "some_metadata_table"
-        >>> allowed = remove_sources(
+        >>> allowed = filter_sources(
         ...     "id", candidates, context,
-        ...     regex=".*metadata.*"
+        ...     regex=".*metadata.*",
+        ...     remove=True,
         ... )
         >>> len(allowed) == 0
         True
@@ -135,24 +100,24 @@ def remove_sources(
     if value != ID:
         return set(candidates)
 
-    _check_context(context, name=remove_sources.__name__, want_none=False)
-
-    pattern = re.compile(regex, re.IGNORECASE)
-    keep = pattern.match(context) is None
-
-    if VERBOSE:
-        logger = LOGGER.getChild(remove_sources.__name__)
-        if logger.isEnabledFor(logging.DEBUG):
-            logger.debug(f"Discard source={context!r}; matches {pattern=}.")
-
+    function_name = filter_names.__name__
+    _check_context(function_name, context=context, want_none=False)
+    keep = _filter_single(
+        context,
+        regex=regex,
+        remove=remove,
+        label="source",
+        function_name=function_name,
+    )
     return set(candidates) if keep else set()
 
 
-def remove_placeholders(
+def filter_placeholders(
     value: str,
     candidates: Iterable[str],
     context: Any,
     regex: str,
+    remove: bool = False,
 ) -> Set[str]:
     """Disallow fetching of matching placeholders.
 
@@ -160,7 +125,8 @@ def remove_placeholders(
         value: Target placeholder. Always ignored, exists for compatibility.
         candidates: Available placeholders in the source named by `context`.
         context: The source to which the `candidates` belong.
-        regex: A regex pattern. Will be matched against elements of the `candidtes`.
+        regex: A regex pattern. Will be matched against elements of the `candidates`.
+        remove: If ``True``, remove matching values.
 
     Returns:
         Placeholders that may be used.
@@ -169,22 +135,23 @@ def remove_placeholders(
         Removing irrelevant but possibly confusing columns.
 
         >>> value, context = "ignored", "ignored"
-        >>> candidates = ["id", "name", "old_id", "previous_id"]
-        >>> allowed = remove_placeholders(
+        >>> candidates = {"id", "name", "old_id", "previous_id"}
+        >>> allowed = filter_placeholders(
         ...     value, candidates, context,
-        ...     regex="^(old|previous).*"
+        ...     regex="^(old|previous).*",
+        ...     remove=True,
         ... )
         >>> sorted(allowed)
         ['id', 'name']
     """
-    _check_context(context, name=remove_placeholders.__name__, want_none=False)
+    _check_context(filter_placeholders.__name__, context=context, want_none=False)
 
     pattern = re.compile(regex, flags=re.IGNORECASE)
     candidates = set(candidates)
-    ans = {c for c in candidates if not pattern.match(c)}
+    ans = {c for c in candidates if (pattern.match(c) is None) is remove}
 
     if VERBOSE:
-        logger = LOGGER.getChild(remove_placeholders.__name__)
+        logger = LOGGER.getChild(filter_placeholders.__name__)
         if logger.isEnabledFor(logging.DEBUG):
             if len(ans) < len(candidates):
                 removed = candidates.difference(ans)
@@ -193,11 +160,28 @@ def remove_placeholders(
     return ans
 
 
-def _check_context(context: Any, name: str, want_none: bool) -> None:
+def _check_context(name: str, context: Any, want_none: bool) -> None:
     if (context is None) is want_none:
         return
 
-    raise exceptions.BadFilterError(
-        f"Function {__name__}.{name!r} should only be used for {'name-to-source' if want_none else 'placeholder'} "
-        f"mapping. Bad [[<'translation' or 'fetching'>.mapping.filter_functions]]-section in the TOML configuration?"
-    )
+    purpose = "name-to-source" if want_none else "placeholder"
+    raise exceptions.BadFilterError(f"Function '{__name__}.{name}' should only be used for {purpose} mapping.")
+
+
+def _filter_single(
+    string: str,
+    regex: str,
+    remove: bool,
+    label: str,
+    function_name: str,
+    action: str = "Discard",
+) -> bool:
+    keep = (re.match(regex, string, re.IGNORECASE) is None) is remove
+
+    if not keep and VERBOSE:
+        logger = LOGGER.getChild(function_name)
+        if logger.isEnabledFor(logging.DEBUG):
+            pattern = re.compile(regex, re.IGNORECASE)
+            logger.debug(f"%s %s={string!r}; %s {pattern=}.", action, label, "matches" if remove else "does not match")
+
+    return keep
