@@ -1,6 +1,20 @@
 """Factory functions for translation classes."""
+from contextlib import contextmanager as _contextmanager
 from pathlib import Path as _Path
-from typing import TYPE_CHECKING, Any, Callable, Dict, Generic as _Generic, Iterable, List, Optional, Tuple, Type, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    Generator as _Generator,
+    Generic as _Generic,
+    Iterable,
+    List,
+    Optional,
+    Tuple,
+    Type,
+    Union,
+)
 
 from rics import misc
 from rics._internal_support.types import PathLikeType
@@ -132,37 +146,35 @@ class TranslatorFactory(_Generic[NameType, SourceType, IdType]):
 
     def create(self) -> "Translator[NameType, SourceType, IdType]":
         """Create a ``Translator`` from a TOML file."""
-        config: Dict[str, Any] = self.load_toml_file(self.file)
-
         config_metadata = _ConfigMetadata.from_toml_paths(
             self.file,
             self.extra_fetchers,
             self.clazz,
         )
-
-        _check_allowed_keys(["translator", "mapping", "fetching", "unknown_ids"], config, "<root>")
-
-        translator_config = config.pop("translator", {})
+        with _rethrow_with_file(self.file):
+            config: Dict[str, Any] = self.load_toml_file(self.file)
 
         fetcher: fetching.Fetcher[SourceType, IdType] = self._handle_fetching(
             config.pop("fetching", {}), self.extra_fetchers, _cache_keys_from_config_metadata(config_metadata)
         )
 
-        mapper = self._make_mapper("translator", translator_config)
-        default_fmt_placeholders: Optional[dicts.InheritedKeysDict[SourceType, str, Any]]
-        default_fmt, default_fmt_placeholders = _make_default_translations(**config.pop("unknown_ids", {}))
+        with _rethrow_with_file(self.file):
+            _check_allowed_keys(["translator", "mapping", "fetching", "unknown_ids"], config, "<root>")
+            translator_config = config.pop("translator", {})
+            mapper = self._make_mapper("translator", translator_config)
+            default_fmt_placeholders: Optional[dicts.InheritedKeysDict[SourceType, str, Any]]
+            default_fmt, default_fmt_placeholders = _make_default_translations(**config.pop("unknown_ids", {}))
 
-        ans = self.clazz(
-            fetcher,
-            mapper=mapper,
-            default_fmt=default_fmt,
-            default_fmt_placeholders=default_fmt_placeholders,
-            **translator_config,
-        )
+            ans = self.clazz(
+                fetcher,
+                mapper=mapper,
+                default_fmt=default_fmt,
+                default_fmt_placeholders=default_fmt_placeholders,
+                **translator_config,
+            )
 
-        ans._config_metadata = config_metadata
-
-        return ans
+            ans._config_metadata = config_metadata
+            return ans
 
     def load_toml_file(self, path: str) -> Dict[str, Any]:
         """Read a TOML file from `path`."""
@@ -194,17 +206,21 @@ class TranslatorFactory(_Generic[NameType, SourceType, IdType]):
         multi_fetcher_kwargs = config.pop("MultiFetcher", {})
 
         fetchers: List[fetching.Fetcher[SourceType, IdType]] = []
+
         if config:
-            fetchers.append(self._make_fetcher(default_cache_keys[0], **config))  # Add primary fetcher
+            with _rethrow_with_file(self.file):
+                fetchers.append(self._make_fetcher(default_cache_keys[0], **config))  # Add primary fetcher
 
         for i, file_fetcher_file in enumerate(extra_fetchers, start=1):
-            fetchers.append(
-                self._make_fetcher(default_cache_keys[i], **self.load_toml_file(file_fetcher_file)["fetching"])
-            )
+            with _rethrow_with_file(file_fetcher_file):
+                fetcher_config = self.load_toml_file(file_fetcher_file)
+                fetcher = self._make_fetcher(default_cache_keys[i], **fetcher_config["fetching"])
+            fetchers.append(fetcher)
 
         if not fetchers:
             raise exceptions.ConfigurationError(
-                "Section [fetching] is required when no pre-initialized AbstractFetcher is given."
+                f"At least one [fetching]-section is required. Add it to '{self.file}',"
+                " or as an auxiliary configuration.",
             )
 
         return fetchers[0] if len(fetchers) == 1 else fetching.MultiFetcher(*fetchers, **multi_fetcher_kwargs)
@@ -277,3 +293,12 @@ def _read_metaconf(file: str) -> Dict[str, Any]:
         return {}
 
     return metaconf
+
+
+@_contextmanager
+def _rethrow_with_file(file: str) -> _Generator[None, None, None]:
+    try:
+        yield
+    except Exception as e:  # noqa: B902
+        msg = f"{type(e).__name__}: {e}"
+        raise exceptions.ConfigurationError(f"{msg}\n   raised when parsing file: {_Path(file).resolve()}")
