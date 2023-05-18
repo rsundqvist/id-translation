@@ -1,5 +1,6 @@
 import logging
 import warnings
+from collections import defaultdict
 from datetime import timedelta
 from inspect import signature
 from pathlib import Path
@@ -271,8 +272,8 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         For an introduction to translation, see the :ref:`translation-primer` page.
 
         See Also:
-            🔑 This is a key event method. See :ref:`key-events` for details. Events are emitted on the ``ℹ️INFO``-level
-            if the ``Translator`` is :attr:`online`.
+            🔑 This is a key event method. Exit-events are emitted on the ``ℹ️INFO``-level if the ``Translator`` is
+            :attr:`online`. Enter-events are always emitted on the ``🪲DEBUG``-level. See :ref:`key-events` for details.
 
         Args:
             translatable: A data structure to translate.
@@ -328,8 +329,8 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
             sources = self.sources  # Ensures that the fetcher is warmed up; good for log organization.
             LOGGER.log(
-                level=logging.INFO if self.online else logging.DEBUG,
-                msg=f"Begin translation of {type_name!r}-type data using {sources=}. Names to translate: {name_info}.",
+                level=logging.DEBUG,
+                msg=f"Begin translation of {type_name!r}-type data. Names to translate: {name_info}.",
                 extra=dict(
                     event_key=event_key,
                     event_stage="ENTER",
@@ -400,9 +401,12 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         if should_emit_key_event:
             execution_time = perf_counter() - start
             inplace_info = "Original values have been replaced" if inplace else "Returning a translated copy"
+
+            pretty_n2s = _make_pretty_names_to_source(names_to_translate, translation_map.name_to_source)
             LOGGER.log(
                 level=logging.INFO if self.online else logging.DEBUG,
-                msg=f"Finished translation of {type_name!r}-type data in {format_seconds(execution_time)}. {inplace_info} (since {inplace=}).",
+                msg=f"Finished translation of {type_name!r}-type data in {format_seconds(execution_time)}"
+                f" using names-to-source mapping: {pretty_n2s}. {inplace_info} (since {inplace=}).",
                 extra=dict(
                     event_key=event_key,
                     event_stage="EXIT",
@@ -1037,3 +1041,15 @@ def _resolve_type_name(translatable: Translatable, attribute: str = None) -> str
     if attribute:
         type_name = f"{type_name}.{attribute}"
     return type_name
+
+
+def _make_pretty_names_to_source(names: List[NameType], name_to_source: Dict[NameType, SourceType]) -> str:
+    source_to_names = defaultdict(list)
+    for name in names:
+        source = name_to_source.get(name)
+        source_to_names[source].append(name)
+
+    return " | ".join(
+        f"{tuple(set(names))} -> {'<Not translated>' if source is None else repr(source)}"
+        for source, names in source_to_names.items()
+    )

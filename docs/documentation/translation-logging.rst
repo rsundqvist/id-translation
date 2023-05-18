@@ -59,44 +59,54 @@ start when something goes wrong!
 
 Sample record
 -------------
-Below is the final success message produced by a single :meth:`.Translator.translate`-call with every single debug
-option enabled, about 400 records in total. Only 2 of these are non-``DEBUG`` messages; the one shown below and the
-corresponding ``'ENTER'``-event. The snippet that produced these logs looks something like this:
+A single :meth:`.Translator.translate`-call with every single debug option enabled typically produces a few hundred
+records (326 in this case). The final ``TRANSLATOR.TRANSLATE.EXIT``-event is the only ``ℹ️INFO``-level message, shown in
+its entirety as a JSON-record at the bottom.
 
 .. code-block:: python
+   :caption: Exit message of the :meth:`.Translator.translate`-method.
+
+   Finished translation of 'DataFrame'-type data in 0.310252 sec using names-to-source
+       mapping: ('customer_id',) -> 'customer' | ('film_id',) -> 'film' |
+       ('category_id',) -> 'category' | ('staff_id',) -> 'staff'. Returning
+       a translated copy (since inplace=False).
+
+The event keys aren't included in any user-facing messages, but are useful since they may be used for indexing by log
+ingestion frameworks. The event keys associated with the message above are shown in the next snippet. Metadata such as
+the names the user wanted to translate is included as well. Here, that value is ``null``, indicating that the user
+wanted automatic name selection based on the configuration. This field is populated by the names that were extracted by
+the ``Translator`` in the ``EXIT``-record.
+
+.. literalinclude:: dvdrental-records.json
+   :caption: Event keys emitted when entering the :meth:`.Translator.translate`-method.
+   :start-at: "event_key": "TRANSLATOR.TRANSLATE",
+   :end-before: "ignore_names": null,
+
+The exact data that is included varies naturally depending on the message. Any record with ``event_stage='EXIT'`` will
+include a ``execution_time``-value in seconds. Messages related to mapping will contain
+``(values, candidates, context)``, and so on.
+
+.. literalinclude:: dvdrental-records.json
+   :caption: A ``TRANSLATOR.TRANSLATE.EXIT``-record emitted on the ``INFO``-level.
+   :lines: 8344-
+   :lineno-start: 8344
+   :emphasize-lines: 2,5,15,22-32,44-45
+
+A few of the more interesting parts of the record have been highlighted. Click :download:`here <dvdrental-records.json>`
+to download. The line numbers shown above are the actual line numbers of this file.
+
+.. code-block:: python
+   :caption: Dummy version of the code that produced the the records.
 
    from id_translation import Translator
    import logging
    from id_translation.mapping.support import enable_verbose_debug_messages
 
-   translator = Translator.from_config(main_config, [extra_fetchers..])
+   translator = Translator.from_config(main_config, [fetcher_configs..])
    logging.basicConfig(level=logging.DEBUG, handlers=[SomeJsonExporter()])
    with enable_verbose_debug_messages():
        translator.translate(df)  # Translate a DataFrame
 
-We can of course tell that this is the end from the messages itself:
+The configs that were used are available `here <dvdrental>`_.
 
-.. code-block:: python
-
-   Finished translation of 'DataFrame'-type data in 0.118961
-   sec. Returning a translated copy (since inplace=False).
-
-But, there are also also keys present that may be used for indexing by log ingestion frameworks:
-
-.. literalinclude:: dvdrental-records.json
-   :lines: 7852-7855
-   :lineno-start: 7852
-
-The exact data that is included varies naturally depending on the message. Any record with ``event_stage='EXIT'`` will
-include a ``execution_time``-value in seconds. Messages related to mapping will contain
-``(values, candidates, context)``, and so on. A few of the more interesting parts of the ``TRANSLATOR.TRANSLATE.EXIT``
--event have been highlighted below.
-
-.. literalinclude:: dvdrental-records.json
-   :caption: A ``TRANSLATOR.TRANSLATE.EXIT``-record emitted on the ``INFO``-level.
-   :lines: 7831-
-   :lineno-start: 7831
-   :emphasize-lines: 2,5,15,22-25,33-38,44-45
-
-Click :download:`🗒️here <dvdrental-records.json>` to download the entire log file in JSON format. The line numbers shown
-above are the actual line numbers of this file.
+.. _dvdrental: https://github.com/rsundqvist/id-translation/blob/master/tests/dvdrental/
