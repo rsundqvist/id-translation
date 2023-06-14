@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The `AbstractFetcher` class now uses a warning to inform the user about consequences when 
   `unmapped_values_action='raise'` is used.
 - Instead of silently failing, the `SqlFetcher` now raises when ID column mapping fails for a whitelisted table.
+- Fixed a performance issue when translating large `pandas.Series` instances (including `pandas.DataFrame` columns).
 
 ### Removed
 - The `FormatApplier` class is no longer abstract. Removed `DefaultFormatApplier`.
