@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Any, Dict, List, Optional, Sequence, TypeVar
+from typing import Any, Dict, Iterable, List, Optional, Sequence, TypeVar
 
 import pandas as pd
 
@@ -42,9 +42,24 @@ class PandasIO(DataStructureIO):
         if isinstance(translatable, pd.DataFrame):
             for i, name in enumerate(translatable.columns):
                 if name in names:
-                    translatable.iloc[:, i] = translatable.iloc[:, i].map(tmap[name].get)
+                    translatable.iloc[:, i] = _translate_series(translatable.iloc[:, i], [name], tmap)
         else:
             verify_names(len(translatable), names)
-            translatable.update(pd.Series(translate_sequence(translatable, names, tmap), index=translatable.index))
+            translatable[:] = _translate_series(translatable, names, tmap)
 
         return translatable if copy else None
+
+
+def _translate_series(
+    series: pd.Series, names: List[NameType], tmap: TranslationMap[NameType, SourceType, IdType]
+) -> Iterable[Optional[str]]:
+    verify_names(len(series), names)
+
+    if len(names) == 1 and len(series) > 100:
+        # Optimization for large series. Suboptimal if "many" values are
+        # unique. Not worth the additional overhead for small series.
+        magic_dict = tmap[names[0]]
+        mapping = {idx: magic_dict.get(idx) for idx in series.unique()}
+        return series.map(mapping)  # type: ignore[no-any-return]
+    else:
+        return translate_sequence(series, names, tmap)

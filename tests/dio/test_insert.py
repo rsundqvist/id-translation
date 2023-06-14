@@ -42,6 +42,31 @@ def test_forbidden_insert_inplace(translation_map):
         translatable_io.insert(actual, [NAME], translation_map, copy=False)
 
 
+def test_large_series(translation_map, monkeypatch):
+    from id_translation.offline import MagicDict
+
+    num_getitem_calls = 0
+    real_getitem = MagicDict.__getitem__
+
+    def increment_call_count(self, key):
+        nonlocal num_getitem_calls
+        num_getitem_calls += 1
+        return real_getitem(self, key)
+
+    monkeypatch.setattr(MagicDict, "__getitem__", increment_call_count)
+
+    large_list = UNTRANSLATED[NAME] * 1000
+    large_series = pd.Series(large_list)
+
+    resolve_io(large_list).insert(large_list, [NAME], translation_map, copy=False)
+    assert num_getitem_calls == len(large_list)  # Not actually needed; fewer would be nice!
+    resolve_io(large_series).insert(large_series, [NAME], translation_map, copy=False)
+    assert num_getitem_calls == len(large_list) + large_series.nunique()
+
+    assert TRANSLATED[NAME] * 1000 == large_list
+    assert large_list == large_series.to_list()
+
+
 def _do_insert(translation_map, ttype, copy):
     actual = ttype(UNTRANSLATED[NAME])
     translatable_io = resolve_io(actual)
