@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "id-translation"
-version = "0.4.0"
+version = "0.4.0.dev1"
 description = "Convert IDs into human-readable labels."
 authors = ["Richard Sundqvist <richard.sundqvist@live.se>"]
 
