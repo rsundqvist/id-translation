@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2023-06-16
+
 ### Added
 - The `uuid.UUID`-type has been added to `IdType`s.
 - Add the `Translator.enable_uuid_heuristics` flag (default=`False`).
@@ -103,7 +105,8 @@ cookiecutter template.
 - Switch to relative imports.
 - Fix some intersphinx issues.
 
-[Unreleased]: https://github.com/rsundqvist/id-translation/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/rsundqvist/id-translation/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/rsundqvist/id-translator/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/rsundqvist/id-translator/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/rsundqvist/id-translator/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/rsundqvist/id-translator/compare/v0.2.0...v0.2.1
