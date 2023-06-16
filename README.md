@@ -31,27 +31,25 @@ The fastest way to get started with `id-translation` is the 🍪[id-translation-
 template [README](https://github.com/rsundqvist/id-translation-project/blob/master/README.md#quickstart) contains 
 step-by-step instructions for creating and verifying new generated projects.
 
-The template is designed to allow power users to quickly  specify shared configurations that "just work" for other 
-users; see the example below.
+The template is designed to allow power users to quickly specify shared configurations that "just work" for other users;
+see the example below.
 
 ```python
-from your_namespace.id_translation import translate
+from big_corporation_inc.id_translation import translate
 print(
-  "The first employee at Company Inc was:", 
+  "The first employee at Big Corporation Inc. was:", 
   translate(1, names="employee_id"),
 )
 ```
 
-Check out this [demo project](https://github.com/rsundqvist/id-translation-project/tree/master/demo/ute-id-translation)
+Check out this [demo project](https://github.com/rsundqvist/id-translation-project/tree/master/demo/bci-id-translation)
 to get a preview of what Your generated project might look like, or continue to the next section for a brief feature 
 overview.
 
-Click [here][id-translation-project] to go to the template project.
-
-[id-translation-project]: https://github.com/rsundqvist/id-translation-project/#id-translation-cookiecutter-template
+[id-translation-project]: https://github.com/rsundqvist/id-translation-project/
 
 # Highlighted Features
-- Support for ``int`` and ``string`` IDs or a collection thereof, with automatic name and ID extraction.
+- Support for ``int`` and ``string`` IDs, including ``UUID``-like types.
 - Translation of [pandas types][pandas-translation], including `pandas.Index` types.
 - Intuitive [Format strings][format], with support for optional elements.
 - Powerful automated [Name-to-source][n2s-mapping] and [Format placeholder][pm-mapping] mapping.
