@@ -531,3 +531,25 @@ def test_temporary_translate_fmt(translator, monkeypatch):
     assert translator._fmt == expected_fmt
 
     assert translator.translate([0, 1], names="positive_numbers") == ["0:0x0, positive=True", "1:0x1, positive=True"]
+
+
+@pytest.mark.parametrize(
+    "names, iterables",
+    [
+        (["digit"], [["a", "b"], ["1:name-of-1", "2:name-of-2", "3:name-of-3"]]),
+        (["letter"], [["a:name-of-a", "b:name-of-b"], [1, 2, 3]]),
+        (["letter", "digit"], [["a:name-of-a", "b:name-of-b"], ["1:name-of-1", "2:name-of-2", "3:name-of-3"]]),
+        (None, [["a:name-of-a", "b:name-of-b"], ["1:name-of-1", "2:name-of-2", "3:name-of-3"]]),
+    ],
+)
+def test_translate_multi_index(names, iterables):
+    from pandas.testing import assert_index_equal
+
+    expected = pd.MultiIndex.from_product(iterables, names=["letter", "digit"])
+
+    actual = pd.MultiIndex.from_product([["a", "b"], [1, 2, 3]], names=["letter", "digit"])
+
+    with pytest.warns(UserWarning, match="No fetcher"):
+        translator = Translator()
+    actual = translator.translate(actual, names=names)
+    assert_index_equal(actual, expected)
