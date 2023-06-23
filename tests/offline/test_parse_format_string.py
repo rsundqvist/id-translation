@@ -10,43 +10,58 @@ from id_translation.offline.parse_format_string import BadDelimiterError, Elemen
         (
             "static",
             [
-                Element(part="static", placeholders=[], required=True),
+                Element(part="static", placeholders=[], required=True, positional_part="static"),
             ],
         ),
         (
             "{id}",
             [
-                Element(part="{id}", placeholders=["id"], required=True),
+                Element(part="{id}", placeholders=["id"], required=True, positional_part="{:}"),
             ],
         ),
         (
             "[{optional-id}] [[literal-angle-brackets]]",
             [
-                Element(part="{optional-id}", placeholders=["optional-id"], required=False),
-                Element(part=" [literal-angle-brackets]", placeholders=[], required=True),
+                Element(part="{optional-id}", placeholders=["optional-id"], required=False, positional_part="{:}"),
+                Element(
+                    part=" [literal-angle-brackets]",
+                    placeholders=[],
+                    required=True,
+                    positional_part=" [literal-angle-brackets]",
+                ),
             ],
         ),
         (
             "{id} [[literal-angle-brackets]]",
             [
-                Element(part="{id} [literal-angle-brackets]", placeholders=["id"], required=True),
+                Element(
+                    part="{id} [literal-angle-brackets]",
+                    placeholders=["id"],
+                    required=True,
+                    positional_part="{:} [literal-angle-brackets]",
+                ),
             ],
         ),
         (
             "!{id}:[:{code}<]:{name}<",
             [
-                Element(part="!{id}:", placeholders=["id"], required=True),
-                Element(part=":{code}<", placeholders=["code"], required=False),
-                Element(part=":{name}<", placeholders=["name"], required=True),
+                Element(part="!{id}:", placeholders=["id"], required=True, positional_part="!{:}:"),
+                Element(part=":{code}<", placeholders=["code"], required=False, positional_part=":{:}<"),
+                Element(part=":{name}<", placeholders=["name"], required=True, positional_part=":{:}<"),
             ],
         ),
         (
             "{id}:{first_name}[ '{nickname}'][, age {age}].",
             [
-                Element(part="{id}:{first_name}", placeholders=["id", "first_name"], required=True),
-                Element(part=" '{nickname}'", placeholders=["nickname"], required=False),
-                Element(part=", age {age}", placeholders=["age"], required=False),
-                Element(part=".", placeholders=[], required=True),
+                Element(
+                    part="{id}:{first_name}",
+                    placeholders=["id", "first_name"],
+                    required=True,
+                    positional_part="{:}:{:}",
+                ),
+                Element(part=" '{nickname}'", placeholders=["nickname"], required=False, positional_part=" '{:}'"),
+                Element(part=", age {age}", placeholders=["age"], required=False, positional_part=", age {:}"),
+                Element(part=".", placeholders=[], required=True, positional_part="."),
             ],
         ),
     ],
