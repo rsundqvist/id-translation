@@ -540,6 +540,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             )
 
             if names is None:
+                # TODO: Derived names should be the responsibility of DataStructureIO subclasses.
                 derived_names = self._extract_from_attribute_or_parent(translatable, parent)
                 msg = f"Translation aborted; none of the derived names {derived_names} {params_info}."
                 warnings.warn(msg, MappingWarning, stacklevel=2)
@@ -960,16 +961,16 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
     @classmethod
     def _extract_from_attribute(cls, translatable: Translatable) -> List[NameType]:
-        no_use_keys = False
-        for attr_name in _NAME_ATTRIBUTES:
-            if attr_name == "keys" and no_use_keys:
-                continue  # Pandas Series have keys, but should not be used.
-
-            if hasattr(translatable, attr_name):
-                attr = getattr(translatable, attr_name)
-                if attr is None:
-                    no_use_keys = True
-                else:
+        if isinstance(translatable, pd.MultiIndex):
+            if all(translatable.names):
+                return list(translatable.names)
+        elif isinstance(translatable, (pd.Index, pd.Series)):
+            if translatable.name:
+                return [translatable.name]
+        else:
+            for attr_name in _NAME_ATTRIBUTES:
+                if hasattr(translatable, attr_name):
+                    attr = getattr(translatable, attr_name)
                     return as_list(attr() if callable(attr) else attr)
 
         raise AttributeError(

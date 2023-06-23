@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Any, Dict, Iterable, List, Optional, Sequence, TypeVar
+from typing import Any, Dict, Iterable, List, Optional, Sequence, TypeVar, Union
 
 import pandas as pd
 
@@ -20,7 +20,7 @@ class PandasIO(DataStructureIO):
 
     @staticmethod
     def handles_type(arg: Any) -> bool:
-        return isinstance(arg, (pd.DataFrame, pd.Series))
+        return isinstance(arg, (pd.DataFrame, pd.Series, pd.Index))
 
     @staticmethod
     def extract(translatable: T, names: List[NameType]) -> Dict[NameType, Sequence[IdType]]:
@@ -30,8 +30,15 @@ class PandasIO(DataStructureIO):
                 if name in names:
                     ans[name].extend(_cast_series(translatable.iloc[:, i]))
             return dict(ans)
-        else:
+        elif isinstance(translatable, pd.Series):
             return SequenceIO.extract(_cast_series(translatable), names)
+        elif isinstance(translatable, pd.MultiIndex):
+            # This will error on duplicate names, which is probably a good thing.
+            return {name: translatable.unique(name) for name in names}
+        elif isinstance(translatable, pd.Index):
+            return SequenceIO.extract(translatable, names)
+
+        raise TypeError(f"This should not happen: {type(translatable)=}")
 
     @staticmethod
     def insert(
@@ -43,15 +50,26 @@ class PandasIO(DataStructureIO):
             for i, name in enumerate(translatable.columns):
                 if name in names:
                     translatable.iloc[:, i] = _translate_series(translatable.iloc[:, i], [name], tmap)
-        else:
+        elif isinstance(translatable, pd.Series):
             verify_names(len(translatable), names)
             translatable[:] = _translate_series(translatable, names, tmap)
+        elif isinstance(translatable, pd.MultiIndex):
+            df = translatable.to_frame()
+            PandasIO.insert(df, names, tmap, copy=False)
+            return pd.MultiIndex.from_frame(df, names=translatable.names)
+        elif isinstance(translatable, pd.Index):
+            return pd.Index(_translate_series(translatable, names, tmap), name=translatable.name)
+        else:
+            raise TypeError(f"This should not happen: {type(translatable)=}")
 
         return translatable if copy else None
 
 
 def _translate_series(
-    series: pd.Series, names: List[NameType], tmap: TranslationMap[NameType, SourceType, IdType]
+    # Not MultiIndex
+    series: Union[pd.Series, pd.Index],
+    names: List[NameType],
+    tmap: TranslationMap[NameType, SourceType, IdType],
 ) -> Iterable[Optional[str]]:
     verify_names(len(series), names)
 
