@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Translation of `pandas.MultiIndex` is now properly supported, as indicated by `resolve_io` not throwing.
 - Preserve `format_spec` and `conversion` in `Format` positional arguments.
+- Add handling of attributes of retrieved translation elements (e.g. `UUID.int`).
 
 ## [0.4.0] - 2023-06-16
 

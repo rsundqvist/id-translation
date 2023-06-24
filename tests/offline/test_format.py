@@ -64,6 +64,7 @@ def test_multiple_optional_placeholders():
         ("{id!r}:{name!r}", "1999:'Sofia'"),
         ("{id:.2f}:{name:.2}", "1999.00:So"),
         ("{id:*^11.2f}:{name!r:.2}", "**1999.00**:'S"),
+        ("{id.imag:*^11.2f}:{name}", "***0.00****:Sofia"),
     ],
 )
 def test_formatting(fmt, expected):

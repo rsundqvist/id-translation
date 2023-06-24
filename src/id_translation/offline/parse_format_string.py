@@ -96,12 +96,18 @@ class Element:
         parsed_block = s.replace("[[", "[").replace("]]", "]")
 
         parts = []
-        placeholders = []
+        placeholders: List[str] = []
         for literal_text, field_name, format_spec, conversion in _formatter.parse(parsed_block):
             parts.append(literal_text)
             if field_name:
-                placeholders.append(field_name)
+                placeholder, _, attribute = field_name.partition(".")
                 parts.append("{")
+
+                if attribute:
+                    parts.append(".")
+                    parts.append(attribute)
+
+                placeholders.append(placeholder)
                 if conversion is not None:
                     parts.extend(("!", conversion))
                 if format_spec is not None:
