@@ -218,8 +218,6 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):
             self.logger.debug(f"Begin computing match scores{extra} for {values}x{candidates} using {self._score}.")
 
         unmapped_values = self._handle_overrides(scores, context, override_function)
-        if not unmapped_values:
-            return scores
 
         verbose_logger = self._get_verbose_logger()
         for value in unmapped_values:
