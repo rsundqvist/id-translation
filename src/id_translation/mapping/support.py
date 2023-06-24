@@ -100,7 +100,7 @@ class MatchScores:
                     if record in (rr.superseding_value, rr.superseding_candidate):
                         supersedes.append(rr)
 
-            if self.logger.isEnabledFor(logging.INFO):
+            if self.logger.isEnabledFor(logging.DEBUG):
                 reason = "(short-circuit or override)" if record.score == np.inf else f">= {self._min_score}"
                 self.logger.debug(f"Accepted: {record} {reason}.")
 
@@ -150,7 +150,7 @@ class MatchScores:
 
     def _get_sorted(self) -> pd.Series:
         sorted_scores: pd.Series = self._matrix.stack()
-        sorted_scores.sort_values(ascending=False, inplace=True)
+        sorted_scores.sort_values(ascending=False, inplace=True, kind="stable")
         return sorted_scores
 
     def get_above(self) -> List["MatchScores.Record[ValueType, CandidateType]"]:

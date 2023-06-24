@@ -1,7 +1,6 @@
 from typing import Any, Callable, Dict, List, Optional, Sequence, TypeVar
 
 import numpy as np
-import pandas as pd
 from rics.collections.misc import as_list
 
 from ..offline import TranslationMap
@@ -9,7 +8,7 @@ from ..types import IdType, NameType, SourceType
 from . import DataStructureIO
 from .exceptions import NotInplaceTranslatableError
 
-T = TypeVar("T", list, np.ndarray, tuple, pd.Index)  # type: ignore[type-arg]  # TODO: Higher-Kinded TypeVars
+T = TypeVar("T", list, np.ndarray, tuple)  # type: ignore[type-arg]  # TODO: Higher-Kinded TypeVars
 
 
 class SequenceIO(DataStructureIO):
@@ -17,7 +16,7 @@ class SequenceIO(DataStructureIO):
 
     @staticmethod
     def handles_type(arg: Any) -> bool:
-        return isinstance(arg, (list, np.ndarray, tuple, pd.Index))
+        return isinstance(arg, (list, np.ndarray, tuple))
 
     @staticmethod
     def extract(translatable: T, names: List[NameType]) -> Dict[NameType, Sequence[IdType]]:
@@ -37,9 +36,7 @@ class SequenceIO(DataStructureIO):
 
         ctor: Callable[[List[Optional[str]]], T]
         if copy:
-            if isinstance(translatable, pd.Index):
-                ctor = pd.Index
-            elif isinstance(translatable, np.ndarray):
+            if isinstance(translatable, np.ndarray):
                 ctor = np.array
             else:
                 ctor = type(translatable)

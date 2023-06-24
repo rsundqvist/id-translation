@@ -1,6 +1,5 @@
 import logging
 import warnings
-from collections import defaultdict
 from datetime import timedelta
 from inspect import signature
 from pathlib import Path
@@ -318,7 +317,8 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
         start = perf_counter()
 
-        should_emit_key_event = LOGGER.isEnabledFor(logging.INFO) if self.online else LOGGER.isEnabledFor(logging.DEBUG)
+        key_event_level = logging.INFO if self.online else logging.DEBUG
+        should_emit_key_event = LOGGER.isEnabledFor(key_event_level)
         if should_emit_key_event:
             event_key = f"{self.__class__.__name__.upper()}.TRANSLATE"
 
@@ -402,11 +402,11 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             execution_time = perf_counter() - start
             inplace_info = "Original values have been replaced" if inplace else "Returning a translated copy"
 
-            pretty_n2s = _make_pretty_names_to_source(names_to_translate, translation_map.name_to_source)
+            n2s_with_none = {name: translation_map.name_to_source.get(name) for name in names_to_translate}
             LOGGER.log(
-                level=logging.INFO if self.online else logging.DEBUG,
+                level=key_event_level,
                 msg=f"Finished translation of {type_name!r}-type data in {format_seconds(execution_time)}"
-                f" using names-to-source mapping: {pretty_n2s}. {inplace_info} (since {inplace=}).",
+                f" using name-to-source mapping: {n2s_with_none}. {inplace_info} (since {inplace=}).",
                 extra=dict(
                     event_key=event_key,
                     event_stage="EXIT",
@@ -540,6 +540,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             )
 
             if names is None:
+                # TODO: Derived names should be the responsibility of DataStructureIO subclasses.
                 derived_names = self._extract_from_attribute_or_parent(translatable, parent)
                 msg = f"Translation aborted; none of the derived names {derived_names} {params_info}."
                 warnings.warn(msg, MappingWarning, stacklevel=2)
@@ -960,16 +961,16 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
     @classmethod
     def _extract_from_attribute(cls, translatable: Translatable) -> List[NameType]:
-        no_use_keys = False
-        for attr_name in _NAME_ATTRIBUTES:
-            if attr_name == "keys" and no_use_keys:
-                continue  # Pandas Series have keys, but should not be used.
-
-            if hasattr(translatable, attr_name):
-                attr = getattr(translatable, attr_name)
-                if attr is None:
-                    no_use_keys = True
-                else:
+        if isinstance(translatable, pd.MultiIndex):
+            if all(translatable.names):
+                return list(translatable.names)
+        elif isinstance(translatable, (pd.Index, pd.Series)):
+            if translatable.name:
+                return [translatable.name]
+        else:
+            for attr_name in _NAME_ATTRIBUTES:
+                if hasattr(translatable, attr_name):
+                    attr = getattr(translatable, attr_name)
                     return as_list(attr() if callable(attr) else attr)
 
         raise AttributeError(
@@ -1039,17 +1040,6 @@ def _handle_default(
 def _resolve_type_name(translatable: Translatable, attribute: str = None) -> str:
     type_name = tname(translatable, prefix_classname=True)
     if attribute:
-        type_name = f"{type_name}.{attribute}"
+        real_type_name = tname(getattr(translatable, attribute), prefix_classname=True)
+        type_name = f"{real_type_name} (from {type_name}.{attribute})"
     return type_name
-
-
-def _make_pretty_names_to_source(names: List[NameType], name_to_source: Dict[NameType, SourceType]) -> str:
-    source_to_names = defaultdict(list)
-    for name in names:
-        source = name_to_source.get(name)
-        source_to_names[source].append(name)
-
-    return " | ".join(
-        f"{tuple(set(names))} -> {'<Not translated>' if source is None else repr(source)}"
-        for source, names in source_to_names.items()
-    )

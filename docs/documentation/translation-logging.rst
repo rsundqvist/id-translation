@@ -67,9 +67,8 @@ its entirety as a JSON-record at the bottom.
    :caption: Exit message of the :meth:`.Translator.translate`-method.
 
    Finished translation of 'DataFrame'-type data in 0.310252 sec using names-to-source
-       mapping: ('customer_id',) -> 'customer' | ('film_id',) -> 'film' |
-       ('category_id',) -> 'category' | ('staff_id',) -> 'staff'. Returning
-       a translated copy (since inplace=False).
+     mapping: {'customer_id': 'customer', 'film_id': 'film', 'category_id': 'category',
+     'staff_id': 'staff'}. Returning a translated copy (since inplace=False).
 
 The event keys aren't included in any user-facing messages, but are useful since they may be used for indexing by log
 ingestion frameworks. The event keys associated with the message above are shown in the next snippet. Metadata such as

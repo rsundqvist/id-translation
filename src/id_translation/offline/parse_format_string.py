@@ -79,14 +79,8 @@ class Element:
     """Placeholder names in `part`, if any."""
     required: bool
     """Flag indicating whether the element may be excluded."""
-
-    @property
-    def positional_part(self) -> str:
-        """Return a positional version of the `part` attribute."""
-        if not self.placeholders:
-            return self.part
-
-        return self.part.format(**{p: "{}" for p in self.placeholders})
+    positional_part: str
+    """Return a positional version of the `part` attribute."""
 
     @staticmethod
     def make(s: str, in_optional_block: bool) -> "Element":
@@ -100,13 +94,27 @@ class Element:
             A new ``Element``.
         """
         parsed_block = s.replace("[[", "[").replace("]]", "]")
-        placeholders = [x[1] for x in _formatter.parse(parsed_block) if x[1]]
 
-        return Element(
-            parsed_block,
-            placeholders,
-            not (placeholders and in_optional_block),
-        )
+        parts = []
+        placeholders: List[str] = []
+        for literal_text, field_name, format_spec, conversion in _formatter.parse(parsed_block):
+            parts.append(literal_text)
+            if field_name:
+                placeholder, _, attribute = field_name.partition(".")
+                parts.append("{")
+
+                if attribute:
+                    parts.append(".")
+                    parts.append(attribute)
+
+                placeholders.append(placeholder)
+                if conversion is not None:
+                    parts.extend(("!", conversion))
+                if format_spec is not None:
+                    parts.extend((":", format_spec))
+                parts.append("}")
+
+        return Element(parsed_block, placeholders, not (placeholders and in_optional_block), "".join(parts))
 
 
 def get_elements(fmt: str) -> List[Element]:
@@ -123,7 +131,7 @@ def get_elements(fmt: str) -> List[Element]:
         UnusedOptionalBlockError: If optional blocks are defined without placeholders.
     """
     if not fmt:
-        return [Element("", [], required=True)]
+        return [Element("", [], required=True, positional_part="")]
 
     same_count = 1
     ans = []

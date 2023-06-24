@@ -55,3 +55,25 @@ def test_multiple_optional_placeholders():
     assert fmt.fstring(["required", "opt0"]) == "{required}"
     assert fmt.fstring(["required", "opt1"]) == "{required}"
     assert fmt.fstring(["required", "opt0", "opt1"]) == "{required} opt0={opt0}, opt1={opt1}"
+
+
+@pytest.mark.parametrize(
+    "fmt, expected",
+    [
+        ("{id}:{name}", "1999:Sofia"),  # Baseline
+        ("{id!r}:{name!r}", "1999:'Sofia'"),
+        ("{id:.2f}:{name:.2}", "1999.00:So"),
+        ("{id:*^11.2f}:{name!r:.2}", "**1999.00**:'S"),
+        ("{id.imag:*^11.2f}:{name}", "***0.00****:Sofia"),
+    ],
+)
+def test_formatting(fmt, expected):
+    kwargs = {"id": 1999, "name": "Sofia"}
+    assert fmt.format(**kwargs) == expected, "bad test case"
+
+    fstring = Format(fmt).fstring
+    positional_true = fstring(positional=True).format(*kwargs.values())
+    positional_false = fstring(positional=False).format(**kwargs)
+
+    assert positional_true == expected
+    assert positional_false == expected

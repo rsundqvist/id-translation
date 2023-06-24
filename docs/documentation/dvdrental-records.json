@@ -8343,7 +8343,7 @@
   },
   {
     "name": "id_translation.Translator",
-    "msg": "Finished translation of 'DataFrame'-type data in 0.310252 sec using names-to-source mapping: ('customer_id',) -> 'customer' | ('film_id',) -> 'film' | ('category_id',) -> 'category' | ('staff_id',) -> 'staff'. Returning a translated copy (since inplace=False).",
+    "msg": "Finished translation of 'DataFrame'-type data in 0.310252 sec using names-to-source mapping: {'customer_id': 'customer', 'film_id': 'film', 'category_id': 'category', 'staff_id': 'staff'}. Returning a translated copy (since inplace=False).",
     "args": [],
     "levelname": "INFO",
     "levelno": 20,
@@ -8385,6 +8385,6 @@
     "attribute": null,
     "reverse": false,
     "online": true,
-    "message": "Finished translation of 'DataFrame'-type data in 0.310252 sec using names-to-source mapping: ('customer_id',) -> 'customer' | ('film_id',) -> 'film' | ('category_id',) -> 'category' | ('staff_id',) -> 'staff'. Returning a translated copy (since inplace=False)."
+    "message": "Finished translation of 'DataFrame'-type data in 0.310252 sec using names-to-source mapping: {'customer_id': 'customer', 'film_id': 'film', 'category_id': 'category', 'staff_id': 'staff'}. Returning a translated copy (since inplace=False)."
   }
 ]
