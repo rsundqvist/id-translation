@@ -7,6 +7,7 @@ from ..offline import TranslationMap
 from ..types import IdType, NameType, SourceType
 from ._data_structure_io import DataStructureIO
 from ._sequence import SequenceIO, translate_sequence, verify_names
+from .exceptions import NotInplaceTranslatableError
 
 T = TypeVar("T", pd.DataFrame, pd.Series)
 
@@ -34,7 +35,7 @@ class PandasIO(DataStructureIO):
             return SequenceIO.extract(_cast_series(translatable), names)
         elif isinstance(translatable, pd.MultiIndex):
             # This will error on duplicate names, which is probably a good thing.
-            return {name: translatable.unique(name) for name in names}
+            return {name: list(translatable.unique(name)) for name in names}
         elif isinstance(translatable, pd.Index):
             return SequenceIO.extract(translatable, names)
 
@@ -44,7 +45,12 @@ class PandasIO(DataStructureIO):
     def insert(
         translatable: T, names: List[NameType], tmap: TranslationMap[NameType, SourceType, IdType], copy: bool
     ) -> Optional[T]:
-        translatable = translatable.copy() if copy else translatable
+        if isinstance(translatable, (pd.DataFrame, pd.Series)):
+            if copy:
+                translatable = translatable.copy()
+        else:  # Index-type translatable
+            if not copy:
+                raise NotInplaceTranslatableError(translatable)
 
         if isinstance(translatable, pd.DataFrame):
             for i, name in enumerate(translatable.columns):
@@ -56,9 +62,9 @@ class PandasIO(DataStructureIO):
         elif isinstance(translatable, pd.MultiIndex):
             df = translatable.to_frame()
             PandasIO.insert(df, names, tmap, copy=False)
-            return pd.MultiIndex.from_frame(df, names=translatable.names)
+            translatable = pd.MultiIndex.from_frame(df, names=translatable.names)
         elif isinstance(translatable, pd.Index):
-            return pd.Index(_translate_series(translatable, names, tmap), name=translatable.name)
+            translatable = pd.Index(_translate_series(translatable, names, tmap), name=translatable.name)
         else:
             raise TypeError(f"This should not happen: {type(translatable)=}")
 
