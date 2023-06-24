@@ -123,11 +123,14 @@ class BaseMetadata(ABC):
             return False
 
         expires_at = stored_config.created + max_age
-        offset = timedelta(abs(datetime.now() - expires_at).total_seconds() // 60)
+        offset = timedelta(seconds=round(abs(datetime.now() - expires_at).total_seconds()))
 
+        fmt = "%Y-%m-%dT%H:%M:%S"
         if expires_at <= stored_config.created:
-            log_reject(f"cache expired at {expires_at} ({offset} ago)")
+            log_reject(f"cache expired at {expires_at:{fmt}} ({offset} ago)")
             return False
 
-        self._log_accept(f"Accept cached {{kind}} in '{metadata_path.parent}'. Expires at {expires_at} (in {offset}).")
+        self._log_accept(
+            f"Accept cached {{kind}} in '{metadata_path.parent}'. " f"Expires at {expires_at:{fmt}} (in {offset})."
+        )
         return True
