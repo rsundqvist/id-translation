@@ -11,7 +11,7 @@ from rics.performance import format_perf_counter
 
 from ..offline.types import PlaceholderTranslations
 from ..types import ID, IdType
-from . import exceptions, support
+from . import exceptions
 from ._abstract_fetcher import AbstractFetcher
 from .exceptions import FetcherWarning
 from .types import FetchInstruction
@@ -108,8 +108,11 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
     def fetch_translations(self, instr: FetchInstruction[str, IdType]) -> PlaceholderTranslations[str]:
         """Fetch columns from a SQL database."""
         ts = self._summaries[instr.source]
-        columns = ts.select_columns(instr)
-        select = sqlalchemy.select(*map(ts.columns.get, columns))  # type: ignore[arg-type]
+        if self._selective_fetch_all or not instr.fetch_all:
+            known = set(ts.columns.keys())
+            select = sqlalchemy.select(*(ts.columns[c] for c in instr.placeholders if c in known))
+        else:
+            select = ts.id_column.table.select()
 
         if instr.ids is None and not ts.fetch_all_permitted:  # pragma: no cover
             raise exceptions.ForbiddenOperationError(self._FETCH_ALL, f"disabled for table '{ts.name}'.")
@@ -118,8 +121,9 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         stmt = self.finalize_statement(stmt, ts.id_column, ts.id_column.table)
 
         with self.engine.connect() as conn:
-            records = tuple(map(tuple, conn.execute(stmt)))
-        return PlaceholderTranslations(instr.source, tuple(columns), records)
+            cursor = conn.execute(stmt)
+            records = tuple(map(tuple, cursor))
+        return PlaceholderTranslations(instr.source, tuple(cursor.keys()), records)
 
     StatementType = TypeVar("StatementType", bound=sqlalchemy.sql.Executable)
     """Input and return bounds for :meth:`.finalize_statement`."""
@@ -407,7 +411,3 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         """A flag indicating that the FETCH_ALL-operation is permitted for this table."""
         id_column: sqlalchemy.Column  # type: ignore[type-arg]
         """The ID column of the table."""
-
-        def select_columns(self, instr: FetchInstruction[str, IdType]) -> List[str]:
-            """Return required and optional columns of the table."""
-            return support.select_placeholders(instr, self.columns.keys())

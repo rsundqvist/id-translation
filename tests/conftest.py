@@ -7,7 +7,7 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 import pytest
 
 from id_translation import Translator
-from id_translation.fetching import AbstractFetcher, support
+from id_translation.fetching import AbstractFetcher
 from id_translation.fetching.exceptions import UnknownIdError
 from id_translation.fetching.types import FetchInstruction
 from id_translation.mapping import Mapper
@@ -39,7 +39,8 @@ class HexFetcher(AbstractFetcher[str, int]):
 
         assert instr.source in self.sources
 
-        placeholders = support.select_placeholders(instr, ["id", "hex", "positive"])
+        known_placeholders = ["id", "hex", "positive"]
+        placeholders = [p for p in instr.placeholders if p in known_placeholders]
 
         return PlaceholderTranslations(
             instr.source,

@@ -7,11 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Add handling of attributes of retrieved translation elements (e.g. `UUID.int`).
+- The `AbstractFetcher.selective_fetch_all`-flag now restricts the columns retrieved by `SqlFetcher`.
+
 ### Fixed
 - Translation of `pandas.MultiIndex` is now properly supported, as indicated by `resolve_io` not throwing.
 - Preserve `format_spec` and `conversion` in `Format` positional arguments.
-- Add handling of attributes of retrieved translation elements (e.g. `UUID.int`).
 - Ensure deterministic match selection when scores are equal due to overrides.
+
+### Removed
+- The now unused module `fetching.support`, and the function `SqlFetcher.TableSummary.select_columns()`.
 
 ## [0.4.0] - 2023-06-16
 

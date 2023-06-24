@@ -40,7 +40,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
             <.Mapper.unmapped_values_action>` while :meth:`fetch_all` is executing. Setting
             ``fetch_all_unmapped_values_action='raise'`` is mutually exclusive with ``selective_fetch_all=True``.
         selective_fetch_all: If ``True``, fetch only from those :attr:`~.HasSources.sources` that contain the required
-            :attr:`~.HasSources.placeholders` (after mapping).
+            :attr:`~.HasSources.placeholders` (after mapping). May also reduce the number of placeholders retrieved.
         fetch_all_cache_max_age: If given, determines validity lifetime of data cached when :func:`fetch_all`-calls are
             made. The regular ``fetch`` function will draw from this cache as well, but only ``fetch_all`` will update
             the cache. Furthermore, caching will never be used (read or write) if :attr:`online` is ``False``.
@@ -373,6 +373,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         required_placeholders: Set[str],
         ids: Set[IdType] = None,
     ) -> Tuple[PlaceholderTranslations[SourceType], bool]:
+        start = perf_counter()
         reverse_mappings, instr = self._make_fetch_instruction(source, placeholders, required_placeholders, ids)
 
         cached_translations = self._get_cached_translations(instr.source)
@@ -395,7 +396,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
                     fetch_all=instr.fetch_all,
                 ),
             )
-        start = perf_counter()
+
         translations = self.fetch_translations(instr)
         if self.logger.isEnabledFor(logging.DEBUG):
             execution_time = perf_counter() - start
