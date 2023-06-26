@@ -41,8 +41,25 @@ class Format:
 
         >>> fmt.placeholders
         ('id', 'name', 'is_nice')
-        >>> fmt.fstring(fmt.placeholders), fmt.fstring(fmt.placeholders).format(id=1, name='Morris', is_nice=True)
-        ('{id}:{name}, nice={is_nice}', '1:Morris, nice=True')
+        >>> fmt.fstring(fmt.placeholders).format(id=1, name='Morris', is_nice=True)
+        '1:Morris, nice=True'
+
+    The :class:`.Translator` will automatically add optional placeholders, if they are present in the source.
+
+    .. note::
+       Python format specifications and conversions are preserved.
+
+    This is especially useful for long values such as UUIDs.
+
+    >>> from uuid import UUID
+    >>> uuid = UUID("550e8400-e29b-41d4-a716-446655440000")
+
+    Convert to string and truncate to eight characters.
+
+    >>> Format('{id!s:.8}:{name!r}').fstring().format(id=uuid, name='Sofia')
+    "550e8400:'Sofia'"
+
+    See the :py:ref:`formatspec` documentation for details.
     """
 
     def __init__(self, fmt: str) -> None:
