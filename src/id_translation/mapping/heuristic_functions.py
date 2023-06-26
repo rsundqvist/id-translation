@@ -21,9 +21,19 @@ def like_database_table(
     """Try to make `value` look like the name of a database table."""
 
     def apply(s: str) -> str:
-        s = s.lower().replace("_", "").replace(".", "")
+        s = s.lower()
+        if s == "id":
+            return "id"
         s = s[: -len("id")] if s.endswith("id") else s
-        s = s if s.endswith("s") else s + "s"
+        s = s.replace("_", "").replace(".", "")
+
+        if s[-1] == "s":
+            pass  # Assume that any word ending in "s" is already pluralized.
+        elif s[-1] in "xz" or (s[-1] == "h" and s[-2] in "sc"):
+            s += "es"
+        else:
+            s += "s"
+
         return s
 
     return apply(name), list(map(apply, candidates))

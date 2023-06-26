@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Add handling of attributes of retrieved translation elements (e.g. `UUID.int`).
 - The `AbstractFetcher.selective_fetch_all`-flag now restricts the columns retrieved by `SqlFetcher`.
+- Extend `heuristic_functions.like_database_table` to handle more pluralization types.
 
 ### Fixed
 - Translation of `pandas.MultiIndex` is now properly supported (as indicated by not throwing `UntranslatableTypeError`).

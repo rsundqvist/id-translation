@@ -10,14 +10,17 @@ from id_translation.mapping import heuristic_functions as hf
         ("human", "humans"),
         ("animal", "animals"),
         ("animals_id", "animals"),
+        ("scratch_id", "scratches"),
+        ("hash_id", "hashes"),
+        ("hex_id", "hexes"),
     ],
 )
 def test_like_database_table(value, expected_match):
-    candidates = ["humans", "animals"]
+    candidates = ["humans", "animals", "scratches", "hexes", "hashes"]
     expected_pos = candidates.index(expected_match)
 
     new_value, new_candidates = hf.like_database_table(value, candidates, None)
-    assert candidates == ["humans", "animals"]
+    assert candidates == ["humans", "animals", "scratches", "hexes", "hashes"], "input changed"
     assert new_value == new_candidates[expected_pos]
 
 
