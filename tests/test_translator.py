@@ -10,7 +10,7 @@ import pytest
 
 from id_translation import Translator as RealTranslator, _config_utils
 from id_translation.dio.exceptions import NotInplaceTranslatableError, UntranslatableTypeError
-from id_translation.exceptions import TooManyFailedTranslationsError
+from id_translation.exceptions import TooManyFailedTranslationsError, TranslationDisabledWarning
 from id_translation.mapping import Mapper
 from id_translation.mapping.exceptions import MappingError, MappingWarning, UserMappingError
 from id_translation.types import IdType
@@ -553,3 +553,26 @@ def test_translate_multi_index(names, iterables):
         translator = Translator()
     actual = translator.translate(actual, names=names)
     assert_index_equal(actual, expected)
+
+
+def test_id_translation_disabled(monkeypatch, caplog):
+    from id_translation._translator import ID_TRANSLATION_DISABLED
+
+    with pytest.warns(UserWarning):
+        translator = Translator()
+
+    monkeypatch.setenv(ID_TRANSLATION_DISABLED, "true")
+    with pytest.warns(TranslationDisabledWarning):
+        assert translator.translate(1, names="whatever") == 1
+
+    monkeypatch.setenv(ID_TRANSLATION_DISABLED, "TRUE")
+    with pytest.warns(TranslationDisabledWarning):
+        assert translator.translate(1, names="whatever") == 1
+
+    assert len(caplog.records) == 2
+    assert all(ID_TRANSLATION_DISABLED in r.msg for r in caplog.records)
+
+    monkeypatch.setenv(ID_TRANSLATION_DISABLED, "false")
+    assert translator.translate(1, names="whatever") == "1:name-of-1"
+    monkeypatch.delenv(ID_TRANSLATION_DISABLED)
+    assert translator.translate(1, names="whatever") == "1:name-of-1"

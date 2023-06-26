@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Add environment variable `ID_TRANSLATION_DISABLED` to globally disable translation. Emits `TranslationDisabledWarning`
+  once.
+
 ### Changed
 - Add handling of attributes of retrieved translation elements (e.g. `UUID.int`).
 - The `AbstractFetcher.selective_fetch_all`-flag now restricts the columns retrieved by `SqlFetcher`.

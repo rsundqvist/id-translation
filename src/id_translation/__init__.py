@@ -1,6 +1,13 @@
 """Translation of IDs with flexible formatting and name matching.
 
 For an introduction to translation, see :ref:`translation-primer` and :ref:`mapping-primer`.
+
+
+Environment variables
+---------------------
+.. envvar:: ID_TRANSLATION_DISABLED
+
+    Global switch. When ``true``, the :meth:`Translator.translate`-method returns immediately.
 """
 
 import logging

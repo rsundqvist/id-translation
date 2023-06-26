@@ -2,9 +2,10 @@ import logging
 import warnings
 from datetime import timedelta
 from inspect import signature
+from os import getenv
 from pathlib import Path
 from time import perf_counter
-from typing import Any, Dict, Generic, Iterable, List, Optional, Set, Tuple, Type, Union
+from typing import Any, Dict, Generic, Iterable, List, Literal, Optional, Set, Tuple, Type, Union
 
 import numpy
 import pandas as pd
@@ -17,7 +18,7 @@ from rics.performance import format_perf_counter, format_seconds
 from . import _uuid_utils
 from ._config_utils import ConfigMetadata
 from .dio import DataStructureIO, resolve_io
-from .exceptions import ConnectionStatusError, TooManyFailedTranslationsError
+from .exceptions import ConnectionStatusError, TooManyFailedTranslationsError, TranslationDisabledWarning
 from .factory import TranslatorFactory
 from .fetching import Fetcher
 from .fetching.types import IdsToFetch
@@ -38,6 +39,8 @@ FetcherTypes = Union[
     SourcePlaceholderTranslations[SourceType],
     Dict[SourceType, PlaceholderTranslations.MakeTypes],
 ]
+
+ID_TRANSLATION_DISABLED: Literal["ID_TRANSLATION_DISABLED"] = "ID_TRANSLATION_DISABLED"
 
 
 class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
@@ -303,6 +306,12 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             UserMappingError: If `override_function` returns a source which is not known, and
                 ``self.mapper.unknown_user_override_action != 'ignore'``.
         """  # noqa: DAR101 darglint is bugged here
+        if getenv(ID_TRANSLATION_DISABLED, "").lower() == "true":
+            message = "Translation aborted; ID_TRANSLATION_DISABLED is set."
+            LOGGER.warning(message)
+            warnings.warn(message, category=TranslationDisabledWarning, stacklevel=2)
+            return None if inplace else translatable
+
         if fmt is not None:
             real_fmt = self._fmt
             try:
