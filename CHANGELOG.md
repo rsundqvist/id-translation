@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Preserve `format_spec` and `conversion` in `Format.positional_part`. This means that format strings such as 
   `'{uuid!s:.8}:{name!r}'` will now work as expected.
 - Ensure deterministic match selection when scores are equal due to overrides.
+- Ensure placeholders aren't fetched twice in the same query.
 
 ### Removed
 - The now unused module `fetching.support`, and the function `SqlFetcher.TableSummary.select_columns()`.
