@@ -14,6 +14,10 @@ class TranslationError(ValueError):
     """Base class for translation errors."""
 
 
+class MissingNamesError(TranslationError):
+    """Raised if names could not be derived based on the data type, and aren't explicitly given."""
+
+
 class TooManyFailedTranslationsError(TranslationError):
     """Raised if too many IDs fail to translate."""
 

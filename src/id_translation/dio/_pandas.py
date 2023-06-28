@@ -24,6 +24,17 @@ class PandasIO(DataStructureIO):
         return isinstance(arg, (pd.DataFrame, pd.Series, pd.Index))
 
     @staticmethod
+    def names(translatable: T) -> Optional[List[NameType]]:
+        if isinstance(translatable, pd.DataFrame):
+            return list(translatable.columns)
+
+        if isinstance(translatable, pd.MultiIndex):
+            names = translatable.names
+            return list(names) if any(names) else None
+
+        return None if translatable.name is None else [translatable.name]
+
+    @staticmethod
     def extract(translatable: T, names: List[NameType]) -> Dict[NameType, Sequence[IdType]]:
         if isinstance(translatable, pd.DataFrame):
             ans = defaultdict(list)
