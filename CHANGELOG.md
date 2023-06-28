@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Add environment variable `ID_TRANSLATION_DISABLED` to globally disable translation. Emits `TranslationDisabledWarning`
   once.
+- New exception type `MissingNamesError`. Raised when names cannot be derived (and not explicitly given) based on the
+  data type instead of `AttributeError`.
 
 ### Changed
 - Add handling of attributes of retrieved translation elements (e.g. `UUID.int`).

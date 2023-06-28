@@ -18,7 +18,12 @@ from rics.performance import format_perf_counter, format_seconds
 from . import _uuid_utils
 from ._config_utils import ConfigMetadata
 from .dio import DataStructureIO, resolve_io
-from .exceptions import ConnectionStatusError, TooManyFailedTranslationsError, TranslationDisabledWarning
+from .exceptions import (
+    ConnectionStatusError,
+    MissingNamesError,
+    TooManyFailedTranslationsError,
+    TranslationDisabledWarning,
+)
 from .factory import TranslatorFactory
 from .fetching import Fetcher
 from .fetching.types import IdsToFetch
@@ -28,8 +33,6 @@ from .mapping.types import UserOverrideFunction
 from .offline import Format, TranslationMap
 from .offline.types import FormatType, PlaceholderTranslations, SourcePlaceholderTranslations
 from .types import ID, HasSources, IdType, Names, NamesPredicate, NameType, NameTypes, SourceType, Translatable
-
-_NAME_ATTRIBUTES = ("name", "columns", "keys")
 
 LOGGER = logging.getLogger(__package__).getChild("Translator")
 
@@ -297,7 +300,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
         Raises:
             UntranslatableTypeError: If ``type(translatable)`` cannot be translated.
-            AttributeError: If `names` are not given and cannot be derived from `translatable`.
+            MissingNamesError: If `names` are not given and cannot be derived from `translatable`.
             MappingError: If any required (explicitly given) names fail to map to a source.
             MappingError: If name-to-source mapping is ambiguous.
             ValueError: If `maximal_untranslated_fraction` is not a valid fraction.
@@ -455,7 +458,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             A mapping of names to translation sources. Returns ``None`` if mapping failed.
 
         Raises:
-            AttributeError: If `names` are not given and cannot be derived from `translatable`.
+            MissingNamesError: If `names` are not given and cannot be derived from `translatable`.
             MappingError: If any required (explicitly given) names fail to map to a source.
             MappingError: If name-to-source mapping is ambiguous.
             UserMappingError: If `override_function` returns a source which is not known, and
@@ -549,8 +552,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             )
 
             if names is None:
-                # TODO: Derived names should be the responsibility of DataStructureIO subclasses.
-                derived_names = self._extract_from_attribute_or_parent(translatable, parent)
+                derived_names = self._resolve_names(translatable, None, None, parent)
                 msg = f"Translation aborted; none of the derived names {derived_names} {params_info}."
                 warnings.warn(msg, MappingWarning, stacklevel=2)
                 LOGGER.warning(msg)
@@ -944,55 +946,29 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         translatable: Translatable,
         names: NameTypes[NameType] = None,
         ignored_names: Names[NameType] = None,
-        parent: Translatable = None,  # This isn't correct; should be different typevars.
+        parent: Any = None,
     ) -> List[NameType]:
         if names is None:
-            names = self._extract_from_attribute_or_parent(translatable, parent)
+            names = resolve_io(translatable).names(translatable)
+            if names is None and parent is not None:
+                names = resolve_io(translatable).names(parent)
+
+            if names is None:
+                raise MissingNamesError(
+                    f"Failed to derive names for {tname(translatable)!r}-type data."
+                    "\nHint: Use the 'names'-argument to specify names to translate."
+                )
         else:
             names = as_list(names)
+
         ignored_names = ignored_names if callable(ignored_names) else set(as_list(ignored_names))
         return self._resolve_names_inner(names, ignored_names)
-
-    def _extract_from_attribute_or_parent(
-        self, translatable: Translatable, parent: Optional[Translatable]
-    ) -> List[NameType]:
-        if parent is None:
-            names = self._extract_from_attribute(translatable)
-        else:
-            try:
-                names = self._extract_from_attribute(translatable)
-            except AttributeError:
-                names = self._extract_from_attribute(parent)
-                LOGGER.debug(
-                    f"Using {names=} from parent of type {tname(parent)} for child of type {tname(translatable)}"
-                )
-        return names
-
-    @classmethod
-    def _extract_from_attribute(cls, translatable: Translatable) -> List[NameType]:
-        if isinstance(translatable, pd.MultiIndex):
-            if all(translatable.names):
-                return list(translatable.names)
-        elif isinstance(translatable, (pd.Index, pd.Series)):
-            if translatable.name:
-                return [translatable.name]
-        else:
-            for attr_name in _NAME_ATTRIBUTES:
-                if hasattr(translatable, attr_name):
-                    attr = getattr(translatable, attr_name)
-                    return as_list(attr() if callable(attr) else attr)
-
-        raise AttributeError(
-            "Must pass 'names' since no valid name could be found for data of type "
-            f"'{tname(translatable)}'."
-            f" Attributes checked: {_NAME_ATTRIBUTES}."
-        )
 
     @classmethod
     def _resolve_names_inner(
         cls, names: List[NameType], ignored_names: Union[NamesPredicate[NameType], Set[NameType]]
     ) -> List[NameType]:
-        predicate = _IgnoredNamesPredicate(ignored_names).apply
+        predicate = _IgnoredNamesPredicate(ignored_names)
         names_to_translate = list(filter(predicate, names))
         if not names_to_translate and names:
             warnings.warn(
@@ -1009,7 +985,7 @@ class _IgnoredNamesPredicate(Generic[NameType]):
         else:
             self._func = ignored_names.__contains__
 
-    def apply(self, name: NameType) -> bool:
+    def __call__(self, name: NameType) -> bool:
         return not self._func(name)
 
 

@@ -10,18 +10,30 @@ class DataStructureIO:
     """Insertion and extraction of IDs and translations."""
 
     @staticmethod
+    @abstractmethod
     def handles_type(arg: Any) -> bool:
         """Return ``True`` if the implementation handles data for the type of `arg`."""
-        raise NotImplementedError
+
+    @staticmethod
+    def names(translatable: Any) -> Optional[List[NameType]]:
+        """Extract names from `translatable`.
+
+        Args:
+            translatable: Data to extract names from.
+
+        Returns:
+            A list of names to translate. Returns ``None`` if names cannot be extracted.
+        """
+        return None
 
     @staticmethod
     @abstractmethod
-    def extract(c: Any, names: List[NameType]) -> Dict[NameType, Sequence[IdType]]:
-        """Extract IDs from `c`.
+    def extract(translatable: Any, names: List[NameType]) -> Dict[NameType, Sequence[IdType]]:
+        """Extract IDs from `translatable`.
 
         Args:
-            c: A collection to extract IDs from.
-            names: List of names to extract IDs for.
+            translatable: Data to extract IDs from.
+            names: List of names in `translatable` to extract IDs for.
 
         Returns:
             A dict ``{name, ids}``.
@@ -30,18 +42,18 @@ class DataStructureIO:
     @staticmethod
     @abstractmethod
     def insert(
-        c: Any, names: List[NameType], tmap: TranslationMap[NameType, SourceType, IdType], copy: bool
+        translatable: Any, names: List[NameType], tmap: TranslationMap[NameType, SourceType, IdType], copy: bool
     ) -> Optional[Any]:
-        """Insert translations into `c`.
+        """Insert translations into `translatable`.
 
         Args:
-            c: A collection apply translations for. Modified iff ``copy=False``.
-            names: Names in `t` to translate..
-            tmap: Translations for IDs in `c`.
-            copy: If ``True``, modify contents of the original collection `c`. Otherwise, return a copy.
+            translatable: Data to translate. Modified iff ``copy=False``.
+            names: Names in `translatable` to translate.
+            tmap: Translations for IDs in `translatable`.
+            copy: If ``True``, modify contents of the original `translatable`. Otherwise, returns a copy.
 
         Returns:
-            A copy of `c` if ``copy=True``. ``None`` otherwise.
+            A copy of `translatable` if ``copy=True``, ``None`` otherwise.
 
         Raises:
             NotInplaceTranslatableError: If ``copy=False`` for a type which is not translatable in-place.

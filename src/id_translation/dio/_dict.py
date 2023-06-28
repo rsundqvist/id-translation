@@ -15,6 +15,10 @@ class DictIO(DataStructureIO):
         return isinstance(arg, dict)
 
     @staticmethod
+    def names(translatable: T) -> List[NameType]:
+        return list(translatable)
+
+    @staticmethod
     def extract(translatable: T, names: List[NameType]) -> Dict[NameType, Sequence[IdType]]:
         return {name: translatable[name] for name in names}
 

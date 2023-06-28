@@ -10,7 +10,7 @@ import pytest
 
 from id_translation import Translator as RealTranslator, _config_utils
 from id_translation.dio.exceptions import NotInplaceTranslatableError, UntranslatableTypeError
-from id_translation.exceptions import TooManyFailedTranslationsError, TranslationDisabledWarning
+from id_translation.exceptions import MissingNamesError, TooManyFailedTranslationsError, TranslationDisabledWarning
 from id_translation.mapping import Mapper
 from id_translation.mapping.exceptions import MappingError, MappingWarning, UserMappingError
 from id_translation.types import IdType
@@ -137,7 +137,7 @@ def _translate(translator):
     "data,clazz,kwargs",
     [
         (object(), UntranslatableTypeError, {"names": 1}),
-        ((1, 2), AttributeError, {}),
+        ((1, 2), MissingNamesError, {}),
         ((1, 2), NotInplaceTranslatableError, {"inplace": True, "names": "positive_numbers"}),
     ],
 )
@@ -364,7 +364,7 @@ def test_copy_with_override(imdb_translator):
 
 
 def test_no_names(translator):
-    with pytest.raises(AttributeError):
+    with pytest.raises(MissingNamesError):
         translator.translate(pd.Series(range(3)))
 
 
@@ -441,7 +441,7 @@ def test_inherited_name(translator):
     translator.translate(s, attribute="index")
 
     s.name = None
-    with pytest.raises(AttributeError):
+    with pytest.raises(MissingNamesError):
         translator.translate(s, attribute="index")
 
 
