@@ -374,6 +374,8 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         ids: Set[IdType] = None,
     ) -> Tuple[PlaceholderTranslations[SourceType], bool]:
         start = perf_counter()
+
+        placeholders = tuple(dict.fromkeys(placeholders))  # Deduplicate
         reverse_mappings, instr = self._make_fetch_instruction(source, placeholders, required_placeholders, ids)
 
         cached_translations = self._get_cached_translations(instr.source)
