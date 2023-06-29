@@ -121,3 +121,71 @@ def test_from_config():
         ROOT.joinpath("config.toml"),
     ]
     Translator.from_config(main_config, extra_fetchers)
+
+
+class TestOptionalFetchers:
+    def test_no_crashes_one_optional(self):
+        self._run(
+            children=[
+                CrashFetcher(False, optional=False),
+                CrashFetcher(False, optional=True),
+            ],
+            expected=[0, 1],
+        )
+
+    def test_optional_crash(self):
+        self._run(
+            children=[
+                CrashFetcher(False, optional=False),
+                CrashFetcher(True, optional=True),
+            ],
+            expected=[0],
+        )
+
+    def test_non_optional_crash(self):
+        self._run(
+            children=[
+                CrashFetcher(True, optional=False),
+                CrashFetcher(True, optional=True),
+            ],
+            expected=None,
+        )
+
+    def test_all_optional_crash(self):
+        with pytest.warns(UserWarning, match="No fetchers left."):
+            self._run(
+                children=[
+                    CrashFetcher(True, optional=True),
+                    CrashFetcher(True, optional=True),
+                ],
+                expected=[],
+            )
+
+    @staticmethod
+    def _run(children, expected):
+        fetcher = MultiFetcher(*children, duplicate_source_discovered_action="ignore")
+
+        if expected is None:
+            with pytest.raises(ValueError, match="I crashed!"):
+                fetcher.sources
+        else:
+            fetcher.sources
+            fetchers = set(fetcher.fetchers)
+            assert len(fetchers) == len(expected)
+            for c in (children[i] for i in expected):
+                assert c in fetchers
+
+
+class CrashFetcher(MemoryFetcher[str, int]):
+    def __init__(self, crash: bool, *, optional: bool):
+        super().__init__({"source": {"id": [1]}}, optional=optional)
+        self.crash = crash
+
+    def __str__(self) -> str:
+        return f"CrashFetcher({self.crash}, optional={self.optional})"
+
+    @property
+    def sources(self) -> List[str]:
+        if self.crash:
+            raise ValueError("I crashed!")
+        return super().sources

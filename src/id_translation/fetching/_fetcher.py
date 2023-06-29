@@ -22,6 +22,18 @@ class Fetcher(Generic[SourceType, IdType], HasSources[SourceType]):
     def online(self) -> bool:
         """Return connectivity status. If ``False``, no new translations may be fetched."""
 
+    @property
+    def optional(self) -> bool:
+        """Return ``True`` if this fetcher has been marked as `optional`.
+
+        In multi-fetcher mode, optional fetchers may be discarded if :attr:`~.HasSources.sources` cannot be resolved
+        (raises an exception). Default value is ``False``.
+
+        Returns:
+            Optionality status.
+        """
+        return False
+
     @abstractmethod
     def fetch(
         self,

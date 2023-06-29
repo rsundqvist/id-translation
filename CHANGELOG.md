@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Ability to mark a fetcher as _optional_. In multi-fetcher mode, optional fetchers are discarded if they raise an error
+  the first time a source/placeholder enumeration is requested.
 - A name-to-source dict may now be passed in place of the names `'names'`-argument.
 - Translation of `set`-type data is now supported.
 - Add environment variable `ID_TRANSLATION_DISABLED` to globally disable translation. Emits `TranslationDisabledWarning`
