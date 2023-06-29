@@ -182,7 +182,11 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
     def __str__(self) -> str:
         disconnected = "<disconnected>: " if not self.online else ""
         schema = f"[schema={self._schema!r}]" if self._schema else ""
-        return f"{tname(self)}({disconnected}{self._estr}, tables{schema}={repr(self.sources or '<no tables>')})"
+        try:
+            sources = self.sources
+        except Exception:  # noqa: B902
+            sources = None
+        return f"{tname(self)}({disconnected}{self._estr}, tables{schema}={sources or '<no tables>'})"
 
     @property
     def engine(self) -> sqlalchemy.engine.Engine:

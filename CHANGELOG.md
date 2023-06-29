@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Fix crash in `SqlFetcher.__str__` with bad engine configs.
+
 ## [0.5.0] - 2023-06-29
 
 ### Added
