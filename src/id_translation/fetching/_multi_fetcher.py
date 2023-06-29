@@ -4,7 +4,7 @@ import logging
 import warnings
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from time import perf_counter
-from typing import Dict, Iterable, List, Tuple
+from typing import Dict, Iterable, List, Tuple, Union
 
 from rics.action_level import ActionLevel, ActionLevelHelper
 from rics.collections.dicts import reverse_dict
@@ -36,6 +36,7 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
              ``fetch()`` or ``fetch_all()`` call made with the ``MultiFetcher``.
         duplicate_translation_action: Action to take when multiple fetchers return translations for the same source.
         duplicate_source_discovered_action: Action to take when multiple fetchers claim the same source.
+        optional_fetcher_discarded_log_level: If ``True``, log a warning
     """
 
     def __init__(
@@ -44,6 +45,7 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         max_workers: int = 1,
         duplicate_translation_action: ActionLevel.ParseType = ActionLevel.WARN,
         duplicate_source_discovered_action: ActionLevel.ParseType = ActionLevel.WARN,
+        optional_fetcher_discarded_log_level: Union[int, str] = "DEBUG",
     ) -> None:
         for pos, f in enumerate(fetchers):
             if not isinstance(f, Fetcher):  # pragma: no cover
@@ -59,6 +61,14 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         self._duplicate_source_discovered_action = _ACTION_LEVEL_HELPER.verify(
             duplicate_source_discovered_action, "duplicate_source_discovered_action"
         )
+        if isinstance(optional_fetcher_discarded_log_level, str):
+            as_int = logging.getLevelName(optional_fetcher_discarded_log_level.upper())
+            if not isinstance(as_int, int):
+                raise ValueError(
+                    f"Bad {optional_fetcher_discarded_log_level=}. Use an integer or a valid log level name."
+                )
+            optional_fetcher_discarded_log_level = as_int
+        self._optional_discard_level = optional_fetcher_discarded_log_level
 
         if len(self.fetchers) != len(fetchers):
             raise ValueError("Repeat fetcher instance(s)!")  # pragma: no cover
@@ -227,14 +237,15 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
                     sources = fetcher.sources
 
                 if not sources:
+                    fetcher.close()
                     if sources is None:
-                        LOGGER.warning(
+                        LOGGER.log(
+                            self._optional_discard_level,
                             f"Discarding optional {self._fmt_fetcher(fetcher)}: "
-                            f"Raised {exception_info!r} when getting sources."
+                            f"Raised\n    {exception_info}\nwhen getting sources.",
                         )
                     else:
                         LOGGER.warning(f"Discarding {self._fmt_fetcher(fetcher)}: No sources.")
-                    fetcher.close()
                     del self._id_to_rank[fid]
                     del self._id_to_fetcher[fid]
                     continue

@@ -161,6 +161,15 @@ class TestOptionalFetchers:
                 expected=[],
             )
 
+    def test_sql_fetcher_crash(self):
+        self._run(
+            children=[
+                CrashFetcher(False, optional=False),
+                SqlFetcher("postgresql+pg8000://bad_user:bad-password@localhost", optional=True),
+            ],
+            expected=[0],
+        )
+
     @staticmethod
     def _run(children, expected):
         fetcher = MultiFetcher(*children, duplicate_source_discovered_action="ignore")
