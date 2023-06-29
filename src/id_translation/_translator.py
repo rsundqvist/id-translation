@@ -18,6 +18,7 @@ from rics.performance import format_perf_counter, format_seconds
 from . import _uuid_utils
 from ._config_utils import ConfigMetadata
 from .dio import DataStructureIO, resolve_io
+from .dio.exceptions import UntranslatableTypeError
 from .exceptions import (
     ConnectionStatusError,
     MissingNamesError,
@@ -32,7 +33,7 @@ from .mapping.exceptions import MappingError, MappingWarning
 from .mapping.types import UserOverrideFunction
 from .offline import Format, TranslationMap
 from .offline.types import FormatType, PlaceholderTranslations, SourcePlaceholderTranslations
-from .types import ID, HasSources, IdType, Names, NamesPredicate, NameType, NameTypes, SourceType, Translatable
+from .types import ID, HasSources, IdType, Names, NameToSource, NameType, NameTypes, SourceType, Translatable
 
 LOGGER = logging.getLogger(__package__).getChild("Translator")
 
@@ -89,14 +90,24 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                1904 | Fred    | Male          2 | Simba  | true
 
         In most real cases we'd fetch this table from somewhere. In this case, however, there's so little data that we
-        can simply enumerate the components needed for translation ourselves to create a :class:`.MemoryFetcher`.
+        can simply enumerate the components needed for translation ourselves.
 
         >>> from id_translation import Translator
         >>> translation_data = {
-        ...     'animals': {'id': [0, 1, 2], 'name': ['Tarzan', 'Morris', 'Simba'], 'is_nice': [False, True, True]},
-        ...     'people': {'id': [1999, 1991, 1904], 'name': ['Sofia', 'Richard', 'Fred']},
+        ...   'animals': {
+        ...     'id': [0, 1, 2],
+        ...     'name': ['Tarzan', 'Morris', 'Simba'],
+        ...     'is_nice': [False, True, True]
+        ...   },
+        ...   'people': {
+        ...     'id': [1999, 1991, 1904],
+        ...     'name': ['Sofia', 'Richard', 'Fred']
+        ...   },
         ... }
         >>> translator = Translator(translation_data, fmt='{id}:{name}[, nice={is_nice}]')
+
+        We didn't define a :class:`.Mapper`, so the names must match exactly.
+
         >>> data = {'animals': [0, 2], 'people': [1991, 1999]}
         >>> for key, translated_table in translator.translate(data).items():
         >>>     print(f'Translations for {repr(key)}:')
@@ -112,15 +123,17 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         Handling unknown IDs.
 
         >>> default_fmt_placeholders = dict(
-        ...     default={'is_nice': 'Maybe?', 'name': "Bob"},
-        ...     specific={'animals': {'name': 'Fido'}},
+        ...   default={'is_nice': 'Maybe?', 'name': "Bob"},
+        ...   specific={'animals': {'name': 'Fido'}},
         >>> )
         >>> useless_database = {
-        ...     'animals': {'id': [], 'name': []},
-        ...     'people': {'id': [], 'name': []}
+        ...   'animals': {'id': [], 'name': []},
+        ...   'people': {'id': [], 'name': []}
         >>> }
-        >>> translator = Translator(useless_database, default_fmt_placeholders=default_fmt_placeholders,
-        ...                         fmt='{id}:{name}[, nice={is_nice}]')
+        >>> translator = Translator(
+        ...   useless_database, default_fmt_placeholders=default_fmt_placeholders,
+        ...   fmt='{id}:{name}[, nice={is_nice}]'
+        ... )
         >>> data = {'animals': [0], 'people': [0]}
         >>> for key, translated_table in translator.translate(data).items():
         >>>     print(f'Translations for {repr(key)}:')
@@ -160,7 +173,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         if fetcher is None:
             from .testing import TestFetcher, TestMapper
 
-            self._fetcher = TestFetcher([])  # No explicit sources
+            self._fetcher = TestFetcher([])  # No explidecit sources
             if mapper:  # pragma: no cover
                 warnings.warn(
                     f"Mapper instance {mapper} given; consider creating a TestFetcher([sources..])-instance manually.",
@@ -263,7 +276,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
     def translate(
         self,
         translatable: Translatable,
-        names: NameTypes[NameType] = None,
+        names: Union[NameTypes[NameType], NameToSource[NameType, SourceType]] = None,
         ignore_names: Names[NameType] = None,
         inplace: bool = False,
         override_function: UserOverrideFunction[NameType, SourceType, None] = None,
@@ -282,7 +295,8 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
         Args:
             translatable: A data structure to translate.
-            names: Explicit names to translate. Derive from `translatable` if ``None``.
+            names: Explicit names to translate. Derive from `translatable` if ``None``. Alternatively, you may pass a
+                ``dict`` on the form ``{name_in_translatable: source_to_use}``.
             ignore_names: Names **not** to translate, or a predicate ``(str) -> bool``.
             inplace: If ``True``, translate in-place and return ``None``.
             override_function: A callable ``(name, fetcher.sources, ids) -> Source | None``. See :meth:`.Mapper.apply`
@@ -297,6 +311,20 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
         Returns:
             A translated copy of `translatable` if ``inplace=False``, otherwise ``None``.
+
+        Examples:
+            Manual `name-to-source <../documentation/translation-primer.html#name-to-source-mapping>`__ mapping with a
+            temporary name-only :class:`.Format`.
+
+            ..
+               # Hidden setup code
+               >>> translator = Translator({'animals': {'id': [2], 'name': ['Simba']}})
+
+            >>> n2s = {'lions': 'animals', 'big_cats': 'animals'}
+            >>> translator.translate({'lions': 2, 'big_cats': 2}, names=n2s, fmt="{name}")
+            {'lions': 'Simba', 'big_cats': 'Simba'}
+
+            Name mappings must be complete; any name not present in the keys will be ignored (left as-is).
 
         Raises:
             UntranslatableTypeError: If ``type(translatable)`` cannot be translated.
@@ -335,14 +363,14 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             event_key = f"{self.__class__.__name__.upper()}.TRANSLATE"
 
             type_name = _resolve_type_name(translatable, attribute)
-            name_info = "Derive based on type" if names is None else repr(names)
+            name_info = f"Derive based on type={type_name}" if names is None else repr(names)
             if ignore_names is not None:
                 name_info += f", excluding those given by {ignore_names=}"
 
             sources = self.sources  # Ensures that the fetcher is warmed up; good for log organization.
             LOGGER.log(
                 level=logging.DEBUG,
-                msg=f"Begin translation of {type_name!r}-type data. Names to translate: {name_info}.",
+                msg=f"Begin translation of {type_name}-type data. Names to translate: {name_info}.",
                 extra=dict(
                     event_key=event_key,
                     event_stage="ENTER",
@@ -371,7 +399,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         else:
             obj = None
 
-        names = None if names is None else as_list(names)
+        names, override_function = _handle_input_names(names, override_function)
         translation_map, names_to_translate = self._get_updated_tmap(
             translatable,
             names,
@@ -383,7 +411,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             return None if inplace else translatable  # pragma: no cover
 
         translatable_io = resolve_io(translatable)
-        if LOGGER.isEnabledFor(logging.DEBUG) or maximal_untranslated_fraction < 1:
+        if LOGGER.isEnabledFor(logging.DEBUG) or maximal_untranslated_fraction < 1.0:
             self._verify_translations(
                 translatable,
                 names_to_translate if names is None else names,
@@ -417,7 +445,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             n2s_with_none = {name: translation_map.name_to_source.get(name) for name in names_to_translate}
             LOGGER.log(
                 level=key_event_level,
-                msg=f"Finished translation of {type_name!r}-type data in {format_seconds(execution_time)}"
+                msg=f"Finished translation of {type_name}-type data in {format_seconds(execution_time)}"
                 f" using name-to-source mapping: {n2s_with_none}. {inplace_info} (since {inplace=}).",
                 extra=dict(
                     event_key=event_key,
@@ -507,6 +535,23 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         start = perf_counter()
         names_to_translate = self._resolve_names(translatable, names, ignore_names, parent)
 
+        def format_params() -> str:
+            params = []
+            if ignore_names is not None:
+                params.append(f"{ignore_names=}")
+            if override_function is not None:
+                params.append(f"{override_function=}")
+            if parent is not None:
+                params.append(f"parent={tname(parent)}")
+            return f". Parameters: ({', '.join(params)})" if params else ""
+
+        if names is not None and not names:
+            type_name = _resolve_type_name(translatable)
+            msg = f"Translation aborted; no names to translate in {type_name}{format_params()}."
+            warnings.warn(msg, MappingWarning, stacklevel=2)
+            LOGGER.warning(msg)
+            return None
+
         if LOGGER.isEnabledFor(logging.DEBUG):
             event_key = f"{self.__class__.__name__.upper()}.MAP"
             type_name = _resolve_type_name(translatable)
@@ -542,24 +587,17 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
         unmapped = set() if names is None else set(as_list(names)).difference(name_to_source.left)
         if unmapped or not name_to_source.left:
-            params_info = (
-                f"could not be mapped to sources={self.sources}. "
-                "Additional parameters: ("
-                f"{ignore_names=}, "
-                f"override_function={tname(override_function)}, "
-                f"parent={tname(parent)}"
-                ")"
-            )
+            tail = f"could not be mapped to sources={self.sources}{format_params()}"
 
             if names is None:
                 derived_names = self._resolve_names(translatable, None, None, parent)
-                msg = f"Translation aborted; none of the derived names {derived_names} {params_info}."
+                msg = f"Translation aborted; none of the derived names {derived_names} {tail}."
                 warnings.warn(msg, MappingWarning, stacklevel=2)
                 LOGGER.warning(msg)
                 return None
             elif unmapped:
                 # Fail if any of the explicitly given names fail to map to a source.
-                msg = f"Required names {unmapped} {params_info}."
+                msg = f"Required names {unmapped} {tail}."
                 LOGGER.error(msg)
                 raise MappingError(msg)
 
@@ -806,7 +844,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         """
         translatable_io = resolve_io(translatable)  # Fail fast if untranslatable type
 
-        names = None if names is None else as_list(names)
+        names, override_function = _handle_input_names(names, override_function)
         name_to_source = self._map_inner(translatable, names, ignore_names, override_function, parent)
         if name_to_source is None:
             # Nothing to translate.
@@ -819,6 +857,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         )
 
         translation_map.enable_uuid_heuristics = self._enable_uuid_heuristics
+        translation_map.fmt = self._fmt
         n2s = name_to_source.flatten()
         translation_map.name_to_source = n2s  # Update
         return translation_map, list(n2s)
@@ -950,43 +989,29 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
     ) -> List[NameType]:
         if names is None:
             names = resolve_io(translatable).names(translatable)
-            if names is None and parent is not None:
-                names = resolve_io(translatable).names(parent)
+            if names is None and parent is not None and self._allow_name_inheritance:
+                try:
+                    names = resolve_io(parent).names(parent)
+                except UntranslatableTypeError:
+                    LOGGER.debug(f"Cannot use {tname(parent)!r}-type parent to derive names; not a translatable type.")
 
             if names is None:
                 raise MissingNamesError(
                     f"Failed to derive names for {tname(translatable)!r}-type data."
                     "\nHint: Use the 'names'-argument to specify names to translate."
                 )
+            if LOGGER.isEnabledFor(logging.DEBUG):
+                LOGGER.debug(f"Name resolution complete. Found {names=} for {tname(translatable)!r}-type data.")
+
+            if ignored_names is not None:
+                predicate = ignored_names if callable(ignored_names) else set(as_list(ignored_names)).__contains__
+                names = [name for name in names if not predicate(name)]
         else:
+            if ignored_names is not None:
+                raise ValueError(f"Required {names=} cannot be used with {ignored_names=}.")
             names = as_list(names)
 
-        ignored_names = ignored_names if callable(ignored_names) else set(as_list(ignored_names))
-        return self._resolve_names_inner(names, ignored_names)
-
-    @classmethod
-    def _resolve_names_inner(
-        cls, names: List[NameType], ignored_names: Union[NamesPredicate[NameType], Set[NameType]]
-    ) -> List[NameType]:
-        predicate = _IgnoredNamesPredicate(ignored_names)
-        names_to_translate = list(filter(predicate, names))
-        if not names_to_translate and names:
-            warnings.warn(
-                f"No names left to translate. Ignored names: {ignored_names}, explicit names: {names}.", stacklevel=3
-            )
-        return names_to_translate
-
-
-class _IgnoredNamesPredicate(Generic[NameType]):
-    def __init__(self, ignored_names: Union[NamesPredicate[NameType], Set[NameType]]) -> None:
-        self._func: NamesPredicate[NameType]
-        if callable(ignored_names):
-            self._func = ignored_names
-        else:
-            self._func = ignored_names.__contains__
-
-    def __call__(self, name: NameType) -> bool:
-        return not self._func(name)
+        return names
 
 
 def _handle_default(
@@ -1026,5 +1051,40 @@ def _resolve_type_name(translatable: Translatable, attribute: str = None) -> str
     type_name = tname(translatable, prefix_classname=True)
     if attribute:
         real_type_name = tname(getattr(translatable, attribute), prefix_classname=True)
-        type_name = f"{real_type_name} (from {type_name}.{attribute})"
+        type_name = f"{real_type_name!r} (from {type_name}.{attribute})"
+    else:
+        type_name = repr(type_name)
     return type_name
+
+
+def _handle_input_names(
+    names: Optional[Union[NameTypes[NameType], NameToSource[NameType, SourceType]]],
+    override_function: Optional[UserOverrideFunction[NameType, SourceType, None]],
+) -> Tuple[Optional[List[NameType]], Optional[UserOverrideFunction[NameType, SourceType, None]]]:
+    if names is None:
+        return None, override_function
+
+    if isinstance(names, dict):
+        if override_function is not None:
+            raise ValueError(f"Dict-type {names=} cannot be combined with {override_function=}.")
+
+        override_function = _UserDefinedNameToSourceMapping(dict(names))
+
+    return as_list(names), override_function
+
+
+class _UserDefinedNameToSourceMapping:
+    def __init__(self, name_to_source: NameToSource[NameType, SourceType]) -> None:
+        for name, source in name_to_source.items():
+            if source is None:
+                raise ValueError(
+                    f"Bad name-to-source mapping: {name!r} -> {source!r}."
+                    f"\nHint: Remove None-values from names={name_to_source}."
+                )
+        self._name_to_source = name_to_source
+
+    def __call__(self, name: NameType, sources: Set[SourceType], context: None) -> Optional[SourceType]:
+        return self._name_to_source.get(name)
+
+    def __repr__(self) -> str:
+        return f"UserArgument(names={self._name_to_source})"

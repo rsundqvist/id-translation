@@ -323,7 +323,7 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):
             ):
                 if self.logger.isEnabledFor(logging.DEBUG):
                     self.logger.debug(
-                        f"Using override {repr(value)} -> {repr(override_candidate)} returned by {override_function}."
+                        f"Using override {repr(value)} -> {repr(override_candidate)} returned by {override_function=}."
                     )
                 apply(value, override_candidate)
 
@@ -374,7 +374,8 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):
             if self.unknown_user_override_action is not ActionLevel.IGNORE and user_override not in candidates:
                 msg = (
                     f"The user-defined override function {func} returned an unknown candidate={repr(user_override)} for"
-                    f" {value=}. If this is intended behaviour, set unknown_user_override_action='ignore' to allow."
+                    f" {value=}."
+                    "\nHint: If this is intended behaviour, set unknown_user_override_action='ignore' to allow."
                 )
                 if self.unknown_user_override_action is ActionLevel.RAISE:
                     self.logger.error(msg)

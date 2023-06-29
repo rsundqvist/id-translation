@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- A name-to-source dict may now be passed in place of the names `'names'`-argument.
 - Add environment variable `ID_TRANSLATION_DISABLED` to globally disable translation. Emits `TranslationDisabledWarning`
   once.
 - New exception type `MissingNamesError`. Raised when names cannot be derived (and not explicitly given) based on the
@@ -17,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add handling of attributes of retrieved translation elements (e.g. `UUID.int`).
 - The `AbstractFetcher.selective_fetch_all`-flag now restricts the columns retrieved by `SqlFetcher`.
 - Extend `heuristic_functions.like_database_table` to handle more pluralization types.
+- Explicit `names` may no longer combined with `ignored_names`.
 
 ### Fixed
 - Translation of `pandas.MultiIndex` is now properly supported (as indicated by not throwing `UntranslatableTypeError`).
@@ -24,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `'{uuid!s:.8}:{name!r}'` will now work as expected.
 - Ensure deterministic match selection when scores are equal due to overrides.
 - Ensure placeholders aren't fetched twice in the same query.
+- Prevent crashing when using a non-translatable parent type with the `'attribute'`-argument.
 
 ### Removed
 - The now unused module `fetching.support`, and the function `SqlFetcher.TableSummary.select_columns()`.
