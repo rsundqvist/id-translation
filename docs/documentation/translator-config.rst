@@ -98,8 +98,6 @@ a :class:`~id_translation.fetching.MemoryFetcher` would be created by adding a `
      - :py:class:`bool`
      - Control access to :func:`~id_translation.fetching.Fetcher.fetch_all`.
      - Some fetchers types redefine or ignore this key.
-
-
    * - | fetch_all_unmapped
        | _values_action
      - `raise | warn | ignore`
@@ -116,9 +114,13 @@ a :class:`~id_translation.fetching.MemoryFetcher` would be created by adding a `
      - Specified as a string, eg `'12h'` or `'30d'`.
      - Set to non-zero value to enable.
    * - cache_keys
-     - :py:class:`Sequence[str] <typing.Sequence>`.
+     - :py:class:`Sequence[str] <typing.Sequence>`
      - Hierarchical identifier for the cache.
      - Provided automatically if not given.
+   * - optional
+     - :py:class:`bool`
+     - If ``True``, discard on :attr:`~id_translation.fetching.Fetcher.sources`-resolution crash.
+     - Multi-fetcher mode only.
 
 The keys listed above are for the :class:`~id_translation.fetching.AbstractFetcher` class, which all fetchers created by
 TOML configuration must inherit. Additional parameters vary based on the chosen implementation. See the

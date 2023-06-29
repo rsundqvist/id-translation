@@ -217,10 +217,23 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
             source_to_fetcher_id: Dict[SourceType, int] = {}
 
             for fid, fetcher in list(self._id_to_fetcher.items()):
-                sources = fetcher.sources
+                if fetcher.optional:
+                    try:
+                        sources = fetcher.sources
+                    except Exception as e:  # noqa: B902
+                        sources = None
+                        exception_info = f"{type(e).__name__}: {e}"
+                else:
+                    sources = fetcher.sources
 
                 if not sources:
-                    LOGGER.warning(f"Discarding {self._fmt_fetcher(fetcher)}: No sources.")
+                    if sources is None:
+                        LOGGER.warning(
+                            f"Discarding optional {self._fmt_fetcher(fetcher)}: "
+                            f"Raised {exception_info!r} when getting sources."
+                        )
+                    else:
+                        LOGGER.warning(f"Discarding {self._fmt_fetcher(fetcher)}: No sources.")
                     fetcher.close()
                     del self._id_to_rank[fid]
                     del self._id_to_fetcher[fid]
@@ -233,6 +246,9 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
                     else:
                         source_to_fetcher_id[source] = fid
                         source_ranks[source] = rank
+
+            if not source_to_fetcher_id:
+                warnings.warn("No fetchers left. See log output for more information.", UserWarning, stacklevel=2)
             self._source_to_fetcher_id_actual = source_to_fetcher_id
 
         return self._source_to_fetcher_id_actual

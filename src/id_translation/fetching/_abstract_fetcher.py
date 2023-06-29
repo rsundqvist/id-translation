@@ -46,6 +46,8 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
             the cache. Furthermore, caching will never be used (read or write) if :attr:`online` is ``False``.
         cache_keys: A collection of hierarchical cache-key elements, see :class:`CacheMetadata`. If given, element zero
             of the `cache_keys` is added to the :attr:`logger` name for the fetcher.
+        optional: If ``True``, this fetcher may be discarded if source/placeholder-enumeration fails in multi-fetcher
+            mode.
 
     Raises:
         rics.action_level.BadActionLevelError: If `selective_fetch_all` is ``True`` and
@@ -64,6 +66,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         selective_fetch_all: bool = True,
         fetch_all_cache_max_age: Union[str, pd.Timedelta, timedelta] = None,
         cache_keys: Sequence[str] = None,
+        optional: bool = False,
     ) -> None:
         self._mapper: Mapper[str, str, SourceType] = mapper or Mapper(**self.default_mapper_kwargs())
         if self._mapper.unmapped_values_action is ActionLevel.RAISE:
@@ -107,7 +110,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
             mapper_logger = mapper_logger.getChild(key0)
             logger.addFilter(adder)
             mapper_logger.addFilter(adder)
-
+        self._optional: bool = optional
         self._cache_keys: Optional[List[str]] = cache_keys
         self.logger = logger
         self._mapper.logger = mapper_logger
@@ -247,6 +250,10 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
     @logger.setter
     def logger(self, logger: logging.Logger) -> None:
         self._logger = logger
+
+    @property
+    def optional(self) -> bool:
+        return self._optional
 
     @contextmanager
     def _start_operation(self, operation):  # type: ignore  # noqa
