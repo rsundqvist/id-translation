@@ -24,7 +24,7 @@ class DataStructureIO:
         Returns:
             A list of names to translate. Returns ``None`` if names cannot be extracted.
         """
-        return None
+        return translatable.name if hasattr(translatable, "name") else None
 
     @staticmethod
     @abstractmethod

@@ -43,6 +43,9 @@ IdType = _type.TypeVar("IdType", int, str, _UUID)
 SourceType = _type.TypeVar("SourceType", bound=_type.Hashable)
 """Type used to describe sources. Typically a string for things like files and database tables."""
 
+NameToSource = _type.Dict[NameType, SourceType]
+"""A mapping from name to source."""
+
 NamesPredicate = _type.Callable[[NameType], bool]
 """A predicate type on names."""
 NameTypes = _type.Union[NameType, _type.Iterable[NameType]]

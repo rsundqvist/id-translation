@@ -4,13 +4,11 @@ from typing import Any, Dict, Generic, Iterator, List, Mapping, Optional, Set, U
 from rics.collections.dicts import InheritedKeysDict, reverse_dict
 from rics.misc import tname
 
-from ..types import HasSources, IdType, NameType, SourceType
+from ..types import HasSources, IdType, NameToSource, NameType, SourceType
 from ._format import Format
 from ._format_applier import FormatApplier
 from ._magic_dict import MagicDict
 from .types import FormatType, SourcePlaceholderTranslations
-
-NameToSource = Dict[NameType, SourceType]
 
 
 class TranslationMap(

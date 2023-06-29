@@ -11,6 +11,7 @@ import pytest
 from id_translation import Translator as RealTranslator, _config_utils
 from id_translation.dio.exceptions import NotInplaceTranslatableError, UntranslatableTypeError
 from id_translation.exceptions import MissingNamesError, TooManyFailedTranslationsError, TranslationDisabledWarning
+from id_translation.fetching.exceptions import UnknownSourceError
 from id_translation.mapping import Mapper
 from id_translation.mapping.exceptions import MappingError, MappingWarning, UserMappingError
 from id_translation.types import IdType
@@ -18,6 +19,10 @@ from id_translation.types import IdType
 from .conftest import ROOT
 
 LOGGER = logging.getLogger("TestTranslator")
+
+
+def crash(*args, **kwargs):
+    raise AssertionError(f"Called with: {args=}, {kwargs=}.")
 
 
 @contextmanager
@@ -216,8 +221,7 @@ def test_reject_predicates(translator, reject_predicate, expected):
         "also_ends_with_id": [1, 2, 3],
         "also_numeric": [3.5, 0.8, 1.1],
     }
-    names_to_translate = translator._resolve_names(data, names=data, ignored_names=reject_predicate)
-
+    names_to_translate = translator._resolve_names(data, ignored_names=reject_predicate)
     assert names_to_translate == expected
 
 
@@ -231,17 +235,18 @@ def test_mapping_nothing_to_translate(translator):
 
 def test_all_name_ignored(translator):
     with pytest.warns(MappingWarning) as w:
-        translator.map({"name": []}, ignore_names="name")
-    assert len(w) == 2
-    assert "No names left" in str(w[0])
-    assert "aborted; none of the derived names" in str(w[1])
-    assert "['name']" in str(w[1])
-    assert "ignore_names='name'" in str(w[1])
+        translator.translate(pd.Series(pd.Index(range(3), name="name")), ignore_names="name", attribute="index")
+    assert len(w) == 1
+
+    mapping_warning = str(w[0].message)
+    assert "aborted; none of the derived names" in mapping_warning
+    assert "['name']" in mapping_warning
+    assert "ignore_names='name', parent=Series" in mapping_warning
 
 
 def test_explicit_name_ignored(translator):
-    with pytest.raises(MappingError) as e:
-        translator.map(0, names=["ignored_name", "positive_numbers"], ignore_names="ignored_name")
+    with pytest.raises(ValueError) as e:
+        translator.map(0, names=[], ignore_names="")
     assert "Required names" in str(e)
 
 
@@ -517,12 +522,7 @@ def test_repeated_names(translator, ids, names, expected_untranslated):
 
 
 def test_temporary_translate_fmt(translator, monkeypatch):
-    def crash(*_, **__):
-        raise AssertionError("Should not call this method!")
-
     monkeypatch.setattr(RealTranslator, "copy", crash)
-    with pytest.raises(AssertionError, match="Should not call this method!"):
-        translator.copy()
 
     assert translator.translate([0, 1], names="positive_numbers") == ["0:0x0, positive=True", "1:0x1, positive=True"]
 
@@ -546,7 +546,6 @@ def test_translate_multi_index(names, iterables):
     from pandas.testing import assert_index_equal
 
     expected = pd.MultiIndex.from_product(iterables, names=["letter", "digit"])
-
     actual = pd.MultiIndex.from_product([["a", "b"], [1, 2, 3]], names=["letter", "digit"])
 
     with pytest.warns(UserWarning, match="No fetcher"):
@@ -576,3 +575,41 @@ def test_id_translation_disabled(monkeypatch, caplog):
     assert translator.translate(1, names="whatever") == "1:name-of-1"
     monkeypatch.delenv(ID_TRANSLATION_DISABLED)
     assert translator.translate(1, names="whatever") == "1:name-of-1"
+
+
+class TestDictNames:
+    translate: Any
+
+    @classmethod
+    def setup_class(cls):
+        tmp = Translator.from_config(ROOT.joinpath("config.imdb.toml"))
+        translator = tmp.copy(
+            fmt="{id}:{name}",
+            mapper=tmp.mapper.copy(unknown_user_override_action="ignore"),
+        )
+        assert "name_basics" in translator.sources
+        cls.translate = translator.translate
+
+    def test_override_info_in_logs(self, caplog):
+        expected = {"nconst": ["1:Fred Astaire", "15:James Dean"]}
+        assert self.translate({"nconst": [1, 15]}, names={"nconst": "name_basics"}) == expected
+        record = next(record for record in caplog.messages if "names={'nconst': 'name_basics'}" in record)
+        assert "override_function=UserArgument" in record
+
+    def test_dict_with_override_function(self):
+        with pytest.raises(ValueError, match="Dict-type names="):
+            assert self.translate("", names={}, override_function=crash)
+
+    def test_mapping_to_unknown_source(self, caplog):
+        with pytest.raises(UnknownSourceError, match="'unknown-source"):
+            self.translate({"nconst": [1, 15]}, names={"nconst": "unknown-source"})
+        record = next(record for record in caplog.messages if "names={'nconst': 'unknown-source'}" in record)
+        assert "override_function=UserArgument" in record
+
+    def test_forbidden_value(self):
+        with pytest.raises(ValueError, match="Bad name-to-source mapping: 'nconst' -> None"):
+            self.translate("", names={"nconst": None})
+
+    def test_no_names(self):
+        with pytest.warns(MappingWarning, match="aborted.*override_function=UserArgument"):
+            assert self.translate({"nconst": [1, 15]}, names={}) == {"nconst": [1, 15]}
