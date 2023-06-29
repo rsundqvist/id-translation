@@ -1,10 +1,10 @@
-from typing import Any, Dict, List, Optional, Sequence, TypeVar
+from typing import Any, Dict, List, Optional, Sequence
+
+from rics.collections.misc import as_list
 
 from ..offline import TranslationMap
 from ..types import IdType, NameType, SourceType
 from ._data_structure_io import DataStructureIO
-
-T = TypeVar("T", bound=Dict)  # type: ignore[type-arg]  # TODO: Higher-Kinded TypeVars
 
 
 class DictIO(DataStructureIO):
@@ -15,20 +15,30 @@ class DictIO(DataStructureIO):
         return isinstance(arg, dict)
 
     @staticmethod
-    def names(translatable: T) -> List[NameType]:
+    def names(translatable: Dict[NameType, IdType]) -> List[NameType]:
         return list(translatable)
 
     @staticmethod
-    def extract(translatable: T, names: List[NameType]) -> Dict[NameType, Sequence[IdType]]:
-        return {name: translatable[name] for name in names}
+    def extract(translatable: Dict[NameType, IdType], names: List[NameType]) -> Dict[NameType, Sequence[IdType]]:
+        return {name: as_list(translatable[name]) for name in names}
 
     @staticmethod
     def insert(
-        translatable: T, names: List[NameType], tmap: TranslationMap[NameType, SourceType, IdType], copy: bool
-    ) -> Optional[T]:
-        translatable = dict(translatable) if copy else translatable  # type: ignore
+        translatable: Dict[NameType, IdType],
+        names: List[NameType],
+        tmap: TranslationMap[NameType, SourceType, IdType],
+        copy: bool,
+    ) -> Optional[Dict[NameType, Any]]:
+        from ._resolve import resolve_io
 
-        for name in filter(translatable.__contains__, names):
-            translatable[name] = type(translatable[name])(map(tmap[name].get, translatable[name]))
+        translated = {
+            key: resolve_io(value).insert(value, [key], tmap, copy=True) if key in names else value
+            for key, value in translatable.items()
+        }
 
-        return translatable if copy else None
+        if copy:
+            return translated
+
+        translatable.clear()
+        translatable.update(translated)  # type: ignore[arg-type]
+        return None

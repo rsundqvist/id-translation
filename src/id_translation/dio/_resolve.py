@@ -5,6 +5,7 @@ from . import DataStructureIO
 from ._dict import DictIO
 from ._pandas import PandasIO
 from ._sequence import SequenceIO
+from ._set import SetIO
 from ._single_value import SingleValueIO
 from .exceptions import UntranslatableTypeError
 
@@ -21,7 +22,7 @@ def resolve_io(arg: Translatable) -> Type[DataStructureIO]:
     Raises:
         UntranslatableTypeError: If not IO could be found.
     """
-    for tio_class in DictIO, PandasIO, SequenceIO, SingleValueIO:
+    for tio_class in DictIO, SetIO, PandasIO, SequenceIO, SingleValueIO:
         if tio_class.handles_type(arg):
             return tio_class
 

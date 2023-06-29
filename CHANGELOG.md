@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - A name-to-source dict may now be passed in place of the names `'names'`-argument.
+- Translation of `set`-type data is now supported.
 - Add environment variable `ID_TRANSLATION_DISABLED` to globally disable translation. Emits `TranslationDisabledWarning`
   once.
 - New exception type `MissingNamesError`. Raised when names cannot be derived (and not explicitly given) based on the
@@ -19,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The `AbstractFetcher.selective_fetch_all`-flag now restricts the columns retrieved by `SqlFetcher`.
 - Extend `heuristic_functions.like_database_table` to handle more pluralization types.
 - Explicit `names` may no longer combined with `ignored_names`.
+- Improve support for translation of heterogeneous `dict` value types.
 
 ### Fixed
 - Translation of `pandas.MultiIndex` is now properly supported (as indicated by not throwing `UntranslatableTypeError`).

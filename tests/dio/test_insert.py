@@ -10,6 +10,18 @@ from .conftest import TRANSLATED, UNTRANSLATED
 NAME = "nconst"
 
 
+def test_dict_insert(translation_map):
+    expected = {"firstTitle": {TRANSLATED["firstTitle"][2]}, "nconst": TRANSLATED["nconst"].copy()}
+    dict_io = resolve_io(expected)
+
+    actual = {"firstTitle": {UNTRANSLATED["firstTitle"][2]}, "nconst": UNTRANSLATED["nconst"].copy()}
+    copied = dict_io.insert(actual, list(actual), translation_map, copy=True)
+    assert copied == expected
+
+    dict_io.insert(actual, list(actual), translation_map, copy=False)
+    assert actual == expected
+
+
 @pytest.mark.parametrize("ttype", [list, tuple, pd.Index, pd.Series, np.array])
 def test_sequence_insert(ttype, translation_map):
     actual, ans = _do_insert(translation_map, ttype, copy=True)
@@ -17,7 +29,7 @@ def test_sequence_insert(ttype, translation_map):
     _test_eq(actual, ttype(UNTRANSLATED[NAME]))
 
 
-@pytest.mark.parametrize("ttype", [list, pd.Series])
+@pytest.mark.parametrize("ttype", [list, pd.Series, set])
 def test_sequence_insert_inplace(ttype, translation_map):
     actual = ttype(UNTRANSLATED[NAME])
     translatable_io = resolve_io(actual)
