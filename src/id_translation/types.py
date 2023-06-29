@@ -17,6 +17,7 @@ Translatable = _type.TypeVar(
     str,
     int,
     _type.Dict,  # type: ignore[type-arg]  # TODO: Need Higher-Kinded TypeVars
+    _type.Set,  # type: ignore[type-arg]  # TODO: Need Higher-Kinded TypeVars
     _type.Sequence,  # type: ignore[type-arg]  # TODO: Need Higher-Kinded TypeVars
     "NDArray",  # type: ignore[type-arg]  # TODO: Need Higher-Kinded TypeVars
     "pandas.DataFrame",
