@@ -613,3 +613,17 @@ class TestDictNames:
     def test_no_names(self):
         with pytest.warns(MappingWarning, match="aborted.*override_function=UserArgument"):
             assert self.translate({"nconst": [1, 15]}, names={}) == {"nconst": [1, 15]}
+
+
+def test_translated_names():
+    with pytest.warns(UserWarning):
+        translator = Translator()
+
+    with pytest.raises(ValueError, match="No names have been translated using this Translator."):
+        translator.translated_names()
+
+    translator.translate([1, 2, 3], names=list("abc"))
+    assert sorted((translator.translated_names())) == list("abc")
+
+    translator.translate([1, 2, 3], names=list("a"))
+    assert translator.translated_names() == list("a")

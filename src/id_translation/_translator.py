@@ -206,6 +206,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         self._mapper.logger = logging.getLogger(__package__).getChild("mapping").getChild("name-to-source")
 
         self._config_metadata: Optional[ConfigMetadata] = None
+        self._translated_names: Optional[List[NameType]] = None
 
     @classmethod
     def from_config(
@@ -464,7 +465,22 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                 ),
             )
 
+        self._translated_names = names_to_translate
+
         return ans
+
+    def translated_names(self) -> List[NameType]:
+        """Return the names that were translated by the most recent :meth:`translate`-call.
+
+        Returns:
+            Recent names translated by this ``Translator``, in **arbitrary** order.
+
+        Raises:
+            ValueError: If no names have been translated using this ``Translator``.
+        """
+        if self._translated_names is None:
+            raise ValueError("No names have been translated using this Translator.")
+        return list(self._translated_names)
 
     def map(  # noqa: A003
         self,
