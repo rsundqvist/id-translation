@@ -66,8 +66,7 @@ _config_utils.ConfigMetadata = ConfigMetadataForTest  # type: ignore
 
 @pytest.mark.parametrize("with_id, with_override, store", combinations_with_replacement([False, True], 3))
 def test_dummy_translation_doesnt_crash(with_id, with_override, store):
-    with pytest.warns(UserWarning):
-        t = Translator(fmt="{id}:{first}:{second}:{third}")
+    t = Translator(fmt="{id}:{first}:{second}:{third}")
 
     names = list(map("placeholder{}".format, range(3)))
     data = np.random.randint(0, 100, (3, 10))
@@ -429,8 +428,7 @@ def test_override_fetcher(translator):
 
 
 def test_translate_attribute():
-    with pytest.warns(UserWarning):
-        translate = Translator().translate
+    translate = Translator().translate
     df = pd.DataFrame(range(3))
     df.index.name = "index-name"
 
@@ -548,8 +546,7 @@ def test_translate_multi_index(names, iterables):
     expected = pd.MultiIndex.from_product(iterables, names=["letter", "digit"])
     actual = pd.MultiIndex.from_product([["a", "b"], [1, 2, 3]], names=["letter", "digit"])
 
-    with pytest.warns(UserWarning, match="No fetcher"):
-        translator = Translator()
+    translator = Translator()
     actual = translator.translate(actual, names=names)
     assert_index_equal(actual, expected)
 
@@ -557,8 +554,7 @@ def test_translate_multi_index(names, iterables):
 def test_id_translation_disabled(monkeypatch, caplog):
     from id_translation._translator import ID_TRANSLATION_DISABLED
 
-    with pytest.warns(UserWarning):
-        translator = Translator()
+    translator = Translator()
 
     monkeypatch.setenv(ID_TRANSLATION_DISABLED, "true")
     with pytest.warns(TranslationDisabledWarning):
