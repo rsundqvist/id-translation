@@ -57,7 +57,7 @@ sphinxcontrib-programoutput = "^0.17"
 [tool.poetry.group.notebooks]
 optional = true
 [tool.poetry.group.notebooks.dependencies]
-jupyterlab = "^3"
+jupyterlab = ">=3,<5"
 ipywidgets = "*"
 jupyterlab-execute-time = "*"
 tqdm = "*"
