@@ -611,15 +611,40 @@ class TestDictNames:
             assert self.translate({"nconst": [1, 15]}, names={}) == {"nconst": [1, 15]}
 
 
-def test_translated_names():
-    with pytest.warns(UserWarning):
-        translator = Translator()
+@pytest.mark.parametrize("with_source", [False, True])
+class TestTranslatedNames:
+    translator = Translator()
 
-    with pytest.raises(ValueError, match="No names have been translated using this Translator."):
-        translator.translated_names()
+    def test_unused(self, with_source):
+        with pytest.raises(ValueError, match="No names have been translated using this Translator."):
+            self.translator.translated_names(with_source)
 
-    translator.translate([1, 2, 3], names=list("abc"))
-    assert sorted((translator.translated_names())) == list("abc")
+    def test_multiple(self, with_source):
+        self.translator.translate([1, 2, 3], names=list("abc"))
 
-    translator.translate([1, 2, 3], names=list("a"))
-    assert translator.translated_names() == list("a")
+        actual = self.translator.translated_names(with_source)
+        if with_source:
+            assert isinstance(actual, dict)
+            assert actual == {char: char for char in "abc"}
+        else:
+            assert isinstance(actual, list)
+            assert sorted(actual) == list("abc")
+
+    def test_single(self, with_source):
+        self.translator.translate([1, 2, 3], names="a")
+        expected = {char: char for char in "a"}
+        assert self.translator.translated_names(with_source) == expected if with_source else list(expected)
+
+    @staticmethod
+    def type_check():
+        from typing import Dict
+
+        from typing_extensions import assert_type  # assert_type: 3.11
+
+        without_source = Translator().translated_names()
+        assert_type(without_source, List[str])
+        without_source = Translator().translated_names(False)
+        assert_type(without_source, List[str])
+
+        with_source = Translator().translated_names(True)
+        assert_type(with_source, Dict[str, str])
