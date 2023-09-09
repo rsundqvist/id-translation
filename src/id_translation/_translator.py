@@ -5,7 +5,7 @@ from inspect import signature
 from os import getenv
 from pathlib import Path
 from time import perf_counter
-from typing import Any, Dict, Generic, Iterable, List, Literal, Optional, Set, Tuple, Type, Union
+from typing import Any, Dict, Generic, Iterable, List, Literal, Optional, Set, Tuple, Type, Union, overload
 
 import numpy
 import pandas as pd
@@ -206,7 +206,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         self._mapper.logger = logging.getLogger(__package__).getChild("mapping").getChild("name-to-source")
 
         self._config_metadata: Optional[ConfigMetadata] = None
-        self._translated_names: Optional[List[NameType]] = None
+        self._translated_names: Optional[Dict[NameType, SourceType]] = None
 
     @classmethod
     def from_config(
@@ -465,12 +465,30 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                 ),
             )
 
-        self._translated_names = names_to_translate
+        self._translated_names = {
+            name: translation_map.name_to_source[name]
+            for name in names_to_translate
+            if name in translation_map.name_to_source
+        }
 
         return ans
 
-    def translated_names(self) -> List[NameType]:
+    @overload
+    def translated_names(self, with_source: Literal[True]) -> Dict[NameType, SourceType]:
+        ...
+
+    @overload
+    def translated_names(self, with_source: Literal[False] = False) -> List[NameType]:
+        ...
+
+    def translated_names(
+        self,
+        with_source: Union[bool, Literal[True], Literal[False]] = False,  # https://github.com/python/mypy/issues/14764
+    ) -> Union[Dict[NameType, SourceType], List[NameType]]:
         """Return the names that were translated by the most recent :meth:`translate`-call.
+
+        Args:
+            with_source: If ``True``, return a dict ``{name: source}`` instead of a list.
 
         Returns:
             Recent names translated by this ``Translator``, in **arbitrary** order.
@@ -480,7 +498,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         """
         if self._translated_names is None:
             raise ValueError("No names have been translated using this Translator.")
-        return list(self._translated_names)
+        return dict(self._translated_names) if with_source else list(self._translated_names)
 
     def map(  # noqa: A003
         self,

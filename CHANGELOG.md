@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Make `Translator.translated_names()` optionally return a mapping dict instead of just names.
+
 ## [0.5.1] - 2023-07-01
 
 ### Fixed
