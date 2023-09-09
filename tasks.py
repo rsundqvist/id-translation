@@ -100,6 +100,12 @@ def format_(c: Context, check: bool = False) -> None:
 
 
 @task
+def spelling(c: Context) -> None:
+    """Run spell check."""
+    _run(c, f"poetry run codespell {PYTHON_TARGETS_STR}")
+
+
+@task
 def flake8(c: Context) -> None:
     """Run flake8."""
     _run(c, f"poetry run flakeheaven lint {SOURCE_DIR} {TEST_DIR}")
@@ -111,7 +117,7 @@ def safety(c: Context) -> None:
     _run(c, "poetry export --format=requirements.txt --without-hashes | poetry run safety check --stdin --full-report")
 
 
-@task(pre=[flake8, safety, call(format_, check=True)])
+@task(pre=[flake8, safety, call(format_, check=True), spelling])
 def lint(c: Context) -> None:
     """Run all linting."""
 
