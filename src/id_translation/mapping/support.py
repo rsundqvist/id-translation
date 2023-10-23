@@ -36,7 +36,7 @@ def enable_verbose_debug_messages():  # type: ignore  # noqa
     >>> with support.enable_verbose_debug_messages():
     ...     Mapper().apply("ab", candidates="abc")
     """  # noqa: DAR301
-    from id_translation.mapping import _VERBOSE_LOGGER, _mapper, filter_functions, heuristic_functions, score_functions
+    from . import _VERBOSE_LOGGER, _mapper, filter_functions, heuristic_functions, score_functions
 
     before = filter_functions.VERBOSE, heuristic_functions.VERBOSE, score_functions.VERBOSE, _VERBOSE_LOGGER.disabled
     enable = (True, True, True, False)

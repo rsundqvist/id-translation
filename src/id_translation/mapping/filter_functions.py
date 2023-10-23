@@ -6,8 +6,8 @@ import logging
 import re
 from typing import Any, Iterable, Set
 
-from id_translation.mapping import exceptions
-from id_translation.types import ID
+from ..types import ID
+from . import exceptions
 
 VERBOSE: bool = False
 LOGGER = logging.getLogger(__package__).getChild("verbose").getChild("filter_functions")
