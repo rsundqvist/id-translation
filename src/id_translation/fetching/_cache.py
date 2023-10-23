@@ -6,10 +6,9 @@ from typing import Any, Dict, Generic, List, Optional
 
 import pandas as pd
 
-from id_translation._base_metadata import BaseMetadata
-from id_translation.types import HasSources, IdType, SourceType
-
+from .._base_metadata import BaseMetadata
 from ..offline.types import PlaceholderTranslations, SourcePlaceholderTranslations
+from ..types import HasSources, IdType, SourceType
 
 BASE_LOGGER = logging.getLogger(__package__).getChild("CacheMetadata")
 

@@ -11,7 +11,7 @@ def _initialize_versions() -> Dict[str, str]:
     from rics import __version__ as rics
     from sqlalchemy import __version__ as sqlalchemy
 
-    from id_translation import __version__ as id_translation
+    from . import __version__ as id_translation
 
     ans = dict(
         rics=rics,
