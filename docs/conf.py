@@ -148,6 +148,9 @@ html_theme = "pydata_sphinx_theme"
 
 html_theme_options = {
     "github_url": "https://github.com/rsundqvist/id-translation",
+    "icon_links": [
+        {"name": "PyPI", "url": "https://pypi.org/project/id-translation/", "icon": "fa-solid fa-box"},
+    ],
     "icon_links_label": "Quick Links",
     "use_edit_page_button": False,
     "navigation_with_keys": False,
@@ -222,7 +225,9 @@ nitpick_ignore_regex = [
 ]
 
 # -- Autodoc configuration -----------------------------------------------------
-autodoc_typehints = "signature"
+autodoc_typehints = "none"
+# Want https://github.com/sphinx-doc/sphinx/issues/10359 to consider setting to
+# anything other than none. None might still be better for readability.
 autodoc_default_options = {
     "members": True,
     "undoc-members": False,

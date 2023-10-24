@@ -1,3 +1,5 @@
+from typing import Dict, Sequence
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -15,7 +17,7 @@ def test_extract_single_explicit_name(ttype):
     except TypeError:
         data = ttype(VALUES)
 
-    actual = resolve_io(data).extract(data, names=["a"])
+    actual: Dict[str, Sequence[int]] = resolve_io(data).extract(data, names=["a"])
     assert len(actual) == 1
     assert sorted(actual["a"]) == sorted(VALUES)
 
@@ -23,5 +25,5 @@ def test_extract_single_explicit_name(ttype):
 @pytest.mark.parametrize("ttype", [list, tuple, pd.Index, pd.Series, np.array])
 def test_sequence_extract_multiple_names(ttype):
     data = ttype(VALUES)
-    actual = resolve_io(data).extract(data, names=NAMES)
+    actual: Dict[str, Sequence[int]] = resolve_io(data).extract(data, names=NAMES)
     assert actual == {n: [v] for n, v, in zip(NAMES, VALUES)}

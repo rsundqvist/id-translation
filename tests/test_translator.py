@@ -14,11 +14,10 @@ from id_translation.exceptions import MissingNamesError, TooManyFailedTranslatio
 from id_translation.fetching.exceptions import UnknownSourceError
 from id_translation.mapping import Mapper
 from id_translation.mapping.exceptions import MappingError, MappingWarning, UserMappingError
-from id_translation.types import IdType
 
 from .conftest import ROOT
 
-LOGGER = logging.getLogger("TestTranslator")
+LOGGER = logging.getLogger("UnitTestTranslator")
 
 
 def crash(*args, **kwargs):
@@ -32,7 +31,7 @@ def verification_context(purpose):
     LOGGER.info(f"{f' Stop: {purpose} ':=^80}")
 
 
-class Translator(RealTranslator[str, str, IdType]):
+class UnitTestTranslator(RealTranslator[str, str, int]):
     """Test implementation that performs additional verification."""
 
     def __init__(self, *args, **kwargs):
@@ -66,7 +65,7 @@ _config_utils.ConfigMetadata = ConfigMetadataForTest  # type: ignore
 
 @pytest.mark.parametrize("with_id, with_override, store", combinations_with_replacement([False, True], 3))
 def test_dummy_translation_doesnt_crash(with_id, with_override, store):
-    t = Translator(fmt="{id}:{first}:{second}:{third}")
+    t = UnitTestTranslator(fmt="{id}:{first}:{second}:{third}")
 
     names = list(map("placeholder{}".format, range(3)))
     data = np.random.randint(0, 100, (3, 10))
@@ -79,14 +78,18 @@ def test_dummy_translation_doesnt_crash(with_id, with_override, store):
     if store:
         t.store(data, names=names)
 
-    ans = t.translate(data, names=names, override_function=override_function if with_override else None)
+    ans = t.translate(  # type: ignore[call-overload]
+        data,
+        names=names,
+        override_function=override_function if with_override else None,
+    )
     assert ans is not None
     assert ans.shape == (3, 10)
 
 
 def test_translate_without_id(hex_fetcher):
     without_id = "{hex}, positive={positive}"
-    ans = Translator(hex_fetcher, fmt=without_id).translate({"positive_numbers": [-1, 0, 1]})
+    ans = UnitTestTranslator(hex_fetcher, fmt=without_id).translate({"positive_numbers": [-1, 0, 1]})
     assert ans == {
         "positive_numbers": [
             None,
@@ -105,7 +108,7 @@ def test_can_pickle(translator, copy):
 
 @pytest.mark.parametrize("copy", [False, True])
 def test_offline(hex_fetcher, copy):
-    translator = Translator(hex_fetcher, fmt="{id}:{hex}[, positive={positive}]").store()
+    translator = UnitTestTranslator(hex_fetcher, fmt="{id}:{hex}[, positive={positive}]").store()
     if copy:
         translator = translator.copy()
     _translate(translator)
@@ -151,11 +154,11 @@ def test_bad_translatable(translator, data, clazz, kwargs):
 
 
 def test_from_config():
-    Translator.from_config(ROOT.joinpath("config.toml"))
+    UnitTestTranslator.from_config(ROOT.joinpath("config.toml"))
 
 
 def test_store_and_restore(hex_fetcher, tmp_path):
-    translator: Translator[int] = Translator(hex_fetcher, fmt="{id}:{hex}")
+    translator: UnitTestTranslator = UnitTestTranslator(hex_fetcher, fmt="{id}:{hex}")
 
     data = {
         "positive_numbers": list(range(0, 5)),
@@ -165,7 +168,7 @@ def test_store_and_restore(hex_fetcher, tmp_path):
 
     path = tmp_path.joinpath("translator.pkl")
     translator.store(path=path)
-    restored = Translator.restore(path=path)
+    restored = UnitTestTranslator.restore(path=path)
 
     translated_by_restored = restored.translate(data)
     assert translated_by_restored == translated_data
@@ -176,7 +179,7 @@ def test_store_with_explicit_values(hex_fetcher):
         "positive_numbers": list(range(0, 5)),
         "negative_numbers": list(range(-5, -1)),
     }
-    translator = Translator(
+    translator = UnitTestTranslator(
         hex_fetcher, fmt="{hex}", default_fmt="{id} not known", mapper=Mapper(unmapped_values_action="ignore")
     )
 
@@ -253,7 +256,7 @@ def test_complex_default(hex_fetcher):
     fmt = "{id}:{hex}[, positive={positive}]"
     default_fmt = "{id} - {hex} - {positive}"
     default_fmt_placeholders = {"default": {"positive": "POSITIVE/NEGATIVE", "hex": "HEX"}}
-    t = Translator(
+    t = UnitTestTranslator(
         hex_fetcher, fmt=fmt, default_fmt=default_fmt, default_fmt_placeholders=default_fmt_placeholders
     ).store()
 
@@ -278,7 +281,7 @@ def test_complex_default(hex_fetcher):
 def test_id_only_default(hex_fetcher):
     fmt = "{id}:{hex}[, positive={positive}]"
     default_fmt = "{id} is not known"
-    t = Translator(hex_fetcher, fmt=fmt, default_fmt=default_fmt).store()
+    t = UnitTestTranslator(hex_fetcher, fmt=fmt, default_fmt=default_fmt).store()
 
     in_range = t.translate({"positive_numbers": [-1, 0, 1]})
     assert in_range == {
@@ -299,7 +302,7 @@ def test_id_only_default(hex_fetcher):
 
 
 def test_extra_placeholder():
-    t = Translator(
+    t = UnitTestTranslator(
         {"people": {"id": [1999], "name": ["Sofia"]}},
         default_fmt="{id}:{right}",
         default_fmt_placeholders=dict(default={"left": "left-value", "right": "right-value"}),
@@ -316,7 +319,7 @@ def test_extra_placeholder():
 def test_plain_default(hex_fetcher):
     fmt = "{id}:{hex}[, positive={positive}]"
     default_fmt = "UNKNOWN"
-    t = Translator(hex_fetcher, fmt=fmt, default_fmt=default_fmt).store()
+    t = UnitTestTranslator(hex_fetcher, fmt=fmt, default_fmt=default_fmt).store()
 
     in_range = t.translate({"positive_numbers": [-1, 0, 1]})
     assert in_range == {
@@ -333,7 +336,7 @@ def test_plain_default(hex_fetcher):
 
 def test_no_default(hex_fetcher):
     fmt = "{id}:{hex}[, positive={positive}]"
-    t = Translator(hex_fetcher, fmt=fmt).store()
+    t = UnitTestTranslator(hex_fetcher, fmt=fmt).store()
     in_range = t.translate({"positive_numbers": [-1, 0, 1]})
     assert in_range == {
         "positive_numbers": [
@@ -373,7 +376,7 @@ def test_no_names(translator):
 
 
 def test_untranslated_fraction():
-    translator = Translator({"source": {"id": [0], "name": ["zero"]}}, default_fmt="{id} not translated")
+    translator = UnitTestTranslator({"source": {"id": [0], "name": ["zero"]}}, default_fmt="{id} not translated")
 
     translator.translate([0, 1], names="source", maximal_untranslated_fraction=0.5)
 
@@ -386,7 +389,7 @@ def test_untranslated_fraction():
 
 def test_reverse(hex_fetcher):
     fmt = "{id}:{hex}[, positive={positive}]"
-    t = Translator(hex_fetcher, fmt=fmt).store()
+    t = UnitTestTranslator(hex_fetcher, fmt=fmt).store()
 
     translated = {
         "positive_numbers": [
@@ -397,12 +400,12 @@ def test_reverse(hex_fetcher):
     }
     assert translated == t.translate({"positive_numbers": [-1, 0, 1]}, inplace=False)
 
-    actual = t.translate(translated, reverse=True)
+    actual = t.translate(translated, reverse=True)  # type: ignore[arg-type]
     assert {"positive_numbers": [None, 0, 1]} == actual, "Original format"
 
     translated = {"positive_numbers": ["-0x1", "0x0", "0x1"]}
     tc = t.copy(fmt="{hex}")
-    actual = tc.translate(translated, reverse=True)
+    actual = tc.translate(translated, reverse=True)  # type: ignore[arg-type]
     assert {"positive_numbers": [None, 0, 1]} == actual, "New format"
 
 
@@ -428,11 +431,11 @@ def test_override_fetcher(translator):
 
 
 def test_translate_attribute():
-    translate = Translator().translate
+    translate = UnitTestTranslator().translate
     df = pd.DataFrame(range(3))
     df.index.name = "index-name"
 
-    translate(df, attribute="index")
+    translate(df, attribute="index")  # type: ignore[call-overload]
 
     assert df.index.tolist() == translate(list(range(3)), names=df.index.name)
 
@@ -470,25 +473,27 @@ def test_load_persistent_instance(tmp_path):
     translatable: List[int] = [0, 1, 2]
     args = (translatable, "category_id")
 
-    translator = Translator.load_persistent_instance(tmp_path, config_path, clazz=Translator)
-    assert isinstance(translator, Translator)
+    translator = UnitTestTranslator.load_persistent_instance(tmp_path, config_path, clazz=UnitTestTranslator)
+    assert isinstance(translator, UnitTestTranslator)
     now = translator.now
     assert translator.translate(*args) == expected
 
-    translator = Translator.load_persistent_instance(tmp_path, config_path, clazz=Translator)
-    assert isinstance(translator, Translator)
+    translator = UnitTestTranslator.load_persistent_instance(tmp_path, config_path, clazz=UnitTestTranslator)
+    assert isinstance(translator, UnitTestTranslator)
     assert translator.now == now
     assert translator.translate(*args) == expected
 
-    translator = Translator.load_persistent_instance(tmp_path, config_path, clazz=Translator, max_age="-1d")
-    assert isinstance(translator, Translator)
+    translator = UnitTestTranslator.load_persistent_instance(
+        tmp_path, config_path, clazz=UnitTestTranslator, max_age="-1d"
+    )
+    assert isinstance(translator, UnitTestTranslator)
     assert translator.now > now
     assert translator.translate(*args) == expected
 
     real_translator: RealTranslator[str, str, int] = RealTranslator.load_persistent_instance(tmp_path, config_path)
     assert isinstance(real_translator, RealTranslator)
     assert real_translator.translate(*args) == expected
-    assert not isinstance(real_translator, Translator)
+    assert not isinstance(real_translator, UnitTestTranslator)
 
 
 @pytest.mark.parametrize(
@@ -546,7 +551,7 @@ def test_translate_multi_index(names, iterables):
     expected = pd.MultiIndex.from_product(iterables, names=["letter", "digit"])
     actual = pd.MultiIndex.from_product([["a", "b"], [1, 2, 3]], names=["letter", "digit"])
 
-    translator = Translator()
+    translator = UnitTestTranslator()
     actual = translator.translate(actual, names=names)
     assert_index_equal(actual, expected)
 
@@ -554,7 +559,7 @@ def test_translate_multi_index(names, iterables):
 def test_id_translation_disabled(monkeypatch, caplog):
     from id_translation._translator import ID_TRANSLATION_DISABLED
 
-    translator = Translator()
+    translator = UnitTestTranslator()
 
     monkeypatch.setenv(ID_TRANSLATION_DISABLED, "true")
     with pytest.warns(TranslationDisabledWarning):
@@ -578,7 +583,7 @@ class TestDictNames:
 
     @classmethod
     def setup_class(cls):
-        tmp = Translator.from_config(ROOT.joinpath("config.imdb.toml"))
+        tmp = UnitTestTranslator.from_config(ROOT.joinpath("config.imdb.toml"))
         translator = tmp.copy(
             fmt="{id}:{name}",
             mapper=tmp.mapper.copy(unknown_user_override_action="ignore"),
@@ -613,7 +618,7 @@ class TestDictNames:
 
 @pytest.mark.parametrize("with_source", [False, True])
 class TestTranslatedNames:
-    translator = Translator()
+    translator = UnitTestTranslator()
 
     def test_unused(self, with_source):
         with pytest.raises(ValueError, match="No names have been translated using this Translator."):
@@ -641,10 +646,10 @@ class TestTranslatedNames:
 
         from typing_extensions import assert_type  # assert_type: 3.11
 
-        without_source = Translator().translated_names()
+        without_source = UnitTestTranslator().translated_names()
         assert_type(without_source, List[str])
-        without_source = Translator().translated_names(False)
+        without_source = UnitTestTranslator().translated_names(False)
         assert_type(without_source, List[str])
 
-        with_source = Translator().translated_names(True)
+        with_source = UnitTestTranslator().translated_names(True)
         assert_type(with_source, Dict[str, str])
