@@ -1,6 +1,5 @@
-from typing import Type
+from typing import Any, Type
 
-from ..types import Translatable
 from . import DataStructureIO
 from ._dict import DictIO
 from ._pandas import PandasIO
@@ -10,7 +9,7 @@ from ._single_value import SingleValueIO
 from .exceptions import UntranslatableTypeError
 
 
-def resolve_io(arg: Translatable) -> Type[DataStructureIO]:
+def resolve_io(arg: Any) -> Type[DataStructureIO]:
     """Get an IO instance for `arg`.
 
     Args:
