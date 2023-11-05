@@ -3,7 +3,9 @@ import sys
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Tuple
+
+from rics.performance import format_seconds
 
 
 def _initialize_versions() -> Dict[str, str]:
@@ -52,14 +54,6 @@ class BaseMetadata(ABC):
     def _is_equivalent(self, other: "BaseMetadata") -> str:
         """Implementation-specific equivalence check."""
 
-    @abstractmethod
-    def _log_reject(self, msg: str) -> None:
-        """Log metadata reject event. Subclasses should format the `slug` key."""
-
-    @abstractmethod
-    def _log_accept(self, msg: str) -> None:
-        """Log metadata accept event. Subclasses should format the `kind` key."""
-
     def is_equivalent(self, other: "BaseMetadata") -> str:
         """Equivalency status."""
         if not isinstance(other, self.__class__):
@@ -81,7 +75,7 @@ class BaseMetadata(ABC):
         )
         kwargs.update(self._serialize(raw))
         assert not raw, f"Not serialized: {raw}."  # noqa:  S101
-        return json.dumps(kwargs, indent=True)
+        return json.dumps(kwargs, indent=4)
 
     @classmethod
     def from_json(cls, s: str) -> "BaseMetadata":
@@ -97,7 +91,7 @@ class BaseMetadata(ABC):
         assert not raw, f"Not deserialized: {raw}."  # noqa:  S101
         return cls(**kwargs)
 
-    def use_cached(self, metadata_path: Path, max_age: timedelta) -> bool:
+    def use_cached(self, metadata_path: Path, max_age: timedelta) -> Tuple[bool, str]:
         """Check status of stored metadata config based a desired configuration ``self``.
 
         Args:
@@ -105,32 +99,21 @@ class BaseMetadata(ABC):
             max_age: Maximum age of stored metadata.
 
         Returns:
-            ``True`` if the cached instance is still viable.
+            A tuple ``(use_cached, reason)``.
         """
-
-        def log_reject(reason: str) -> None:
-            self._log_reject(f"{{slug}}; {reason}. Metadata path='{metadata_path}'.")
-
         if not metadata_path.exists():
-            log_reject("no cache metadata found")
-            return False
+            return False, "no cache metadata found"
 
         stored_config = self.from_json(metadata_path.read_text())
 
         reason_not_equivalent = self.is_equivalent(stored_config)
         if reason_not_equivalent:
-            log_reject(f"cached instance is not equivalent. {reason_not_equivalent}")
-            return False
+            return False, f"cached instance is not equivalent: {reason_not_equivalent}"
 
-        expires_at = stored_config.created + max_age
-        offset = timedelta(seconds=round(abs(datetime.now() - expires_at).total_seconds()))
+        expires_at = (stored_config.created + max_age).replace(microsecond=0)
+        offset = format_seconds(round(abs(datetime.now() - expires_at).total_seconds()))
 
-        fmt = "%Y-%m-%dT%H:%M:%S"
         if expires_at <= stored_config.created:
-            log_reject(f"cache expired at {expires_at:{fmt}} ({offset} ago)")
-            return False
-
-        self._log_accept(
-            f"Accept cached {{kind}} in '{metadata_path.parent}'. " f"Expires at {expires_at:{fmt}} (in {offset})."
-        )
-        return True
+            return False, f"expired at {expires_at.isoformat()} ({offset} ago)"
+        else:
+            return True, f"expires at {expires_at.isoformat()} (in {offset})"

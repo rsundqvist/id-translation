@@ -582,7 +582,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         assert self._cache_keys is not None  # noqa: S101
         return CacheAccess(
             self._fetch_all_cache_max_age,
-            CacheMetadata(self._cache_keys, placeholders=self.placeholders),
+            CacheMetadata(cache_keys=self._cache_keys, placeholders=self.placeholders),
         )
 
     def _get_cached_translations(self, source: SourceType) -> Optional[PlaceholderTranslations[SourceType]]:

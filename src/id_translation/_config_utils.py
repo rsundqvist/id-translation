@@ -61,12 +61,6 @@ class ConfigMetadata(BaseMetadata):
             clazz=from_json.pop("class"),
         )
 
-    def _log_reject(self, msg: str) -> None:
-        LOGGER.info(msg.format(slug="Create new Translator"))  # noqa: G001
-
-    def _log_accept(self, msg: str) -> None:
-        LOGGER.info(msg.format(kind="Translator"))  # noqa: G001
-
     def _is_equivalent(self, other: BaseMetadata) -> str:  # pragma: no cover
         assert isinstance(other, ConfigMetadata)  # noqa: S101
 

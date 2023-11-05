@@ -129,14 +129,14 @@ def test_corrupted_cache(caplog, fetcher, fetch_all_cache_dir):
     caplog.clear()
 
     access = test_fetcher._create_cache_access()
-    access.data_path.write_text("Corrupted data!")
+    access.source_path("humans").write_text("Corrupted data!")
     with caplog.at_level("DEBUG"):
         assert test_fetcher._get_cached_translations("humans") is None
 
-    assert not access.data_path.exists()
+    assert not access.data_dir.exists()
     assert not access.metadata_path.exists()
 
-    wanted_substrings = [access.data_path, access.metadata_path]
+    wanted_substrings = [access.data_dir, access.metadata_path]
     expected = list(map(str, wanted_substrings))
     actual = []
     for message in caplog.messages:

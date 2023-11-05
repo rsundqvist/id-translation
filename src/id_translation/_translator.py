@@ -948,9 +948,12 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             extra_fetcher_paths,
             clazz=TranslatorFactory.resolve_class(clazz),
         )
-        if metadata.use_cached(metadata_path, pandas.Timedelta(max_age).to_pytimedelta()):
+        use_cached, reason = metadata.use_cached(metadata_path, pandas.Timedelta(max_age).to_pytimedelta())
+        if use_cached:
+            LOGGER.info(f"Reuse existing Translator; {reason}. Cache dir: '{cache_dir}'.")
             return cls.restore(cache_path)
         else:
+            LOGGER.info(f"Create new Translator; {reason}. Cache dir: '{cache_dir}'.")
             ans: Translator[NameType, SourceType, IdType] = cls.from_config(path, extra_fetcher_paths, clazz)
             ans.store(path=cache_path, delete_fetcher=True)
             metadata_path.write_text(ans.config_metadata.to_json())
