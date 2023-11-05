@@ -189,6 +189,7 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         *,
         required: Iterable[str] = (),
         task_id: int = None,
+        enable_uuid_heuristics: bool = False,
     ) -> SourcePlaceholderTranslations[SourceType]:
         if task_id is None:
             task_id = generate_task_id()
@@ -261,6 +262,7 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         *,
         required: Iterable[str] = (),
         task_id: int = None,
+        enable_uuid_heuristics: bool = False,
     ) -> SourcePlaceholderTranslations[SourceType]:
         if task_id is None:
             task_id = generate_task_id()
@@ -293,7 +295,9 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         def fetch_all(fetcher: Fetcher[SourceType, IdType]) -> FetchResult[SourceType]:
             if debug_logging_enabled:
                 LOGGER.debug(f"Begin FETCH_ALL job using {self._fmt_fetcher(fetcher)}.")
-            return id(fetcher), fetcher.fetch_all(placeholders, required=required, task_id=task_id)
+            return id(fetcher), fetcher.fetch_all(
+                placeholders, required=required, task_id=task_id, enable_uuid_heuristics=enable_uuid_heuristics
+            )
 
         with ThreadPoolExecutor(max_workers=self.max_workers, thread_name_prefix=tname(self)) as executor:
             futures = [executor.submit(fetch_all, fetcher) for fetcher in self.fetchers]

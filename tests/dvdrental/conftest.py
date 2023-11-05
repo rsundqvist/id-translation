@@ -9,12 +9,12 @@ import yaml  # type: ignore
 ROOT = Path(__file__).parent
 DOCKER_ROOT = ROOT.joinpath("docker")
 CREDENTIALS = yaml.safe_load(DOCKER_ROOT.joinpath("credentials.yml").read_text())["dialects"]
-for k, v in dict(
+for dialect, driver in dict(
     mysql="pymysql",
     postgresql="pg8000",
     mssql="pymssql",
 ).items():
-    CREDENTIALS[k]["driver"] = v
+    CREDENTIALS[dialect]["driver"] = driver
 
 QUERY = DOCKER_ROOT.joinpath("tests/query.sql").read_text()
 

@@ -62,6 +62,9 @@ class TestFetcher(_Fetcher[SourceType, IdType]):
     def placeholders(self) -> Dict[SourceType, List[str]]:
         return {source: [] for source in self._sources}
 
+    def copy(self) -> "TestFetcher[SourceType, IdType]":
+        return type(self)(self.sources)
+
     def fetch(
         self,
         ids_to_fetch: Iterable[_IdsToFetch[SourceType, IdType]],
@@ -69,6 +72,7 @@ class TestFetcher(_Fetcher[SourceType, IdType]):
         *,
         required: Iterable[str] = (),
         task_id: int = None,
+        enable_uuid_heuristics: bool = False,
     ) -> _SourcePlaceholderTranslations[SourceType]:
         """Return generated translations for all IDs and placeholders."""
         return {itf.source: self._generate_data(itf, list(placeholders)) for itf in ids_to_fetch}
@@ -86,7 +90,12 @@ class TestFetcher(_Fetcher[SourceType, IdType]):
         return _PlaceholderTranslations.make(itf.source, df)
 
     def fetch_all(
-        self, placeholders: Iterable[str] = (), *, required: Iterable[str] = (), task_id: int = None
+        self,
+        placeholders: Iterable[str] = (),
+        *,
+        required: Iterable[str] = (),
+        task_id: int = None,
+        enable_uuid_heuristics: bool = False,
     ) -> _SourcePlaceholderTranslations[SourceType]:
         raise NotImplementedError
 

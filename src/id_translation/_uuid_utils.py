@@ -8,9 +8,14 @@ IdCollectionT = TypeVar("IdCollectionT", bound=Sequence)  # type: ignore[type-ar
 
 def cast_many(ids: IdCollectionT) -> IdCollectionT:
     """Cast `ids` to UUIDs."""
-    uuids = ids if isinstance(ids[0], UUID) else map(UUID, ids)
-    cls = np.array if isinstance(ids, np.ndarray) else type(ids)
-    return cls(map(str, uuids))  # type: ignore
+    if isinstance(ids[0], UUID):
+        return ids
+
+    uuids = map(UUID, ids)
+    if isinstance(ids, np.ndarray):
+        return np.fromiter(uuids, dtype=UUID)
+    else:
+        return type(ids)(uuids)  # type: ignore[call-arg]
 
 
 def try_cast_many(ids: IdCollectionT) -> IdCollectionT:
@@ -26,9 +31,10 @@ def try_cast_many(ids: IdCollectionT) -> IdCollectionT:
 
 def try_cast_one(idx: Any) -> Any:
     """Try casting `idx` to a UUID, falling back to the original input."""
+    if isinstance(idx, UUID):
+        return idx
+
     try:
-        if not isinstance(idx, UUID):
-            idx = UUID(idx)
-        return str(idx)
+        return UUID(idx)
     except (ValueError, AttributeError, TypeError):
         return idx

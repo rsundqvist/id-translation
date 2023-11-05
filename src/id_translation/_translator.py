@@ -1,5 +1,6 @@
 import logging
 import warnings
+from copy import deepcopy
 from datetime import timedelta
 from os import getenv
 from pathlib import Path
@@ -265,11 +266,10 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             raise ValueError("Not created using Translator.from_config()")  # pragma: no cover
         return self._config_metadata
 
-    def copy(self, share_fetcher: bool = True, **overrides: Any) -> "Translator[NameType, SourceType, IdType]":
+    def copy(self, **overrides: Any) -> "Translator[NameType, SourceType, IdType]":
         """Make a copy of this ``Translator``.
 
         Args:
-            share_fetcher: If ``True``, the returned instance use the same ``Fetcher``.
             overrides: Keyword arguments to use when instantiating the copy. Options that aren't given will be taken
                 from the current instance. See the :class:`Translator` class documentation for possible choices.
 
@@ -279,9 +279,6 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         Raises:
             NotImplementedError: If ``share_fetcher=False``.
         """
-        if not share_fetcher:
-            raise NotImplementedError("Fetcher cloning not implemented.")
-
         kwargs: Dict[str, Any] = {
             "fmt": self._fmt,
             "default_fmt": self._default_fmt,
@@ -294,7 +291,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         if "default_fmt_placeholders" not in kwargs:
             kwargs["default_fmt_placeholders"] = self._default_fmt_placeholders
         if "fetcher" not in kwargs:
-            kwargs["fetcher"] = self.fetcher if self.online else self._cached_tmap.copy()
+            kwargs["fetcher"] = deepcopy(self.fetcher) if self.online else self._cached_tmap.copy()
 
         return type(self)(**kwargs)
 
@@ -851,6 +848,11 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         """  # noqa: DAR202
         return self._fetcher.placeholders if self.online else self._cached_tmap.placeholders
 
+    @property
+    def enable_uuid_heuristics(self) -> bool:
+        """Enabling may improve matching when :py:class:`~uuid.UUID`-like IDs are in use."""
+        return self._enable_uuid_heuristics
+
     def fetch(
         self,
         translatable: Translatable[NameType, IdType],
@@ -1105,9 +1107,20 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             task_id = generate_task_id()
 
         if ids_to_fetch is None:
-            return self.fetcher.fetch_all(placeholders, required=required, task_id=task_id)
+            return self.fetcher.fetch_all(
+                placeholders,
+                required=required,
+                task_id=task_id,
+                enable_uuid_heuristics=self._enable_uuid_heuristics,
+            )
         else:
-            return self.fetcher.fetch(ids_to_fetch, placeholders, required=required, task_id=task_id)
+            return self.fetcher.fetch(
+                ids_to_fetch,
+                placeholders,
+                required=required,
+                task_id=task_id,
+                enable_uuid_heuristics=self._enable_uuid_heuristics,
+            )
 
     def _to_translation_map(
         self,

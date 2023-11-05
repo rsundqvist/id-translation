@@ -31,6 +31,11 @@ class FetchInstruction(_Generic[SourceType, IdType]):
     """Unique IDs to fetch translations for. Fetch as much as possible if ``None``."""
     task_id: int
     """Used for logging purposes."""
+    enable_uuid_heuristics: bool
+    """If set, apply heuristics to improve matching with :py:class:`~uuid.UUID`-like IDs.
+
+    Implementations which have no UUID heuristics may silently ignore this flag.
+    """
 
     @property
     def fetch_all(self) -> bool:

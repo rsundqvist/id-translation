@@ -24,7 +24,7 @@ class MagicDict(Mapping[IdType, str]):
         enable_uuid_heuristics: bool = True,
     ) -> None:
         if enable_uuid_heuristics and real_translations:
-            real_translations, enable_uuid_heuristics = _try_stringify(real_translations)
+            real_translations, enable_uuid_heuristics = _try_stringify_many(real_translations)
 
         self._real: TranslatedIds[IdType] = real_translations
         self._default = default_value
@@ -59,14 +59,14 @@ class MagicDict(Mapping[IdType, str]):
         return repr(self._real)
 
 
-def _try_stringify(real_translations: TranslatedIds[IdType]) -> Tuple[TranslatedIds[IdType], bool]:
-    original_keys = list(real_translations)
+def _try_stringify_many(real_translations: TranslatedIds[IdType]) -> Tuple[TranslatedIds[IdType], bool]:
+    original_ids = list(real_translations)
     try:
-        new_keys = _uuid_utils.cast_many(original_keys)
+        new_keys = _uuid_utils.cast_many(original_ids)
     except (ValueError, AttributeError, TypeError):
         return real_translations, False  # Keys are not UUID-like.
 
-    uuid_translations = {uuid: real_translations[k] for uuid, k in zip(new_keys, original_keys)}
+    uuid_translations = {uuid: real_translations[idx] for uuid, idx in zip(new_keys, original_ids)}
     if len(real_translations) != len(uuid_translations):
         raise TypeError("Duplicate UUIDs found. Verify translation sources or set enable_uuid_heuristics=False.")
 

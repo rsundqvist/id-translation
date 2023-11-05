@@ -307,6 +307,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         placeholders: Iterable[str] = (),
         required: Iterable[str] = (),
         task_id: int = None,
+        enable_uuid_heuristics: bool = False,
     ) -> SourcePlaceholderTranslations[SourceType]:
         if task_id is None:
             task_id = generate_task_id()
@@ -319,6 +320,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
                     required_placeholders=set(required),
                     ids=itf.ids,
                     task_id=task_id,
+                    enable_uuid_heuristics=enable_uuid_heuristics,
                 )[
                     0
                 ]  # Second index indicates if data is from cache -- we don't care here
@@ -328,8 +330,10 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
     def fetch_all(
         self,
         placeholders: Iterable[str] = (),
+        *,
         required: Iterable[str] = (),
         task_id: int = None,
+        enable_uuid_heuristics: bool = False,
     ) -> SourcePlaceholderTranslations[SourceType]:
         if not self._allow_fetch_all:
             raise exceptions.ForbiddenOperationError(self._FETCH_ALL)
@@ -338,13 +342,19 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
             task_id = generate_task_id()
 
         with self._start_operation(self._FETCH_ALL), self._fetch_all_mapping_context():
-            return self._fetch_all(tuple(placeholders), required_placeholders=set(required), task_id=task_id)
+            return self._fetch_all(
+                tuple(placeholders),
+                required_placeholders=set(required),
+                task_id=task_id,
+                enable_uuid_heuristics=enable_uuid_heuristics,
+            )
 
     def _fetch_all(
         self,
         placeholders: PlaceholdersTuple,
         required_placeholders: Set[str],
         task_id: int,
+        enable_uuid_heuristics: bool,
     ) -> SourcePlaceholderTranslations[SourceType]:
         if self._selective_fetch_all:
             # There's nothing stopping us from doing this for regular fetching. But we assume that then the user wants
@@ -372,6 +382,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
                 placeholders,
                 required_placeholders=required_placeholders,
                 task_id=task_id,
+                enable_uuid_heuristics=enable_uuid_heuristics,
             )
             ans[source] = translations
             all_from_cache = all_from_cache and from_cache
@@ -459,13 +470,14 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         *,
         required_placeholders: Set[str],
         task_id: int,
+        enable_uuid_heuristics: bool,
         ids: Set[IdType] = None,
     ) -> Tuple[PlaceholderTranslations[SourceType], bool]:
         start = perf_counter()
 
         placeholders = tuple(dict.fromkeys(placeholders))  # Deduplicate
         reverse_mappings, instr = self._make_fetch_instruction(
-            source, placeholders, required_placeholders, ids, task_id
+            source, placeholders, required_placeholders, ids, task_id, enable_uuid_heuristics
         )
 
         cached_translations = self._get_cached_translations(instr.source)
@@ -544,6 +556,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         required_placeholders: Set[str],
         ids: Optional[Set[IdType]],
         task_id: int,
+        enable_uuid_heuristics: bool,
     ) -> Tuple[Optional[Dict[str, str]], FetchInstruction[SourceType, IdType]]:
         required_placeholders.add(ID)
         if ID not in placeholders:
@@ -569,6 +582,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
                 required=required_placeholders,
                 ids=None if ids is None else set(ids),
                 task_id=task_id,
+                enable_uuid_heuristics=enable_uuid_heuristics,
             ),
         )
 

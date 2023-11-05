@@ -11,17 +11,6 @@ ALL_TABLES = {"animals", "humans", "big_table", "huge_table"}
 SqlFetcher = RealSqlFetcher[int]
 
 
-def test_table_sizes(sql_fetcher):
-    actual_sizes = {ts.name: ts.size for ts in sql_fetcher._get_summaries(-1).values()}
-
-    assert actual_sizes == {
-        "animals": 3,
-        "humans": 2,
-        "big_table": 100,
-        "huge_table": 1000,
-    }
-
-
 @pytest.mark.parametrize("table_to_verify", ["animals", "humans", "big_table", "huge_table"])
 def test_fetch_all(sql_fetcher, data, table_to_verify):
     actual = sql_fetcher.fetch_all(["id", "name", "is_nice", "gender"], required=["id"])[table_to_verify].records
@@ -33,41 +22,49 @@ def test_fetch_all(sql_fetcher, data, table_to_verify):
     assert actual_cast == expected_cast
 
 
+def test_select_where_fetch_all(sql_fetcher, monkeypatch):
+    original = sql_fetcher.select_where
+
+    def select_where(*args, **kwargs):
+        actual = original(*args, **kwargs)
+        assert str(actual) == "SELECT huge_table.id \nFROM huge_table"
+        return actual
+
+    monkeypatch.setattr(sql_fetcher, "select_where", select_where)
+    instr: FetchInstruction[str, int] = FetchInstruction("huge_table", ("id",), {"id"}, None, -1, False)
+    ans = sql_fetcher.fetch_translations(instr).records
+    assert ans == tuple((e,) for e in range(1000))
+
+
 @pytest.mark.parametrize(
-    "ids_to_fetch, expected",
+    "query_match, ids_to_fetch, expected",
     [
-        (range(600), range(600)),
-        (range(950), range(1000)),
-        (range(0, 1000, 5), range(0, 1000, 5)),
-        (range(800, 900, 5), range(800, 900, 5)),
-        (range(500, 1001, 2), range(500, 1000)),
-    ],
-    ids=[
-        "FETCH_BETWEEN_SHORT_CIRCUIT",
-        "FETCH_ALL_SHORT_CIRCUIT",
-        "FETCH_IN_HEURISTIC",
-        "FETCH_IN_SHORT_CIRCUIT",
-        "FETCH_BETWEEN_HEURISTIC",
+        ("WHERE huge_table.id = ", [1], [1]),  # exact
+        ("WHERE false", [], []),
+        ("WHERE huge_table.id IN ", [1, 200, 500], [1, 200, 500]),  # less than 100
+        ("WHERE huge_table.id IN ", range(0, 1001, 5), range(0, 1000, 5)),  # count < 100, factor > 2.5 -> BETWEEN
+        ("WHERE huge_table.id BETWEEN ", range(0, 1001, 2), range(1000)),  # count>100, factor < 2.5 -> BETWEEN
     ],
 )
-def test_heuristic(sql_fetcher, ids_to_fetch, expected):
-    ans = sql_fetcher.fetch_translations(
-        FetchInstruction(
-            "huge_table",
-            ("id",),
-            {"id"},
-            set(ids_to_fetch),
-            -1,
-        )
-    ).records
+def test_select_where(ids_to_fetch, expected, query_match, sql_fetcher, monkeypatch):
+    original = sql_fetcher.select_where
+
+    def select_where(*args, **kwargs):
+        actual = original(*args, **kwargs)
+        print(repr(str(actual)))
+        assert query_match in str(actual)
+        return actual
+
+    monkeypatch.setattr(sql_fetcher, "select_where", select_where)
+    instr = FetchInstruction("huge_table", ("id",), {"id"}, set(ids_to_fetch), -1, False)
+    ans = sql_fetcher.fetch_translations(instr).records
     assert ans == tuple((e,) for e in expected)
 
 
 @pytest.fixture(scope="module")
 def sql_fetcher(connection_string):
-    fetcher = SqlFetcher(
-        connection_string, fetch_in_below=25, fetch_between_over=500, fetch_between_max_overfetch_factor=2
-    )
+    fetcher = SqlFetcher(connection_string)
+    assert sorted(fetcher.sources) == ["animals", "big_table", "huge_table", "humans"]  # Forces initialization
     yield fetcher
     fetcher.close()
 
@@ -135,20 +132,3 @@ def test_bad_override(column, connection_string):
     with pytest.raises(exceptions.UnknownPlaceholderError, match=repr(column)):
         fetcher.fetch([IdsToFetch("humans", {-1})], ("id", "name"), ("id", "name"))
     fetcher.close()
-
-
-@pytest.mark.parametrize(
-    "allow_fetch_all, fetch_all_limit, expected",
-    [
-        (False, 10000, False),
-        (False, 0, False),
-        (True, 0, False),
-        (True, 2000, True),
-        (True, 900, False),
-    ],
-)
-def test_fetch_all_limit(connection_string, allow_fetch_all, fetch_all_limit, expected):
-    assert (
-        SqlFetcher(connection_string, allow_fetch_all=allow_fetch_all, fetch_all_limit=fetch_all_limit).allow_fetch_all
-        == expected
-    )
