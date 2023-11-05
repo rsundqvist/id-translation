@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 from rics.collections.misc import as_list
 
@@ -9,6 +9,8 @@ from ._data_structure_io import DataStructureIO
 
 class DictIO(DataStructureIO):
     """Implementation for dicts."""
+
+    # TODO types here all mostly wrong. Would require a lot of overloads to fix..
 
     @staticmethod
     def handles_type(arg: Any) -> bool:
@@ -24,7 +26,7 @@ class DictIO(DataStructureIO):
 
     @staticmethod
     def insert(
-        translatable: Dict[NameType, IdType],
+        translatable: Union[Dict[NameType, IdType], Dict[NameType, Sequence[IdType]]],
         names: List[NameType],
         tmap: TranslationMap[NameType, SourceType, IdType],
         copy: bool,

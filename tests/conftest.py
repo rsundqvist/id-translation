@@ -3,7 +3,9 @@ import logging
 from functools import partialmethod
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
+from uuid import UUID
 
+import numpy as np
 import pytest
 
 from id_translation import Translator
@@ -23,7 +25,22 @@ class CheckSerializeToJson(logging.Handler):
     def emit(self, record: logging.LogRecord) -> None:
         d = record.__dict__.copy()
         d.pop("exc_info", None)
-        json.dumps(d)
+        json.dumps(d, cls=JsonEncoder)
+
+
+class JsonEncoder(json.JSONEncoder):
+    def default(self, obj: Any) -> Any:
+        if isinstance(obj, UUID):
+            return str(obj)
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            return float(obj)
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+
+        # Let the base class default method raise the TypeError
+        return json.JSONEncoder.default(self, obj)
 
 
 logging.root.addHandler(CheckSerializeToJson())
@@ -68,12 +85,7 @@ class HexFetcher(AbstractFetcher[str, int]):
 
             yield tuple(funcs[p](idx) for p in placeholders)
 
-    @property
-    def sources(self) -> List[str]:
-        return ["positive_numbers", "negative_numbers"]
-
-    @property
-    def placeholders(self) -> Dict[str, List[str]]:
+    def _initialize_sources(self, task_id: int) -> Dict[str, List[str]]:
         placeholders = ["id", "hex", "positive"]
         return {
             "positive_numbers": placeholders,
@@ -100,7 +112,4 @@ def imdb_translator() -> Translator[str, str, str]:
 @pytest.fixture(scope="module")
 def translation_map() -> TranslationMap[str, str, str]:
     imdb_translator: Translator[str, str, str] = Translator.from_config(ROOT.joinpath("config.imdb.toml"))
-    imdb_translator = imdb_translator.store(
-        {"firstTitle": [], "nconst": []}  # Make sure 'firstTitle' and 'nconst' are mapped
-    )
-    return imdb_translator.cache
+    return imdb_translator.store(names=["firstTitle", "nconst"]).cache

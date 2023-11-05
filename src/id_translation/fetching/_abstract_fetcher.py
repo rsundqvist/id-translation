@@ -4,8 +4,9 @@ import warnings
 from abc import abstractmethod
 from contextlib import contextmanager
 from datetime import timedelta
+from pprint import pformat
 from time import perf_counter
-from typing import Any, Dict, Iterable, List, Literal, Optional, Sequence, Set, Tuple, Union
+from typing import Any, Dict, Iterable, List, Literal, Optional, Sequence, Set, Tuple, Union, final
 
 import pandas as pd
 from rics.action_level import ActionLevel
@@ -13,11 +14,13 @@ from rics.collections.dicts import InheritedKeysDict, reverse_dict
 from rics.misc import tname
 from rics.performance import format_seconds
 
+from .._tasks import generate_task_id
 from ..exceptions import ConnectionStatusError
 from ..mapping import HeuristicScore, Mapper
 from ..mapping.exceptions import MappingWarning
 from ..mapping.score_functions import modified_hamming
 from ..offline.types import PlaceholdersTuple, PlaceholderTranslations, SourcePlaceholderTranslations
+from ..settings import logging as settings
 from ..types import ID, IdType, SourceType
 from . import exceptions
 from ._cache import CacheAccess, CacheMetadata
@@ -114,13 +117,45 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         self._cache_keys: Optional[List[str]] = cache_keys
         self.logger = logger
         self._mapper.logger = mapper_logger
+        self._placeholders: Optional[Dict[SourceType, List[str]]] = None
+
+    @final
+    def initialize_sources(self, task_id: int = -1, *, force: bool = False) -> None:
+        if self._placeholders is None or force:
+            self._placeholders = self._initialize_sources(task_id)
+
+    @abstractmethod
+    def _initialize_sources(self, task_id: int) -> Dict[SourceType, List[str]]:
+        """Perform a full (re) discovery of sources and placeholders."""
+
+    @final
+    @property
+    def selective_fetch_all(self) -> bool:
+        """If set, reduce the amount of data fetched by :meth:`fetch_all`."""
+        return self._selective_fetch_all
+
+    @final
+    @property
+    def placeholders(self) -> Dict[SourceType, List[str]]:
+        if self._placeholders is None:
+            self.initialize_sources()
+            return self.placeholders
+
+        return self._placeholders
+
+    @final
+    @property
+    def sources(self) -> List[SourceType]:
+        return list(self.placeholders)
 
     def map_placeholders(
         self,
         source: SourceType,
         placeholders: Iterable[str],
+        *,
         candidates: Iterable[str] = None,
         clear_cache: bool = False,
+        task_id: int = None,
     ) -> Dict[str, Optional[str]]:
         """Map `placeholder` names to the actual names seen in `source`.
 
@@ -135,6 +170,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
             placeholders: Desired :attr:`~.Format.placeholders`.
             candidates: A subset of candidates (placeholder names) in `source` to map with `placeholders`.
             clear_cache: If ``True``, force a full remap.
+            task_id: Used for logging purposes.
 
         Returns:
             A dict ``{wanted_placeholder_name: actual_placeholder_name_in_source}``, where
@@ -159,12 +195,15 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         if not placeholders:
             return ans  # Nothing new to map.
 
-        if self.logger.isEnabledFor(logging.DEBUG):
+        log_level = settings.MAP_PLACEHOLDERS
+        if self.logger.isEnabledFor(log_level.enter):
             event_key = f"{self.__class__.__name__.upper()}.MAP_PLACEHOLDERS"
-            self.logger.debug(
+            self.logger.log(
+                log_level.enter,
                 f"Begin wanted-to-actual placeholder mapping of {placeholders=} to actual placeholders={candidates}"
                 f" for {source=}.",
                 extra=dict(
+                    task_id=task_id,
                     event_key=event_key,
                     event_stage="ENTER",
                     event_title=f"{event_key}.ENTER",
@@ -182,12 +221,14 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         for not_mapped in placeholders.difference(ans):
             ans[not_mapped] = None
 
-        if self.logger.isEnabledFor(logging.DEBUG):
+        if self.logger.isEnabledFor(log_level.exit):
             execution_time = perf_counter() - start
-            self.logger.debug(
+            self.logger.log(
+                log_level.exit,
                 f"Finished wanted-to-actual placeholder mapping of {placeholders=} to actual placeholders={candidates}"
                 f" for {source=}: {dm.left_to_right}.",
                 extra=dict(
+                    task_id=task_id,
                     event_key=event_key,
                     event_stage="EXIT",
                     event_title=f"{event_key}.EXIT",
@@ -199,9 +240,9 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
 
         return ans
 
-    def id_column(self, source: SourceType, candidates: Iterable[str] = None) -> Optional[str]:
+    def id_column(self, source: SourceType, *, candidates: Iterable[str] = None, task_id: int = None) -> Optional[str]:
         """Return the ID column for `source`."""
-        return self.map_placeholders(source, [ID], candidates=candidates)[ID]
+        return self.map_placeholders(source, [ID], candidates=candidates, task_id=task_id)[ID]
 
     @property
     def mapper(self) -> Mapper[str, str, SourceType]:
@@ -271,11 +312,21 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         ids_to_fetch: Iterable[IdsToFetch[SourceType, IdType]],
         placeholders: Iterable[str] = (),
         required: Iterable[str] = (),
+        task_id: int = None,
+        enable_uuid_heuristics: bool = False,
     ) -> SourcePlaceholderTranslations[SourceType]:
+        if task_id is None:
+            task_id = generate_task_id()
+
         with self._start_operation(self._FETCH):
             return {
                 itf.source: self._fetch_translations(
-                    itf.source, tuple(placeholders), required_placeholders=set(required), ids=itf.ids
+                    itf.source,
+                    tuple(placeholders),
+                    required_placeholders=set(required),
+                    ids=itf.ids,
+                    task_id=task_id,
+                    enable_uuid_heuristics=enable_uuid_heuristics,
                 )[
                     0
                 ]  # Second index indicates if data is from cache -- we don't care here
@@ -285,19 +336,31 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
     def fetch_all(
         self,
         placeholders: Iterable[str] = (),
+        *,
         required: Iterable[str] = (),
+        task_id: int = None,
+        enable_uuid_heuristics: bool = False,
     ) -> SourcePlaceholderTranslations[SourceType]:
         if not self._allow_fetch_all:
             raise exceptions.ForbiddenOperationError(self._FETCH_ALL)
 
-        with self._start_operation(self._FETCH_ALL):
-            with self._fetch_all_mapping_context():
-                return self._fetch_all(tuple(placeholders), required_placeholders=set(required))
+        if task_id is None:
+            task_id = generate_task_id()
+
+        with self._start_operation(self._FETCH_ALL), self._fetch_all_mapping_context():
+            return self._fetch_all(
+                tuple(placeholders),
+                required_placeholders=set(required),
+                task_id=task_id,
+                enable_uuid_heuristics=enable_uuid_heuristics,
+            )
 
     def _fetch_all(
         self,
         placeholders: PlaceholdersTuple,
         required_placeholders: Set[str],
+        task_id: int,
+        enable_uuid_heuristics: bool,
     ) -> SourcePlaceholderTranslations[SourceType]:
         if self._selective_fetch_all:
             # There's nothing stopping us from doing this for regular fetching. But we assume that then the user wants
@@ -305,13 +368,14 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
             sources = [
                 source
                 for source in self.sources
-                if required_placeholders.issubset(self._wanted_to_actual(source, required_placeholders))
+                if required_placeholders.issubset(self._wanted_to_actual(source, required_placeholders, task_id))
             ]
             discarded = set(self.sources).difference(sources)
             if discarded:
                 self.logger.info(
                     f"Ignoring {len(discarded)} sources {discarded} since required "
-                    f"placeholders {sorted(required_placeholders)} could not be mapped by {self}."
+                    f"placeholders {sorted(required_placeholders)} could not be mapped by {self}.",
+                    extra={"task_id": task_id},
                 )
         else:
             sources = self.sources
@@ -319,12 +383,44 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         ans = {}
         all_from_cache = True
         for source in sources:
-            translations, from_cache = self._fetch_translations(source, placeholders, required_placeholders)
+            translations, from_cache = self._fetch_translations(
+                source,
+                placeholders,
+                required_placeholders=required_placeholders,
+                task_id=task_id,
+                enable_uuid_heuristics=enable_uuid_heuristics,
+            )
             ans[source] = translations
             all_from_cache = all_from_cache and from_cache
 
-        if not all_from_cache:
-            self._put_cached_translations(ans)
+        if all_from_cache or not self.cache_enabled:
+            return ans
+
+        event_key = f"{self.__class__.__name__.upper()}.CACHE"
+        access = self._put_cached_translations(ans)
+        if self.logger.isEnabledFor(logging.INFO):
+            expires_at = pd.Timestamp.now() + self._fetch_all_cache_max_age
+            "Wrote {count :_d} records for {len(sources)} sources to cache."
+            num_records = {source: len(translations.records) for source, translations in ans.items()}
+
+            self.logger.info(
+                (
+                    "Cache updated."
+                    f"\n- Metadata path= '{access.metadata_path}'"
+                    f"\n-    Expires at= '{expires_at.round('s')}' (in '{self._fetch_all_cache_max_age}')"
+                    f"\n- Record counts= {pformat(num_records)}"
+                ),
+                extra=dict(
+                    task_id=task_id,
+                    event_key=event_key,
+                    event_stage="WRITE",
+                    event_title=f"{event_key}.WRITE",
+                    fetch_all=True,
+                    num_records=num_records,
+                    cache_keys=self._cache_keys,
+                    sources=sources,
+                ),
+            )
 
         return ans
 
@@ -377,22 +473,28 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         self,
         source: SourceType,
         placeholders: PlaceholdersTuple,
+        *,
         required_placeholders: Set[str],
+        task_id: int,
+        enable_uuid_heuristics: bool,
         ids: Set[IdType] = None,
     ) -> Tuple[PlaceholderTranslations[SourceType], bool]:
         start = perf_counter()
 
         placeholders = tuple(dict.fromkeys(placeholders))  # Deduplicate
-        reverse_mappings, instr = self._make_fetch_instruction(source, placeholders, required_placeholders, ids)
+        reverse_mappings, instr = self._make_fetch_instruction(
+            source, placeholders, required_placeholders, ids, task_id, enable_uuid_heuristics
+        )
 
         cached_translations = self._get_cached_translations(instr.source)
         if cached_translations is not None:
-            self.logger.debug(f"Returning cached translations for {source=}.")
             return cached_translations, True
 
-        if self.logger.isEnabledFor(logging.DEBUG):
+        log_level = settings.FETCH_TRANSLATIONS
+        if self.logger.isEnabledFor(log_level.enter):
             event_key = f"{self.__class__.__name__.upper()}.FETCH_TRANSLATIONS"
-            self.logger.debug(
+            self.logger.log(
+                log_level.enter,
                 f"Begin fetching {placeholders=} from {source=} for {'all' if instr.ids is None else len(instr.ids)} IDs.",
                 extra=dict(
                     event_key=event_key,
@@ -403,15 +505,17 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
                     required_placeholders=list(instr.required),
                     num_ids=None if instr.ids is None else len(instr.ids),
                     fetch_all=instr.fetch_all,
+                    task_id=instr.task_id,
                 ),
             )
 
         translations = self.fetch_translations(instr)
-        if self.logger.isEnabledFor(logging.DEBUG):
+        if self.logger.isEnabledFor(log_level.enter):
             execution_time = perf_counter() - start
-            self.logger.debug(
+            self.logger.log(
+                log_level.enter,
                 f"Finished fetching placeholders={translations.placeholders} for {len(translations.records)} IDs "
-                f"from source '{translations.source}' in {format_seconds(execution_time)} using {self}.",
+                f"from source '{translations.source}' in {format_seconds(execution_time)}, using {self}.",
                 extra=dict(
                     event_key=event_key,
                     event_stage="EXIT",
@@ -421,6 +525,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
                     placeholders=translations.placeholders,
                     num_ids=len(translations.records),
                     fetch_all=instr.fetch_all,
+                    task_id=instr.task_id,
                 ),
             )
 
@@ -456,12 +561,14 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         placeholders: PlaceholdersTuple,
         required_placeholders: Set[str],
         ids: Optional[Set[IdType]],
+        task_id: int,
+        enable_uuid_heuristics: bool,
     ) -> Tuple[Optional[Dict[str, str]], FetchInstruction[SourceType, IdType]]:
         required_placeholders.add(ID)
         if ID not in placeholders:
             placeholders = (ID,) + placeholders
 
-        wanted_to_actual = self._wanted_to_actual(source, placeholders)
+        wanted_to_actual = self._wanted_to_actual(source, placeholders, task_id)
 
         actual_to_wanted: Dict[str, str] = reverse_dict(wanted_to_actual)
         need_placeholder_mapping = actual_to_wanted != wanted_to_actual
@@ -480,18 +587,22 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
                 placeholders=placeholders,
                 required=required_placeholders,
                 ids=None if ids is None else set(ids),
+                task_id=task_id,
+                enable_uuid_heuristics=enable_uuid_heuristics,
             ),
         )
 
-    def _wanted_to_actual(self, source: SourceType, wanted_placeholders: Iterable[str]) -> Dict[str, str]:
-        wanted_to_actual = self.map_placeholders(source, wanted_placeholders)
+    def _wanted_to_actual(
+        self, source: SourceType, wanted_placeholders: Iterable[str], task_id: int = None
+    ) -> Dict[str, str]:
+        wanted_to_actual = self.map_placeholders(source, wanted_placeholders, task_id=task_id)
         return {wanted: actual for wanted, actual in wanted_to_actual.items() if actual is not None}
 
     def _create_cache_access(self) -> CacheAccess[SourceType, IdType]:
         assert self._cache_keys is not None  # noqa: S101
         return CacheAccess(
             self._fetch_all_cache_max_age,
-            CacheMetadata(self._cache_keys, placeholders=self.placeholders),
+            CacheMetadata(cache_keys=self._cache_keys, placeholders=self.placeholders),
         )
 
     def _get_cached_translations(self, source: SourceType) -> Optional[PlaceholderTranslations[SourceType]]:
@@ -501,11 +612,12 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
             self._translation_cache_access = self._create_cache_access()
         return self._translation_cache_access.read_cache(source)
 
-    def _put_cached_translations(self, data: SourcePlaceholderTranslations[SourceType]) -> None:
-        if not self.cache_enabled:
-            return
+    def _put_cached_translations(
+        self, data: SourcePlaceholderTranslations[SourceType]
+    ) -> CacheAccess[SourceType, IdType]:
         self._translation_cache_access = self._create_cache_access()
         self._translation_cache_access.write_cache(data)
+        return self._translation_cache_access
 
     @classmethod
     def default_mapper_kwargs(cls) -> Dict[str, Any]:

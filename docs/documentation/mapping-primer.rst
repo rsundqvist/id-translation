@@ -183,8 +183,7 @@ time-consuming.
 
 .. literalinclude:: override-only-fetching.toml
    :language: toml
-   :caption: A conservative mapping configuration for an ``SqlFetcher``. Some "syntactic sugar" is used to make the
-             ``strict``-flag stand out more.
+   :caption: A conservative mapping configuration for an ``SqlFetcher``.
    :linenos:
 
 Disabling the scoring logic is easy; just set ``score_function='disabled'`` in your mapping configuration. This is the

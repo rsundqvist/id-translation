@@ -2,18 +2,19 @@ import os
 from pathlib import Path
 from typing import List, Tuple
 
+import pandas as pd
 import sqlalchemy
 import yaml  # type: ignore
 
 ROOT = Path(__file__).parent
 DOCKER_ROOT = ROOT.joinpath("docker")
 CREDENTIALS = yaml.safe_load(DOCKER_ROOT.joinpath("credentials.yml").read_text())["dialects"]
-for k, v in dict(
+for dialect, driver in dict(
     mysql="pymysql",
     postgresql="pg8000",
     mssql="pymssql",
 ).items():
-    CREDENTIALS[k]["driver"] = v
+    CREDENTIALS[dialect]["driver"] = driver
 
 QUERY = DOCKER_ROOT.joinpath("tests/query.sql").read_text()
 
@@ -22,6 +23,12 @@ DIALECTS = [
     "postgresql",
     "mssql",  # Quite slow, mostly since the (pyre-python) driver used doesn't support fast_executemany
 ]
+
+
+def get_df(dialect: str) -> pd.DataFrame:
+    with sqlalchemy.create_engine(get_connection_string(dialect)).connect() as conn:
+        cursor = conn.execute(sqlalchemy.text(QUERY))
+        return pd.DataFrame.from_records(list(cursor), columns=cursor.keys())
 
 
 def check_status(dialect: str) -> None:

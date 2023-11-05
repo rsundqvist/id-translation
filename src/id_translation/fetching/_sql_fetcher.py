@@ -2,13 +2,17 @@ import logging
 import warnings
 from dataclasses import dataclass
 from time import perf_counter
-from typing import Any, Dict, Iterable, List, Literal, Optional, Set, TypeVar
+from typing import Any, Collection, Dict, Iterable, List, Literal, Optional, Set, Union
 from urllib.parse import quote_plus
+from uuid import UUID
 
 import sqlalchemy
-from rics.misc import tname
+from packaging.version import Version
+from rics.misc import format_kwargs, tname
 from rics.performance import format_perf_counter
+from sqlalchemy import BINARY, CHAR, TypeDecorator, __version__ as _sqla_version
 
+from .. import _uuid_utils
 from ..offline.types import PlaceholderTranslations
 from ..types import ID, IdType
 from . import exceptions
@@ -18,20 +22,19 @@ from .types import FetchInstruction
 
 
 class SqlFetcher(AbstractFetcher[str, IdType]):
-    """Fetch data from a SQL source. Requires SQLAlchemy.
+    """Fetch data from a SQL source.
 
     Args:
         connection_string: A SQLAlchemy connection string.
         password: Password to insert into the connection string. Will be escaped to allow for special characters. If
             given, the connection string must contain a password key, eg; ``dialect://user:{password}@host:port``.
-        whitelist_tables: The only tables the ``SqlFetcher`` may access. Mutually exclusive with `blacklist_tables`.
-        blacklist_tables: The only tables the ``SqlFetcher`` may not access. Mutually exclusive with `whitelist_tables`.
+        whitelist_tables: The only tables the fetcher may access.
+        blacklist_tables: The only tables the fetcher may *not* access.
         schema: Database schema to use. Typically needed only if `schema` is not the default schema for the user
             specified in the connection string.
         include_views: If ``True``, the fetcher will discover and query views as well.
-        fetch_all_limit: Maximum size of table to allow a fetch all-operation. 0=never allow. Ignore if ``None``.
         engine_kwargs: A dict of keyword arguments for :func:`sqlalchemy.create_engine`.
-        **kwargs: Primarily passed to ``super().__init__``, then used as :meth:`selection_filter_type` kwargs.
+        **kwargs: See :class:`AbstractFetcher`.
 
     Raises:
         ValueError: If both `whitelist_tables` and `blacklist_tables` are given.
@@ -39,15 +42,17 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
     Notes:
         Inheriting classes may override on or more of the following methods to further customize operation.
 
-        * :meth:`create_engine`; initializes the SQLAlchemy engine. Calls ``create_engine``.
-        * :meth:`parse_connection_string`; does basic URL encoding.
-        * :meth:`make_table_summary`; creates :class:`TableSummary` instances. Calls ``get_approximate_table_size``.
-        * :meth:`get_approximate_table_size`; default is ``SELECT count(*) FROM table``.
-        * :meth:`selection_filter_type`; control what kind of filtering (if any) should be done when selecting IDs.
-        * :meth:`finalize_statement`; adjust the final query, e.g. to apply additional filtering.
+        * :meth:`create_engine`; initializes the SQLAlchemy engine. Calls ``parse_connection_string``.
+        * :meth:`parse_connection_string`; does basic URL encoding. Called by ``create_engine``.
+        * :meth:`select_where`; filter values on the `id_column` (from ``cast_id_column_to_uuid``) of the current table.
+        * :meth:`make_table_summary`; creates :class:`TableSummary` instances.
+        * :meth:`uuid_like`; determine if casting (with ``cast_id_column_to_uuid``) is needed.
+        * :meth:`cast_id_column_to_uuid`; attempt to cast the `id_column` to ``UUID``.
 
-        Overriding should be done with care, as these may call each other internally.
+        Overriding should be done with care, as methods may call each other internally.
     """
+
+    _SQLALCHEMY_VERSION = Version(_sqla_version)
 
     def __init__(
         self,
@@ -57,153 +62,267 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         blacklist_tables: Iterable[str] = (),
         schema: str = None,
         include_views: bool = False,
-        fetch_all_limit: Optional[int] = 100_000,
         engine_kwargs: Dict[str, Any] = None,
         **kwargs: Any,
     ) -> None:
-        if kwargs:
-            import inspect
-
-            parameters = set(inspect.signature(super().__init__).parameters)
-            super_kwargs = {k: kwargs.pop(k) for k in parameters.intersection(kwargs)}
-            self._select_params = kwargs
-        else:  # pragma: no cover
-            self._select_params = {}
-            super_kwargs = {}
-        super().__init__(**super_kwargs)
+        super().__init__(**kwargs)
 
         self._engine = self.create_engine(connection_string, password, engine_kwargs or {})
         self._estr = str(self.engine)
         self._schema = schema
         self._reflect_views = include_views
-        self._fetch_all_limit = fetch_all_limit
 
         self._blacklist = set(blacklist_tables)
 
-        self._table_ts_dict: Optional[Dict[str, SqlFetcher.TableSummary]] = None
+        self._table_summaries: Dict[str, SqlFetcher.TableSummary] = {}
 
+        self._whitelist: Optional[List[str]]
         if whitelist_tables is None:
-            self._whitelist = set()
+            self._whitelist = None
         else:
             if blacklist_tables:
                 raise ValueError("At most one of whitelist and blacklist may be given.")  # pragma: no cover
+            self._whitelist = list(set(whitelist_tables))
 
-            whitelist_tables = set(whitelist_tables)
-            if len(whitelist_tables) == 0:
+            if len(self._whitelist) == 0:
                 self.close()
                 msg = f"Got empty 'whitelist_tables' argument. No tables will be available to {self}."
                 self.logger.getChild("sql").warning(msg)
                 warnings.warn(msg, category=FetcherWarning, stacklevel=2)
 
-            self._whitelist = set(whitelist_tables)
+    @classmethod
+    def select_where(
+        cls,
+        select: sqlalchemy.sql.Select,  # type: ignore[type-arg]
+        *,
+        ids: Optional[Set[IdType]],
+        id_column: sqlalchemy.sql.ColumnElement,  # type: ignore[type-arg]
+    ) -> sqlalchemy.sql.Select:  # type: ignore[type-arg]
+        """Add ``WHERE`` clause(s) to an ID select statement.
 
-    @property
-    def _summaries(self) -> Dict[str, "SqlFetcher.TableSummary"]:
-        """Names and sizes of tables that the ``SqlFetcher`` may interact with."""
-        if self._table_ts_dict is None:
-            self._table_ts_dict = self._get_summaries()
+        .. warning::
 
-        return self._table_ts_dict
-
-    def fetch_translations(self, instr: FetchInstruction[str, IdType]) -> PlaceholderTranslations[str]:
-        """Fetch columns from a SQL database."""
-        ts = self._summaries[instr.source]
-        if self._selective_fetch_all or not instr.fetch_all:
-            known = set(ts.columns.keys())
-            select = sqlalchemy.select(*(ts.columns[c] for c in instr.placeholders if c in known))
-        else:
-            select = ts.id_column.table.select()
-
-        if instr.ids is None and not ts.fetch_all_permitted:  # pragma: no cover
-            raise exceptions.ForbiddenOperationError(self._FETCH_ALL, f"disabled for table '{ts.name}'.")
-
-        stmt = select if instr.ids is None else self._make_query(ts, select, set(instr.ids))
-        stmt = self.finalize_statement(stmt, ts.id_column, ts.id_column.table)
-
-        with self.engine.connect() as conn:
-            cursor = conn.execute(stmt)
-            records = tuple(map(tuple, cursor))
-        return PlaceholderTranslations(instr.source, tuple(cursor.keys()), records)
-
-    StatementType = TypeVar("StatementType", bound=sqlalchemy.sql.Executable)
-    """Input and return bounds for :meth:`.finalize_statement`."""
-
-    def finalize_statement(
-        self,
-        statement: StatementType,
-        id_column: sqlalchemy.Column,  # type:ignore[type-arg]
-        table: sqlalchemy.Table,
-    ) -> StatementType:
-        """Finalize a statement before execution. Does nothing by default.
+           When overriding, keep in mind that returning the `select` statement as-is will perform an unfiltered select.
 
         Args:
-            statement: A pre-build select query.
-            id_column: The ID column of `table`.
-            table: Table from which the selection `select` is made.
+            select: A ``sqlalchemy.sql.Select`` element. If returned as-is, all IDs in the table will be fetched.
+            ids: Set of IDs to fetch. Will be ``None`` if :meth:`~AbstractFetcher.fetch_all` was called.
+            id_column: The ID ``sqlalchemy.sql.Column`` of the table, from which `ids` are fetched.
 
         Returns:
-            The final statement to execute.
+            The final statement object to use.
         """
-        return statement
-
-    def _make_query(
-        self,
-        ts: "SqlFetcher.TableSummary",
-        select: sqlalchemy.sql.Select,  # type: ignore[type-arg]
-        ids: Set[IdType],
-    ) -> sqlalchemy.sql.Select:  # type: ignore[type-arg]
-        where = self.selection_filter_type(ids, ts, **self._select_params)
-
-        if where == "in":
-            return select.where(ts.id_column.in_(ids))
-        if where == "between":
-            return select.where(ts.id_column.between(min(ids), max(ids)))
-        if where is None:
+        if ids is None:
             return select
 
-        raise ValueError(f"Bad response {where=} returned by {self.selection_filter_type=}.")  # pragma: no cover
+        if not ids:
+            return select.where(sqlalchemy.false())
+
+        if len(ids) == 1:
+            return select.where(id_column == list(ids)[0])
+
+        if len(ids) < 100:
+            return select.where(id_column.in_(ids))
+
+        min_id, max_id = min(ids), max(ids)
+        try:
+            if (max_id - min_id) / len(ids) < 2.5:  # type: ignore[operator]
+                return select.where(id_column.between(min_id, max_id))
+        except TypeError:
+            pass  # str/UUID
+
+        return select.where(id_column.in_(ids))
+
+    def fetch_translations(self, instr: FetchInstruction[str, IdType]) -> PlaceholderTranslations[str]:
+        ts = self._table_summaries[instr.source]
+
+        if instr.fetch_all and not ts.fetch_all_permitted:  # pragma: no cover
+            raise exceptions.ForbiddenOperationError(self._FETCH_ALL, f"disabled for table '{ts.name}'.")
+
+        id_column: Union[sqlalchemy.sql.elements.Cast, sqlalchemy.Column]  # type: ignore[type-arg]
+        ids_are_uuid_like = instr.enable_uuid_heuristics and self.uuid_like(ts.id_column, instr.ids)
+        if ids_are_uuid_like is False:
+            id_column = ts.id_column
+        else:
+            id_column = self.cast_id_column_to_uuid(
+                ts.id_column,
+                ids_are_uuid_like="unknown" if ids_are_uuid_like is None else True,
+            )
+
+        if instr.fetch_all and not self.selective_fetch_all:
+            column_names = list(ts.columns.keys())
+        else:
+            column_names = [name for name in instr.placeholders if name in ts.columns]
+        columns = [id_column if name == ts.id_column.name else ts.columns[name] for name in column_names]
+        select = sqlalchemy.select(*columns)
+
+        select = self.select_where(select, ids=instr.ids, id_column=id_column)
+
+        logger = self.logger.getChild("select")
+        if logger.isEnabledFor(logging.DEBUG):
+            try:
+                query = str(select.compile(self.engine, compile_kwargs={"literal_binds": True}))
+                logger.debug(
+                    f"Full SELECT query using engine: {self.engine}\n{query[:512] if len(query) > 512 else query}",
+                    extra={"task_id": instr.task_id, "source": instr.source},
+                )
+            except Exception as e:
+                logger.debug(f"Failed to render full SELECT query using engine: {self.engine}\n{select}", exc_info=e)
+
+        with self.engine.connect() as conn:
+            cursor = conn.execute(select)
+            records = tuple(map(tuple, cursor))
+
+        return PlaceholderTranslations(instr.source, tuple(cursor.keys()), records)
+
+    def uuid_like(
+        self,
+        id_column: sqlalchemy.Column,  # type: ignore[type-arg]
+        ids: Optional[Set[IdType]],
+    ) -> Optional[bool]:
+        """Determine whether `id_column` should be passed to :meth:`cast_id_column_to_uuid`.
+
+        .. note::
+
+           * Will not be called unless :attr:`.Translator.enable_uuid_heuristics` is ``True``.
+           * Only ``False`` will bypass calling :meth:`cast_id_column_to_uuid`.
+
+        Return values:
+           * ``True``: Attempt to cast using :meth:`cast_id_column_to_uuid` with ``ids_are_uuid_like=True``.
+           * ``False``: Do not cast; :meth:`cast_id_column_to_uuid` will **not** be called.
+           * ``None``: Attempt to cast using :meth:`cast_id_column_to_uuid` with ``ids_are_uuid_like='unknown'``.
+
+        Args:
+            id_column: The ID ``sqlalchemy.sql.Column`` of the table.
+            ids: Set of IDs to fetch. Will be ``None`` if :meth:`~AbstractFetcher.fetch_all` was called.
+
+        Returns:
+            One of ``True``, ``False`` and ``None``. See above for explanation.
+        """
+        try:
+            python_type = id_column.type.python_type
+        except NotImplementedError:
+            python_type = None
+
+        if python_type is UUID:
+            return True
+
+        if ids:
+            first_id = next(iter(ids))
+            is_uuid = isinstance(_uuid_utils.try_cast_one(first_id), UUID)
+            if is_uuid:
+                # Some dialect-specific types will evaluate to True, but only handle UUID-like strings and not actual
+                # uuid.UUID-instances. This behavior has been corrected in SQLAlchemy > 2.
+                return None if self._SQLALCHEMY_VERSION.major < 2 else True
+            else:
+                return False
+        else:
+            return None  # Decide solely based on column type.
+
+    def _sqla_v1_uuid_hacks(
+        self,
+        id_column: sqlalchemy.Column,  # type: ignore[type-arg]
+    ) -> Union[None, sqlalchemy.sql.elements.Cast, sqlalchemy.Column]:  # type: ignore[type-arg]
+        length = getattr(id_column.type, "length", None)
+        try:
+            python_type = id_column.type.python_type
+        except NotImplementedError:
+            python_type = None
+
+        if self.engine.dialect.name == "mssql" and "uniqueidentifier" == str(id_column.type).lower():
+            # Microsoft db drivers (pymssql) handle this without help, but don't implement python_type (v1 only).
+            return id_column
+
+        if self.engine.dialect.name == "postgresql" and "uuid" == str(id_column.type).lower():
+            # Postgres db drivers (pg8000/psycopg2) only work with string arguments before v2. We use uuid.UUID.
+            return id_column.cast(_String32Uuid if length == 32 else _String36Uuid)
+
+        if python_type is str:
+            if length == 36:
+                return id_column.cast(_String36Uuid)
+            if length == 32:
+                return id_column.cast(_String32Uuid)
+
+        return None
+
+    def cast_id_column_to_uuid(
+        self,
+        id_column: sqlalchemy.Column,  # type: ignore[type-arg]
+        *,
+        ids_are_uuid_like: Literal[True, "unknown"],
+    ) -> Union[sqlalchemy.sql.elements.Cast, sqlalchemy.Column]:  # type: ignore[type-arg]
+        """Apply UUID heuristics to the ID column.
+
+        This function attempts cast the `id_column` to a suitable type by looking at the type of the column and the
+        `ids_are_uuid_like`-flag.
+
+        If the column is already UUID-like (as determined by :meth:`get_metadata`), the column is always returned as-is.
+
+        Args:
+            id_column: The ID ``sqlalchemy.sql.Column`` of the table.
+            ids_are_uuid_like: One of ``True`` and ``'unknown'`` (never ``False``). The latter typically means that
+                :meth:`~AbstractFetcher.fetch_all` was called, but could also be a normal "translation" call without IDs.
+
+        Returns:
+            The `id_column` with or without a cast applied.
+        """
+        if self._SQLALCHEMY_VERSION.major < 2:
+            hacks = self._sqla_v1_uuid_hacks(id_column)
+            if hacks is not None:
+                return hacks
+
+        python_type = id_column.type.python_type
+        length = getattr(id_column.type, "length", None)
+
+        if (ids_are_uuid_like is True or length == 32 or length == 36) and issubclass(python_type, str):
+            if self.engine.dialect.name != "mysql":
+                return id_column.cast(sqlalchemy.types.Uuid)
+
+            # MySQL doesn't work even with SQLAlchemy > 2. This seems to be because UUIDs are converted to strings
+            # without dashes by the driver (see log output), and databases contain dashed UUID-like strings.
+            return id_column.cast(_String32Uuid if length == 32 else _String36Uuid)
+
+        if length == 16 and issubclass(python_type, bytes):
+            # Binary-form UUIDs, e.g. MySQL using UUID_TO_BIN and BIN_TO_UUID.
+            return id_column.cast(_BinaryUuid)
+
+        return id_column
 
     @property
     def online(self) -> bool:
         return self._engine is not None  # pragma: no cover
 
-    @property
-    def sources(self) -> List[str]:
-        return list(self._summaries)
-
-    @property
-    def placeholders(self) -> Dict[str, List[str]]:
-        return {name: list(ts.columns.keys()) for name, ts in self._summaries.items()}
+    def _initialize_sources(self, task_id: int) -> Dict[str, List[str]]:
+        self._table_summaries = self._get_summaries(task_id)
+        return {
+            name: [str(c.name) for c in table_summary.columns] for name, table_summary in self._table_summaries.items()
+        }
 
     @property
     def allow_fetch_all(self) -> bool:
-        return super().allow_fetch_all and all(s.fetch_all_permitted for s in self._summaries.values())
+        self.initialize_sources()  # Ensure self._table_summaries is populated.
+        return super().allow_fetch_all and all(s.fetch_all_permitted for s in self._table_summaries.values())
 
     def __str__(self) -> str:
         disconnected = "<disconnected>: " if not self.online else ""
-        schema = f"[schema={self._schema!r}]" if self._schema else ""
-        try:
-            sources = self.sources
-        except Exception:  # noqa: B902
-            sources = None
-        return f"{tname(self)}({disconnected}{self._estr}, tables{schema}={sources or '<no tables>'})"
+
+        kwargs = {"schema": self._schema, "blacklist": self._blacklist, "whitelist": self._whitelist}
+        kwargs = {k: v for k, v in kwargs.items() if v}
+        return f"{tname(self)}({disconnected}{self._estr}{', ' + format_kwargs(kwargs) if kwargs else ''})"
 
     @property
     def engine(self) -> sqlalchemy.engine.Engine:
-        """Engine used by this fetcher.
-
-        Returns:
-            The ``Engine`` used for fetching.
-        """
+        """The :class:`~sqlalchemy.engine.Engine` used by this fetcher."""
         self.assert_online()
         return self._engine
 
-    def close(self) -> None:  # pragma: no cover
+    def close(self) -> None:
+        """Close the fetcher, discarding the :attr:`engine`."""
         if self._engine is None:
             return
 
         self.logger.getChild("sql").debug("Dispose %s", self._estr)
-        self._table_ts_dict = {}
+        self._table_summaries = {}
         self._engine.dispose()
 
     @classmethod
@@ -232,18 +351,18 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         )
 
     @classmethod
-    def parse_connection_string(cls, connection_string: str, password: Optional[str]) -> str:  # pragma: no cover
+    def parse_connection_string(cls, connection_string: str, password: Optional[str]) -> str:
         """Parse a connection string."""
         if password:
             if "{password}" in connection_string:
                 connection_string = connection_string.format(password=quote_plus(password))
-            else:  # pragma: no cover
+            else:
                 warnings.warn(
                     "A password was specified, but the connection string does not have a {password} key.", stacklevel=3
                 )
         return connection_string
 
-    def _get_summaries(self) -> Dict[str, "SqlFetcher.TableSummary"]:
+    def _get_summaries(self, task_id: int) -> Dict[str, "SqlFetcher.TableSummary"]:
         start = perf_counter()
         metadata = self.get_metadata()
 
@@ -252,6 +371,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
             logger.debug(f"{self._estr}: Metadata created in {format_perf_counter(start)}.")
 
         table_names = {t.name for t in metadata.tables.values()}
+        tables: Collection[str]
         if self._whitelist:
             tables = self._whitelist
         else:
@@ -266,16 +386,17 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
                 extra = ""
 
             logger.warning(f"{self._estr}: No sources found{extra}. Available tables: {table_names}")
+            return {}
 
         ans = {}
         for name in tables:
             qualified_name = name if self._schema is None else f"{self._schema}.{name}"
             table = metadata.tables[qualified_name]
-            id_column = self.id_column(table.name, (c.name for c in table.columns))
+            id_column = self.id_column(table.name, candidates=(c.name for c in table.columns), task_id=task_id)
             if id_column in table.columns.keys():
                 ans[str(name)] = self.make_table_summary(table, table.columns[id_column])
             else:
-                whitelisted = table.name in self._whitelist
+                whitelisted = False if self._whitelist is None else table.name in self._whitelist
                 unmapped = id_column is None
 
                 if unmapped and not whitelisted:
@@ -303,103 +424,29 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         table: sqlalchemy.Table,
         id_column: sqlalchemy.Column,  # type: ignore[type-arg]
     ) -> "SqlFetcher.TableSummary":
-        """Create a table summary."""
-        start = perf_counter()
-        size = self.get_approximate_table_size(table, id_column)
-        logger = self.logger.getChild("sql")
-        if logger.isEnabledFor(logging.DEBUG):
-            logger.debug(f"{self._estr}: Counted {size} rows of table '{table.name}' in {format_perf_counter(start)}.")
-        fetch_all_permitted = self._fetch_all_limit is None or size < self._fetch_all_limit
-        return SqlFetcher.TableSummary(str(table.name), size, table.columns, fetch_all_permitted, id_column)
+        """Create a table summary.
 
-    def get_approximate_table_size(
-        self,
-        table: sqlalchemy.Table,
-        id_column: sqlalchemy.Column,  # type: ignore[type-arg]
-    ) -> int:
-        """Return the approximate size of a table.
-
-        Called only by the :meth:`make_table_summary` method during discovery. The default implementation performs a
-        count on the ID column, which may be expensive.
+        This function is called as a part of the fetcher initialization process.
 
         Args:
-            table: A table object.
-            id_column: The ID column in `table`.
+            table: The table (source) which is currently being processed.
+            id_column: The ID column of `table`
 
         Returns:
-            An approximate size for `table`.
+            A summary object for `table`.
         """
-        stmt = sqlalchemy.func.count(id_column)
-        stmt = self.finalize_statement(stmt, id_column, table)
-
-        with self.engine.connect() as conn:
-            return int(conn.execute(stmt).scalar())  # type: ignore[arg-type]
+        return self.TableSummary(
+            name=str(table.name),
+            columns=table.columns,
+            fetch_all_permitted=True,
+            id_column=id_column,
+        )
 
     def get_metadata(self) -> sqlalchemy.MetaData:
         """Create a populated metadata object."""
         metadata = sqlalchemy.MetaData(schema=self._schema)
-        metadata.reflect(self.engine, only=tuple(self._whitelist) or None, views=self._reflect_views)
+        metadata.reflect(self.engine, only=self._whitelist, views=self._reflect_views)
         return metadata
-
-    @classmethod
-    def selection_filter_type(
-        cls,
-        ids: Set[IdType],
-        table_summary: "SqlFetcher.TableSummary",
-        fetch_all_below: int = 25,
-        fetch_all_above_ratio: float = 0.90,
-        fetch_in_below: int = 1200,
-        fetch_between_over: int = 10_000,
-        fetch_between_max_overfetch_factor: float = 2.5,
-    ) -> Literal["in", "between", None]:
-        """Determine the type of filter (``WHERE``-query) to use, if any.
-
-        In the descriptions below, ``len(table)`` refers to the :attr:`TableSummary.size`-attribute of `table_summary`.
-        Bare select implies fetching the entire table.
-
-        Args:
-            ids: IDs to fetch.
-            table_summary: A summary of the table that's about to be queried.
-            fetch_all_below: Use bare select if ``len(ids) <= len(table)``.
-            fetch_all_above_ratio: Use bare select if ``len(ids) > len(table) * ratio``.
-            fetch_in_below: Always use ``IN``-clause when fetching less than `fetch_in_below` IDs.
-            fetch_between_over: Always use ``BETWEEN``-clause when fetching more than `fetch_between_over` IDs.
-            fetch_between_max_overfetch_factor: If number of IDs to fetch is between `fetch_in_below` and
-                `fetch_between_over`, use this factor to choose between ``IN`` and ``BETWEEN`` clause.
-
-        Returns:
-            One of (``'in', 'between', None``), where ``None`` means bare select (fetch the whole table).
-
-        Notes:
-            Override this function to redefine ``SELECT`` filtering logic.
-        """
-        num_ids = len(ids)
-        size = float("inf") if table_summary.size <= 0 else table_summary.size
-        table = table_summary.name
-
-        # Just fetch everything if we're getting "most of" the data anyway
-        if size <= fetch_all_below or num_ids / size > fetch_all_above_ratio:
-            if num_ids > size:  # pragma: no cover
-                warnings.warn(f"Fetching {num_ids} unique IDs from {table=} which only has {size} rows.", stacklevel=2)
-            return None
-
-        if num_ids < fetch_in_below:
-            return "in"
-
-        min_id, max_id = min(ids), max(ids)
-
-        if isinstance(next(iter(ids)), str) or num_ids > fetch_between_over:
-            return "between"
-
-        try:
-            overfetch_factor = (max_id - min_id) / num_ids  # type: ignore
-        except TypeError:  # pragma: no cover
-            return "between"  # Non-numeric ID type
-
-        if overfetch_factor > fetch_between_max_overfetch_factor:
-            return "in"
-        else:
-            return "between"
 
     @dataclass(frozen=True)
     class TableSummary:
@@ -407,11 +454,45 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
 
         name: str
         """Name of the table."""
-        size: int
-        """Approximate size of the table."""
         columns: sqlalchemy.sql.ColumnCollection  # type: ignore[type-arg]
         """A flag indicating that the FETCH_ALL-operation is permitted for this table."""
         fetch_all_permitted: bool
         """A flag indicating that the FETCH_ALL-operation is permitted for this table."""
         id_column: sqlalchemy.Column  # type: ignore[type-arg]
         """The ID column of the table."""
+
+
+class _BinaryUuid(TypeDecorator):  # type: ignore[type-arg]
+    impl = BINARY(16)
+
+    def process_bind_param(self, value: Optional[UUID], dialect: Any) -> Optional[bytes]:
+        """Mimic UUID_TO_BIN."""
+        return None if value is None else value.bytes
+
+    def process_result_value(self, value: Optional[bytes], dialect: Any) -> Optional[UUID]:
+        """Mimic BIN_TO_UUID."""
+        return None if value is None else UUID(bytes=value)
+
+
+class _String32Uuid(TypeDecorator):  # type: ignore[type-arg]
+    impl = CHAR(32)
+
+    def process_bind_param(self, value: Optional[UUID], dialect: Any) -> Optional[str]:
+        """To string representation without dashes."""
+        return None if value is None else value.hex
+
+    def process_result_value(self, value: Optional[str], dialect: Any) -> Optional[UUID]:
+        """From string representation without dashes."""
+        return None if value is None else UUID(value)
+
+
+class _String36Uuid(TypeDecorator):  # type: ignore[type-arg]
+    impl = CHAR(36)
+
+    def process_bind_param(self, value: Optional[UUID], dialect: Any) -> Optional[str]:
+        """To string representation with dashes."""
+        return None if value is None else str(value)
+
+    def process_result_value(self, value: Optional[str], dialect: Any) -> Optional[UUID]:
+        """From string representation with dashes."""
+        return None if value is None else UUID(value)

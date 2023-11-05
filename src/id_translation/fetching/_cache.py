@@ -1,5 +1,6 @@
 import logging
-import pickle  # noqa: 403
+import pickle  # noqa: S403
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Generic, List, Optional
@@ -8,9 +9,7 @@ import pandas as pd
 
 from .._base_metadata import BaseMetadata
 from ..offline.types import PlaceholderTranslations, SourcePlaceholderTranslations
-from ..types import HasSources, IdType, SourceType
-
-BASE_LOGGER = logging.getLogger(__package__).getChild("CacheMetadata")
+from ..types import ID, HasSources, IdType, SourceType
 
 
 @dataclass(eq=False)
@@ -27,6 +26,7 @@ class CacheMetadata(BaseMetadata, Generic[SourceType, IdType], HasSources[Source
 
     def __init__(
         self,
+        *,
         cache_keys: List[str],
         placeholders: Dict[SourceType, List[str]],
         **kwargs: Any,
@@ -61,16 +61,6 @@ class CacheMetadata(BaseMetadata, Generic[SourceType, IdType], HasSources[Source
 
         return ""
 
-    @property
-    def _logger(self) -> logging.Logger:
-        return BASE_LOGGER.getChild(self.cache_keys[0])
-
-    def _log_reject(self, msg: str) -> None:
-        self._logger.debug(msg.format(slug="Fetch new translations"))  # noqa: G001
-
-    def _log_accept(self, msg: str) -> None:
-        self._logger.debug(msg.format(kind="translations"))  # noqa: G001
-
     def _serialize(self, to_json: Dict[str, Any]) -> Dict[str, Any]:
         ans = to_json.copy()
         to_json.clear()
@@ -88,6 +78,9 @@ class CacheAccess(Generic[SourceType, IdType]):
         max_age: Cache timeout.
         metadata: Metadata object used to determine cache validity.
     """
+
+    CLEAR_CACHE_EXCEPTION_TYPES = (pickle.UnpicklingError,)
+    """Error types which trigger cache deletion."""
 
     @classmethod
     def base_cache_dir_for_all_fetchers(cls) -> Path:
@@ -129,61 +122,60 @@ class CacheAccess(Generic[SourceType, IdType]):
 
     @property
     def metadata_path(self) -> Path:
-        return self._base_dir.joinpath("metadata.json")
+        return self._base_dir / "metadata.json"
 
     @property
-    def data_path(self) -> Path:
-        return self._base_dir.joinpath("data.pkl")
+    def data_dir(self) -> Path:
+        return self._base_dir / "sources"
+
+    def source_path(self, source: Any) -> Path:
+        """Get the data path for `source`."""
+        return self.data_dir / f"{source}.pkl"
 
     def read_cache(self, source: SourceType) -> Optional[PlaceholderTranslations[SourceType]]:
         """Read cached translation data for `source`."""
-        if not self._metadata.use_cached(self.metadata_path, self._max_age):
+        use_cached, reason = self._metadata.use_cached(self.metadata_path, self._max_age)
+        if not use_cached:
             return None
 
-        with self.data_path.open("rb") as f:
-            try:
-                spt = pickle.load(f)  # noqa: S301
-                ans = spt[source]
-                if not isinstance(ans, PlaceholderTranslations):  # pragma: no cover
-                    reason = f"Got {type(ans).__name__} but expected {PlaceholderTranslations.__name__}."
-                    self.clear(reason)
-                    raise TypeError(reason)
+        self._logger.info(f"Use cached data for {source=}: {reason}. Cache dir: '{self.cache_dir}'.")
 
-                self._logger.debug(f"Returning cached data for {source=}", extra=dict(source=source))
-                return ans
-            except (TypeError, KeyError, pickle.UnpicklingError) as e:
-                # These errors indicate a likely corrupted cache. Any other is probably the users' fault.
-                f.close()
-                self.clear(f"Got error {e} while deserializing", log_level=logging.ERROR, exc_info=True)
-        return None
+        path = self.source_path(source)
+        try:
+            with path.open("rb") as f:
+                records = pickle.load(f)  # noqa: S301
+        except self.CLEAR_CACHE_EXCEPTION_TYPES as e:
+            self.clear(
+                f"Deserializing of {source=} failed; the cache is likely corrupted."
+                f"\n    -      Path: '{path}'"
+                f"\n    - Exception: {type(e).__qualname__}: {e}",
+                log_level=logging.ERROR,
+                exc_info=True,
+            )
+            return None
+
+        placeholders = tuple(self._metadata.placeholders[source])
+        id_pos = placeholders.index(ID) if ID in placeholders else -1
+        return PlaceholderTranslations(source, placeholders=placeholders, records=records, id_pos=id_pos)
 
     def write_cache(self, data: SourcePlaceholderTranslations[SourceType]) -> None:
         """Overwrite the current cache (if it exists) with new and update metadata."""
-        if self.metadata_path.exists():
-            self._logger.debug(f"Overwriting existing cache data in '{self.cache_dir}'.")
-
-        self.cache_dir.mkdir(parents=True, exist_ok=True)
-
+        self.data_dir.mkdir(parents=True, exist_ok=True)
         self.metadata_path.write_text(self._metadata.to_json())
-        with self.data_path.open("wb") as f:
-            pickle.dump(data, f)
+
+        for source, pht in data.items():
+            with self.source_path(source).open("wb") as f:
+                pickle.dump(pht.records, f)
 
     def clear(self, reason: str, log_level: int = logging.DEBUG, *, exc_info: bool = False) -> None:
         """Remove cached data for the current instance."""
-        deleted = []
-
-        if self.data_path.exists():
-            self.data_path.unlink(missing_ok=True)
-            deleted.append(self.data_path)
-
-        if self.metadata_path.exists():
-            self.metadata_path.unlink(missing_ok=True)
-            deleted.append(self.metadata_path)
+        deleted = [*self.cache_dir.rglob("*")]
+        shutil.rmtree(self.cache_dir)
 
         if self._logger.isEnabledFor(log_level):
             delete_info = "\n".join(map("    - {}".format, deleted)) if deleted else "    There is nothing to delete."
             self._logger.log(
                 log_level,
-                f"Clear cache: {reason}. The following files have been deleted:\n{delete_info}",
+                f"Clear cache: {reason}.\nThe following files have been deleted:\n{delete_info}",
                 exc_info=exc_info,
             )

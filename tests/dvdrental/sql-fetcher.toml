@@ -3,7 +3,7 @@ connection_string = "${DVDRENTAL_CONNECTION_STRING}"
 password = "${DVDRENTAL_PASSWORD}"
 blacklist_tables = [
     "category",  # Let's pretend this table is off-limits
-    "store", "rental", "inventory", "payment",  # No name columns; can't translate these
+    "store", "rental", "inventory", "payment",  # Tables without name columns
 ]
 
 # ------------------------------------------------------------------------------

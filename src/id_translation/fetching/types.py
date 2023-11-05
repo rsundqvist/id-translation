@@ -14,7 +14,7 @@ class IdsToFetch(_Generic[SourceType, IdType]):
     source: SourceType
     """Where to fetch from."""
     ids: Set[IdType]
-    """Unique IDs to fetch translations for.``"""
+    """Unique IDs to fetch translations for."""
 
 
 @_dataclass(frozen=True)
@@ -28,9 +28,16 @@ class FetchInstruction(_Generic[SourceType, IdType]):
     required: Set[str]
     """Placeholders that must be included in the response."""
     ids: Optional[Set[IdType]]
-    """Unique IDs to fetch translations for. Fetch as much as possible if ``None``."""
+    """Unique IDs to fetch translations for."""
+    task_id: int
+    """Used for logging purposes."""
+    enable_uuid_heuristics: bool
+    """If set, apply heuristics to improve matching with :py:class:`~uuid.UUID`-like IDs.
+
+    Implementations which have no UUID heuristics may silently ignore this flag.
+    """
 
     @property
     def fetch_all(self) -> bool:
-        """Flag indicated that as much data as possible should be retrieved."""
+        """If ``True``, retrieve all available data."""
         return self.ids is None

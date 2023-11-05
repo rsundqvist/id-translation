@@ -11,7 +11,7 @@ from ..types import IdType
 from ._abstract_fetcher import AbstractFetcher
 from .types import FetchInstruction
 
-PandasReadFunction = Callable[[PathLikeType, Any, Any], pd.DataFrame]
+PandasReadFunction = Callable[[PathLikeType], pd.DataFrame]
 FormatFn = Callable[[PathLikeType], str]
 
 
@@ -19,12 +19,12 @@ class PandasFetcher(AbstractFetcher[str, IdType]):
     """Fetcher implementation using pandas ``DataFrame`` s as the data format.
 
     Fetch data from serialized ``DataFrame`` s. How this is done is determined by the `read_function`. This is typically
-    a Pandas function such as :func:`pandas.read_csv` or :func:`pandas.read_pickle`, but any function that accepts a
+    a Pandas function such as :func:`pandas.read_csv` or :func:`pandas.read_parquet`, but any function that accepts a
     string `source` as the  first argument and returns a data frame can be used.
 
     Args:
         read_function: A Pandas `read`-function. If a string is given, the function is resolved using
-            func:`rics.misc.get_by_full_name`. Unqualified named are assumed to belong to the ``pandas`` namespace.
+            :func:`rics.misc.get_by_full_name`. Unqualified names are assumed to belong to the ``pandas`` namespace.
         read_path_format: A formatting string or a callable to apply to a source before passing them to `read_function`.
             Must contain a `source` as its only placeholder. Example: ``data/{source}.pkl``. Leave as-is if ``None``.
             Valid URL schemes include http, ftp, s3, gs, and file.
@@ -55,8 +55,6 @@ class PandasFetcher(AbstractFetcher[str, IdType]):
         self._kwargs = read_function_kwargs or {}
 
         self._source_paths: Dict[str, Path] = {}
-        self._sources: List[str] = []
-        self._placeholders: Dict[str, List[str]] = {}
 
     def read(self, source_path: PathLikeType) -> pd.DataFrame:
         """Read a ``DataFrame`` from a source path.
@@ -98,24 +96,9 @@ class PandasFetcher(AbstractFetcher[str, IdType]):
 
         return source_paths
 
-    @property
-    def sources(self) -> List[str]:
-        if not self._sources:  # pragma: no cover
-            if not self._source_paths:
-                self._source_paths = self.find_sources()
-            self._sources = list(self._source_paths)
-            self.logger.getChild("pandas").getChild("discovery").debug("Sources initialized: %s", self._sources)
-
-        return self._sources
-
-    @property
-    def placeholders(self) -> Dict[str, List[str]]:
-        if not self._placeholders:
-            self._placeholders = {
-                source: list(self.read(self._source_paths[source]).columns) for source in self.sources
-            }
-
-        return self._placeholders
+    def _initialize_sources(self, task_id: int) -> Dict[str, List[str]]:
+        self._source_paths = self.find_sources()
+        return {source: self.read(path).columns.tolist() for source, path in self._source_paths.items()}
 
     def fetch_translations(self, instr: FetchInstruction[str, IdType]) -> PlaceholderTranslations[str]:
         return PlaceholderTranslations.make(

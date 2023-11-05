@@ -1,0 +1,1 @@
+../../../../tests/dvdrental/docker/tests/query.sql

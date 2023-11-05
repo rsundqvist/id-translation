@@ -1,10 +1,10 @@
 .. _dvdrental:
 
-===================
-DVD Rental Database
-===================
-This example translates a query from the `DVD Rental Sample Database`_. It covers most of the more advanced features
-that have been implemented.
+==========================
+Sakila DVD Rental Database
+==========================
+This example translates a query against the `DVD Rental Sample Database`_. Click :download:`here <resources/dvdrental.zip>`
+to download.
 
 Start the database
 ------------------
@@ -14,29 +14,26 @@ Using Docker, start the database by running:
 
    docker run -p 5002:5432 --rm rsundqvist/sakila-preload:postgres
 
-from the terminal. To describe the database, run
+For details about this image, see https://hub.docker.com/r/rsundqvist/sakila-preload.
 
-.. code-block::
+.. literalinclude:: resources/dvdrental.py
+   :start-at: # Credentials
+   :lines: 1-3
 
-   psql -h localhost -p 5001 -U postgres -d sakila -c "\d+"
-   # password: Sofia123!
-
-from a separate terminal window. Leave out the last part (``-c "\d+"``) to query the database manually. For details
-about this image, see `rsundqvist/sakila-preload <https://hub.docker.com/r/rsundqvist/sakila-preload>`_ on Docker Hub.
-
-Query to translate
-------------------
-We will use a small query to describe rental transactions in the database:
-
-.. literalinclude:: ../../../tests/dvdrental/docker/tests/query.sql
+Query
+-----
+.. literalinclude:: resources/query.sql
    :language: sql
-   :caption: Query returning DVD rental transactions.
    :linenos:
 
-The query above shows who rented what and when, what store they rented from and from whom.
+The query above will tell us who rented what and when, what store they rented from and from whom.
+
+.. literalinclude:: resources/dvdrental.py
+   :start-at: # Download data to translate
+   :end-at: print
 
 .. csv-table:: Randomly sampled rows from the query. The first column is the record index in the query.
-   :file: ../../../tests/dvdrental/docker/tests/expected.csv
+   :file: resources/expected.csv
    :header-rows: 1
 
 Configuration files
@@ -44,31 +41,57 @@ Configuration files
 The database has a few quirks, which are managed by configuration. See the :ref:`translator-config` page to learn
 more about config files.
 
-.. literalinclude:: ../../../tests/dvdrental/translation.toml
-   :language: toml
+.. literalinclude::  resources/translation.toml
    :caption: Translation configuration, mapping, and definition of the categories.
-   :linenos:
 
-.. literalinclude:: ../../../tests/dvdrental/sql-fetcher.toml
-   :language: toml
+.. literalinclude:: resources/sql-fetcher.toml
    :caption: Configuration for fetching SQL data.
-   :linenos:
+
+To create a ``Translator``, pas the configuration files to :meth:`.Translator.from_config`.
+
+.. literalinclude:: resources/dvdrental.py
+   :start-at: # Create a Translator
+   :end-at: print
+
+.. code-block::
+   :caption: String representation of the ``Translator``.
+
+   Translator(online=True: fetcher=MultiFetcher(max_workers=2, fetchers=[
+     MemoryFetcher(sources=['category'])
+     SqlFetcher(
+       Engine(postgresql+pg8000://postgres:***@localhost:5002/sakila),
+       blacklist={'category', 'store', 'inventory', 'rental', 'payment'}
+     )
+   ]))
 
 Translating
 -----------
-Translating now becomes a simple matter. The following snippet is a test case which translates all of the ~16000 rows
-returned by the query, verifying a random sample of 5 rows.
+Date columns should not be translated, so let's make sure.
 
-.. literalinclude:: ../../../tests/dvdrental/test_dvdrental.py
-   :language: python
-   :linenos:
+.. literalinclude:: resources/dvdrental.py
+   :start-at: translator.map
+   :lines: 1
+
+.. code-block::
+   :caption: Output of :meth:`.Translator.map`.
+
+   {
+       'customer_id': 'customer',
+       'film_id': 'film',
+       'category_id': 'category',
+       'staff_id': 'staff',
+   }
 
 Result
 ------
-Date columns are not translated, nor is the first (row number/index) column.
+All that's left now is to translate the data.
+
+.. literalinclude:: resources/dvdrental.py
+   :start-at: translator.translate
+   :end-at: print
 
 .. csv-table:: Translated data.
-   :file: ../../../tests/dvdrental/translated.csv
+   :file: resources/translated.csv
    :header-rows: 1
 
 .. _DVD Rental Sample Database:

@@ -301,4 +301,4 @@ def _rethrow_with_file(file: str) -> _Generator[None, None, None]:
         yield
     except Exception as e:  # noqa: B902
         msg = f"{type(e).__name__}: {e}"
-        raise exceptions.ConfigurationError(f"{msg}\n   raised when parsing file: {_Path(file).resolve()}")
+        raise exceptions.ConfigurationError(f"{msg}\n   raised when parsing file: {_Path(file).resolve()}") from e

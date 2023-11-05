@@ -6,5 +6,5 @@ SELECT customer_id,
        return_date
 FROM rental
          LEFT JOIN inventory ON rental.inventory_id = inventory.inventory_id
-         LEFT JOIN film_category on film_category.film_id = inventory.film_id
+         LEFT JOIN film_category ON film_category.film_id = inventory.film_id
 ORDER BY rental.rental_id DESC;

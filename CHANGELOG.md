@@ -7,8 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- The `Translate.translate()`-method now have overloads for improved typing.
+
 ### Changed
 - Make `Translator.translated_names()` optionally return a mapping dict instead of just names.
+- Caching data for the `AbstractFether` has been updated.
+  * Reduce the amount of excess data stored (now: records only).
+  * Store records per source instead of all sources in the same *.pkl*-file.
+- Improve handling for `UUID`-like IDs. `Fetcher` implementations now adhere `Translator` settings in regard to UUID 
+  mitigations. As special handling UUIDs when `SQLAlchemy<2`.
+- Update `SqlFetcher`:
+  * No longer uses table sizes. This could be expensive for large tables.
+  * Simplify selection filtering; now only uses `SqlFetcher.select_where()` instead of two separate methods.
+
+### Removed
+- Attribute translation is no longer support. `Translator.allow_name_inheritance` attribute as been removed, as well as
+  the `Translator.translate(attribute)`-argument.
 
 ## [0.5.1] - 2023-07-01
 

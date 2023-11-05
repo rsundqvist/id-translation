@@ -3,8 +3,7 @@ CREATE TABLE uuid_test_table
     uuid     uniqueidentifier,
     str_uuid char(36),
     comment  varchar(128)
-)
-GO
+) GO
 
 INSERT INTO uuid_test_table (uuid, str_uuid, comment)
 VALUES ('3f333df6-90a4-4fda-8dd3-9485d27cee36', '3F333DF6-90a4-4fda-8dd3-9485d27cee36', 'mixed');

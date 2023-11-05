@@ -130,7 +130,7 @@ class TestOptionalFetchers:
                 CrashFetcher(False, optional=False),
                 CrashFetcher(False, optional=True),
             ],
-            expected=[0, 1],
+            expected=[0],
         )
 
     def test_optional_crash(self):
@@ -152,7 +152,7 @@ class TestOptionalFetchers:
         )
 
     def test_all_optional_crash(self):
-        with pytest.warns(UserWarning, match="No fetchers left."):
+        with pytest.warns(UserWarning, match="No fetchers"):
             self._run(
                 children=[
                     CrashFetcher(True, optional=True),
@@ -193,8 +193,8 @@ class CrashFetcher(MemoryFetcher[str, int]):
     def __str__(self) -> str:
         return f"CrashFetcher({self.crash}, optional={self.optional})"
 
-    @property
-    def sources(self) -> List[str]:
+    def _initialize_sources(self, task_id: int) -> Dict[str, List[str]]:
         if self.crash:
             raise ValueError("I crashed!")
-        return super().sources
+
+        return super()._initialize_sources(task_id)
