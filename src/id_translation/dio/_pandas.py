@@ -1,3 +1,4 @@
+import warnings
 from collections import defaultdict
 from typing import Any, Dict, Iterable, List, Optional, Sequence, TypeVar, Union
 
@@ -61,7 +62,7 @@ class PandasIO(DataStructureIO):
                 translatable = translatable.copy()
         else:  # Index-type translatable
             if not copy:
-                raise NotInplaceTranslatableError(translatable)
+                raise NotInplaceTranslatableError(translatable)  # TODO(issues/170): PDEP-6 check
 
         if isinstance(translatable, pd.DataFrame):
             for i, name in enumerate(translatable.columns):
@@ -69,7 +70,10 @@ class PandasIO(DataStructureIO):
                     translatable.iloc[:, i] = _translate_series(translatable.iloc[:, i], [name], tmap)
         elif isinstance(translatable, pd.Series):
             verify_names(len(translatable), names)
-            translatable[:] = _translate_series(translatable, names, tmap)
+            result = _translate_series(translatable, names, tmap)
+            with warnings.catch_warnings():
+                warnings.simplefilter(action="ignore", category=FutureWarning)  # TODO(issues/170): PDEP-6 check
+                translatable[:] = result
         elif isinstance(translatable, pd.MultiIndex):
             df = translatable.to_frame()
             PandasIO.insert(df, names, tmap, copy=False)

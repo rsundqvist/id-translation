@@ -51,11 +51,8 @@ def test_uuid_migrations(dialect: str, enable_uuid_heuristics: bool) -> None:
 
         for id_type in str, str.lower, str.upper, UUID:
             res: Any
-            try:
-                translatable = list(map(id_type, EXPECTED))  # type: ignore[call-overload]
-                res = t.translate(translatable, names=TABLE_NAME)
-            except Exception as e:  # noqa: B902
-                res = e
+            translatable = list(map(id_type, EXPECTED))  # type: ignore[call-overload]
+            res = t.translate(translatable, names=TABLE_NAME)
 
             records.append(
                 dict(

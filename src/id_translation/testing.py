@@ -1,5 +1,5 @@
 """Test implementations."""
-from typing import Any, Collection, Dict, Iterable, List, Tuple
+from typing import Any as _Any, Collection, Dict, Iterable, List, Tuple
 
 import pandas as pd
 
@@ -23,7 +23,7 @@ class TestMapper(_Mapper[ValueType, ValueType, ContextType]):
         candidates: Iterable[ValueType],
         context: ContextType = None,
         override_function: UserOverrideFunction[ValueType, ValueType, ContextType] = None,
-        **kwargs: Any,
+        **kwargs: _Any,
     ) -> _DirectionalMapping[ValueType, ValueType]:
         """Map values to themselves, unless `override_function` is given."""
         values = set(values)
@@ -66,7 +66,9 @@ class TestFetcher(_Fetcher[SourceType, IdType]):
         self,
         ids_to_fetch: Iterable[_IdsToFetch[SourceType, IdType]],
         placeholders: Iterable[str] = (),
+        *,
         required: Iterable[str] = (),
+        task_id: int = None,
     ) -> _SourcePlaceholderTranslations[SourceType]:
         """Return generated translations for all IDs and placeholders."""
         return {itf.source: self._generate_data(itf, list(placeholders)) for itf in ids_to_fetch}
@@ -84,9 +86,12 @@ class TestFetcher(_Fetcher[SourceType, IdType]):
         return _PlaceholderTranslations.make(itf.source, df)
 
     def fetch_all(
-        self, placeholders: Iterable[str] = (), required: Iterable[str] = ()
+        self, placeholders: Iterable[str] = (), *, required: Iterable[str] = (), task_id: int = None
     ) -> _SourcePlaceholderTranslations[SourceType]:
         raise NotImplementedError
 
     def __repr__(self) -> str:
         return f"TestFetcher(sources={repr(self._sources or None)})"
+
+    def initialize_sources(self, task_id: int = -1, *, force: bool = False) -> None:
+        pass

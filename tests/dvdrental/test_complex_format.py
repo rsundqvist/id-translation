@@ -28,7 +28,7 @@ def test_complex_translation_format(dialect):
     customers = [130, 459, 408, 333, 222]
     expected = _get_expected(fmt, customers, "customer", engine)
 
-    actual = translator.copy(fmt=fmt).translate(customers, names="customer_id")
+    actual = translator.translate(customers, names="customer_id", fmt=fmt)
     assert actual == expected
 
 

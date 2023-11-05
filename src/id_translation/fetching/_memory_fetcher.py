@@ -30,12 +30,7 @@ class MemoryFetcher(AbstractFetcher[SourceType, IdType]):
             {} if not data else {source: PlaceholderTranslations.make(source, pht) for source, pht in data.items()}
         )
 
-    @property
-    def sources(self) -> List[SourceType]:
-        return list(self._data)
-
-    @property
-    def placeholders(self) -> Dict[SourceType, List[str]]:
+    def _initialize_sources(self, task_id: int) -> Dict[SourceType, List[str]]:
         return {source: list(pht.placeholders) for source, pht in self._data.items()}
 
     def fetch_translations(self, instr: FetchInstruction[SourceType, IdType]) -> PlaceholderTranslations[SourceType]:

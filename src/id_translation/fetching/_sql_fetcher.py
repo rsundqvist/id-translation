@@ -2,11 +2,11 @@ import logging
 import warnings
 from dataclasses import dataclass
 from time import perf_counter
-from typing import Any, Dict, Iterable, List, Literal, Optional, Set, TypeVar
+from typing import Any, Collection, Dict, Iterable, List, Literal, Optional, Set
 from urllib.parse import quote_plus
 
 import sqlalchemy
-from rics.misc import tname
+from rics.misc import format_kwargs, tname
 from rics.performance import format_perf_counter
 
 from ..offline.types import PlaceholderTranslations
@@ -44,7 +44,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         * :meth:`make_table_summary`; creates :class:`TableSummary` instances. Calls ``get_approximate_table_size``.
         * :meth:`get_approximate_table_size`; default is ``SELECT count(*) FROM table``.
         * :meth:`selection_filter_type`; control what kind of filtering (if any) should be done when selecting IDs.
-        * :meth:`finalize_statement`; adjust the final query, e.g. to apply additional filtering.
+        * :meth:`finalize_select`; adjust the final query, e.g. to apply additional filtering.
 
         Overriding should be done with care, as these may call each other internally.
     """
@@ -80,71 +80,59 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
 
         self._blacklist = set(blacklist_tables)
 
-        self._table_ts_dict: Optional[Dict[str, SqlFetcher.TableSummary]] = None
+        self._table_summaries: Dict[str, SqlFetcher.TableSummary] = {}
 
+        self._whitelist: Optional[List[str]]
         if whitelist_tables is None:
-            self._whitelist = set()
+            self._whitelist = None
         else:
             if blacklist_tables:
                 raise ValueError("At most one of whitelist and blacklist may be given.")  # pragma: no cover
+            self._whitelist = list(set(whitelist_tables))
 
-            whitelist_tables = set(whitelist_tables)
-            if len(whitelist_tables) == 0:
+            if len(self._whitelist) == 0:
                 self.close()
                 msg = f"Got empty 'whitelist_tables' argument. No tables will be available to {self}."
                 self.logger.getChild("sql").warning(msg)
                 warnings.warn(msg, category=FetcherWarning, stacklevel=2)
 
-            self._whitelist = set(whitelist_tables)
-
-    @property
-    def _summaries(self) -> Dict[str, "SqlFetcher.TableSummary"]:
-        """Names and sizes of tables that the ``SqlFetcher`` may interact with."""
-        if self._table_ts_dict is None:
-            self._table_ts_dict = self._get_summaries()
-
-        return self._table_ts_dict
-
     def fetch_translations(self, instr: FetchInstruction[str, IdType]) -> PlaceholderTranslations[str]:
         """Fetch columns from a SQL database."""
-        ts = self._summaries[instr.source]
+        ts = self._table_summaries[instr.source]
         if self._selective_fetch_all or not instr.fetch_all:
             known = set(ts.columns.keys())
             select = sqlalchemy.select(*(ts.columns[c] for c in instr.placeholders if c in known))
         else:
             select = ts.id_column.table.select()
 
-        if instr.ids is None and not ts.fetch_all_permitted:  # pragma: no cover
+        if instr.fetch_all and not ts.fetch_all_permitted:  # pragma: no cover
             raise exceptions.ForbiddenOperationError(self._FETCH_ALL, f"disabled for table '{ts.name}'.")
 
-        stmt = select if instr.ids is None else self._make_query(ts, select, set(instr.ids))
-        stmt = self.finalize_statement(stmt, ts.id_column, ts.id_column.table)
+        select = select if instr.ids is None else self._make_query(ts, select, instr.ids)
+        select = self.finalize_select(select, ts.id_column, ts.id_column.table)
 
         with self.engine.connect() as conn:
-            cursor = conn.execute(stmt)
+            cursor = conn.execute(select)
             records = tuple(map(tuple, cursor))
         return PlaceholderTranslations(instr.source, tuple(cursor.keys()), records)
 
-    StatementType = TypeVar("StatementType", bound=sqlalchemy.sql.Executable)
-    """Input and return bounds for :meth:`.finalize_statement`."""
-
-    def finalize_statement(
+    def finalize_select(
         self,
-        statement: StatementType,
-        id_column: sqlalchemy.Column,  # type:ignore[type-arg]
+        select: sqlalchemy.sql.Select[Any],
+        id_column: sqlalchemy.Column,  # type: ignore[type-arg]
         table: sqlalchemy.Table,
-    ) -> StatementType:
+    ) -> sqlalchemy.sql.Select[Any]:
         """Finalize a statement before execution. Does nothing by default.
 
         Args:
-            statement: A pre-build select query.
+            select: A pre-built select query.
             id_column: The ID column of `table`.
-            table: Table from which the selection `select` is made.
+            table: Table from which the `select` is made.
 
         Returns:
             The final statement to execute.
         """
-        return statement
+        return select
 
     def _make_query(
         self,
@@ -167,26 +155,23 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
     def online(self) -> bool:
         return self._engine is not None  # pragma: no cover
 
-    @property
-    def sources(self) -> List[str]:
-        return list(self._summaries)
-
-    @property
-    def placeholders(self) -> Dict[str, List[str]]:
-        return {name: list(ts.columns.keys()) for name, ts in self._summaries.items()}
+    def _initialize_sources(self, task_id: int) -> Dict[str, List[str]]:
+        self._table_summaries = self._get_summaries(task_id)
+        return {
+            name: [str(c.name) for c in table_summary.columns] for name, table_summary in self._table_summaries.items()
+        }
 
     @property
     def allow_fetch_all(self) -> bool:
-        return super().allow_fetch_all and all(s.fetch_all_permitted for s in self._summaries.values())
+        self.initialize_sources()  # Ensure self._table_summaries is populated.
+        return super().allow_fetch_all and all(s.fetch_all_permitted for s in self._table_summaries.values())
 
     def __str__(self) -> str:
         disconnected = "<disconnected>: " if not self.online else ""
-        schema = f"[schema={self._schema!r}]" if self._schema else ""
-        try:
-            sources = self.sources
-        except Exception:  # noqa: B902
-            sources = None
-        return f"{tname(self)}({disconnected}{self._estr}, tables{schema}={sources or '<no tables>'})"
+
+        kwargs = {"schema": self._schema, "blacklist": self._blacklist, "whitelist": self._whitelist}
+        kwargs = {k: v for k, v in kwargs.items() if v}
+        return f"{tname(self)}({disconnected}{self._estr}{', ' + format_kwargs(kwargs) if kwargs else ''})"
 
     @property
     def engine(self) -> sqlalchemy.engine.Engine:
@@ -203,7 +188,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
             return
 
         self.logger.getChild("sql").debug("Dispose %s", self._estr)
-        self._table_ts_dict = {}
+        self._table_summaries = {}
         self._engine.dispose()
 
     @classmethod
@@ -243,7 +228,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
                 )
         return connection_string
 
-    def _get_summaries(self) -> Dict[str, "SqlFetcher.TableSummary"]:
+    def _get_summaries(self, task_id: int) -> Dict[str, "SqlFetcher.TableSummary"]:
         start = perf_counter()
         metadata = self.get_metadata()
 
@@ -252,6 +237,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
             logger.debug(f"{self._estr}: Metadata created in {format_perf_counter(start)}.")
 
         table_names = {t.name for t in metadata.tables.values()}
+        tables: Collection[str]
         if self._whitelist:
             tables = self._whitelist
         else:
@@ -266,16 +252,17 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
                 extra = ""
 
             logger.warning(f"{self._estr}: No sources found{extra}. Available tables: {table_names}")
+            return {}
 
         ans = {}
         for name in tables:
             qualified_name = name if self._schema is None else f"{self._schema}.{name}"
             table = metadata.tables[qualified_name]
-            id_column = self.id_column(table.name, (c.name for c in table.columns))
+            id_column = self.id_column(table.name, candidates=(c.name for c in table.columns), task_id=task_id)
             if id_column in table.columns.keys():
                 ans[str(name)] = self.make_table_summary(table, table.columns[id_column])
             else:
-                whitelisted = table.name in self._whitelist
+                whitelisted = False if self._whitelist is None else table.name in self._whitelist
                 unmapped = id_column is None
 
                 if unmapped and not whitelisted:
@@ -329,16 +316,15 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         Returns:
             An approximate size for `table`.
         """
-        stmt = sqlalchemy.func.count(id_column)
-        stmt = self.finalize_statement(stmt, id_column, table)
+        count = sqlalchemy.func.count(id_column)
 
         with self.engine.connect() as conn:
-            return int(conn.execute(stmt).scalar())  # type: ignore[arg-type]
+            return int(conn.execute(count).scalar())  # type: ignore[arg-type]
 
     def get_metadata(self) -> sqlalchemy.MetaData:
         """Create a populated metadata object."""
         metadata = sqlalchemy.MetaData(schema=self._schema)
-        metadata.reflect(self.engine, only=tuple(self._whitelist) or None, views=self._reflect_views)
+        metadata.reflect(self.engine, only=self._whitelist, views=self._reflect_views)
         return metadata
 
     @classmethod
@@ -392,7 +378,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
             return "between"
 
         try:
-            overfetch_factor = (max_id - min_id) / num_ids  # type: ignore
+            overfetch_factor = (max_id - min_id) / num_ids  # type: ignore[operator]
         except TypeError:  # pragma: no cover
             return "between"  # Non-numeric ID type
 

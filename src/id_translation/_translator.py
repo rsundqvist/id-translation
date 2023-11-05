@@ -1,7 +1,6 @@
 import logging
 import warnings
 from datetime import timedelta
-from inspect import signature
 from os import getenv
 from pathlib import Path
 from time import perf_counter
@@ -15,7 +14,6 @@ from typing import (
     Literal,
     NoReturn,
     Optional,
-    Sequence,
     Set,
     Tuple,
     Type,
@@ -24,29 +22,21 @@ from typing import (
 )
 from uuid import UUID
 
-import numpy
 import pandas
 from rics._internal_support.types import PathLikeType
 from rics.collections.dicts import InheritedKeysDict, MakeType
 from rics.collections.misc import as_list
-from rics.misc import tname
-from rics.performance import format_perf_counter, format_seconds
+from rics.misc import get_public_module, tname
+from rics.performance import format_perf_counter
 
-from . import _uuid_utils
 from ._config_utils import ConfigMetadata
-from .dio import DataStructureIO, resolve_io
-from .dio.exceptions import UntranslatableTypeError
-from .exceptions import (
-    ConnectionStatusError,
-    MissingNamesError,
-    TooManyFailedTranslationsError,
-    TranslationDisabledWarning,
-)
+from ._tasks import MappingTask, TranslationTask, generate_task_id
+from .exceptions import ConnectionStatusError, TranslationDisabledWarning
 from .factory import TranslatorFactory
 from .fetching import Fetcher
 from .fetching.types import IdsToFetch
-from .mapping import DirectionalMapping, Mapper
-from .mapping.exceptions import MappingError, MappingWarning
+from .mapping import Mapper
+from .mapping.exceptions import MappingError
 from .mapping.types import UserOverrideFunction
 from .offline import Format, TranslationMap
 from .offline.types import FormatType, PlaceholderTranslations, SourcePlaceholderTranslations
@@ -108,9 +98,6 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         default_fmt: Alternative :class:`.Format` to use instead of `fmt` for fallback translation of unknown IDs.
         default_fmt_placeholders: Shared and/or source-specific default placeholder values for unknown IDs. See
             :meth:`rics.collections.dicts.InheritedKeysDict.make` for details.
-        allow_name_inheritance: If ``True``, enable name resolution fallback to the parent `translatable` when
-            translating with the ``attribute``-option. Allows nameless ``pandas.Index`` instances to inherit the name of
-            a ``pandas.Series``.
         enable_uuid_heuristics: Enabling may improve matching when :py:class:`~uuid.UUID`-like IDs are in use.
 
     Notes:
@@ -197,7 +184,6 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         mapper: Mapper[NameType, SourceType, None] = None,
         default_fmt: FormatType = None,
         default_fmt_placeholders: MakeType[SourceType, str, Any] = None,
-        allow_name_inheritance: bool = True,
         enable_uuid_heuristics: bool = False,
     ) -> None:
         self._fmt = fmt if isinstance(fmt, Format) else Format(fmt)
@@ -205,7 +191,6 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         self._default_fmt_placeholders, self._default_fmt = _handle_default(
             self._fmt, default_fmt, default_fmt_placeholders
         )
-        self._allow_name_inheritance = allow_name_inheritance
         self._enable_uuid_heuristics = enable_uuid_heuristics
 
         self._cached_tmap: TranslationMap[NameType, SourceType, IdType] = TranslationMap({})
@@ -300,7 +285,6 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         kwargs: Dict[str, Any] = {
             "fmt": self._fmt,
             "default_fmt": self._default_fmt,
-            "allow_name_inheritance": self._allow_name_inheritance,
             "enable_uuid_heuristics": self._enable_uuid_heuristics,
             **overrides,
         }
@@ -688,7 +672,6 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         override_function: UserOverrideFunction[NameType, SourceType, None] = None,
         maximal_untranslated_fraction: float = 1.0,
         reverse: bool = False,
-        attribute: str = None,
         fmt: FormatType = None,
     ) -> Optional[Translatable[NameType, str]]:
         """Translate IDs to human-readable strings.
@@ -710,9 +693,6 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             maximal_untranslated_fraction: The maximum fraction of IDs for which translation may fail before an error is
                 raised. 1=disabled. Ignored in `reverse` mode.
             reverse: If ``True``, perform translations back to IDs. Offline mode only.
-            attribute: If given, translate ``translatable.attribute`` instead. If ``inplace=False``, the translated
-                attribute will be assigned to `translatable` using
-                ``setattr(Translatable[NameType, IdType], attribute, <translated-attribute>)``.
             fmt: Format to use. If ``None``, fall back to init format.
 
         Returns:
@@ -742,140 +722,43 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             ConnectionStatusError: If ``reverse=True`` while the ``Translator`` is online.
             UserMappingError: If `override_function` returns a source which is not known, and
                 ``self.mapper.unknown_user_override_action != 'ignore'``.
-        """  # noqa: DAR101 darglint is bugged here
+        """
         if getenv(ID_TRANSLATION_DISABLED, "").lower() == "true":
             message = "Translation aborted; ID_TRANSLATION_DISABLED is set."
             LOGGER.warning(message)
             warnings.warn(message, category=TranslationDisabledWarning, stacklevel=2)
+            # Return unchanged; this is technically against the API spec.
             return None if inplace else translatable
-
-        if fmt is not None:
-            real_fmt = self._fmt
-            try:
-                parameters = set(signature(Translator.translate).parameters)
-                parameters.remove("self")
-                parameters.remove("fmt")
-                kwargs = {key: value for key, value in locals().items() if key in parameters}
-                self._fmt = Format.parse(fmt)
-                return self.translate(**kwargs)
-            finally:
-                self._fmt = real_fmt
-
-        start = perf_counter()
-
-        key_event_level = logging.INFO if self.online else logging.DEBUG
-        should_emit_key_event = LOGGER.isEnabledFor(key_event_level)
-        if should_emit_key_event:
-            event_key = f"{self.__class__.__name__.upper()}.TRANSLATE"
-
-            type_name = _resolve_type_name(translatable, attribute)
-            name_info = f"Derive based on type={type_name}" if names is None else repr(names)
-            if ignore_names is not None:
-                name_info += f", excluding those given by {ignore_names=}"
-
-            sources = self.sources  # Ensures that the fetcher is warmed up; good for log organization.
-            LOGGER.log(
-                level=logging.DEBUG,
-                msg=f"Begin translation of {type_name}-type data. Names to translate: {name_info}.",
-                extra=dict(
-                    event_key=event_key,
-                    event_stage="ENTER",
-                    event_title=f"{event_key}.ENTER",
-                    translatable_type=type_name,
-                    names=names,
-                    ignore_names=tname(ignore_names, prefix_classname=True) if callable(ignore_names) else ignore_names,
-                    inplace=inplace,
-                    sources=sources,
-                    fmt=repr(self._fmt),
-                    maximal_untranslated_fraction=maximal_untranslated_fraction,
-                    attribute=attribute,
-                    reverse=reverse,
-                    online=self.online,
-                ),
-            )
 
         if self.online and reverse:  # pragma: no cover
             raise ConnectionStatusError("Reverse translation cannot be performed online.")
-
-        if not (0.0 <= maximal_untranslated_fraction <= 1):  # pragma: no cover
-            raise ValueError(f"Argument {maximal_untranslated_fraction=} is not a valid fraction")
-
-        if attribute:
-            obj, translatable = translatable, getattr(translatable, attribute)
-        else:
-            obj = None
-
-        names, override_function = _handle_input_names(names, override_function)
-        translation_map, names_to_translate = self._get_updated_tmap(
+        task: TranslationTask[NameType, SourceType, IdType] = TranslationTask(
+            self,
             translatable,
+            self._fmt if fmt is None else Format.parse(fmt),
             names,
             ignore_names=ignore_names,
             override_function=override_function,
-            parent=obj if (obj is not None and self._allow_name_inheritance) else None,
+            inplace=inplace,
+            maximal_untranslated_fraction=maximal_untranslated_fraction,
+            reverse=reverse,
+            enable_uuid_heuristics=self._enable_uuid_heuristics,
         )
+        task.log_key_event_enter()
+
+        translation_map = self._get_updated_tmap(task)
         if not translation_map:
-            return None if inplace else translatable  # pragma: no cover
+            # Return unchanged; this is technically against the API spec. If the user has required translation to
+            # success through configuration, exceptions will be raised elsewhere. I don't know how to express this using
+            # the Python type system.
+            return None if inplace else translatable
 
-        translatable_io = resolve_io(translatable)
-        if LOGGER.isEnabledFor(logging.DEBUG) or maximal_untranslated_fraction < 1.0:
-            self._verify_translations(
-                translatable,
-                names_to_translate if names is None else names,
-                translation_map,
-                translatable_io,
-                maximal_untranslated_fraction,
-            )
+        task.verify(translation_map)
 
-        translation_map.reverse_mode = reverse
-        try:
-            ans = translatable_io.insert(
-                translatable,
-                names=names_to_translate if names is None else names,
-                tmap=translation_map,
-                copy=not inplace,
-            )
-        finally:
-            translation_map.reverse_mode = False
+        ans: Optional[Translatable[NameType, str]] = task.insert(translation_map)
 
-        if attribute and not inplace and ans is not None:
-            setattr(obj, attribute, ans)
-            # Hacky special handling for e.g. pandas.Index
-            if hasattr(ans, "name") and hasattr(translatable, "name"):  # pragma: no cover
-                ans.name = translatable.name
-            ans = obj
-
-        if should_emit_key_event:
-            execution_time = perf_counter() - start
-            inplace_info = "Original values have been replaced" if inplace else "Returning a translated copy"
-
-            n2s_with_none = {name: translation_map.name_to_source.get(name) for name in names_to_translate}
-            LOGGER.log(
-                level=key_event_level,
-                msg=f"Finished translation of {type_name}-type data in {format_seconds(execution_time)}"
-                f" using name-to-source mapping: {n2s_with_none}. {inplace_info} (since {inplace=}).",
-                extra=dict(
-                    event_key=event_key,
-                    event_stage="EXIT",
-                    event_title=f"{event_key}.EXIT",
-                    execution_time=execution_time,
-                    translatable_type=type_name,
-                    names=names_to_translate,
-                    name_to_source_mapping=translation_map.name_to_source,
-                    inplace=inplace,
-                    fmt=repr(translation_map.fmt),
-                    maximal_untranslated_fraction=maximal_untranslated_fraction,
-                    attribute=attribute,
-                    reverse=reverse,
-                    online=self.online,
-                ),
-            )
-
-        self._translated_names = {
-            name: translation_map.name_to_source[name]
-            for name in names_to_translate
-            if name in translation_map.name_to_source
-        }
-
+        self._translated_names = dict(task.name_to_source)
+        task.log_key_event_exit()
         return ans
 
     @overload
@@ -909,9 +792,10 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         self,
         translatable: Translatable[NameType, IdType],
         names: NameTypes[NameType] = None,
+        *,
         ignore_names: Names[NameType] = None,
         override_function: UserOverrideFunction[NameType, SourceType, None] = None,
-    ) -> Optional[DirectionalMapping[NameType, SourceType]]:
+    ) -> NameToSource[NameType, SourceType]:
         """Map names to translation sources.
 
         Args:
@@ -934,18 +818,22 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         See Also:
             🔑 This is a key event method. See :ref:`key-events` for details.
         """
-        return self._map_inner(translatable, names, ignore_names=ignore_names, override_function=override_function)
+        return MappingTask(
+            self, translatable, names, ignore_names=ignore_names, override_function=override_function
+        ).name_to_source
 
     def map_scores(
         self,
         translatable: Translatable[NameType, IdType],
         names: NameTypes[NameType] = None,
+        *,
         ignore_names: Names[NameType] = None,
         override_function: UserOverrideFunction[NameType, SourceType, None] = None,
     ) -> "pandas.DataFrame":
         """Returns raw match scores for name-to-source mapping. See :meth:`map` for details."""
-        names_to_translate = self._resolve_names(translatable, names, ignore_names)
-        return self.mapper.compute_scores(names_to_translate, self.sources, override_function=override_function)
+        return MappingTask(
+            self, translatable, names, ignore_names=ignore_names, override_function=override_function
+        ).compute_scores()
 
     @property
     def sources(self) -> List[SourceType]:
@@ -963,106 +851,17 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         """  # noqa: DAR202
         return self._fetcher.placeholders if self.online else self._cached_tmap.placeholders
 
-    def _map_inner(
-        self,
-        translatable: Translatable[NameType, IdType],
-        names: NameTypes[NameType] = None,
-        ignore_names: Names[NameType] = None,
-        override_function: UserOverrideFunction[NameType, SourceType, None] = None,
-        parent: Translatable[NameType, IdType] = None,
-    ) -> Optional[DirectionalMapping[NameType, SourceType]]:
-        start = perf_counter()
-        names_to_translate = self._resolve_names(translatable, names, ignore_names, parent)
-
-        def format_params() -> str:
-            params = []
-            if ignore_names is not None:
-                params.append(f"{ignore_names=}")
-            if override_function is not None:
-                params.append(f"{override_function=}")
-            if parent is not None:
-                params.append(f"parent={tname(parent)}")
-            return f". Parameters: ({', '.join(params)})" if params else ""
-
-        if names is not None and not names:
-            type_name = _resolve_type_name(translatable)
-            msg = f"Translation aborted; no names to translate in {type_name}{format_params()}."
-            warnings.warn(msg, MappingWarning, stacklevel=2)
-            LOGGER.warning(msg)
-            return None
-
-        if LOGGER.isEnabledFor(logging.DEBUG):
-            event_key = f"{self.__class__.__name__.upper()}.MAP"
-            type_name = _resolve_type_name(translatable)
-            sources = self.sources
-            LOGGER.debug(
-                f"Begin name-to-source mapping of names={names_to_translate} in {type_name} against {sources=}.",
-                extra=dict(
-                    event_key=event_key,
-                    event_stage="ENTER",
-                    event_title=f"{event_key}.ENTER",
-                    translatable_type=type_name,
-                    values=names_to_translate,
-                    candidates=sources,
-                    context=None,
-                ),
-            )
-        name_to_source = self.mapper.apply(names_to_translate, self.sources, override_function=override_function)
-        if LOGGER.isEnabledFor(logging.DEBUG):
-            execution_time = perf_counter() - start
-            LOGGER.debug(
-                f"Finished name-to-source mapping of names={names_to_translate} in {type_name} against {sources=}:"
-                f" {name_to_source.left_to_right}.",
-                extra=dict(
-                    event_key=event_key,
-                    event_stage="EXIT",
-                    event_title=f"{event_key}.EXIT",
-                    execution_time=execution_time,
-                    translatable_type=type_name,
-                    mapping=name_to_source.left_to_right,
-                    context=None,
-                ),
-            )
-
-        unmapped = set() if names is None else set(as_list(names)).difference(name_to_source.left)
-        if unmapped or not name_to_source.left:
-            tail = f"could not be mapped to sources={self.sources}{format_params()}"
-
-            if names is None:
-                derived_names = self._resolve_names(translatable, None, None, parent)
-                msg = f"Translation aborted; none of the derived names {derived_names} {tail}."
-                warnings.warn(msg, MappingWarning, stacklevel=2)
-                LOGGER.warning(msg)
-                return None
-            elif unmapped:
-                # Fail if any of the explicitly given names fail to map to a source.
-                msg = f"Required names {unmapped} {tail}."
-                LOGGER.error(msg)
-                raise MappingError(msg)
-
-        if name_to_source.cardinality.many_right:  # pragma: no cover
-            for value, candidates in name_to_source.left_to_right.items():
-                if len(candidates) > 1:
-                    raise MappingError(
-                        f"Name-to-source mapping {name_to_source.left_to_right} is ambiguous; {value} -> {candidates}."
-                        f"\nHint: Choose a different cardinality such that Mapper.cardinality.many_right is False."
-                    )
-        return name_to_source
-
     def fetch(
         self,
         translatable: Translatable[NameType, IdType],
-        name_to_source: DirectionalMapping[NameType, SourceType],
-        data_structure_io: Type[DataStructureIO] = None,
-        names: List[NameType] = None,
+        *,
+        name_to_source: NameToSource[NameType, SourceType],
     ) -> TranslationMap[NameType, SourceType, IdType]:
         """Fetch translations.
 
         Args:
             translatable: A data structure to translate.
-            name_to_source: Mappings of names in `translatable` to the known :attr:`sources`.
-            data_structure_io: Static namespace used to extract IDs from `translatable`.
-            names: A list of explicit names fetch translations for. Must mappable using the given `name_to_source`.
+            name_to_source: Mappings of names in `translatable` to known :attr:`sources`.
 
         Returns:
             A ``TranslationMap``.
@@ -1070,14 +869,8 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         Raises:
             ConnectionStatusError: If disconnected from the fetcher, i.e. not :attr:`online`.
         """
-        ids_to_fetch = self._get_ids_to_fetch(
-            name_to_source,
-            translatable,
-            data_structure_io or resolve_io(translatable),
-            names,
-        )
-        source_translations = self._fetch(ids_to_fetch)
-        return self._to_translation_map(source_translations)
+        task = TranslationTask(self, translatable, self._fmt, name_to_source)
+        return self._get_updated_tmap(task, force_fetch=True)
 
     @property
     def online(self) -> bool:
@@ -1198,6 +991,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         self,
         translatable: Translatable[NameType, IdType] = None,
         names: NameTypes[NameType] = None,
+        *,
         ignore_names: Names[NameType] = None,
         delete_fetcher: bool = True,
         path: PathLikeType = None,
@@ -1228,13 +1022,17 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         """
         start = perf_counter()
         if translatable is None:
-            source_translations: SourcePlaceholderTranslations[SourceType] = self._fetch(None)
-            translation_map = self._to_translation_map(source_translations)
+            translation_map = self._to_translation_map(self._fetch(None))
+            if names is not None:
+                names = as_list(names)
+                translation_map.name_to_source = self.mapper.apply(names, translation_map.sources).flatten()
         else:
-            maybe_none, _ = self._get_updated_tmap(translatable, names, ignore_names=ignore_names, force_fetch=True)
-            if maybe_none is None:
-                raise MappingError("No values in the translatable were mapped. Cannot store translations.")
-            translation_map = maybe_none  # mypy, would be cleaner to just use translation map..
+            name_to_source = self.map(translatable, names, ignore_names=ignore_names)
+            if not name_to_source:
+                pretty = repr(tname(translatable, prefix_classname=True))
+                raise MappingError(f"No names in the {pretty}-type data were mapped. Cannot store translations.")
+
+            translation_map = self.fetch(translatable, name_to_source=name_to_source)
             if LOGGER.isEnabledFor(logging.DEBUG):
                 not_fetched = set(self.fetcher.sources).difference(translation_map.sources)
                 LOGGER.debug(f"Available sources {not_fetched} were not fetched.")
@@ -1245,7 +1043,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
         self._cached_tmap = translation_map
 
-        message = f"Created {self} in {format_perf_counter(start)}."
+        LOGGER.info(f"Created {translation_map} in {format_perf_counter(start)}.")
         if path:
             import os
             import pickle  # noqa: S403
@@ -1255,203 +1053,77 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             with open(path, "wb") as f:
                 pickle.dump(self, f)
 
-            mb_size = os.path.getsize(path) / 2**20
-            message += f" Serialized {mb_size:.2g} MiB at path='{path}'."
+            cls = type(self)
+            pretty = get_public_module(cls, resolve_reexport=True) + "." + tname(self, prefix_classname=True)
+            LOGGER.info(f"Serialized {pretty!r} of size {os.path.getsize(path) / 2**20:.2g} MiB at path='{path}'.")
 
-        LOGGER.info(message)
         return self
 
     def _get_updated_tmap(
         self,
-        translatable: Translatable[NameType, IdType],
-        names: NameTypes[NameType] = None,
-        ignore_names: Names[NameType] = None,
-        override_function: UserOverrideFunction[NameType, SourceType, None] = None,
+        task: TranslationTask[NameType, SourceType, IdType],
         force_fetch: bool = False,
-        parent: Translatable[NameType, IdType] = None,
-    ) -> Tuple[Optional[TranslationMap[NameType, SourceType, IdType]], List[NameType]]:
-        """Get an updated translation map.  # noqa
+    ) -> TranslationMap[NameType, SourceType, IdType]:
+        """Get an updated translation map."""
+        name_to_source = task.name_to_source
+        if not name_to_source:
+            return TranslationMap({})  # Nothing to translate.
 
-        Setting ``force_fetch=True`` will ignore the cached translation if there is one.
+        translation_map = self._execute_fetch(task) if (force_fetch or not self.cache) else self.cache
 
-        Steps:
-            1. Resolve which data structure IO to use, fail if not found.
-            2. Resolve name-to-source mappings. If none are found, return ``None``.
-            3. Create a new translation map, or update the cached one.
+        translation_map.enable_uuid_heuristics = task.enable_uuid_heuristics
+        translation_map.fmt = task.fmt
+        translation_map.name_to_source = task.name_to_source  # Update
+        return translation_map
 
-        See the :meth:`translate`-method for more detailed documentation.
-        """
-        translatable_io = resolve_io(translatable)  # Fail fast if untranslatable type
-
-        names, override_function = _handle_input_names(names, override_function)
-        name_to_source = self._map_inner(translatable, names, ignore_names, override_function, parent)
-        if name_to_source is None:
-            # Nothing to translate.
-            return None, []  # pragma: no cover
-
-        translation_map = (
-            self.fetch(translatable, name_to_source, translatable_io, names)
-            if force_fetch or not self.cache
-            else self.cache
-        )
-
-        translation_map.enable_uuid_heuristics = self._enable_uuid_heuristics
-        translation_map.fmt = self._fmt
-        n2s = name_to_source.flatten()
-        translation_map.name_to_source = n2s  # Update
-        return translation_map, list(n2s)
-
-    def _get_ids_to_fetch(
-        self,
-        name_to_source: DirectionalMapping[NameType, SourceType],
-        translatable: Translatable[NameType, IdType],
-        dio: Type[DataStructureIO],
-        names: Optional[List[NameType]],
-    ) -> List[IdsToFetch[SourceType, IdType]]:
-        # Aggregate and remove duplicates.
-        source_to_ids: Dict[SourceType, Set[IdType]] = {source: set() for source in name_to_source.right}
-        n2s = name_to_source.flatten()  # Will fail if sources are ambiguous.
-
-        float_names: List[NameType] = []
-        num_coerced = 0
-        ids: Sequence[IdType]
-        for name, ids in dio.extract(translatable, list(n2s) if names is None else names).items():
-            if len(ids) == 0:
-                continue
-
-            if isinstance(ids[0], float):
-                float_names.append(name)
-                # Float IDs aren't officially supported, but is common when using Pandas since int types cannot be NaN.
-                # This is sometimes a problem for the built-in set (see https://github.com/numpy/numpy/issues/9358), and
-                # for several database drivers.
-                arr = numpy.unique(ids)  # type: ignore[var-annotated]
-                keep_mask = ~numpy.isnan(arr)
-                num_coerced += keep_mask.sum()  # Somewhat inaccurate; includes repeat IDs from other names
-                source_to_ids[n2s[name]].update(arr[keep_mask].astype(int, copy=False))
-            else:
-                if self._enable_uuid_heuristics:
-                    ids = _uuid_utils.try_cast_many(ids)
-
-                source_to_ids[n2s[name]].update(ids)
-
-        if num_coerced > 100 and self.online:  # pragma: no cover
-            warnings.warn(
-                f"To ensure proper fetcher operation, {num_coerced} float-type IDs have been coerced to integers. "
-                f"Enforcing supported data types for IDs (str and int) in your {tname(translatable)}-data may improve "
-                f"performance. Affected names ({len(float_names)}): {float_names}."
-                "\nHint: Going offline will suppress this warning.",
-                stacklevel=3,
-            )
-
-        return [IdsToFetch(source, ids) for source, ids in source_to_ids.items()]
+    def _execute_fetch(
+        self, task: TranslationTask[NameType, SourceType, IdType]
+    ) -> TranslationMap[NameType, SourceType, IdType]:
+        ids_to_fetch = [IdsToFetch(source, ids=ids) for source, ids in task.extract_ids().items()]
+        source_translations = self._fetch(ids_to_fetch, fmt=task.fmt, task_id=task.task_id)
+        return self._to_translation_map(source_translations, fmt=task.fmt)
 
     def _fetch(
-        self, ids_to_fetch: Optional[List[IdsToFetch[SourceType, IdType]]]
+        self,
+        ids_to_fetch: Optional[List[IdsToFetch[SourceType, IdType]]],
+        fmt: Format = None,
+        task_id: int = None,
     ) -> SourcePlaceholderTranslations[SourceType]:
-        placeholders = self._fmt.placeholders
-        required = self._fmt.required_placeholders
+        fmt = fmt or self._fmt
+        placeholders = fmt.placeholders
+        required = fmt.required_placeholders
 
         if self._default_fmt and ID in self._default_fmt.placeholders and ID not in placeholders:
             # Ensure that default translations can always use the ID
             placeholders = placeholders + (ID,)
             required = required + (ID,)
 
-        return (
-            self.fetcher.fetch_all(placeholders, required)
-            if ids_to_fetch is None
-            else self.fetcher.fetch(ids_to_fetch, placeholders, required)
-        )
+        if task_id is None:
+            task_id = generate_task_id()
+
+        if ids_to_fetch is None:
+            return self.fetcher.fetch_all(placeholders, required=required, task_id=task_id)
+        else:
+            return self.fetcher.fetch(ids_to_fetch, placeholders, required=required, task_id=task_id)
 
     def _to_translation_map(
-        self, source_translations: SourcePlaceholderTranslations[SourceType]
+        self,
+        source_translations: SourcePlaceholderTranslations[SourceType],
+        fmt: Format = None,
     ) -> TranslationMap[NameType, SourceType, IdType]:
         return TranslationMap(
             source_translations,
-            fmt=self._fmt,
+            fmt=fmt or self._fmt,
             default_fmt=self._default_fmt,
             default_fmt_placeholders=self._default_fmt_placeholders,
             enable_uuid_heuristics=self._enable_uuid_heuristics,
         )
-
-    @staticmethod
-    def _verify_translations(
-        translatable: Translatable[NameType, IdType],
-        names_to_translate: List[NameType],
-        translation_map: TranslationMap[NameType, SourceType, IdType],
-        translatable_io: Type[DataStructureIO],
-        maximal_untranslated_fraction: float,
-    ) -> None:
-        copied_map = translation_map.copy()
-        # TODO: Remove the ignores when https://github.com/python/mypy/issues/3004 (5+ years old..) is fixed.
-        copied_map.fmt = "found"  # type: ignore
-        copied_map.default_fmt = ""  # type: ignore
-        ans = translatable_io.insert(translatable, names=names_to_translate, tmap=copied_map, copy=True)
-        extracted: Dict[NameType, Sequence[IdType]] = translatable_io.extract(ans, names=names_to_translate)
-
-        total_untranslated = 0
-        for name, translations in extracted.items():
-            num = sum(t == "" for t in translations)
-            total_untranslated += num
-
-            if num == 0:
-                continue
-
-            frac = num / len(translations)
-            if LOGGER.isEnabledFor(logging.DEBUG) or frac > maximal_untranslated_fraction:
-                source = translation_map.name_to_source[name]
-                msg = f"Failed to translate {num}/{len(translations)} ({frac:.3%}) of IDs for {name=} using {source=}."
-                LOGGER.debug(msg)
-                if frac > maximal_untranslated_fraction:
-                    raise TooManyFailedTranslationsError(
-                        msg + f" Limit: maximal_untranslated_fraction={maximal_untranslated_fraction:.3%}"
-                    )
-
-        if total_untranslated or LOGGER.isEnabledFor(logging.DEBUG):
-            n_ids = sum(map(len, extracted.values()))
-            LOGGER.log(
-                logging.WARNING if maximal_untranslated_fraction < 1 else logging.DEBUG,
-                f"Failed to translate {total_untranslated}/{n_ids} ({total_untranslated / n_ids:.3%}) "
-                f"of IDs extracted from {len(extracted)} different names.",
-            )
 
     def __repr__(self) -> str:
         more = f"fetcher={self.fetcher}" if self.online else f"cache={self.cache}"
 
         online = self.online
         return f"{tname(self)}({online=}: {more})"
-
-    def _resolve_names(
-        self,
-        translatable: Translatable[NameType, IdType],
-        names: NameTypes[NameType] = None,
-        ignored_names: Names[NameType] = None,
-        parent: Any = None,
-    ) -> List[NameType]:
-        if names is None:
-            names = resolve_io(translatable).names(translatable)
-            if names is None and parent is not None and self._allow_name_inheritance:
-                try:
-                    names = resolve_io(parent).names(parent)
-                except UntranslatableTypeError:
-                    LOGGER.debug(f"Cannot use {tname(parent)!r}-type parent to derive names; not a translatable type.")
-
-            if names is None:
-                raise MissingNamesError(
-                    f"Failed to derive names for {tname(translatable)!r}-type data."
-                    "\nHint: Use the 'names'-argument to specify names to translate."
-                )
-            if LOGGER.isEnabledFor(logging.DEBUG):
-                LOGGER.debug(f"Name resolution complete. Found {names=} for {tname(translatable)!r}-type data.")
-
-            if ignored_names is not None:
-                predicate = ignored_names if callable(ignored_names) else set(as_list(ignored_names)).__contains__
-                names = [name for name in names if not predicate(name)]
-        else:
-            if ignored_names is not None:
-                raise ValueError(f"Required {names=} cannot be used with {ignored_names=}.")
-            names = as_list(names)
-
-        return names
 
 
 def _handle_default(
@@ -1485,46 +1157,3 @@ def _handle_default(
         dt = dt or InheritedKeysDict()
 
     return dt, dfmt
-
-
-def _resolve_type_name(translatable: Translatable[NameType, IdType], attribute: str = None) -> str:
-    type_name = tname(translatable, prefix_classname=True)
-    if attribute:
-        real_type_name = tname(getattr(translatable, attribute), prefix_classname=True)
-        type_name = f"{real_type_name!r} (from {type_name}.{attribute})"
-    else:
-        type_name = repr(type_name)
-    return type_name
-
-
-def _handle_input_names(
-    names: Optional[Union[NameTypes[NameType], NameToSource[NameType, SourceType]]],
-    override_function: Optional[UserOverrideFunction[NameType, SourceType, None]],
-) -> Tuple[Optional[List[NameType]], Optional[UserOverrideFunction[NameType, SourceType, None]]]:
-    if names is None:
-        return None, override_function
-
-    if isinstance(names, dict):
-        if override_function is not None:
-            raise ValueError(f"Dict-type {names=} cannot be combined with {override_function=}.")
-
-        override_function = _UserDefinedNameToSourceMapping(dict(names))
-
-    return as_list(names), override_function
-
-
-class _UserDefinedNameToSourceMapping:
-    def __init__(self, name_to_source: NameToSource[NameType, SourceType]) -> None:
-        for name, source in name_to_source.items():
-            if source is None:
-                raise ValueError(
-                    f"Bad name-to-source mapping: {name!r} -> {source!r}."
-                    f"\nHint: Remove None-values from names={name_to_source}."
-                )
-        self._name_to_source = name_to_source
-
-    def __call__(self, name: NameType, sources: Set[SourceType], context: None) -> Optional[SourceType]:
-        return self._name_to_source.get(name)
-
-    def __repr__(self) -> str:
-        return f"UserArgument(names={self._name_to_source})"

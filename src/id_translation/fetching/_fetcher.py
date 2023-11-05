@@ -9,6 +9,15 @@ from .types import IdsToFetch
 class Fetcher(Generic[SourceType, IdType], HasSources[SourceType]):
     """Interface for fetching translations from an external source."""
 
+    @abstractmethod
+    def initialize_sources(self, task_id: int = -1, *, force: bool = False) -> None:
+        """Perform source discovery.
+
+        Args:
+            task_id: Used for logging.
+            force: If ``True``, perform full discovery even if sources are already known.
+        """
+
     @property
     @abstractmethod
     def allow_fetch_all(self) -> bool:
@@ -39,7 +48,9 @@ class Fetcher(Generic[SourceType, IdType], HasSources[SourceType]):
         self,
         ids_to_fetch: Iterable[IdsToFetch[SourceType, IdType]],
         placeholders: Iterable[str] = (),
+        *,
         required: Iterable[str] = (),
+        task_id: int = None,
     ) -> SourcePlaceholderTranslations[SourceType]:
         """Retrieve placeholder translations from the source.
 
@@ -47,6 +58,7 @@ class Fetcher(Generic[SourceType, IdType], HasSources[SourceType]):
             ids_to_fetch: Tuples (source, ids) to fetch. If ``ids=None``, retrieve data for as many IDs as possible.
             placeholders: All desired placeholders in preferred order.
             required: Placeholders that must be included in the response.
+            task_id: Used for logging.
 
         Returns:
             A mapping ``{source: PlaceholderTranslations}`` for translation.
@@ -66,13 +78,16 @@ class Fetcher(Generic[SourceType, IdType], HasSources[SourceType]):
     def fetch_all(
         self,
         placeholders: Iterable[str] = (),
+        *,
         required: Iterable[str] = (),
+        task_id: int = None,
     ) -> SourcePlaceholderTranslations[SourceType]:
         """Fetch as much data as possible.
 
         Args:
             placeholders: All desired placeholders in preferred order.
             required: Placeholders that must be included in the response.
+            task_id: Used for logging.
 
         Returns:
             A mapping ``{source: PlaceholderTranslations}`` for translation.

@@ -38,17 +38,6 @@ class UnitTestTranslator(RealTranslator[str, str, int]):
         super().__init__(*args, **kwargs)
         self.now = pd.Timestamp.now()
 
-    def _map_inner(self, translatable, names, ignore_names, override_function, parent):
-        if parent is None:
-            with verification_context("Verify score computations"):
-                """Ensure that map_scores returns correct values."""
-                names_to_translate = self._resolve_names(translatable, names, ignore_names)
-                mapper_scores = self.mapper.compute_scores(names_to_translate, self.sources, None, override_function)
-                translator_scores = self.map_scores(translatable, names, ignore_names, override_function)
-                assert mapper_scores.equals(translator_scores), "Mapper/Translator score mismatch."
-
-        return super()._map_inner(translatable, names, ignore_names, override_function, parent)
-
 
 @dataclass
 class ConfigMetadataForTest(_config_utils.ConfigMetadata):
@@ -208,25 +197,6 @@ def test_store_with_explicit_values(hex_fetcher):
     }
 
 
-@pytest.mark.parametrize(
-    "reject_predicate, expected",
-    [
-        (lambda s: not s.endswith("id"), ["ends_with_id", "also_ends_with_id"]),
-        (lambda s: "numeric" in s, ["ends_with_id", "also_ends_with_id"]),
-        (None, ["ends_with_id", "is_numeric", "also_ends_with_id", "also_numeric"]),
-    ],
-)
-def test_reject_predicates(translator, reject_predicate, expected):
-    data = {
-        "ends_with_id": [1, 2, 3],
-        "is_numeric": [3.5, 0.8, 1.1],
-        "also_ends_with_id": [1, 2, 3],
-        "also_numeric": [3.5, 0.8, 1.1],
-    }
-    names_to_translate = translator._resolve_names(data, ignored_names=reject_predicate)
-    assert names_to_translate == expected
-
-
 def test_mapping_nothing_to_translate(translator):
     with pytest.warns(MappingWarning) as w:
         translator.map({"strange-name": [1, 2, 3]})
@@ -236,14 +206,13 @@ def test_mapping_nothing_to_translate(translator):
 
 
 def test_all_name_ignored(translator):
-    with pytest.warns(MappingWarning) as w:
-        translator.translate(pd.Series(pd.Index(range(3), name="name")), ignore_names="name", attribute="index")
+    with pytest.warns(MappingWarning, match="No names left") as w:
+        translator.translate(pd.Series(name="name"), ignore_names="name")
     assert len(w) == 1
 
     mapping_warning = str(w[0].message)
-    assert "aborted; none of the derived names" in mapping_warning
-    assert "['name']" in mapping_warning
-    assert "ignore_names='name', parent=Series" in mapping_warning
+    assert "derived names=['name']" in mapping_warning
+    assert "ignore_names=['name']" in mapping_warning
 
 
 def test_explicit_name_ignored(translator):
@@ -387,6 +356,28 @@ def test_untranslated_fraction():
         translator.translate(1, names="source", maximal_untranslated_fraction=0.0)
 
 
+def test_untranslated_reporting(caplog):
+    translator = UnitTestTranslator({"source": {"id": [0, 1, 2, 3, 4]}}, fmt="{id}")
+    translator.translate(
+        {"none": [-1, -100], "partial": [-1, 1, 2], "all": [0, 1]},
+        override_function=lambda n, s, i: "source",
+        inplace=True,
+    )
+
+    for r in caplog.records:
+        if r.module != "_verify":
+            continue
+
+        assert r.source_of_ids == "source"
+
+        if r.name_of_ids == "none":
+            assert r.sample_ids == [-1, -100]
+        elif r.name_of_ids == "partial":
+            assert r.sample_ids == [-1]
+        else:
+            raise AssertionError(f"unexpected record: {r}")
+
+
 def test_reverse(hex_fetcher):
     fmt = "{id}:{hex}[, positive={positive}]"
     t = UnitTestTranslator(hex_fetcher, fmt=fmt).store()
@@ -430,40 +421,16 @@ def test_override_fetcher(translator):
     assert expected == old_fetcher.num_fetches
 
 
-def test_translate_attribute():
-    translate = UnitTestTranslator().translate
-    df = pd.DataFrame(range(3))
-    df.index.name = "index-name"
-
-    translate(df, attribute="index")  # type: ignore[call-overload]
-
-    assert df.index.tolist() == translate(list(range(3)), names=df.index.name)
-
-
-def test_inherited_name(translator):
-    assert translator._allow_name_inheritance
-    s = pd.Series([1, 1, 2, 2, 2, 3, 4], name="positive_numbers")
-
-    translator.translate(s, attribute="index")
-
-    s.name = None
-    with pytest.raises(MissingNamesError):
-        translator.translate(s, attribute="index")
-
-
 def test_float_ids(translator):
-    from id_translation.dio import resolve_io
-    from id_translation.mapping import DirectionalMapping
+    from id_translation._tasks import TranslationTask
+    from id_translation.offline import Format
 
-    translatable = [0.0, 0, 1, 0.1, float("nan"), np.nan, 3, np.nan]
-    ids_to_fetch = translator._get_ids_to_fetch(
-        DirectionalMapping(left_to_right={"whatever": ("whatever",)}),
-        translatable,
-        resolve_io(translatable),
-        None,
-    )
+    translatable = {"positive_numbers": [0.0, 0, 1, 0.1, float("nan"), np.nan, 3, np.nan]}
+    task = TranslationTask(translator, translatable, fmt=Format(""))
+    ids_to_fetch = task.extract_ids()
     assert len(ids_to_fetch) == 1
-    assert ids_to_fetch[0].ids == {0, 1, 3}
+    ids = ids_to_fetch["positive_numbers"]
+    assert ids == {0, 1, 3}
 
 
 def test_load_persistent_instance(tmp_path):
@@ -653,3 +620,21 @@ class TestTranslatedNames:
 
         with_source = UnitTestTranslator().translated_names(True)
         assert_type(with_source, Dict[str, str])
+
+
+def test_fetch(translator):
+    from id_translation.dio import resolve_io
+
+    translatable = {"numbers": [-1, 0, 1]}
+    name_to_source = {"numbers": "positive_numbers"}
+    tmap = translator.fetch(translatable, name_to_source=name_to_source)
+    assert translator.online
+
+    actual = resolve_io(translatable).insert(translatable, list(translatable), tmap, True)
+    assert actual == translator.translate(translatable, names=name_to_source)
+
+
+def test_map_scores(translator):
+    actual = translator.map_scores({"p": 0, "positive_numbers": 1, "foo": 0}).values.tolist()
+    inf = float("inf")
+    assert actual == [[inf, -inf], [inf, -inf], [0.0, 0.0]]

@@ -29,6 +29,8 @@ class FetchInstruction(_Generic[SourceType, IdType]):
     """Placeholders that must be included in the response."""
     ids: Optional[Set[IdType]]
     """Unique IDs to fetch translations for. Fetch as much as possible if ``None``."""
+    task_id: int
+    """Used for logging purposes."""
 
     @property
     def fetch_all(self) -> bool:

@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 from typing import List, Tuple
 
+import pandas as pd
 import sqlalchemy
 import yaml  # type: ignore
 
@@ -22,6 +23,12 @@ DIALECTS = [
     "postgresql",
     "mssql",  # Quite slow, mostly since the (pyre-python) driver used doesn't support fast_executemany
 ]
+
+
+def get_df(dialect: str) -> pd.DataFrame:
+    with sqlalchemy.create_engine(get_connection_string(dialect)).connect() as conn:
+        cursor = conn.execute(sqlalchemy.text(QUERY))
+        return pd.DataFrame.from_records(list(cursor), columns=cursor.keys())
 
 
 def check_status(dialect: str) -> None:

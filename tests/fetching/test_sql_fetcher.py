@@ -12,7 +12,7 @@ SqlFetcher = RealSqlFetcher[int]
 
 
 def test_table_sizes(sql_fetcher):
-    actual_sizes = {ts.name: ts.size for ts in sql_fetcher._get_summaries().values()}
+    actual_sizes = {ts.name: ts.size for ts in sql_fetcher._get_summaries(-1).values()}
 
     assert actual_sizes == {
         "animals": 3,
@@ -57,6 +57,7 @@ def test_heuristic(sql_fetcher, ids_to_fetch, expected):
             ("id",),
             {"id"},
             set(ids_to_fetch),
+            -1,
         )
     ).records
     assert ans == tuple((e,) for e in expected)
@@ -122,7 +123,7 @@ def test_unmappable_whitelist_table(use_override, connection_string):
     fetcher = SqlFetcher(connection_string, mapper=mapper, whitelist_tables=["animals", "big_table", "huge_table"])
 
     with pytest.raises(exceptions.UnknownPlaceholderError, match="whitelist") as e:
-        fetcher._get_summaries()
+        fetcher._get_summaries(-1)
     fetcher.close()
     assert ("'id' -> 'bad-column'" in str(e.value)) is use_override
 

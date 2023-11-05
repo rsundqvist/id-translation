@@ -9,6 +9,6 @@ def test_copy(translation_map):
 
 
 def test_props(translation_map):
-    assert translation_map.sources == ["title_basics", "name_basics"]
-    assert translation_map.names == ["firstTitle", "nconst"]
-    assert sorted(translation_map) == sorted(["title_basics", "name_basics", "firstTitle", "nconst"])
+    assert sorted(translation_map.sources) == ["name_basics", "title_basics"]
+    assert sorted(translation_map.names) == ["firstTitle", "nconst"]
+    assert sorted(translation_map) == ["firstTitle", "name_basics", "nconst", "title_basics"]

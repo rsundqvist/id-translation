@@ -5,11 +5,10 @@ from sys import platform
 
 import pandas as pd
 import pytest
-import sqlalchemy
 
 from id_translation import Translator
 
-from .conftest import DIALECTS, QUERY, check_status, get_connection_string, setup_for_dialect
+from .conftest import DIALECTS, check_status, get_df, setup_for_dialect
 
 pytestmark = pytest.mark.skipif(
     getenv("CI") == "true" and platform != "linux", reason="No Docker for Mac and Windows in CI/CD."
@@ -19,7 +18,6 @@ pytestmark = pytest.mark.skipif(
 @pytest.mark.parametrize("dialect, with_schema", product(DIALECTS, [False, True]))
 def test_dvd_rental(dialect, with_schema):
     check_status(dialect)
-    engine = sqlalchemy.create_engine(get_connection_string(dialect))
     translator: Translator[str, str, int] = Translator.from_config(*setup_for_dialect(dialect))
 
     sql_fetcher = translator.fetcher.fetchers[1]  # type: ignore[attr-defined]
@@ -30,12 +28,8 @@ def test_dvd_rental(dialect, with_schema):
     expected = pd.read_csv(
         Path(__file__).with_name("translated.csv"), index_col=0, parse_dates=["rental_date", "return_date"]
     )
-    with engine.connect() as conn:
-        records = list(conn.execute(sqlalchemy.text(QUERY)))
-    df = pd.DataFrame.from_records(records, columns=expected.columns).loc[expected.index]
-    actual = translator.translate(df)
-
-    assert actual is not None
+    actual = get_df(dialect).loc[expected.index]
+    assert translator.translate(actual, inplace=True) is None
     pd.testing.assert_frame_equal(actual, expected)
 
 
