@@ -130,6 +130,12 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
 
     @final
     @property
+    def selective_fetch_all(self) -> bool:
+        """If set, reduce the amount of data fetched by :meth:`fetch_all`."""
+        return self._selective_fetch_all
+
+    @final
+    @property
     def placeholders(self) -> Dict[SourceType, List[str]]:
         if self._placeholders is None:
             self.initialize_sources()

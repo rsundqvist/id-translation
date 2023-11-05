@@ -1,5 +1,6 @@
 """Sphinx configuration."""
 import os
+from zipfile import ZipFile
 
 if True:  # E402 hack
     os.environ["SPHINX_BUILD"] = "true"
@@ -245,15 +246,22 @@ intersphinx_mapping = {
     "rics": (rics_docs, None),
 }
 
-# -- Gallery configuration -------------------------------------------------
+# -- Gallery configuration -----------------------------------------------------
 sphinx_gallery_conf = {
     "sphinx_gallery_conf": "*.png",
     "gallery_dirs": ["_tiles"],
 }
 
-# -- Nbsphinx
+# -- Nbsphinx ------------------------------------------------------------------
 nbsphinx_execute = "never"
-
 shutil.copytree("../jupyterlab/id-translation/demo/", "documentation/examples/notebooks", dirs_exist_ok=True)
 
+# -- Randoms stuff -------------------------------------------------------------
 split_changelog("changelog", "../CHANGELOG.md")
+
+root = "documentation/examples/resources"
+with ZipFile(f"{root}/dvdrental.zip", "w") as archive:
+    archive.write(f"{root}/dvdrental.py", "dvdrental/dvdrental.py")
+    archive.write(f"{root}/query.sql", "dvdrental/query.sql")
+    archive.write(f"{root}/sql-fetcher.toml", "dvdrental/sql-fetcher.toml")
+    archive.write(f"{root}/translation.toml", "dvdrental/translation.toml")

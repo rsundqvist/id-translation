@@ -4,7 +4,7 @@ allow_fetch_all = false
 whitelist_tables = ["customer", "category", "country"]
 
 [fetching.mapping.score_function.disabled]
-strict = true
+strict = true  # raise instead of silently ignoring
 
 [fetching.mapping.overrides.customer]
 id = "customer_id"

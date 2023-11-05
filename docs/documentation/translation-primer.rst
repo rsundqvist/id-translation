@@ -2,9 +2,6 @@
 
 Translation primer
 ==================
-The main entry point for translation tasks is the :class:`id_translation.Translator` class. Translation relies heavily
-on the :ref:`mapping <mapping-primer>` package suite.
-
 This document will be dedicated to a toy example -- translating a `"Bite report"` from a misfortunate petting zoo -- in
 order to demonstrate some key concepts. Each new component will be presented in the order in which they are used during
 normal operation.
@@ -57,16 +54,16 @@ We're translating a `"Bite report"` a misfortunate petting zoo, shown below.
 
 The first columns indicates who was bitten (a human), the second who bit them (an animal). Since bites are a frequent
 occurrence, the zoo uses integers IDs instead of plaintext for their bite reports to save space. The ``Translator``
-doesn't work on files (see #154), so we'll use pandas to create a :class:`~pandas.DataFrame` that we can translate.
+doesn't work on files, so we'll translate a :class:`pandas.DataFrame` instead.
 
 .. code-block:: python
 
    from pandas import DataFrame, read_csv
-   bite_report: DataFrame = read_csv('biting-victims-2019-05-11.csv')
+   bite_report: DataFrame = read_csv("biting-victims-2019-05-11.csv")
 
 The ``Translator`` knows what a ``DataFrame`` is, and will assume that the columns are names to translate.
 
-.. important::
+.. note::
    In the language of the ``Translator``, the bite report is a :attr:`~id_translation.types.Translatable`. The columns
    ``'human_id'`` and ``'bitten_by'`` are the :attr:`names <id_translation.types.NameType>` that must be
    :attr:`translated <id_translation.Translator.translate>`.
@@ -79,11 +76,13 @@ files and contain some basic information about the humans and animals that are r
 unintelligible bite report.
 
 .. list-table:: Sources
+    :widths: 45 10 45
 
     * - .. csv-table:: humans.csv
            :file: examples/notebooks/translation-primer/sources/humans.csv
            :header-rows: 1
            :stub-columns: 1
+      -
 
       - .. csv-table:: animals.csv
            :file: examples/notebooks/translation-primer/sources/animals.csv
@@ -105,7 +104,7 @@ interpret CSV files. The :class:`~id_translation.fetching.PandasFetcher` is buil
 This fetcher will look for CSV files in the `sources` sub folder of the current working directory, using
 :func:`pandas.read_csv` to deserialize them. Source names will be filenames without the `.csv`-suffix.
 
-.. important::
+.. note::
    In the language of the ``Translator``, the CSV files ``'animals.csv'`` and ``'humans.csv'`` are translation
    :attr:`~id_translation.Translator.sources`. All fetching is done through the
    :class:`~id_translation.fetching.Fetcher` interface.
@@ -126,14 +125,14 @@ to one source each.
   .. code-block:: python
 
      from id_translation.mapping import HeuristicScore
-     score_function = HeuristicScore('equality', heuristics=['like_database_table'])
+     score_function = HeuristicScore("equality", heuristics=["like_database_table"])
 
 * Mapping `bitten_by → animals`. This is an impossible mapping without high-level understanding of the context. Using
   and `override` is the best solution in this case.
 
   .. code-block:: python
 
-     overrides = {'bitten_by': 'animals'}
+     overrides = {"bitten_by": "animals"}
 
 We're now ready to create the :class:`~id_translation.mapping.Mapper` instance.
 
@@ -142,7 +141,7 @@ We're now ready to create the :class:`~id_translation.mapping.Mapper` instance.
    from id_translation.mapping import Mapper
    mapper = Mapper(score_function, overrides=overrides)
 
-.. important::
+.. note::
 
    In the language of the ``Mapper``, `names` become :attr:`values <id_translation.mapping.types.ValueType>` and the
    `sources` are referred to as the :attr:`candidates <id_translation.mapping.types.CandidateType>`. See the
@@ -160,12 +159,12 @@ We would like the translations to include as much information as possible, and a
 
 .. code-block:: python
 
-   translation_format = '[{title}. ]{name} (id={id})[ the {species}]'
+   translation_format = "[{title}. ]{name} (id={id})[ the {species}]"
 
 The use of optional blocks (placeholders and string literals surrounded by angle brackets ``[..]``) allows us to use the
-same translation for humans and animals.
+same translation format for humans and animals.
 
-.. important::
+.. note::
 
    The translation :class:`~id_translation.offline.Format` specifies how translated IDs should be represented. The
    elements ``'title'``, ``'name'``, ``'id'``, and ``'species'`` are called :attr:`~id_translation.offline.Format.placeholders`.
@@ -184,7 +183,7 @@ Analogous to name-to-source mapping, placeholder mapping binds the :attr:`wanted
 of the translation :class:`~id_translation.offline.Format` to the :attr:`actual placeholders <id_translation.fetching.Fetcher.placeholders>`
 found in the source.
 
-.. important::
+.. note::
 
    In the language of the ``Mapper``, `wanted placeholders` become :attr:`values <id_translation.mapping.types.ValueType>`
    and the `actual placeholders` are referred to as the :attr:`candidates <id_translation.mapping.types.CandidateType>`.
@@ -193,7 +192,6 @@ found in the source.
 
 All placeholder names also match exactly, except for the ``'animal_id'`` placeholder in the ``'animals'`` source. The
 easiest solution is to use an override. However, as this kind of naming is common, a more generic solution makes sense.
-There's no suitable built-in function for this, so we'll have to create our own. The result is shown in the snippet below.
 
 .. code-block:: python
    :caption: A custom :attr:`~id_translation.mapping.types.AliasFunction` heuristic to turn ``'animal_id'`` into just ``'id'``.
@@ -202,12 +200,11 @@ There's no suitable built-in function for this, so we'll have to create our own.
        """Heuristic for matching columns that use the "smurf" convention."""
        return (
            # Handles plural form that ends with or without an s.
-           f'{context[:-1]}_{value}' if context[-1] == 's' else f'{context}_{value}',
+           f"{context[:-1]}_{value}" if context[-1] == "s" else f"{context}_{value}",
            candidates,  # unchanged
        )
 
    smurf_score = HeuristicScore('equality', heuristics=[smurf_column_heuristic])
-
 
 .. _fetcher-mapping-motivation:
 
@@ -220,7 +217,8 @@ applications that use multiple fetchers.
 
    # Amend the fetcher we created earlier.
    fetcher = PandasFetcher(
-      read_csv, read_path_format='./{}.csv',
+      read_function=read_csv,
+      read_path_format=".source/{}.csv",
       mapper=Mapper(smurf_score),  # Add the mapper.
    )
 

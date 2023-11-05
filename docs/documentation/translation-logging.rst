@@ -1,7 +1,7 @@
 .. _translation-logging:
 
-Interpreting ``id-translation`` Logs
-====================================
+Logging
+=======
 The translation and mapping processes can output vast amounts of information that can be difficult to sift through
 manually, especially with loggers working on the ``DEBUG``-level with extra verbose flags enabled. The exact flow of
 these processes are discussed in the :ref:`translation-primer` and :ref:`mapping-primer` pages. If you haven't looked at
@@ -48,7 +48,7 @@ for ingestion and will always contain the ``event_key``-key, as well as some oth
 
 These were chosen since translation issue tend to fall clearly within one of these domains.
 
-.. important::
+.. hint::
 
    All ``event_key``-records also have an ``event_stage`` value. The delimiting values are ``'ENTER'`` (the event just
    started) and ``'EXIT'`` (the event just finished), respectively. This allows selecting other log records that are
@@ -59,16 +59,13 @@ start when something goes wrong!
 
 Sample record
 -------------
-A single :meth:`.Translator.translate`-call with every single debug option enabled typically produces a few hundred
-records (326 in this case). The final ``TRANSLATOR.TRANSLATE.EXIT``-event is the only ``ℹ️INFO``-level message, shown in
-its entirety as a JSON-record at the bottom.
+A single :meth:`.Translator.translate`-call with **every single debug option enabled** typically produces a few hundred
+records (about 300 in this case). The final ``TRANSLATOR.TRANSLATE.EXIT``-event is the only ``ℹ️INFO``-level message,
+shown in its entirety as a JSON-record at the bottom.
 
-.. code-block:: python
+.. literalinclude:: dvdrental-exit-message.txt
+   :language: python
    :caption: Exit message of the :meth:`.Translator.translate`-method.
-
-   Finished translation of 'DataFrame'-type data in 0.310252 sec using names-to-source
-     mapping: {'customer_id': 'customer', 'film_id': 'film', 'category_id': 'category',
-     'staff_id': 'staff'}. Returning a translated copy (since inplace=False).
 
 The event keys aren't included in any user-facing messages, but are useful since they may be used for indexing by log
 ingestion frameworks. The event keys associated with the message above are shown in the next snippet. Metadata such as
@@ -87,9 +84,9 @@ include a ``execution_time``-value in seconds. Messages related to mapping will 
 
 .. literalinclude:: dvdrental-records.json
    :caption: A ``TRANSLATOR.TRANSLATE.EXIT``-record emitted on the ``INFO``-level.
-   :lines: 8344-
-   :lineno-start: 8344
-   :emphasize-lines: 2,5,15,22-32,44-45
+   :lines: 8279-
+   :lineno-start: 8279
+   :emphasize-lines: 2,5,15,22,25,26,28,30-34,36
 
 A few of the more interesting parts of the record have been highlighted. Click :download:`here <dvdrental-records.json>`
 to download. The line numbers shown above are the actual line numbers of this file.
@@ -101,11 +98,12 @@ to download. The line numbers shown above are the actual line numbers of this fi
    import logging
    from id_translation.mapping.support import enable_verbose_debug_messages
 
-   translator = Translator.from_config(main_config, [fetcher_configs..])
    logging.basicConfig(level=logging.DEBUG, handlers=[SomeJsonExporter()])
-   with enable_verbose_debug_messages():
-       translator.translate(df)  # Translate a DataFrame
 
-The configs that were used are available `here <dvdrental>`_.
+   translator = Translator.from_config(main_config, [fetcher_configs..])
+   with enable_verbose_debug_messages():
+       translator.translate(df)
+
+The configs that were used are available `here <examples/dvdrental.html#configuration-files>`_.
 
 .. _dvdrental: https://github.com/rsundqvist/id-translation/blob/master/tests/dvdrental/

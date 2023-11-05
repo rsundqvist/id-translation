@@ -56,14 +56,14 @@ class Fetcher(Generic[SourceType, IdType], HasSources[SourceType]):
         """Retrieve placeholder translations from the source.
 
         Args:
-            ids_to_fetch: Tuples (source, ids) to fetch. If ``ids=None``, retrieve data for as many IDs as possible.
+            ids_to_fetch: An iterable of :class:`.IdsToFetch`.
             placeholders: All desired placeholders in preferred order.
             required: Placeholders that must be included in the response.
             task_id: Used for logging.
             enable_uuid_heuristics: If set, apply heuristics to improve matching with :py:class:`~uuid.UUID`-like IDs.
 
         Returns:
-            A mapping ``{source: PlaceholderTranslations}`` for translation.
+            A mapping ``{source: PlaceholderTranslations}`` of translation elements.
 
         Raises:
             UnknownPlaceholderError: For placeholder(s) that are unknown to the ``Fetcher``.
@@ -94,7 +94,7 @@ class Fetcher(Generic[SourceType, IdType], HasSources[SourceType]):
             enable_uuid_heuristics: If set, apply heuristics to improve matching with :py:class:`~uuid.UUID`-like IDs.
 
         Returns:
-            A mapping ``{source: PlaceholderTranslations}`` for translation.
+            A mapping ``{source: PlaceholderTranslations}`` of translation elements.
 
         Raises:
             ForbiddenOperationError: If fetching all IDs is not possible or permitted.

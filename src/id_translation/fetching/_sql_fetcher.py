@@ -22,14 +22,14 @@ from .types import FetchInstruction
 
 
 class SqlFetcher(AbstractFetcher[str, IdType]):
-    """Fetch data from a SQL source. Requires SQLAlchemy.
+    """Fetch data from a SQL source.
 
     Args:
         connection_string: A SQLAlchemy connection string.
         password: Password to insert into the connection string. Will be escaped to allow for special characters. If
             given, the connection string must contain a password key, eg; ``dialect://user:{password}@host:port``.
-        whitelist_tables: The only tables the ``SqlFetcher`` may access. Mutually exclusive with `blacklist_tables`.
-        blacklist_tables: The only tables the ``SqlFetcher`` may not access. Mutually exclusive with `whitelist_tables`.
+        whitelist_tables: The only tables the fetcher may access.
+        blacklist_tables: The only tables the fetcher may *not* access.
         schema: Database schema to use. Typically needed only if `schema` is not the default schema for the user
             specified in the connection string.
         include_views: If ``True``, the fetcher will discover and query views as well.

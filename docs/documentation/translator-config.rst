@@ -1,21 +1,21 @@
 .. _translator-config:
 
-TOML Configuration Files
-========================
-The recommended way of creating and configuring translators is the :meth:`Translator.from_config()
-<id_translation.Translator.from_config>` method. For an example, see the :ref:`dvdrental` page.
+Configuration
+=============
+This document describes the TOML format used by the
+:meth:`Translator.from_config() <id_translation.Translator.from_config>`-method.
 
 .. hint::
-    For ``Fetcher`` classes and functions used by ``Mapper``, ``rics``-package implementations are used by default. To
-    specify an external class or function, use ``'fully.qualified.names'`` in quotation marks. Names are resolved by
-    :func:`~rics.misc.get_by_full_name`, using an appropriate ``default_module`` argument.
+    Functions or classes are resolved by name using :func:`rics.misc.get_by_full_name`.
 
-For an introduction to the translation process itself, see the :ref:`translation-primer`.
+    Unqualified names are assumed to
+    belong to an appropriate ``id_translation`` module. To specify a custom implementation, use
+    ``'fully.qualified.names'`` (in quotation marks).
 
 Meta configuration
 ------------------
 The ``metaconf.toml``-file must be placed next to the main TOML configuration file, and determines how other files are
-processed by the the factory. There are only a few options here.
+processed by the the factory.
 
 .. list-table:: Sections: ``[env]``
    :header-rows: 1
@@ -49,11 +49,7 @@ Section: Translator
      - Description
    * - fmt
      - :class:`~id_translation.offline.Format`
-     - Specify how translated IDs are displayed
-   * - allow_name_inheritance
-     - :py:class:`bool`
-     - If ``True``, enable name resolution fallback to the parent `translatable` when calling the
-       :meth:`~id_translation.Translator.translate`-function with the ``attribute``-option.
+     - Specify how translated IDs are displayed.
    * - enable_uuid_heuristics
      - :py:class:`bool`
      - Enabling may improve matching when :py:class:`~uuid.UUID`-like IDs are in use.
@@ -138,6 +134,8 @@ See: :ref:`Subsection: Mapping` for details. For all mapping operations performe
    Custom classes may be initialized by using sections with fully qualified type names in single quotation marks. For
    example, a ``[fetching.'my.library.SuperFetcher']``-section would import and initialize a ``SuperFetcher`` from the
    ``my.library`` module.
+
+   Under the hood, this will call :func:`~rics.misc.get_by_full_name` using ``name="my.library.SuperFetcher"``.
 
 
 Multiple fetchers

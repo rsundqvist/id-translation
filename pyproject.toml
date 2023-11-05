@@ -147,6 +147,10 @@ flake8-bandit = ["-*"]
 [tool.flakeheaven.exceptions."jupyterlab/"]
 flake8-annotations = ["-*"]
 flake8-docstrings = ["-*"]
+[tool.flakeheaven.exceptions."docs/"]
+flake8-annotations = ["-*"]
+flake8-docstrings = ["-*"]
+flake8-bandit = ["-*"]
 
 [tool.flakeheaven.exceptions."src/id_translation/__init__.py"]
 pyflakes = ["-F401"]  # Module imported but unused - False positive for __version__; IDE solves for real positives

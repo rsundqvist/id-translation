@@ -19,12 +19,12 @@ class PandasFetcher(AbstractFetcher[str, IdType]):
     """Fetcher implementation using pandas ``DataFrame`` s as the data format.
 
     Fetch data from serialized ``DataFrame`` s. How this is done is determined by the `read_function`. This is typically
-    a Pandas function such as :func:`pandas.read_csv` or :func:`pandas.read_pickle`, but any function that accepts a
+    a Pandas function such as :func:`pandas.read_csv` or :func:`pandas.read_parquet`, but any function that accepts a
     string `source` as the  first argument and returns a data frame can be used.
 
     Args:
         read_function: A Pandas `read`-function. If a string is given, the function is resolved using
-            func:`rics.misc.get_by_full_name`. Unqualified named are assumed to belong to the ``pandas`` namespace.
+            :func:`rics.misc.get_by_full_name`. Unqualified names are assumed to belong to the ``pandas`` namespace.
         read_path_format: A formatting string or a callable to apply to a source before passing them to `read_function`.
             Must contain a `source` as its only placeholder. Example: ``data/{source}.pkl``. Leave as-is if ``None``.
             Valid URL schemes include http, ftp, s3, gs, and file.
