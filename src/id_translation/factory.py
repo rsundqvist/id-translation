@@ -13,7 +13,6 @@ from typing import (
     Optional,
     Tuple,
     Type,
-    Union,
 )
 
 from rics import misc
@@ -137,11 +136,13 @@ class TranslatorFactory(_Generic[NameType, SourceType, IdType]):
         self,
         file: PathLikeType,
         extra_fetchers: Iterable[PathLikeType],
-        clazz: Union[str, Type["Translator[NameType, SourceType, IdType]"]] = None,
+        clazz: Type["Translator[NameType, SourceType, IdType]"] = None,
     ) -> None:
+        from ._translator import Translator
+
         self.file = str(file)
         self.extra_fetchers = list(map(str, extra_fetchers))
-        self.clazz: Type[Translator[NameType, SourceType, IdType]] = self.resolve_class(clazz)
+        self.clazz: Type[Translator[NameType, SourceType, IdType]] = clazz or Translator[NameType, SourceType, IdType]
         self._metaconf = _read_metaconf(self.file)
 
     def create(self) -> "Translator[NameType, SourceType, IdType]":
@@ -181,21 +182,6 @@ class TranslatorFactory(_Generic[NameType, SourceType, IdType]):
         config = dict(allow_interpolation=True)
         config.update(self._metaconf.get("env", {}))
         return _load_toml_file(path, **config)
-
-    @classmethod
-    def resolve_class(
-        cls, clazz: Union[str, Type["Translator[NameType, SourceType, IdType]"]] = None
-    ) -> Type["Translator[NameType, SourceType, IdType]"]:
-        """Resolve desired ``Translator`` type."""
-        if clazz is None:
-            from . import Translator
-
-            return Translator
-
-        if isinstance(clazz, str):
-            return misc.get_by_full_name(clazz)  # type: ignore[no-any-return]
-        else:
-            return clazz
 
     def _handle_fetching(
         self,

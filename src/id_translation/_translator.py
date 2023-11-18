@@ -17,7 +17,6 @@ from typing import (
     Optional,
     Set,
     Tuple,
-    Type,
     Union,
     overload,
 )
@@ -239,7 +238,6 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         cls,
         path: PathLikeType,
         extra_fetchers: Iterable[PathLikeType] = (),
-        clazz: Union[str, Type["Translator[NameType, SourceType, IdType]"]] = None,
     ) -> "Translator[NameType, SourceType, IdType]":
         """Create a ``Translator`` from TOML inputs.
 
@@ -247,8 +245,6 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             path: Path to the main TOML configuration file.
             extra_fetchers: Paths to fetching configuration TOML files. If multiple fetchers are defined, they are
                 ranked by input order. If a fetcher defined in the main configuration, it will be prioritized (rank=0).
-            clazz: Translator implementation to create. If a string is passed, the class is resolved using
-                :func:`~rics.misc.get_by_full_name` if a string is given. Use ``cls`` if ``None``.
 
         Returns:
             A new ``Translator`` instance with a :attr:`config_metadata` attribute.
@@ -256,7 +252,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         return TranslatorFactory(
             path,
             extra_fetchers,
-            clazz or cls,  # TODO: Higher-Kinded TypeVars
+            cls,  # TODO: Higher-Kinded TypeVars or typing.Self
         ).create()
 
     @property
@@ -904,7 +900,6 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         config_path: PathLikeType,
         extra_fetchers: Iterable[PathLikeType] = (),
         max_age: Union[str, pandas.Timedelta, timedelta] = "12h",
-        clazz: Union[str, Type["Translator[NameType, SourceType, IdType]"]] = None,
     ) -> "Translator[NameType, SourceType, IdType]":
         """Load or create a persistent :attr:`~.Fetcher.fetch_all`-instance.
 
@@ -926,8 +921,6 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                 ranked by input order. If a fetcher defined in the main configuration, it will be prioritized (rank=0).
             max_age: The maximum age of the cached ``Translator`` before it must be recreated. Pass ``max_age='0d'`` to
                 force recreation.
-            clazz: Translator implementation to create. If a string is passed, the class is resolved using
-                :func:`~rics.misc.get_by_full_name` if a string is given. Use ``cls`` if ``None``.
 
         Returns:
             A new or cached ``Translator`` instance with a :attr:`config_metadata` attribute.
@@ -948,7 +941,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         metadata = ConfigMetadata.from_toml_paths(
             str(path),
             extra_fetcher_paths,
-            clazz=TranslatorFactory.resolve_class(clazz),
+            clazz=cls,
         )
         use_cached, reason = metadata.use_cached(metadata_path, pandas.Timedelta(max_age).to_pytimedelta())
         if use_cached:
@@ -956,8 +949,8 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             return cls.restore(cache_path)
         else:
             LOGGER.info(f"Create new Translator; {reason}. Cache dir: '{cache_dir}'.")
-            ans: Translator[NameType, SourceType, IdType] = cls.from_config(path, extra_fetcher_paths, clazz)
-            ans.store(path=cache_path, delete_fetcher=True)
+            ans: Translator[NameType, SourceType, IdType] = cls.from_config(path, extra_fetcher_paths)
+            ans.store(path=cache_path)
             metadata_path.write_text(ans.config_metadata.to_json())
             return ans
 
@@ -998,17 +991,18 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         names: NameTypes[NameType] = None,
         *,
         ignore_names: Names[NameType] = None,
-        delete_fetcher: bool = True,
         path: PathLikeType = None,
     ) -> "Translator[NameType, SourceType, IdType]":  # noqa: DAR401  false positive
         """Retrieve and store translations in memory.
+
+        .. warning::
+
+           The translator will be disconnected. No new translations may be fetched after this method returns.
 
         Args:
             translatable: Data from which IDs to fetch will be extracted. Fetch all IDs if ``None``.
             names: Explicit names to translate. Derive from `translatable` if ``None``.
             ignore_names: Names **not** to translate, or a predicate ``(str) -> bool``.
-            delete_fetcher: If ``True``, invoke :meth:`.Fetcher.close` and delete the fetcher after retrieving data. The
-                ``Translator`` will still function, but new data cannot be retrieved.
             path: If given, serialize the ``Translator`` to disk after retrieving data.
 
         Returns:
@@ -1042,10 +1036,8 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                 not_fetched = set(self.fetcher.sources).difference(translation_map.sources)
                 LOGGER.debug(f"Available sources {not_fetched} were not fetched.")
 
-        if delete_fetcher:  # pragma: no cover
-            self.fetcher.close()
-            del self._fetcher
-
+        self.fetcher.close()
+        del self._fetcher
         self._cached_tmap = translation_map
 
         LOGGER.info(f"Created {translation_map} in {format_perf_counter(start)}.")

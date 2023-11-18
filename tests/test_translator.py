@@ -173,7 +173,7 @@ def test_store_with_explicit_values(hex_fetcher):
     )
 
     with pytest.raises(MappingError) as e, pytest.warns(UserWarning) as w:
-        translator.store(data, ignore_names=data, delete_fetcher=False)
+        translator.store(data, ignore_names=data)
         assert "No names left" in str(w)
         assert "not store" in str(e)
 
@@ -440,19 +440,17 @@ def test_load_persistent_instance(tmp_path):
     translatable: List[int] = [0, 1, 2]
     args = (translatable, "category_id")
 
-    translator = UnitTestTranslator.load_persistent_instance(tmp_path, config_path, clazz=UnitTestTranslator)
+    translator = UnitTestTranslator.load_persistent_instance(tmp_path, config_path)
     assert isinstance(translator, UnitTestTranslator)
     now = translator.now
     assert translator.translate(*args) == expected
 
-    translator = UnitTestTranslator.load_persistent_instance(tmp_path, config_path, clazz=UnitTestTranslator)
+    translator = UnitTestTranslator.load_persistent_instance(tmp_path, config_path)
     assert isinstance(translator, UnitTestTranslator)
     assert translator.now == now
     assert translator.translate(*args) == expected
 
-    translator = UnitTestTranslator.load_persistent_instance(
-        tmp_path, config_path, clazz=UnitTestTranslator, max_age="-1d"
-    )
+    translator = UnitTestTranslator.load_persistent_instance(tmp_path, config_path, max_age="-1d")
     assert isinstance(translator, UnitTestTranslator)
     assert translator.now > now
     assert translator.translate(*args) == expected

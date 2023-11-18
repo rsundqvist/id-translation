@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Attribute translation is no longer support. `Translator.allow_name_inheritance` attribute as been removed, as well as
   the `Translator.translate(attribute)`-argument.
+- The `Translator.from_config(clazz)`-argument (always use `cls` instead).
 
 ## [0.5.1] - 2023-07-01
 
