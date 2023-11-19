@@ -466,6 +466,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
 
 class _BinaryUuid(TypeDecorator):  # type: ignore[type-arg]
     impl = BINARY(16)
+    cache_ok = True
 
     def process_bind_param(self, value: Optional[UUID], dialect: Any) -> Optional[bytes]:
         """Mimic UUID_TO_BIN."""
@@ -478,6 +479,7 @@ class _BinaryUuid(TypeDecorator):  # type: ignore[type-arg]
 
 class _String32Uuid(TypeDecorator):  # type: ignore[type-arg]
     impl = CHAR(32)
+    cache_ok = True
 
     def process_bind_param(self, value: Optional[UUID], dialect: Any) -> Optional[str]:
         """To string representation without dashes."""
@@ -490,6 +492,7 @@ class _String32Uuid(TypeDecorator):  # type: ignore[type-arg]
 
 class _String36Uuid(TypeDecorator):  # type: ignore[type-arg]
     impl = CHAR(36)
+    cache_ok = True
 
     def process_bind_param(self, value: Optional[UUID], dialect: Any) -> Optional[str]:
         """To string representation with dashes."""
