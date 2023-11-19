@@ -29,7 +29,7 @@ from .types import IdType, NameType, SourceType
 if TYPE_CHECKING:
     from ._translator import Translator
 
-FetcherFactory = Callable[[str, Dict[str, _Any]], fetching.AbstractFetcher]
+FetcherFactory = Callable[[str, Dict[str, _Any]], fetching.AbstractFetcher[_Any, _Any]]
 """A callable which creates new ``AbstractFetcher`` instances from a dict config.
 
 Config format is described in :ref:`translator-config-fetching`.
@@ -46,7 +46,7 @@ Raises:
     TypeError: If `clazz` is not an AbstractFetcher subtype.
 """
 
-MapperFactory = Callable[[Dict[str, _Any], bool], Optional[_Mapper]]
+MapperFactory = Callable[[Dict[str, _Any], bool], Optional[_Mapper[_Any, _Any, _Any]]]
 """A callable which creates new ``Mapper`` instances from a dict config.
 
 Config format is described in :ref:`translator-config-mapping`.
@@ -64,7 +64,7 @@ Raises:
     ConfigurationError: If `config` is invalid.
 """
 
-TransformerFactory = Callable[[str, Dict[str, _Any]], _Transformer]
+TransformerFactory = Callable[[str, Dict[str, _Any]], _Transformer[_Any]]
 """A callable which creates new ``Transformer`` instances from a dict config.
 
 Config format is described in :ref:`translator-config-transform`.

@@ -211,7 +211,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                     stacklevel=2,
                 )
             else:
-                mapper = TestMapper()  # type: ignore
+                mapper = TestMapper()
             warnings.warn(
                 "No fetcher given. Translation data will be automatically generated.",
                 UserWarning,
@@ -450,7 +450,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             ...
 
         @overload
-        def translate(  # type: ignore[misc]  # Overlaps with DictToVarTuple
+        def translate(  # type: ignore[overload-overlap]  # Overlaps with DictToVarTuple
             self,
             translatable: DictToOneTuple[NameType, IdType],
             names: Union[NameTypes[NameType], NameToSource[NameType, SourceType]] = None,
@@ -466,7 +466,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             ...
 
         @overload
-        def translate(  # type: ignore[misc]  # Overlaps with DictToVarTuple
+        def translate(  # type: ignore[overload-overlap]  # Overlaps with DictToVarTuple
             self,
             translatable: DictToTwoTuple[NameType, IdType],
             names: Union[NameTypes[NameType], NameToSource[NameType, SourceType]] = None,
@@ -482,7 +482,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             ...
 
         @overload
-        def translate(  # type: ignore[misc]  # Overlaps with DictToVarTuple
+        def translate(  # type: ignore[overload-overlap]  # Overlaps with DictToVarTuple
             self,
             translatable: DictToThreeTuple[NameType, IdType],
             names: Union[NameTypes[NameType], NameToSource[NameType, SourceType]] = None,
