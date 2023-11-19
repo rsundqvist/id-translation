@@ -67,6 +67,8 @@ Raises:
 TransformerFactory = Callable[[str, Dict[str, _Any]], _Transformer]
 """A callable which creates new ``Transformer`` instances from a dict config.
 
+Config format is described in :ref:`translator-config-transform`.
+
 Args:
     clazz: Type of ``Transformer`` to create.
     config: Keyword arguments for the transformer class.

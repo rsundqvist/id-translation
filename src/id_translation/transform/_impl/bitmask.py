@@ -12,11 +12,46 @@ TomlOverrideRecord = Dict[Literal["id", "override"], Union[IdType, str]]  # TODO
 class BitmaskTransformer(Transformer[IdType]):
     """Transformations for translating bitmask fields.
 
+    IDs must be integers.
+
+    .. important::
+
+       When using TOML config, dict keys must be strings. Use alternative format for `overrides`:
+
+       .. code-block:: toml
+
+          [transform.'<source>'.BitmaskTransformer]
+          overrides = [
+            { id = 0, override = "override-for-id=0" },
+            { id = 1, override = "override-for-id=1" },
+          ]
+
+       Key names must match exactly, and IDs may not be repeated. For more information about TOML configuration, see
+       :ref:`translator-config-transform`.
+
     Args:
         joiner: A string used to join bitmask flag labels.
         overrides: A dict ``{id: translation}``. Use to add or override the translation source.
-        force_decomposition: If ``True``, ignore composite values in the translation source and in the `overrides`. This
-            will force use of the `joiner`-based format.
+        force_decomposition: If ``True``, ignore composite values in the translation source.
+
+    Examples:
+        Basic usage.
+
+        >>> btr = BitmaskTransformer(overrides={0b000: "NOT_SET", 0b1000: "OVERFLOW!"})
+
+        Create a ``Translator`` using bitmask transforms for the `'bitmasks'` source.
+
+        >>> from id_translation import Translator
+        >>> data = {"id": [1, 4, 8], "name": ["name-of-1", "name-of-4", "0b1000"]}
+        >>> tra = Translator({"bitmasks": data}, transformers={"bitmasks": btr})
+
+        Translate some bitmasks!
+
+        >>> tra.translate((0b000, 0b101, 8), names="bitmasks")
+        ('NOT_SET', '1:name-of-1 & 4:name-of-4', 'OVERFLOW!')
+
+        Note that ``0='NOT_SET'`` was translated even though it's not in the ``data``, and that ``8='0b1000'`` was
+        replaced by ``'OVERFLOW!'``, as per the overrides specified for the transformer.
     """
 
     def __init__(
