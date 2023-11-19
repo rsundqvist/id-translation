@@ -97,6 +97,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         *,
         ids: Optional[Set[IdType]],
         id_column: sqlalchemy.sql.ColumnElement,  # type: ignore[type-arg]
+        table: sqlalchemy.Table,
     ) -> sqlalchemy.sql.Select:  # type: ignore[type-arg]
         """Add ``WHERE`` clause(s) to an ID select statement.
 
@@ -107,7 +108,8 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         Args:
             select: A ``sqlalchemy.sql.Select`` element. If returned as-is, all IDs in the table will be fetched.
             ids: Set of IDs to fetch. Will be ``None`` if :meth:`~AbstractFetcher.fetch_all` was called.
-            id_column: The ID ``sqlalchemy.sql.Column`` of the table, from which `ids` are fetched.
+            id_column: The ID ``sqlalchemy.sql.Column`` of the `table`, from which `ids` are fetched.
+            table: Table to `select` from.
 
         Returns:
             The final statement object to use.
@@ -156,7 +158,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         columns = [id_column if name == ts.id_column.name else ts.columns[name] for name in column_names]
         select = sqlalchemy.select(*columns)
 
-        select = self.select_where(select, ids=instr.ids, id_column=id_column)
+        select = self.select_where(select, ids=instr.ids, id_column=id_column, table=ts.id_column.table)
 
         logger = self.logger.getChild("select")
         if logger.isEnabledFor(logging.DEBUG):

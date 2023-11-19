@@ -76,6 +76,40 @@ Section: Unknown IDs
   in a ``[unknown_ids.overrides]``-subsection. See: :ref:`Subsection: Overrides` for details (context =
   :attr:`source <id_translation.types.SourceType>`).
 
+.. _translator-config-transform:
+
+Section: Transformations
+------------------------
+You may specify one :class:`.Transformer` per source. Subsection keys are passed directly to the ``init``-method of the
+chosen transformer type. For available transformers, see the :mod:`API documentation <.transform>`.
+
+For example, to configure a :class:`.BitmaskTransformer`, add a section on the form
+``[transform.'<source>'.'<transformer-type>']`` to your main configuration file:
+
+.. code-block:: toml
+
+   [transform.'<source>'.BitmaskTransformer]
+   joiner = " AND "
+   overrides = [
+       { id = 0, override = "NOT_SET" },
+       { id = 0b1000, override = "OVERFLOW" },
+   ]
+
+This will create a transform that formats bitmasks such as ``0b101`` in the following way:
+
+.. code-block:: python
+
+   translator.translate((0b000, 0b101, 8), name="<source>")
+   ("NOT_SET", "1:name-of-1 AND 4:name-of-4", "OVERFLOW")
+
+.. hint::
+
+   Custom transformers may be initialized by using sections with fully qualified type names in single quotation marks.
+   For example, a ``[transform.'<source>'.'my.library.SuperTransformer']``-section would import and initialize a
+   ``SuperTransformer`` from the ``my.library`` module.
+
+   Under the hood, this will call :func:`~rics.misc.get_by_full_name` using ``name="my.library.SuperTransformer"``.
+
 .. _translator-config-fetching:
 
 Section: Fetching
@@ -131,7 +165,7 @@ See: :ref:`Subsection: Mapping` for details. For all mapping operations performe
 
 .. hint::
 
-   Custom classes may be initialized by using sections with fully qualified type names in single quotation marks. For
+   Custom fetchers may be initialized by using sections with fully qualified type names in single quotation marks. For
    example, a ``[fetching.'my.library.SuperFetcher']``-section would import and initialize a ``SuperFetcher`` from the
    ``my.library`` module.
 

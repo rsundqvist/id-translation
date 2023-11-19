@@ -98,7 +98,7 @@ types-urllib3 = ">=1.26.24"
 pre-commit = ">=2.20,<4.0"
 invoke = ">=2.0.0"
 safety = "^2.1.1"
-mypy = "^1.5.1"
+mypy = "^1.7"
 sqlalchemy = ">2"
 bump2version = "^1.0.1"
 
@@ -128,12 +128,16 @@ flake8-docstrings = ["+*",
     "-D107", # Missing docstring in __init__ - special case of D105. Init docstring = class docstring.
 ]
 
+# Docstrings are inherited
 [tool.flakeheaven.exceptions."src/id_translation/fetching/"]
-flake8-docstrings = ["-D102"]  # Docstrings are inherited
+flake8-docstrings = ["-D102"]
 [tool.flakeheaven.exceptions."src/id_translation/dio/"]
-flake8-docstrings = ["-D102"]  # Docstrings are inherited
+flake8-docstrings = ["-D102"]
 [tool.flakeheaven.exceptions."src/id_translation/offline/_translation_map.py"]
-flake8-docstrings = ["-D102"]  # Docstrings are inherited
+flake8-docstrings = ["-D102"]
+
+[tool.flakeheaven.exceptions."src/id_translation/transform/_impl/"]
+flake8-docstrings = ["-D102"]
 
 [tool.flakeheaven.exceptions."src/id_translation/testing.py"]
 flake8-docstrings = ["-DAR101", "-D102"]

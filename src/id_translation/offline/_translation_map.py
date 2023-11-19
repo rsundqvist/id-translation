@@ -4,6 +4,7 @@ from typing import Any, Dict, Generic, Iterator, List, Mapping, Optional, Set, U
 from rics.collections.dicts import InheritedKeysDict, reverse_dict
 from rics.misc import tname
 
+from ..transform.types import Transformer
 from ..types import HasSources, IdType, NameToSource, NameType, SourceType
 from ._format import Format
 from ._format_applier import FormatApplier
@@ -25,6 +26,7 @@ class TranslationMap(
         default_fmt: Alternative format specification to use instead of `fmt` for fallback translation.
         default_fmt_placeholders: Per-source default placeholder values.
         enable_uuid_heuristics: Enabling may improve matching when :py:class:`~uuid.UUID`-like IDs are in use.
+        transformers: A dict ``{source: transformer}`` of initialized :class:`.Transformer` instances.
 
     Notes:
         Type checking of `fmt` and `default_fmt_placeholders` attributes may fail due to
@@ -39,12 +41,16 @@ class TranslationMap(
         default_fmt: FormatType = None,
         default_fmt_placeholders: InheritedKeysDict[SourceType, str, Any] = None,
         enable_uuid_heuristics: bool = True,
+        transformers: Dict[SourceType, Transformer[IdType]] = None,
     ) -> None:
         self.default_fmt = default_fmt  # type: ignore
         self.default_fmt_placeholders = default_fmt_placeholders  # type: ignore
         self.fmt = fmt  # type: ignore
+
+        transformers = transformers or {}
         self._format_appliers: Dict[SourceType, FormatApplier[NameType, SourceType, IdType]] = {
-            source: FormatApplier(translations) for source, translations in source_translations.items()
+            source: FormatApplier(translations, transformer=transformers.get(source))
+            for source, translations in source_translations.items()
         }
         self._names_and_sources: Set[Union[NameType, SourceType]] = set()
         self.name_to_source = name_to_source or {}
@@ -85,6 +91,7 @@ class TranslationMap(
             default_fmt_placeholders=self.default_fmt_placeholders.get(source),
             enable_uuid_heuristics=self.enable_uuid_heuristics,
         )
+
         return (
             MagicDict(
                 reverse_dict(translations),  # type: ignore

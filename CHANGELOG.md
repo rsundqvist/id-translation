@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - The `Translate.translate()`-method now have overloads for improved typing.
+- User-defined ID and translation transformation framework: `id_translation.transform`
+- Bitmask translation support: `id_translation.transform.BitmaskTransformer`
 
 ### Changed
 - Make `Translator.translated_names()` optionally return a mapping dict instead of just names.
@@ -24,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Attribute translation is no longer support. `Translator.allow_name_inheritance` attribute as been removed, as well as
   the `Translator.translate(attribute)`-argument.
+- The `Translator.from_config(clazz)`-argument (always use `cls` instead).
 
 ## [0.5.1] - 2023-07-01
 

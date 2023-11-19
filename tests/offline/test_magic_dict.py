@@ -1,6 +1,9 @@
+from uuid import UUID
+
 import pytest
 
 from id_translation.offline import MagicDict
+from id_translation.transform.types import Transformer, TransformerStop
 
 FSTRING = "My name is {} and my number is {}."
 PLACEHOLDERS = ("name", "id")
@@ -61,3 +64,67 @@ def test_bad_uuids():
             },
             enable_uuid_heuristics=True,
         )
+
+
+@pytest.mark.parametrize("kind", [str.upper, str.lower, UUID])
+def test_uuid_contains_and_delete(kind):
+    uuid = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+    md = MagicDict(
+        {kind(uuid): ""},
+        enable_uuid_heuristics=True,
+        default_value=None,
+    )
+    assert uuid in md
+    del md[uuid]
+    assert uuid not in md
+
+
+def test_transformer():
+    transformer = DummyTransformer()
+    subject = MagicDict({0: "ZERO", 1: "ONE"}, transformer=transformer)
+    # Should not call missing key yet
+    assert transformer.call_counts == {"update_translations": 1, "try_add_missing_key": 0}
+
+    assert subject.get(2) == "TWO"
+    assert transformer.call_counts["try_add_missing_key"] == 1
+    assert subject[2] == "TWO"
+    assert transformer.call_counts["try_add_missing_key"] == 1
+
+    assert subject.get(3) == "THREE"
+    assert transformer.call_counts["try_add_missing_key"] == 2
+    assert subject[3] == "THREE"
+    assert transformer.call_counts["try_add_missing_key"] == 2
+
+    assert subject.get(4) is None
+    assert subject.get(5) is None
+    assert subject.get(6) is None
+    with pytest.raises(KeyError):
+        subject.__getitem__(7)
+
+    assert transformer.call_counts == {"update_translations": 1, "try_add_missing_key": DummyTransformer.max_try}
+    with pytest.raises(TransformerStop):
+        transformer.try_add_missing_key(-1, translations=subject)
+
+
+class DummyTransformer(Transformer[int]):
+    max_try = 3
+
+    def __init__(self):
+        self.call_counts = {"update_translations": 0, "try_add_missing_key": 0}
+
+    def update_ids(self, ids):
+        pass
+
+    def update_translations(self, translations):
+        assert self.call_counts["update_translations"] == 0
+        self.call_counts["update_translations"] = 1
+        assert translations.get(-1) is None
+
+    def try_add_missing_key(self, key, /, *, translations):
+        self.call_counts["try_add_missing_key"] += 1
+
+        if self.call_counts["try_add_missing_key"] >= self.max_try:
+            raise TransformerStop()
+
+        if (value := {2: "TWO", 3: "THREE"}.get(key)) is not None:
+            translations[key] = value

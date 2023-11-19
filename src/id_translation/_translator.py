@@ -17,7 +17,6 @@ from typing import (
     Optional,
     Set,
     Tuple,
-    Type,
     Union,
     overload,
 )
@@ -41,6 +40,7 @@ from .mapping.exceptions import MappingError
 from .mapping.types import UserOverrideFunction
 from .offline import Format, TranslationMap
 from .offline.types import FormatType, PlaceholderTranslations, SourcePlaceholderTranslations
+from .transform.types import Transformer
 from .types import (
     ID,
     CopyTranslatable,
@@ -100,6 +100,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         default_fmt_placeholders: Shared and/or source-specific default placeholder values for unknown IDs. See
             :meth:`rics.collections.dicts.InheritedKeysDict.make` for details.
         enable_uuid_heuristics: Enabling may improve matching when :py:class:`~uuid.UUID`-like IDs are in use.
+        transformers: A dict ``{source: transformer}`` of initialized :class:`.Transformer` instances.
 
     Notes:
         Untranslatable IDs will be ``None`` by default if neither `default_fmt` nor `default_fmt_placeholders` is given.
@@ -186,7 +187,10 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         default_fmt: FormatType = None,
         default_fmt_placeholders: MakeType[SourceType, str, Any] = None,
         enable_uuid_heuristics: bool = False,
+        transformers: Dict[SourceType, Transformer[IdType]] = None,
     ) -> None:
+        self._transformers = transformers
+
         self._fmt = fmt if isinstance(fmt, Format) else Format(fmt)
         self._default_fmt_placeholders: Optional[InheritedKeysDict[SourceType, str, Any]]
         self._default_fmt_placeholders, self._default_fmt = _handle_default(
@@ -207,7 +211,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                     stacklevel=2,
                 )
             else:
-                mapper = TestMapper()  # type: ignore
+                mapper = TestMapper()
             warnings.warn(
                 "No fetcher given. Translation data will be automatically generated.",
                 UserWarning,
@@ -239,7 +243,6 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         cls,
         path: PathLikeType,
         extra_fetchers: Iterable[PathLikeType] = (),
-        clazz: Union[str, Type["Translator[NameType, SourceType, IdType]"]] = None,
     ) -> "Translator[NameType, SourceType, IdType]":
         """Create a ``Translator`` from TOML inputs.
 
@@ -247,8 +250,6 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             path: Path to the main TOML configuration file.
             extra_fetchers: Paths to fetching configuration TOML files. If multiple fetchers are defined, they are
                 ranked by input order. If a fetcher defined in the main configuration, it will be prioritized (rank=0).
-            clazz: Translator implementation to create. If a string is passed, the class is resolved using
-                :func:`~rics.misc.get_by_full_name` if a string is given. Use ``cls`` if ``None``.
 
         Returns:
             A new ``Translator`` instance with a :attr:`config_metadata` attribute.
@@ -256,7 +257,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         return TranslatorFactory(
             path,
             extra_fetchers,
-            clazz or cls,  # TODO: Higher-Kinded TypeVars
+            cls,  # TODO: Higher-Kinded TypeVars or typing.Self
         ).create()
 
     @property
@@ -282,7 +283,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         kwargs: Dict[str, Any] = {
             "fmt": self._fmt,
             "default_fmt": self._default_fmt,
-            "enable_uuid_heuristics": self._enable_uuid_heuristics,
+            "enable_uuid_heuristics": self.enable_uuid_heuristics,
             **overrides,
         }
 
@@ -449,7 +450,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             ...
 
         @overload
-        def translate(  # type: ignore[misc]  # Overlaps with DictToVarTuple
+        def translate(  # type: ignore[overload-overlap]  # Overlaps with DictToVarTuple
             self,
             translatable: DictToOneTuple[NameType, IdType],
             names: Union[NameTypes[NameType], NameToSource[NameType, SourceType]] = None,
@@ -465,7 +466,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             ...
 
         @overload
-        def translate(  # type: ignore[misc]  # Overlaps with DictToVarTuple
+        def translate(  # type: ignore[overload-overlap]  # Overlaps with DictToVarTuple
             self,
             translatable: DictToTwoTuple[NameType, IdType],
             names: Union[NameTypes[NameType], NameToSource[NameType, SourceType]] = None,
@@ -481,7 +482,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             ...
 
         @overload
-        def translate(  # type: ignore[misc]  # Overlaps with DictToVarTuple
+        def translate(  # type: ignore[overload-overlap]  # Overlaps with DictToVarTuple
             self,
             translatable: DictToThreeTuple[NameType, IdType],
             names: Union[NameTypes[NameType], NameToSource[NameType, SourceType]] = None,
@@ -904,7 +905,6 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         config_path: PathLikeType,
         extra_fetchers: Iterable[PathLikeType] = (),
         max_age: Union[str, pandas.Timedelta, timedelta] = "12h",
-        clazz: Union[str, Type["Translator[NameType, SourceType, IdType]"]] = None,
     ) -> "Translator[NameType, SourceType, IdType]":
         """Load or create a persistent :attr:`~.Fetcher.fetch_all`-instance.
 
@@ -926,8 +926,6 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                 ranked by input order. If a fetcher defined in the main configuration, it will be prioritized (rank=0).
             max_age: The maximum age of the cached ``Translator`` before it must be recreated. Pass ``max_age='0d'`` to
                 force recreation.
-            clazz: Translator implementation to create. If a string is passed, the class is resolved using
-                :func:`~rics.misc.get_by_full_name` if a string is given. Use ``cls`` if ``None``.
 
         Returns:
             A new or cached ``Translator`` instance with a :attr:`config_metadata` attribute.
@@ -948,7 +946,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         metadata = ConfigMetadata.from_toml_paths(
             str(path),
             extra_fetcher_paths,
-            clazz=TranslatorFactory.resolve_class(clazz),
+            clazz=cls,
         )
         use_cached, reason = metadata.use_cached(metadata_path, pandas.Timedelta(max_age).to_pytimedelta())
         if use_cached:
@@ -956,8 +954,8 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             return cls.restore(cache_path)
         else:
             LOGGER.info(f"Create new Translator; {reason}. Cache dir: '{cache_dir}'.")
-            ans: Translator[NameType, SourceType, IdType] = cls.from_config(path, extra_fetcher_paths, clazz)
-            ans.store(path=cache_path, delete_fetcher=True)
+            ans: Translator[NameType, SourceType, IdType] = cls.from_config(path, extra_fetcher_paths)
+            ans.store(path=cache_path)
             metadata_path.write_text(ans.config_metadata.to_json())
             return ans
 
@@ -998,17 +996,18 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         names: NameTypes[NameType] = None,
         *,
         ignore_names: Names[NameType] = None,
-        delete_fetcher: bool = True,
         path: PathLikeType = None,
     ) -> "Translator[NameType, SourceType, IdType]":  # noqa: DAR401  false positive
         """Retrieve and store translations in memory.
+
+        .. warning::
+
+           The translator will be disconnected. No new translations may be fetched after this method returns.
 
         Args:
             translatable: Data from which IDs to fetch will be extracted. Fetch all IDs if ``None``.
             names: Explicit names to translate. Derive from `translatable` if ``None``.
             ignore_names: Names **not** to translate, or a predicate ``(str) -> bool``.
-            delete_fetcher: If ``True``, invoke :meth:`.Fetcher.close` and delete the fetcher after retrieving data. The
-                ``Translator`` will still function, but new data cannot be retrieved.
             path: If given, serialize the ``Translator`` to disk after retrieving data.
 
         Returns:
@@ -1042,10 +1041,8 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                 not_fetched = set(self.fetcher.sources).difference(translation_map.sources)
                 LOGGER.debug(f"Available sources {not_fetched} were not fetched.")
 
-        if delete_fetcher:  # pragma: no cover
-            self.fetcher.close()
-            del self._fetcher
-
+        self.fetcher.close()
+        del self._fetcher
         self._cached_tmap = translation_map
 
         LOGGER.info(f"Created {translation_map} in {format_perf_counter(start)}.")
@@ -1081,10 +1078,27 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         translation_map.name_to_source = task.name_to_source  # Update
         return translation_map
 
+    def get_transformer(self, source: SourceType) -> Optional[Transformer[IdType]]:
+        """Get the transformer to use for `source`.
+
+        Args:
+            source: A source.
+
+        Returns:
+            A :class:`.Transformer` or ``None``.
+        """
+        return None if self._transformers is None else self._transformers.get(source)
+
     def _execute_fetch(
         self, task: TranslationTask[NameType, SourceType, IdType]
     ) -> TranslationMap[NameType, SourceType, IdType]:
-        ids_to_fetch = [IdsToFetch(source, ids=ids) for source, ids in task.extract_ids().items()]
+        source_to_ids = task.extract_ids()
+
+        for source in source_to_ids:
+            if (transformer := self.get_transformer(source)) is not None:
+                transformer.update_ids(source_to_ids[source])
+
+        ids_to_fetch = [IdsToFetch(source, ids=ids) for source, ids in source_to_ids.items()]
         source_translations = self._fetch(ids_to_fetch, fmt=task.fmt, task_id=task.task_id)
         return self._to_translation_map(source_translations, fmt=task.fmt)
 
@@ -1133,6 +1147,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             default_fmt=self._default_fmt,
             default_fmt_placeholders=self._default_fmt_placeholders,
             enable_uuid_heuristics=self._enable_uuid_heuristics,
+            transformers=self._transformers,
         )
 
     def __repr__(self) -> str:
