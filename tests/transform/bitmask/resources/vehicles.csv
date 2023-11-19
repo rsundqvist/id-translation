@@ -1,0 +1,7 @@
+id,name
+0b0001,Cars
+0b0010,Quad bikes
+0b0100,Skateboards
+0b1000,Bicycles
+0b0111,Any four-wheeled vehicle
+0b1100,Any human-powered vehicle

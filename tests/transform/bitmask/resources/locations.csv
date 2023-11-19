@@ -1,0 +1,7 @@
+permitted modes of transportation,location
+-1,The sidewalk
+0,The living room
+0b0001,Route 53
+0b0001 | 0b0010,A country road
+0b0100,The railing of some stairs
+0b0100 | 0b1000,The bicycle lane
