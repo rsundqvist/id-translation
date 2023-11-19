@@ -2,6 +2,7 @@ from typing import Any, Dict, Generic, List
 
 from rics.misc import tname
 
+from ..transform.types import Transformer
 from ..types import ID, IdType, NameType, SourceType
 from ._format import Format
 from ._magic_dict import MagicDict
@@ -13,16 +14,20 @@ class FormatApplier(Generic[NameType, SourceType, IdType]):
 
     Args:
         translations: Matrix of ID translation components returned by fetchers.
+        transformer: Initialized :class:`.Transformer` instance.
 
     Raises:
         ValueError: If `default` is given and any placeholder names are missing.
     """
 
-    def __init__(self, translations: PlaceholderTranslations[SourceType]) -> None:
+    def __init__(
+        self, translations: PlaceholderTranslations[SourceType], *, transformer: Transformer[IdType] = None
+    ) -> None:
         self._translations = translations
         self._source = translations.source
         self._placeholder_names = translations.placeholders
         self._n_ids = len(translations.records)
+        self._transformer = transformer
 
     def __call__(
         self,
@@ -57,7 +62,7 @@ class FormatApplier(Generic[NameType, SourceType, IdType]):
         else:
             default_fstring = None
 
-        return MagicDict(real_translations, default_fstring, enable_uuid_heuristics)
+        return MagicDict(real_translations, default_fstring, enable_uuid_heuristics, self._transformer)
 
     def _apply(self, fstring: str, placeholders: PlaceholdersTuple) -> TranslatedIds[IdType]:
         """Apply fstring to all IDs.

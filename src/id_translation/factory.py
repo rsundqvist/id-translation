@@ -23,10 +23,11 @@ from . import exceptions, fetching
 from ._config_utils import ConfigMetadata as _ConfigMetadata
 from ._load_toml import load_toml_file as _load_toml_file
 from .mapping import HeuristicScore as _HeuristicScore, Mapper as _Mapper
+from .transform.types import Transformer as _Transformer
 from .types import IdType, NameType, SourceType
 
 if TYPE_CHECKING:
-    from . import Translator
+    from ._translator import Translator
 
 FetcherFactory = Callable[[str, Dict[str, _Any]], fetching.AbstractFetcher]
 """A callable which creates new ``AbstractFetcher`` instances from a dict config.
@@ -58,6 +59,20 @@ Args:
 
 Returns:
     A ``Mapper`` instance or ``None``.
+
+Raises:
+    ConfigurationError: If `config` is invalid.
+"""
+
+TransformerFactory = Callable[[str, Dict[str, _Any]], _Transformer]
+"""A callable which creates new ``Transformer`` instances from a dict config.
+
+Args:
+    clazz: Type of ``Transformer`` to create.
+    config: Keyword arguments for the transformer class.
+
+Returns:
+    A ``Transformer`` instance.
 
 Raises:
     ConfigurationError: If `config` is invalid.
@@ -124,6 +139,19 @@ def default_mapper_factory(config: Dict[str, _Any], for_fetcher: bool) -> Option
     return _Mapper(**config)
 
 
+def default_transformer_factory(clazz: str, config: Dict[str, _Any]) -> _Transformer[IdType]:
+    """Create a ``Transformer`` from config."""
+    from rics.misc import get_by_full_name
+
+    from . import transform as default_module
+
+    cls = get_by_full_name(clazz, default_module=default_module)
+    transformer = cls(**config)
+    if not isinstance(transformer, _Transformer):
+        raise TypeError(f"{clazz=} is not Transformer-like")
+    return transformer
+
+
 class TranslatorFactory(_Generic[NameType, SourceType, IdType]):
     """Create a ``Translator`` from TOML inputs."""
 
@@ -131,6 +159,11 @@ class TranslatorFactory(_Generic[NameType, SourceType, IdType]):
     """A callable ``(clazz, config) -> AbstractFetcher``. Overwrite attribute to customize."""
     MAPPER_FACTORY: MapperFactory = default_mapper_factory
     """A callable ``(config, for_fetcher) -> Mapper``. Overwrite attribute to customize."""
+    TRANSFORMER_FACTORY: TransformerFactory = default_transformer_factory
+    """A callable ``(source, config) -> Transformer``. Overwrite attribute to customize."""
+
+    TOP_LEVEL_KEYS = ("translator", "mapping", "fetching", "unknown_ids", "transform")
+    """Top-level keys allowed in the main configuration file."""
 
     def __init__(
         self,
@@ -160,11 +193,13 @@ class TranslatorFactory(_Generic[NameType, SourceType, IdType]):
         )
 
         with _rethrow_with_file(self.file):
-            _check_allowed_keys(["translator", "mapping", "fetching", "unknown_ids"], config, "<root>")
+            _check_allowed_keys(self.TOP_LEVEL_KEYS, config, "<root>")
             translator_config = config.pop("translator", {})
             mapper = self._make_mapper("translator", translator_config)
             default_fmt_placeholders: Optional[dicts.InheritedKeysDict[SourceType, str, _Any]]
             default_fmt, default_fmt_placeholders = _make_default_translations(**config.pop("unknown_ids", {}))
+
+            translator_config["transformers"] = self._handler_transformers(config.pop("transform", {}))
 
             ans = self.clazz(
                 fetcher,
@@ -239,6 +274,21 @@ class TranslatorFactory(_Generic[NameType, SourceType, IdType]):
         kwargs["cache_keys"] = kwargs.get("cache_keys", cache_keys)
         kwargs["mapper"] = mapper
         return TranslatorFactory.FETCHER_FACTORY(clazz, kwargs)
+
+    @classmethod
+    def _handler_transformers(
+        cls, per_source: Dict[SourceType, Dict[str, _Any]]
+    ) -> Dict[SourceType, _Transformer[IdType]]:
+        transformers = {}
+
+        for source, config in per_source.items():
+            if len(config) != 1:
+                raise exceptions.ConfigurationError(
+                    "Transformation config must be specified as [transform.<source>.[<transformer-class>] sections."
+                )
+            for clazz, kwargs in config.items():
+                transformers[source] = cls.TRANSFORMER_FACTORY(clazz, kwargs)
+        return transformers
 
 
 def _make_default_translations(

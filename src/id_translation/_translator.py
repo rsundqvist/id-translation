@@ -40,6 +40,7 @@ from .mapping.exceptions import MappingError
 from .mapping.types import UserOverrideFunction
 from .offline import Format, TranslationMap
 from .offline.types import FormatType, PlaceholderTranslations, SourcePlaceholderTranslations
+from .transform.types import Transformer
 from .types import (
     ID,
     CopyTranslatable,
@@ -99,6 +100,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         default_fmt_placeholders: Shared and/or source-specific default placeholder values for unknown IDs. See
             :meth:`rics.collections.dicts.InheritedKeysDict.make` for details.
         enable_uuid_heuristics: Enabling may improve matching when :py:class:`~uuid.UUID`-like IDs are in use.
+        transformers: A dict ``{source: transformer}`` of initialized :class:`.Transformer` instances.
 
     Notes:
         Untranslatable IDs will be ``None`` by default if neither `default_fmt` nor `default_fmt_placeholders` is given.
@@ -185,7 +187,10 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         default_fmt: FormatType = None,
         default_fmt_placeholders: MakeType[SourceType, str, Any] = None,
         enable_uuid_heuristics: bool = False,
+        transformers: Dict[SourceType, Transformer[IdType]] = None,
     ) -> None:
+        self._transformers = transformers
+
         self._fmt = fmt if isinstance(fmt, Format) else Format(fmt)
         self._default_fmt_placeholders: Optional[InheritedKeysDict[SourceType, str, Any]]
         self._default_fmt_placeholders, self._default_fmt = _handle_default(
@@ -278,7 +283,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         kwargs: Dict[str, Any] = {
             "fmt": self._fmt,
             "default_fmt": self._default_fmt,
-            "enable_uuid_heuristics": self._enable_uuid_heuristics,
+            "enable_uuid_heuristics": self.enable_uuid_heuristics,
             **overrides,
         }
 
@@ -1073,10 +1078,27 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         translation_map.name_to_source = task.name_to_source  # Update
         return translation_map
 
+    def get_transformer(self, source: SourceType) -> Optional[Transformer[IdType]]:
+        """Get the transformer to use for `source`.
+
+        Args:
+            source: A source.
+
+        Returns:
+            A :class:`.Transformer` or ``None``.
+        """
+        return None if self._transformers is None else self._transformers.get(source)
+
     def _execute_fetch(
         self, task: TranslationTask[NameType, SourceType, IdType]
     ) -> TranslationMap[NameType, SourceType, IdType]:
-        ids_to_fetch = [IdsToFetch(source, ids=ids) for source, ids in task.extract_ids().items()]
+        source_to_ids = task.extract_ids()
+
+        for source in source_to_ids:
+            if (transformer := self.get_transformer(source)) is not None:
+                transformer.update_ids(source_to_ids[source])
+
+        ids_to_fetch = [IdsToFetch(source, ids=ids) for source, ids in source_to_ids.items()]
         source_translations = self._fetch(ids_to_fetch, fmt=task.fmt, task_id=task.task_id)
         return self._to_translation_map(source_translations, fmt=task.fmt)
 
@@ -1125,6 +1147,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             default_fmt=self._default_fmt,
             default_fmt_placeholders=self._default_fmt_placeholders,
             enable_uuid_heuristics=self._enable_uuid_heuristics,
+            transformers=self._transformers,
         )
 
     def __repr__(self) -> str:
