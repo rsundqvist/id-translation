@@ -4,7 +4,6 @@
 
    This module is considered an implementation detail, and may change without notice.
 """
-
 import logging
 import warnings
 from collections import defaultdict as _defaultdict

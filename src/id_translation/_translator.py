@@ -79,7 +79,7 @@ if TYPE_CHECKING:
 
 
 class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
-    """Translate IDs to human-readable labels.
+    """End-user interface for all translation tasks.
 
     For an introduction to translation, see the :ref:`translation-primer` page.
 
@@ -686,7 +686,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                 ``dict`` on the form ``{name_in_translatable: source_to_use}``.
             ignore_names: Names **not** to translate, or a predicate ``(str) -> bool``.
             inplace: If ``True``, translate in-place and return ``None``.
-            override_function: A callable ``(name, fetcher.sources, ids) -> Source | None``. See :meth:`.Mapper.apply`
+            override_function: A callable ``(name, sources, ids) -> Source | None``. See :meth:`.Mapper.apply`
                 for details.
             maximal_untranslated_fraction: The maximum fraction of IDs for which translation may fail before an error is
                 raised. 1=disabled. Ignored in `reverse` mode.
@@ -702,10 +702,10 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
             ..
                # Hidden setup code
-               >>> translator = Translator({'animals': {'id': [2], 'name': ['Simba']}})
+               >>> translator = Translator({"animals": {"id": [2], "name": ["Simba"]}})
 
-            >>> n2s = {'lions': 'animals', 'big_cats': 'animals'}
-            >>> translator.translate({'lions': 2, 'big_cats': 2}, names=n2s, fmt="{name}")
+            >>> n2s = {"lions": "animals", "big_cats": "animals"}
+            >>> translator.translate({"lions": 2, "big_cats": 2}, names=n2s, fmt="{name}")
             {'lions': 'Simba', 'big_cats': 'Simba'}
 
             Name mappings must be complete; any name not present in the keys will be ignored (left as-is).
@@ -884,7 +884,9 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
     def fetcher(self) -> Fetcher[SourceType, IdType]:
         """Return the ``Fetcher`` instance used to retrieve translations."""
         if not self.online:
-            raise ConnectionStatusError("Cannot fetch new translations.")  # pragma: no cover
+            raise ConnectionStatusError(
+                "Cannot fetch new translations.\nHint: Use theTranslator.cache-property to access the data."
+            )
 
         return self._fetcher
 

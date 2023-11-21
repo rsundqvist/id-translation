@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Any, Iterable, List, Set, Tuple, Union
+from typing import Any as _Any, Iterable, List, Set, Tuple, Union
 
 VERBOSE: bool = False
 LOGGER = logging.getLogger(__package__).getChild("verbose").getChild("heuristic_functions")
@@ -16,7 +16,7 @@ LOGGER = logging.getLogger(__package__).getChild("verbose").getChild("heuristic_
 def like_database_table(
     name: str,
     candidates: Iterable[str],
-    context: Any,
+    context: _Any,
 ) -> Tuple[str, List[str]]:
     """Try to make `value` look like the name of a database table."""
 
@@ -42,7 +42,7 @@ def like_database_table(
 def short_circuit(
     value: str,
     candidates: Set[str],
-    context: Any,
+    context: _Any,
     value_regex: Union[str, re.Pattern[str]],
     target_candidate: str,
 ) -> Set[str]:
@@ -96,7 +96,7 @@ def short_circuit(
     return {target_candidate}
 
 
-def force_lower_case(value: str, candidates: Iterable[str], context: Any) -> Tuple[str, Iterable[str]]:
+def force_lower_case(value: str, candidates: Iterable[str], context: _Any) -> Tuple[str, Iterable[str]]:
     """Force lower-case in `value` and `candidates`."""
     return value.lower(), list(map(str.lower, candidates))
 
@@ -104,10 +104,10 @@ def force_lower_case(value: str, candidates: Iterable[str], context: Any) -> Tup
 def value_fstring_alias(
     value: str,
     candidates: Iterable[str],
-    context: Any,
+    context: _Any,
     fstring: str,
     for_value: str = None,
-    **kwargs: Any,
+    **kwargs: _Any,
 ) -> Tuple[str, Iterable[str]]:
     """Return a value formatted by `fstring`.
 
@@ -142,9 +142,9 @@ def value_fstring_alias(
 def candidate_fstring_alias(
     value: str,
     candidates: Iterable[str],
-    context: Any,
+    context: _Any,
     fstring: str,
-    **kwargs: Any,
+    **kwargs: _Any,
 ) -> Tuple[str, Iterable[str]]:
     """Return candidates formatted by `fstring`.
 

@@ -1,10 +1,7 @@
 """Functions that return a subset of candidates with which to continue the matching procedure."""
-
-from __future__ import annotations
-
 import logging
 import re
-from typing import Any, Iterable, Set
+from typing import Any as _Any, Iterable, Set
 
 from ..types import ID
 from . import exceptions
@@ -16,7 +13,7 @@ LOGGER = logging.getLogger(__package__).getChild("verbose").getChild("filter_fun
 def filter_names(
     value: str,
     candidates: Iterable[str],
-    context: Any,
+    context: _Any,
     regex: str,
     remove: bool = False,
 ) -> Set[str]:
@@ -66,7 +63,7 @@ def filter_names(
 def filter_sources(
     value: str,
     candidates: Iterable[str],
-    context: Any,
+    context: _Any,
     regex: str,
     remove: bool = False,
 ) -> Set[str]:
@@ -115,7 +112,7 @@ def filter_sources(
 def filter_placeholders(
     value: str,
     candidates: Iterable[str],
-    context: Any,
+    context: _Any,
     regex: str,
     remove: bool = False,
 ) -> Set[str]:
@@ -160,7 +157,7 @@ def filter_placeholders(
     return ans
 
 
-def _check_context(name: str, context: Any, want_none: bool) -> None:
+def _check_context(name: str, context: _Any, want_none: bool) -> None:
     if (context is None) is want_none:
         return
 
