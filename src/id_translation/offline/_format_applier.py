@@ -1,4 +1,4 @@
-from typing import Any, Dict, Generic, List
+from typing import TYPE_CHECKING, Any, Dict, Generic, List, Sequence
 
 from rics.misc import tname
 
@@ -7,6 +7,9 @@ from ..types import ID, IdType, NameType, SourceType
 from ._format import Format
 from ._magic_dict import MagicDict
 from .types import PlaceholdersTuple, PlaceholderTranslations, TranslatedIds
+
+if TYPE_CHECKING:
+    import pandas
 
 
 class FormatApplier(Generic[NameType, SourceType, IdType]):
@@ -63,6 +66,25 @@ class FormatApplier(Generic[NameType, SourceType, IdType]):
             default_fstring = None
 
         return MagicDict(real_translations, default_fstring, enable_uuid_heuristics, self._transformer)
+
+    def to_dict(self) -> Dict[str, Sequence[Any]]:
+        """Get the underlying data used for translations as a dict.
+
+        Returns:
+            A dict ``{placeholder: [values...]}``.
+        """
+        return self._translations.to_dict()
+
+    def to_pandas(self) -> "pandas.DataFrame":
+        """Get the underlying data used for translations as a :class:`pandas.DataFrame`."""
+        from pandas import DataFrame
+
+        return DataFrame(self.to_dict()).convert_dtypes()
+
+    @property
+    def records(self) -> Sequence[Sequence[Any]]:
+        """Records used by this instance."""
+        return self._translations.records
 
     def _apply(self, fstring: str, placeholders: PlaceholdersTuple) -> TranslatedIds[IdType]:
         """Apply fstring to all IDs.
