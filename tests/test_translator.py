@@ -65,7 +65,7 @@ def test_dummy_translation_doesnt_crash(with_id, with_override, store):
     if with_id:
         names[0] = "id"
     if store:
-        t.store(data, names=names)
+        t.go_offline(data, names=names)
 
     ans = t.translate(  # type: ignore[call-overload]
         data,
@@ -97,7 +97,7 @@ def test_can_pickle(translator, copy):
 
 @pytest.mark.parametrize("copy", [False, True])
 def test_offline(hex_fetcher, copy):
-    translator = UnitTestTranslator(hex_fetcher, fmt="{id}:{hex}[, positive={positive}]").store()
+    translator = UnitTestTranslator(hex_fetcher, fmt="{id}:{hex}[, positive={positive}]").go_offline()
     if copy:
         translator = translator.copy()
     _translate(translator)
@@ -156,7 +156,7 @@ def test_store_and_restore(hex_fetcher, tmp_path):
     translated_data = translator.translate(data)
 
     path = tmp_path.joinpath("translator.pkl")
-    translator.store(path=path)
+    translator.go_offline(path=path)
     restored = UnitTestTranslator.restore(path=path)
 
     translated_by_restored = restored.translate(data)
@@ -173,11 +173,11 @@ def test_store_with_explicit_values(hex_fetcher):
     )
 
     with pytest.raises(MappingError) as e, pytest.warns(UserWarning) as w:
-        translator.store(data, ignore_names=data)
+        translator.go_offline(data, ignore_names=data)
         assert "No names left" in str(w)
         assert "not store" in str(e)
 
-    translator.store(data)
+    translator.go_offline(data)
     expected_num_fetches = hex_fetcher.num_fetches
     assert sorted(translator._cached_tmap.sources) == sorted(data)
     actual = translator.translate(data)
@@ -227,7 +227,7 @@ def test_complex_default(hex_fetcher):
     default_fmt_placeholders = {"default": {"positive": "POSITIVE/NEGATIVE", "hex": "HEX"}}
     t = UnitTestTranslator(
         hex_fetcher, fmt=fmt, default_fmt=default_fmt, default_fmt_placeholders=default_fmt_placeholders
-    ).store()
+    ).go_offline()
 
     in_range = t.translate({"positive_numbers": [-1, 0, 1]})
     assert in_range == {
@@ -250,7 +250,7 @@ def test_complex_default(hex_fetcher):
 def test_id_only_default(hex_fetcher):
     fmt = "{id}:{hex}[, positive={positive}]"
     default_fmt = "{id} is not known"
-    t = UnitTestTranslator(hex_fetcher, fmt=fmt, default_fmt=default_fmt).store()
+    t = UnitTestTranslator(hex_fetcher, fmt=fmt, default_fmt=default_fmt).go_offline()
 
     in_range = t.translate({"positive_numbers": [-1, 0, 1]})
     assert in_range == {
@@ -288,7 +288,7 @@ def test_extra_placeholder():
 def test_plain_default(hex_fetcher):
     fmt = "{id}:{hex}[, positive={positive}]"
     default_fmt = "UNKNOWN"
-    t = UnitTestTranslator(hex_fetcher, fmt=fmt, default_fmt=default_fmt).store()
+    t = UnitTestTranslator(hex_fetcher, fmt=fmt, default_fmt=default_fmt).go_offline()
 
     in_range = t.translate({"positive_numbers": [-1, 0, 1]})
     assert in_range == {
@@ -305,7 +305,7 @@ def test_plain_default(hex_fetcher):
 
 def test_no_default(hex_fetcher):
     fmt = "{id}:{hex}[, positive={positive}]"
-    t = UnitTestTranslator(hex_fetcher, fmt=fmt).store()
+    t = UnitTestTranslator(hex_fetcher, fmt=fmt).go_offline()
     in_range = t.translate({"positive_numbers": [-1, 0, 1]})
     assert in_range == {
         "positive_numbers": [
@@ -380,7 +380,7 @@ def test_untranslated_reporting(caplog):
 
 def test_reverse(hex_fetcher):
     fmt = "{id}:{hex}[, positive={positive}]"
-    t = UnitTestTranslator(hex_fetcher, fmt=fmt).store()
+    t = UnitTestTranslator(hex_fetcher, fmt=fmt).go_offline()
 
     translated = {
         "positive_numbers": [

@@ -933,12 +933,12 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         if use_cached:
             LOGGER.info(f"Reuse existing Translator; {reason}. Cache dir: '{cache_dir}'.")
             return cls.restore(cache_path)
-        else:
-            LOGGER.info(f"Create new Translator; {reason}. Cache dir: '{cache_dir}'.")
-            ans: Translator[NameType, SourceType, IdType] = cls.from_config(path, extra_fetcher_paths)
-            ans.store(path=cache_path)
-            metadata_path.write_text(ans.config_metadata.to_json())
-            return ans
+
+        LOGGER.info(f"Create new Translator; {reason}. Cache dir: '{cache_dir}'.")
+        ans: Translator[NameType, SourceType, IdType] = cls.from_config(path, extra_fetcher_paths)
+        ans.go_offline(path=cache_path)
+        metadata_path.write_text(ans.config_metadata.to_json())
+        return ans
 
     @classmethod
     def restore(cls, path: PathLikeType) -> "Translator[NameType, SourceType, IdType]":
@@ -954,7 +954,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             TypeError: If the object at `path` is not a ``Translator`` or a subtype thereof.
 
         See Also:
-            The :meth:`Translator.store` method.
+            The :meth:`Translator.go_offline` method.
         """
         import pickle  # noqa: S403
 
@@ -971,7 +971,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
         return ans
 
-    def store(
+    def go_offline(
         self,
         translatable: Translatable[NameType, IdType] = None,
         names: NameTypes[NameType] = None,

@@ -112,4 +112,4 @@ def imdb_translator() -> Translator[str, str, str]:
 @pytest.fixture(scope="module")
 def translation_map() -> TranslationMap[str, str, str]:
     imdb_translator: Translator[str, str, str] = Translator.from_config(ROOT.joinpath("config.imdb.toml"))
-    return imdb_translator.store(names=["firstTitle", "nconst"]).cache
+    return imdb_translator.go_offline(names=["firstTitle", "nconst"]).cache

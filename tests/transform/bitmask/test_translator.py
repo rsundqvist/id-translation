@@ -130,7 +130,7 @@ def make_translator(online: str, transformer: BitmaskTransformer) -> Translator[
     if online == "online":
         pass
     elif online == "offline":
-        ret.store()
+        ret.go_offline()
     else:
         raise ValueError(f"{online=}")
 

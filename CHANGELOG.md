@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update `SqlFetcher`:
   * No longer uses table sizes. This could be expensive for large tables.
   * Simplify selection filtering; now only uses `SqlFetcher.select_where()` instead of two separate methods.
+- Renamed `Translator.store()` -> `Translator.go_offline()`.
 
 ### Removed
 - Attribute translation is no longer support. `Translator.allow_name_inheritance` attribute as been removed, as well as
