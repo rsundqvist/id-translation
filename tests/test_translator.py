@@ -625,7 +625,7 @@ def test_fetch(translator):
 
     translatable = {"numbers": [-1, 0, 1]}
     name_to_source = {"numbers": "positive_numbers"}
-    tmap = translator.fetch(translatable, name_to_source=name_to_source)
+    tmap = translator.fetch(translatable, names=name_to_source)
     assert translator.online
 
     actual = resolve_io(translatable).insert(translatable, list(translatable), tmap, True)

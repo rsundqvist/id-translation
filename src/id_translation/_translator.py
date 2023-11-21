@@ -854,27 +854,6 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         """Enabling may improve matching when :py:class:`~uuid.UUID`-like IDs are in use."""
         return self._enable_uuid_heuristics
 
-    def fetch(
-        self,
-        translatable: Translatable[NameType, IdType],
-        *,
-        name_to_source: NameToSource[NameType, SourceType],
-    ) -> TranslationMap[NameType, SourceType, IdType]:
-        """Fetch translations.
-
-        Args:
-            translatable: A data structure to translate.
-            name_to_source: Mappings of names in `translatable` to known :attr:`sources`.
-
-        Returns:
-            A ``TranslationMap``.
-
-        Raises:
-            ConnectionStatusError: If disconnected from the fetcher, i.e. not :attr:`online`.
-        """
-        task = TranslationTask(self, translatable, self._fmt, name_to_source)
-        return self._get_updated_tmap(task, force_fetch=True)
-
     @property
     def online(self) -> bool:
         """Return connectivity status. If ``False``, no new translations may be fetched."""
@@ -1027,22 +1006,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             The :meth:`Translator.restore` method.
         """
         start = perf_counter()
-        if translatable is None:
-            translation_map = self._to_translation_map(self._fetch(None))
-            if names is not None:
-                names = as_list(names)
-                translation_map.name_to_source = self.mapper.apply(names, translation_map.sources).flatten()
-        else:
-            name_to_source = self.map(translatable, names, ignore_names=ignore_names)
-            if not name_to_source:
-                pretty = repr(tname(translatable, prefix_classname=True))
-                raise MappingError(f"No names in the {pretty}-type data were mapped. Cannot store translations.")
-
-            translation_map = self.fetch(translatable, name_to_source=name_to_source)
-            if LOGGER.isEnabledFor(logging.DEBUG):
-                not_fetched = set(self.fetcher.sources).difference(translation_map.sources)
-                LOGGER.debug(f"Available sources {not_fetched} were not fetched.")
-
+        translation_map = self._user_fetch(translatable, names, ignore_names=ignore_names)
         self.fetcher.close()
         del self._fetcher
         self._cached_tmap = translation_map
@@ -1062,6 +1026,90 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             LOGGER.info(f"Serialized {pretty!r} of size {os.path.getsize(path) / 2**20:.2g} MiB at path='{path}'.")
 
         return self
+
+    def fetch(
+        self,
+        translatable: Translatable[NameType, IdType] = None,
+        names: NameTypes[NameType] = None,
+        *,
+        ignore_names: Names[NameType] = None,
+    ) -> TranslationMap[NameType, SourceType, IdType]:
+        """Fetch translations.
+
+        Calling ``fetch`` without arguments will perform a :meth:`.Fetcher.fetch_all` -operation, without going offline.
+        The returned :class:`.TranslationMap` may be converted to native types.
+
+        ..
+           # Hidden setup code
+           >>> from .fetching import MemoryFetcher
+           >>> translation_data = {
+           ...   "animals": {"id": [0, 1, 2], "name": ["Tarzan", "Morris", "Simba"]},
+           ...   "people": {"id": [1999, 1991], "name": ["Sofia", "Richard"]},
+           ... }
+           >>> translator = Translator(MemoryFetcher(translation_data))
+
+        >>> translation_map = translator.fetch()
+        >>> translation_map
+        TranslationMap('animals': 3 IDs, 'people': 2 IDs)
+
+        **As finished translations:**
+
+        * :meth:`.TranslationMap.to_translations` → ``{source: MagicDict}``, where a :class:`.MagicDict` is similar to a
+          regular ``dict[IdType, str]``-type dict.
+
+          >>> people = translation_map.to_translations()["people"]
+          >>> type(people).__name__, f"{people.default_value=}"
+          ('MagicDict', 'people.default_value=None')
+          >>> people
+          {1999: '1999:Sofia', 1991: '1991:Richard'}
+
+        **As raw translation data:**
+
+        * :meth:`.TranslationMap.to_pandas` → ``{source: DataFrame}``
+        * :meth:`.TranslationMap.to_dicts` → ``{source: {placeholder: [values...]}}``
+
+          >>> translation_map.to_dicts()["people"]
+          {'id': [1999, 1991], 'name': ['Sofia', 'Richard']}
+
+        Args:
+            translatable: A data structure to translate. Fetch all available data if ``None``.
+            names: Explicit names to translate. Derive from `translatable` if ``None``. Alternatively, you may pass a
+                ``dict`` on the form ``{name_in_translatable: source_to_use}``.
+            ignore_names: Names **not** to translate, or a predicate ``(str) -> bool``.
+
+        Returns:
+            A ``TranslationMap``.
+
+        Raises:
+            ConnectionStatusError: If disconnected from the fetcher, i.e. not :attr:`online`.
+        """
+        return self._user_fetch(translatable, names, ignore_names=ignore_names)
+
+    def _user_fetch(
+        self,
+        translatable: Translatable[NameType, IdType] = None,
+        names: NameTypes[NameType] = None,
+        *,
+        ignore_names: Names[NameType] = None,
+    ) -> TranslationMap[NameType, SourceType, IdType]:
+        if translatable is None:
+            translation_map = self._to_translation_map(self._fetch(None))
+            if names is not None:
+                names = as_list(names)
+                translation_map.name_to_source = self.mapper.apply(names, translation_map.sources).flatten()
+        else:
+            name_to_source = self.map(translatable, names, ignore_names=ignore_names)
+            if not name_to_source:
+                pretty = repr(tname(translatable, prefix_classname=True))
+                raise MappingError(f"No names in the {pretty}-type data were mapped.")
+
+            task = TranslationTask(self, translatable, self._fmt, name_to_source)
+            translation_map = self._get_updated_tmap(task, force_fetch=True)
+            if LOGGER.isEnabledFor(logging.DEBUG):
+                not_fetched = set(self.fetcher.sources).difference(translation_map.sources)
+                LOGGER.debug(f"Available sources {not_fetched} were not fetched.")
+
+        return translation_map
 
     def _get_updated_tmap(
         self,

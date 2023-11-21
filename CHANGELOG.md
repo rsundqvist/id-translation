@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The `Translate.translate()`-method now have overloads for improved typing.
 - User-defined ID and translation transformation framework: `id_translation.transform`.
 - Bitmask translation support: `id_translation.transform.BitmaskTransformer`.
+- Serialization methods for `TranslationMap`: `to_dicts()`, `to_pandas()`, `from_pandas()`. Translations maps are
+  returned by `Translator.fetch()` and the `cache` attribute.
 
 ### Changed
 - Make `Translator.translated_names()` optionally return a mapping dict instead of just names.
