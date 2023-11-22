@@ -7,9 +7,9 @@ from typing import Any, Dict, Generic, List, Optional
 
 import pandas as pd
 
-from .._base_metadata import BaseMetadata
 from ..offline.types import PlaceholderTranslations, SourcePlaceholderTranslations
 from ..types import ID, HasSources, IdType, SourceType
+from ..utils import BaseMetadata
 
 
 @dataclass(eq=False)

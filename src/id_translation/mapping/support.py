@@ -1,4 +1,4 @@
-"""Functions and classes used by the ``Mapper`` for handling score matrices.
+"""Functions and classes used by the :class:`.Mapper` for handling score matrices.
 
 .. warning::
 

@@ -1,14 +1,14 @@
 """Classes used for ID and translation transformation."""
 import typing as _t
 
-from id_translation.types import IdType as _IdType
+from ..types import IdType as _IdType
 
 
 @_t.runtime_checkable
 class Transformer(_t.Protocol[_IdType]):
     """Transformation API type.
 
-    Transformers are persistent entities owned by a single ``Translator`` instance.
+    Transformers are persistent entities owned by a single :class:`.Translator` instance.
 
     Implementing :attr:`try_add_missing_key` is optional. Raise :class:`TransformerStop` to prevent calling the
     method multiple times.

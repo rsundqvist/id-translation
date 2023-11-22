@@ -33,9 +33,9 @@ class logging:
     """Global logging settings used by all instances."""
 
     TRANSLATE_ONLINE: KeyEventLogLevel = KeyEventLogLevel(exit=_l.INFO)
-    """Levels for ``TRANSLATOR.TRANSLATE`` key event messages when the ``Translator`` is :attr:`~.Translator.online`."""
+    """Levels for ``TRANSLATOR.TRANSLATE`` key event messages when the :class:`.Translator` is :attr:`~.Translator.online`."""
     TRANSLATE_OFFLINE: KeyEventLogLevel = KeyEventLogLevel()
-    """Levels for ``TRANSLATOR.TRANSLATE`` key event messages when the ``Translator`` is offline."""
+    """Levels for ``TRANSLATOR.TRANSLATE`` key event messages when the :class:`.Translator` is offline."""
     MAP: KeyEventLogLevel = KeyEventLogLevel()
     """Levels for ``TRANSLATOR.MAP`` key event messages."""
 

@@ -27,7 +27,7 @@ processed by the the factory.
    * - ``[env]``
      - | Control environment-variable interpolation; ``${VAR}`` or
        | ``${VAR:default}``. Default is ``true`` for :meth:`~.Translator.from_config`.
-     - :func:`~id_translation.load_toml_file`.
+     - :func:`~id_translation.utils.load_toml_file`.
 
 .. note::
 

@@ -8,12 +8,13 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from id_translation import Translator as RealTranslator, _config_utils
+from id_translation import Translator as RealTranslator
 from id_translation.dio.exceptions import NotInplaceTranslatableError, UntranslatableTypeError
 from id_translation.exceptions import MissingNamesError, TooManyFailedTranslationsError, TranslationDisabledWarning
 from id_translation.fetching.exceptions import UnknownSourceError
 from id_translation.mapping import Mapper
 from id_translation.mapping.exceptions import MappingError, MappingWarning, UserMappingError
+from id_translation.utils import _config_utils
 
 from .conftest import ROOT
 

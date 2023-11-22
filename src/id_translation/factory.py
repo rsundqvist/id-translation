@@ -20,11 +20,10 @@ from rics._internal_support.types import PathLikeType
 from rics.collections import dicts
 
 from . import exceptions, fetching
-from ._config_utils import ConfigMetadata as _ConfigMetadata
-from ._load_toml import load_toml_file as _load_toml_file
 from .mapping import HeuristicScore as _HeuristicScore, Mapper as _Mapper
 from .transform.types import Transformer as _Transformer
 from .types import IdType, NameType, SourceType
+from .utils import ConfigMetadata as _ConfigMetadata, load_toml_file as _load_toml_file
 
 if TYPE_CHECKING:
     from ._translator import Translator

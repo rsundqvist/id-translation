@@ -29,7 +29,6 @@ from rics.collections.misc import as_list
 from rics.misc import get_public_module, tname
 from rics.performance import format_perf_counter
 
-from ._config_utils import ConfigMetadata
 from ._tasks import MappingTask, TranslationTask, generate_task_id
 from .exceptions import ConnectionStatusError, TranslationDisabledWarning
 from .factory import TranslatorFactory
@@ -62,6 +61,7 @@ from .types import (
     SourceType,
     Translatable,
 )
+from .utils import ConfigMetadata
 
 LOGGER = logging.getLogger(__package__).getChild("Translator")
 
@@ -81,35 +81,20 @@ if TYPE_CHECKING:
 class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
     """End-user interface for all translation tasks.
 
-    For an introduction to translation, see the :ref:`translation-primer` page.
-
-    The recommended way of initializing ``Translator`` instances is the :meth:`from_config` method. For configuration
-    file details, please refer to the :ref:`translator-config` page.
-
-    The `Translator` is the main entry point for all translation tasks. Simplified translation process steps:
-
-        1. The :attr:`map` method performs name-to-source mapping (see :class:`.mapping.DirectionalMapping`).
-        2. The :attr:`fetch` method extracts IDs to translate and retrieves data (see :class:`.TranslationMap`).
-        3. Finally, the :attr:`translate` method applies the translations and returns to the caller.
-
     Args:
         fetcher: A :class:`.Fetcher` or ready-to-use translations.
         fmt: String :class:`.Format` specification for translations.
         mapper: A :class:`~.mapping.Mapper` instance for binding names to sources.
-        default_fmt: Alternative :class:`.Format` to use instead of `fmt` for fallback translation of unknown IDs.
+        default_fmt: Alternative :class:`.Format` to use fallback translation of unknown IDs.
         default_fmt_placeholders: Shared and/or source-specific default placeholder values for unknown IDs. See
             :meth:`rics.collections.dicts.InheritedKeysDict.make` for details.
         enable_uuid_heuristics: Enabling may improve matching when :py:class:`~uuid.UUID`-like IDs are in use.
         transformers: A dict ``{source: transformer}`` of initialized :class:`.Transformer` instances.
 
-    Notes:
-        Untranslatable IDs will be ``None`` by default if neither `default_fmt` nor `default_fmt_placeholders` is given.
-        Adding the `maximal_untranslated_fraction` option to :meth:`translate` will raise an exception if too many IDs
-        are left untranslated. Note however that this verifiction step may be expensive.
-
     Examples:
-        A minimal example. For a more complete use case, see the :ref:`dvdrental` example. Assume that we have data for
-        people and animals as in the table below::
+        Basic usage. For a more complete use case, see the :ref:`dvdrental` example.
+
+        Assume that we have data for people and animals as in the table below::
 
             people:                       animals:
                  id | name    | gender       id | name   | is_nice
@@ -138,45 +123,22 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         We didn't define a :class:`.Mapper`, so the names must match exactly.
 
         >>> data = {'animals': [0, 2], 'people': [1991, 1999]}
-        >>> for key, translated_table in translator.translate(data).items():
-        >>>     print(f'Translations for {repr(key)}:')
-        >>>     for translated_id in translated_table:
+        >>> translated_data = translator.translate(data)
+
+        The ``Translator`` returns a copy by default. Let's look at the translated data.
+
+        >>> for source, translations in translated_data.items():
+        >>>     print(f'Translations for {source=}:')
+        >>>     for translated_id in translations:
         >>>         print(f'    {repr(translated_id)}')
-        Translations for 'animals':
+        Translations for source='animals':
             '0:Tarzan, nice=False'
             '2:Simba, nice=True'
-        Translations for 'people':
+        Translations for source='people':
             '1991:Richard'
             '1999:Sofia'
 
-        Handling unknown IDs.
-
-        >>> default_fmt_placeholders = dict(
-        ...   default={'is_nice': 'Maybe?', 'name': "Bob"},
-        ...   specific={'animals': {'name': 'Fido'}},
-        >>> )
-        >>> useless_database = {
-        ...   'animals': {'id': [], 'name': []},
-        ...   'people': {'id': [], 'name': []}
-        >>> }
-        >>> translator = Translator(
-        ...   useless_database, default_fmt_placeholders=default_fmt_placeholders,
-        ...   fmt='{id}:{name}[, nice={is_nice}]'
-        ... )
-        >>> data = {'animals': [0], 'people': [0]}
-        >>> for key, translated_table in translator.translate(data).items():
-        >>>     print(f'Translations for {repr(key)}:')
-        >>>     for translated_id in translated_table:
-        >>>         print(f'    {repr(translated_id)}')
-        Translations for 'animals':
-            '0:Fido, nice=Maybe?'
-        Translations for 'people':
-            '0:Bob, nice=Maybe?'
-
-        Since we didn't give an explicit `default_fmt_placeholders`, the regular `fmt` is used instead. Formats can be
-        plain strings, in which case translation will never explicitly fail unless the name itself fails to map and
-        :attr:`Mapper.unmapped_values_action <.mapping.Mapper.unmapped_values_action>` is set to
-        :attr:`ActionLevel.RAISE <rics.action_level.ActionLevel.RAISE>`.
+        Check out the :ref:`translation-primer` to learn how this is done "under the hood".
     """
 
     def __init__(
@@ -244,7 +206,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         path: PathLikeType,
         extra_fetchers: Iterable[PathLikeType] = (),
     ) -> "Translator[NameType, SourceType, IdType]":
-        """Create a ``Translator`` from TOML inputs.
+        """Create a :class:`.Translator` from TOML inputs.
 
         Args:
             path: Path to the main TOML configuration file.
@@ -252,7 +214,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                 ranked by input order. If a fetcher defined in the main configuration, it will be prioritized (rank=0).
 
         Returns:
-            A new ``Translator`` instance with a :attr:`config_metadata` attribute.
+            A new :class:`.Translator` instance with a :attr:`config_metadata` attribute.
         """
         return TranslatorFactory(
             path,
@@ -262,20 +224,20 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
     @property
     def config_metadata(self) -> ConfigMetadata:
-        """Return :func:`from_config` initialization metadata."""
+        """Return :func:`~Translator.from_config` initialization :class:`metadata <.ConfigMetadata>`."""
         if self._config_metadata is None:
             raise ValueError("Not created using Translator.from_config()")  # pragma: no cover
         return self._config_metadata
 
     def copy(self, **overrides: Any) -> "Translator[NameType, SourceType, IdType]":
-        """Make a copy of this ``Translator``.
+        """Make a copy of this :class:`.Translator`.
 
         Args:
             overrides: Keyword arguments to use when instantiating the copy. Options that aren't given will be taken
                 from the current instance. See the :class:`Translator` class documentation for possible choices.
 
         Returns:
-            A copy of this ``Translator`` with `overrides` applied.
+            A copy of this :class:`.Translator` with `overrides` applied.
 
         Raises:
             NotImplementedError: If ``share_fetcher=False``.
@@ -674,17 +636,22 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
     ) -> Optional[Translatable[NameType, str]]:
         """Translate IDs to human-readable strings.
 
-        For an introduction to translation, see the :ref:`translation-primer` page.
+        Simplified process:
+            1. The :attr:`map` method performs name-to-source mapping (see :class:`~.DirectionalMapping`).
+            2. The :attr:`fetch` method extracts IDs to translate and retrieves data (see :class:`.TranslationMap`).
+            3. Finally, the :attr:`translate` method applies the translations and returns to the caller.
+
+        See the :ref:`translation-primer` page for a detailed process description.
 
         See Also:
-            🔑 This is a key event method. Exit-events are emitted on the ``ℹ️INFO``-level if the ``Translator`` is
-            :attr:`online`. Enter-events are always emitted on the ``🪲DEBUG``-level. See :ref:`key-events` for details.
+            🔑 This is a key event method. Exit-events are emitted on the ``ℹ️INFO``-level if the :class:`.Translator` is
+            :attr:`.online`. Enter-events are always emitted on the ``🪲DEBUG``-level. See :ref:`key-events` for details.
 
         Args:
             translatable: A data structure to translate.
             names: Explicit names to translate. Derive from `translatable` if ``None``. Alternatively, you may pass a
                 ``dict`` on the form ``{name_in_translatable: source_to_use}``.
-            ignore_names: Names **not** to translate, or a predicate ``(str) -> bool``.
+            ignore_names: Names **not** to translate, or a predicate ``(NameType) -> bool``.
             inplace: If ``True``, translate in-place and return ``None``.
             override_function: A callable ``(name, sources, ids) -> Source | None``. See :meth:`.Mapper.apply`
                 for details.
@@ -695,6 +662,10 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
         Returns:
             A translated copy of `translatable` if ``inplace=False``, otherwise ``None``.
+
+        Notes:
+            Untranslatable IDs will be ``None`` (rather than ``str``, as indicated by the type hints) if the
+            :class:`.Translator` was created with neither of `default_fmt` and `default_fmt_placeholders`.
 
         Examples:
             Manual `name-to-source <../documentation/translation-primer.html#name-to-source-mapping>`__ mapping with a
@@ -717,7 +688,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             MappingError: If name-to-source mapping is ambiguous.
             ValueError: If `maximal_untranslated_fraction` is not a valid fraction.
             TooManyFailedTranslationsError: If translation fails for more than `maximal_untranslated_fraction` of IDs.
-            ConnectionStatusError: If ``reverse=True`` while the ``Translator`` is online.
+            ConnectionStatusError: If ``reverse=True`` while the :class:`.Translator` is online.
             UserMappingError: If `override_function` returns a source which is not known, and
                 ``self.mapper.unknown_user_override_action != 'ignore'``.
         """
@@ -771,16 +742,16 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         self,
         with_source: Union[bool, Literal[True], Literal[False]] = False,  # https://github.com/python/mypy/issues/14764
     ) -> Union[NameToSource[NameType, SourceType], List[NameType]]:
-        """Return the names that were translated by the most recent :meth:`translate`-call.
+        """Return the names that were translated by the most recent :meth:`.translate`-call.
 
         Args:
             with_source: If ``True``, return a dict ``{name: source}`` instead of a list.
 
         Returns:
-            Recent names translated by this ``Translator``, in **arbitrary** order.
+            Recent names translated by this :class:`.Translator`, in **arbitrary** order.
 
         Raises:
-            ValueError: If no names have been translated using this ``Translator``.
+            ValueError: If no names have been translated using this :class:`.Translator`.
         """
         if self._translated_names is None:
             raise ValueError("No names have been translated using this Translator.")
@@ -799,8 +770,8 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         Args:
             translatable: A data structure to map names for.
             names: Explicit names to translate. Derive from `translatable` if ``None``.
-            ignore_names: Names **not** to translate, or a predicate ``(str) -> bool``.
-            override_function: A callable ``(name, fetcher.sources, ids) -> Source | None``. See
+            ignore_names: Names **not** to translate, or a predicate ``(NameType) -> bool``.
+            override_function: A callable ``(name, sources, ids) -> Source | None``. See
                 :meth:`Mapper.apply <.mapping.Mapper.apply>` for details.
 
         Returns:
@@ -835,17 +806,17 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
     @property
     def sources(self) -> List[SourceType]:
-        """A list of known Source names, such as ``cities`` or ``languages`` (from :attr:`fetcher` or :attr:`cache`)."""
+        """A list of known sources names.
+
+        Sources are determines either by the :attr:`.fetcher` or the :attr:`.cache`.
+        """
         return list(self.placeholders)
 
     @property
     def placeholders(self) -> Dict[SourceType, List[str]]:
-        """Placeholders for all known Source names, such as ``id`` or ``name`` (from :attr:`fetcher` or :attr:`cache`).
+        """A dict ``source: [placeholders..]}``.
 
-        These are the (possibly unmapped) placeholders that may be used for translation.
-
-        Returns:
-            A dict ``{source: [placeholders..]}``.
+        Placeholders shown here are the names as they appear **in the source**.
         """  # noqa: DAR202
         return self._fetcher.placeholders if self.online else self._cached_tmap.placeholders
 
@@ -861,7 +832,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
     @property
     def fetcher(self) -> Fetcher[SourceType, IdType]:
-        """Return the ``Fetcher`` instance used to retrieve translations."""
+        """Return the :class:`.Fetcher` instance used to retrieve translations."""
         if not self.online:
             raise ConnectionStatusError(
                 "Cannot fetch new translations.\nHint: Use theTranslator.cache-property to access the data."
@@ -871,12 +842,12 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
     @property
     def mapper(self) -> Mapper[NameType, SourceType, None]:
-        """Return the ``Mapper`` instance used for name-to-source binding."""
+        """Return the :class:`.Mapper` instance used for name-to-source binding."""
         return self._mapper
 
     @property
     def cache(self) -> TranslationMap[NameType, SourceType, IdType]:
-        """Return a ``TranslationMap`` of cached translations."""
+        """Return a :class:`.TranslationMap` of cached translations."""
         return self._cached_tmap
 
     @classmethod
@@ -890,13 +861,13 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         """Load or create a persistent :attr:`~.Fetcher.fetch_all`-instance.
 
         Instances are created, stored and loaded as determined by a metadata file located in the given `cache_dir`. A
-        new ``Translator`` will be created if:
+        new :class:`.Translator` will be created if:
 
         * There is no `'metadata'` file, or
-        * the original ``Translator`` is too old (see `max_age`), or
+        * the original :class:`.Translator` is too old (see `max_age`), or
         * the current configuration -- as defined by ``(config_path, extra_fetchers, clazz)`` -- has changed in such a
-          way that it is no longer equivalent configuration used to create the original ``Translator``. For details, see
-          :class:`ConfigMetadata`.
+          way that it is no longer equivalent configuration used to create the original :class:`.Translator`. For details, see
+          :class:`~.utils.ConfigMetadata`.
 
         .. warning:: This method is **not** thread safe.
 
@@ -905,15 +876,14 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             config_path: Path to the main TOML configuration file.
             extra_fetchers: Paths to fetching configuration TOML files. If multiple fetchers are defined, they are
                 ranked by input order. If a fetcher defined in the main configuration, it will be prioritized (rank=0).
-            max_age: The maximum age of the cached ``Translator`` before it must be recreated. Pass ``max_age='0d'`` to
+            max_age: The maximum age of the cached :class:`.Translator` before it must be recreated. Pass ``max_age='0d'`` to
                 force recreation.
 
         Returns:
-            A new or cached ``Translator`` instance with a :attr:`config_metadata` attribute.
+            A new or cached :class:`.Translator` instance with a :attr:`config_metadata` attribute.
 
         See Also:
-             The :meth:`from_config` method, which will initialize the Translator using `path`, `extra_fetchers`, and
-                `clazz` if the cached instance is outdated.
+             The :meth:`from_config` method, which will read the `config_path`.
         """
         path = Path(str(config_path))
         cache_dir = Path(str(cache_dir)).expanduser().absolute()
@@ -942,19 +912,19 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
     @classmethod
     def restore(cls, path: PathLikeType) -> "Translator[NameType, SourceType, IdType]":
-        """Restore a serialized ``Translator``.
+        """Restore a serialized :class:`.Translator`.
 
         Args:
-            path: Path to a serialized ``Translator``.
+            path: Path to a serialized :class:`.Translator`.
 
         Returns:
-            A ``Translator``.
+            A :class:`.Translator`.
 
         Raises:
-            TypeError: If the object at `path` is not a ``Translator`` or a subtype thereof.
+            TypeError: If the object at `path` is not a :class:`.Translator` or a subtype thereof.
 
         See Also:
-            The :meth:`Translator.go_offline` method.
+            The :meth:`go_offline` method.
         """
         import pickle  # noqa: S403
 
@@ -988,8 +958,8 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         Args:
             translatable: Data from which IDs to fetch will be extracted. Fetch all IDs if ``None``.
             names: Explicit names to translate. Derive from `translatable` if ``None``.
-            ignore_names: Names **not** to translate, or a predicate ``(str) -> bool``.
-            path: If given, serialize the ``Translator`` to disk after retrieving data.
+            ignore_names: Names **not** to translate, or a predicate ``(NameType) -> bool``.
+            path: If given, serialize the :class:`.Translator` to disk after retrieving data.
 
         Returns:
             Self, for chained assignment.
@@ -999,11 +969,11 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             MappingError: If :meth:`map` fails (only when `translatable` is given).
 
         Notes:
-            The ``Translator`` is guaranteed to be :func:`~rics.misc.serializable` once offline. Fetchers often
+            The :class:`.Translator` is guaranteed to be :func:`~rics.misc.serializable` once offline. Fetchers often
             aren't as they require things like database connections to function.
 
         See Also:
-            The :meth:`Translator.restore` method.
+            The :meth:`restore` method.
         """
         start = perf_counter()
         translation_map = self._user_fetch(translatable, names, ignore_names=ignore_names)
@@ -1039,49 +1009,52 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         Calling ``fetch`` without arguments will perform a :meth:`.Fetcher.fetch_all` -operation, without going offline.
         The returned :class:`.TranslationMap` may be converted to native types.
 
-        ..
-           # Hidden setup code
-           >>> from .fetching import MemoryFetcher
-           >>> translation_data = {
-           ...   "animals": {"id": [0, 1, 2], "name": ["Tarzan", "Morris", "Simba"]},
-           ...   "people": {"id": [1999, 1991], "name": ["Sofia", "Richard"]},
-           ... }
-           >>> translator = Translator(MemoryFetcher(translation_data))
-
-        >>> translation_map = translator.fetch()
-        >>> translation_map
-        TranslationMap('animals': 3 IDs, 'people': 2 IDs)
-
-        **As finished translations:**
-
-        * :meth:`.TranslationMap.to_translations` → ``{source: MagicDict}``, where a :class:`.MagicDict` is similar to a
-          regular ``dict[IdType, str]``-type dict.
-
-          >>> people = translation_map.to_translations()["people"]
-          >>> type(people).__name__, f"{people.default_value=}"
-          ('MagicDict', 'people.default_value=None')
-          >>> people
-          {1999: '1999:Sofia', 1991: '1991:Richard'}
-
-        **As raw translation data:**
-
-        * :meth:`.TranslationMap.to_pandas` → ``{source: DataFrame}``
-        * :meth:`.TranslationMap.to_dicts` → ``{source: {placeholder: [values...]}}``
-
-          >>> translation_map.to_dicts()["people"]
-          {'id': [1999, 1991], 'name': ['Sofia', 'Richard']}
-
         Args:
             translatable: A data structure to translate. Fetch all available data if ``None``.
             names: Explicit names to translate. Derive from `translatable` if ``None``. Alternatively, you may pass a
                 ``dict`` on the form ``{name_in_translatable: source_to_use}``.
-            ignore_names: Names **not** to translate, or a predicate ``(str) -> bool``.
+            ignore_names: Names **not** to translate, or a predicate ``(NameType) -> bool``.
 
         Returns:
-            A ``TranslationMap``.
+            A :class:`.TranslationMap`.
 
         Raises:
             ConnectionStatusError: If disconnected from the fetcher, i.e. not :attr:`online`.
+
+        Examples:
+            Using the returned :class:`.TranslationMap` class.
+
+            ..
+               # Hidden setup code
+               >>> from .fetching import MemoryFetcher
+               >>> translation_data = {
+               ...   "animals": {"id": [0, 1, 2], "name": ["Tarzan", "Morris", "Simba"]},
+               ...   "people": {"id": [1999, 1991], "name": ["Sofia", "Richard"]},
+               ... }
+               >>> translator = Translator(MemoryFetcher(translation_data))
+
+            >>> translation_map = translator.fetch()
+            >>> translation_map
+            TranslationMap('animals': 3 IDs, 'people': 2 IDs)
+
+            Convert to finished translations.
+
+            * :meth:`.TranslationMap.to_translations` → ``{source: MagicDict}``, where a :class:`.MagicDict` is similar to a
+              regular ``dict[IdType, str]``-type dict.
+
+            >>> people = translation_map.to_translations()["people"]
+            >>> type(people).__name__, f"{people.default_value=}"
+            ('MagicDict', 'people.default_value=None')
+            >>> people
+            {1999: '1999:Sofia', 1991: '1991:Richard'}
+
+            Convert to raw translation data.
+
+            * :meth:`.TranslationMap.to_pandas` → ``{source: DataFrame}``
+            * :meth:`.TranslationMap.to_dicts` → ``{source: {placeholder: [values...]}}``
+
+            >>> translation_map.to_dicts()["people"]
+            {'id': [1999, 1991], 'name': ['Sofia', 'Richard']}
         """
         return self._user_fetch(translatable, names, ignore_names=ignore_names)
 

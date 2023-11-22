@@ -1,5 +1,7 @@
 .. _translation-primer:
 
+.. currentmodule:: id_translation
+
 Translation primer
 ==================
 This document will be dedicated to a toy example -- translating a `"Bite report"` from a misfortunate petting zoo -- in
@@ -19,30 +21,34 @@ The file structure is as follows:
        ├── animals.csv
        └── humans.csv
 
-This example uses the API to construct the ``Translator`` instance, but the recommended way of creating instances are
-:ref:`translator-config`. Condensed versions for creating an equivalent ``Translator`` using the either the API or TOML
+This example uses the API to construct the :class:`Translator` instance, but the recommended way of creating instances are
+:ref:`translator-config`. Condensed versions for creating an equivalent :class:`Translator` using the either the API or TOML
 configuration is available in the :ref:`notebooks` section.
 
 Call diagram
 ------------
-Green objects are ``Translator`` member functions. Red entities belong to the
-:attr:`~id_translation.Translator.fetcher`. Blue indicates a task that is delegated to an object owned by the
-``Translator``. The ``Translator`` either performs or coordinates the majority of tasks involved in translation. A
-notable exception to this rule is the :ref:`placeholder mapping <fetcher-mapping-motivation>` subprocess, which is
-handled by :meth:`AbstractFetcher.map_placeholders <id_translation.fetching.AbstractFetcher.map_placeholders>`.
+The :class:`Translator` either performs or coordinates most task. A
+notable exception the :ref:`placeholder mapping <fetcher-mapping-motivation>` subprocess, which is
+handled internally by :meth:`AbstractFetcher.map_placeholders <fetching.AbstractFetcher.map_placeholders>`.
+
+* Green indicates a :class:`Translator` member function.
+* Red denotes :attr:`~Translator.fetcher` ownership.
+* Blue indicates a task that is delegated to an object owned by the :class:`Translator`.
+
+The diagram should be read top to bottom, left to right.
 
 .. figure:: ../_images/translation-flow.drawio.png
 
    Simplified call diagram for a translation task. Optional paths and error handling are omitted, as well as most
    details that are internal to the mapping and fetching processes.
 
-A :class:`~id_translation.fetching.PandasFetcher` is used in the example below, meaning that
-:attr:`~id_translation.fetching.PandasFetcher.sources` are resolved by searching for files in a given directory, and
-actually :meth:`fetching translations <id_translation.fetching.PandasFetcher.fetch_translations>` means reading files
+A :class:`fetching.PandasFetcher` is used in the example below, meaning that
+:attr:`~types.HasSources.sources` are resolved by searching for files in a given directory, and
+actually :meth:`fetching translations <fetching.PandasFetcher.fetch_translations>` means reading files
 in this directory.
 
-Real applications typically use something like a :class:`SQL database <id_translation.fetching.SqlFetcher>` instead as
-the source. Underlying concepts remain the same, no matter how translation data is retrieved.
+Real applications typically use something like a :class:`SQL database <fetching.SqlFetcher>` instead. Underlying
+concepts remain the same, no matter how translation data is retrieved.
 
 Translatable data
 -----------------
@@ -53,7 +59,7 @@ We're translating a `"Bite report"` a misfortunate petting zoo, shown below.
    :header-rows: 1
 
 The first columns indicates who was bitten (a human), the second who bit them (an animal). Since bites are a frequent
-occurrence, the zoo uses integers IDs instead of plaintext for their bite reports to save space. The ``Translator``
+occurrence, the zoo uses integers IDs instead of plaintext for their bite reports to save space. The :class:`Translator`
 doesn't work on files, so we'll translate a :class:`pandas.DataFrame` instead.
 
 .. code-block:: python
@@ -61,12 +67,12 @@ doesn't work on files, so we'll translate a :class:`pandas.DataFrame` instead.
    from pandas import DataFrame, read_csv
    bite_report: DataFrame = read_csv("biting-victims-2019-05-11.csv")
 
-The ``Translator`` knows what a ``DataFrame`` is, and will assume that the columns are names to translate.
+The :class:`Translator` knows what a ``DataFrame`` is, and will assume that the columns are names to translate.
 
 .. note::
-   In the language of the ``Translator``, the bite report is a :attr:`~id_translation.types.Translatable`. The columns
-   ``'human_id'`` and ``'bitten_by'`` are the :attr:`names <id_translation.types.NameType>` that must be
-   :attr:`translated <id_translation.Translator.translate>`.
+   In the language of the :class:`Translator`, the bite report is a :attr:`~types.Translatable`. The columns
+   ``'human_id'`` and ``'bitten_by'`` are the :attr:`names <types.NameType>` that must be
+   :attr:`translated <Translator.translate>`.
 
 
 Translation sources
@@ -89,12 +95,12 @@ unintelligible bite report.
            :header-rows: 1
            :stub-columns: 1
 
-To access these tables, the ``Translator`` needs a :class:`~id_translation.fetching.Fetcher` that can read and
-interpret CSV files. The :class:`~id_translation.fetching.PandasFetcher` is built to perform such tasks.
+To access these tables, the :class:`Translator` needs a :class:`~fetching.Fetcher` that can read and
+interpret CSV files. The :class:`~fetching.PandasFetcher` is built to perform such tasks.
 
 .. code-block:: python
 
-   from id_translation.fetching import PandasFetcher
+   from fetching import PandasFetcher
    fetcher = PandasFetcher(
        read_function=read_csv,
        # Look for .csv-files in the 'sources' sub folder of the current working directory
@@ -105,9 +111,9 @@ This fetcher will look for CSV files in the `sources` sub folder of the current 
 :func:`pandas.read_csv` to deserialize them. Source names will be filenames without the `.csv`-suffix.
 
 .. note::
-   In the language of the ``Translator``, the CSV files ``'animals.csv'`` and ``'humans.csv'`` are translation
-   :attr:`~id_translation.Translator.sources`. All fetching is done through the
-   :class:`~id_translation.fetching.Fetcher` interface.
+   In the language of the :class:`Translator`, the CSV files ``'animals.csv'`` and ``'humans.csv'`` are translation
+   :attr:`~Translator.sources`. All fetching is done through the
+   :class:`~fetching.Fetcher` interface.
 
 Name-to-source mapping
 ----------------------
@@ -115,16 +121,16 @@ Name-to-source mapping
    :width: 420
    :align: right
 
-The :mod:`id_translation.mapping` namespace modules are used to perform `name-to-source` mapping. By default, names and
+The :mod:`.mapping` namespace modules are used to perform `name-to-source` mapping. By default, names and
 sources must match exactly which is rarely the case in practice. In our case, there are two names that should be matched
 to one source each.
 
 * Mapping `human_id → humans`. Mappings like these are common and may be solved using the built-in
-  :func:`~id_translation.mapping.heuristic_functions.like_database_table` heuristic.
+  :func:`~mapping.heuristic_functions.like_database_table` heuristic.
 
   .. code-block:: python
 
-     from id_translation.mapping import HeuristicScore
+     from mapping import HeuristicScore
      score_function = HeuristicScore("equality", heuristics=["like_database_table"])
 
 * Mapping `bitten_by → animals`. This is an impossible mapping without high-level understanding of the context. Using
@@ -134,17 +140,17 @@ to one source each.
 
      overrides = {"bitten_by": "animals"}
 
-We're now ready to create the :class:`~id_translation.mapping.Mapper` instance.
+We're now ready to create the :class:`~mapping.Mapper` instance.
 
 .. code-block:: python
 
-   from id_translation.mapping import Mapper
+   from mapping import Mapper
    mapper = Mapper(score_function, overrides=overrides)
 
 .. note::
 
-   In the language of the ``Mapper``, `names` become :attr:`values <id_translation.mapping.types.ValueType>` and the
-   `sources` are referred to as the :attr:`candidates <id_translation.mapping.types.CandidateType>`. See the
+   In the language of the ``Mapper``, `names` become :attr:`values <mapping.types.ValueType>` and the
+   `sources` are referred to as the :attr:`candidates <mapping.types.CandidateType>`. See the
    :ref:`mapping-primer` page for more information.
 
 Translation format
@@ -154,8 +160,8 @@ We must now decide what we want our report to look like once it's translated. Fi
 column (or `placeholder`). The ``'animals'`` source has a unique ``'species'`` placeholder.
 
 We would like the translations to include as much information as possible, and as such we will use a flexible
-:class:`~id_translation.offline.Format` that includes two
-:attr:`optional <id_translation.offline.Format.optional_placeholders>` placeholders.
+:class:`~offline.Format` that includes two
+:attr:`optional <offline.Format.optional_placeholders>` placeholders.
 
 .. code-block:: python
 
@@ -166,12 +172,12 @@ same translation format for humans and animals.
 
 .. note::
 
-   The translation :class:`~id_translation.offline.Format` specifies how translated IDs should be represented. The
-   elements ``'title'``, ``'name'``, ``'id'``, and ``'species'`` are called :attr:`~id_translation.offline.Format.placeholders`.
+   The translation :class:`~offline.Format` specifies how translated IDs should be represented. The
+   elements ``'title'``, ``'name'``, ``'id'``, and ``'species'`` are called :attr:`~offline.Format.placeholders`.
 
-   The ``'name'`` and ``'id'`` placeholders are :attr:`~id_translation.offline.Format.required_placeholders`;
+   The ``'name'`` and ``'id'`` placeholders are :attr:`~offline.Format.required_placeholders`;
    translation will fail if they cannot be retrieved. The others -- ``'title'`` and ``'species'`` -- are
-   :attr:`~id_translation.offline.Format.optional_placeholders`.
+   :attr:`~offline.Format.optional_placeholders`.
 
 Placeholder mapping
 -------------------
@@ -179,22 +185,22 @@ Placeholder mapping
    :width: 350
    :align: right
 
-Analogous to name-to-source mapping, placeholder mapping binds the :attr:`wanted placeholders <id_translation.offline.Format.placeholders>`
-of the translation :class:`~id_translation.offline.Format` to the :attr:`actual placeholders <id_translation.fetching.Fetcher.placeholders>`
+Analogous to name-to-source mapping, placeholder mapping binds the :attr:`wanted placeholders <offline.Format.placeholders>`
+of the translation :class:`~offline.Format` to the :attr:`actual placeholders <types.HasSources.placeholders>`
 found in the source.
 
 .. note::
 
-   In the language of the ``Mapper``, `wanted placeholders` become :attr:`values <id_translation.mapping.types.ValueType>`
-   and the `actual placeholders` are referred to as the :attr:`candidates <id_translation.mapping.types.CandidateType>`.
+   In the language of the ``Mapper``, `wanted placeholders` become :attr:`values <mapping.types.ValueType>`
+   and the `actual placeholders` are referred to as the :attr:`candidates <mapping.types.CandidateType>`.
    The `source` or file which we are performing mapping for is referred to as the
-   :attr:`context <id_translation.mapping.types.ContextType>`.
+   :attr:`context <mapping.types.ContextType>`.
 
 All placeholder names also match exactly, except for the ``'animal_id'`` placeholder in the ``'animals'`` source. The
 easiest solution is to use an override. However, as this kind of naming is common, a more generic solution makes sense.
 
 .. code-block:: python
-   :caption: A custom :attr:`~id_translation.mapping.types.AliasFunction` heuristic to turn ``'animal_id'`` into just ``'id'``.
+   :caption: A custom :attr:`~mapping.types.AliasFunction` heuristic to turn ``'animal_id'`` into just ``'id'``.
 
    def smurf_column_heuristic(value, candidates, context):
        """Heuristic for matching columns that use the "smurf" convention."""
@@ -210,7 +216,7 @@ easiest solution is to use an override. However, as this kind of naming is commo
 
 Placeholder mapping is the responsibility of the ``Fetcher``. The reason for this is that the required mappings are
 often specific to a single source collection (such as a database). Having separate
-:attr:`mappers <id_translation.fetching.AbstractFetcher.mapper>` makes fetching configuration easier to maintain for
+:attr:`mappers <fetching.AbstractFetcher.mapper>` makes fetching configuration easier to maintain for
 applications that use multiple fetchers.
 
 .. code-block:: python
@@ -222,7 +228,7 @@ applications that use multiple fetchers.
       mapper=Mapper(smurf_score),  # Add the mapper.
    )
 
-With placeholder mapping in place, all the remains is to create the ``Translator``.
+With placeholder mapping in place, all the remains is to create the :class:`Translator`.
 
 Putting it all together
 -----------------------
@@ -232,7 +238,7 @@ Putting it all together
    translator = Translator(fetcher, fmt=translation_format, mapper=mapper)
    translated_bite_report = translator.translate(bite_report)
 
-Unless ``inplace=True`` is passed :meth:`~id_translation.Translator.translate`, always returns a copy.
+Unless ``inplace=True`` is passed :meth:`~Translator.translate`, always returns a copy.
 
 Translated data
 ---------------
