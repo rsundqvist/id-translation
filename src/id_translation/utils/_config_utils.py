@@ -10,13 +10,14 @@ from ._load_toml import load_toml_file
 LOGGER = logging.getLogger(__package__).getChild("Translator").getChild("config")
 
 if TYPE_CHECKING:
-    from . import Translator  # noqa: F401
+    from .. import Translator
 
 
 class ConfigMetadata(BaseMetadata):
-    """Metadata pertaining to how a ``Translator`` instance was initialized from TOML configuration.
+    """Metadata pertaining to how a :class:`.Translator` instance was initialized from TOML configuration.
 
-    Configs are equivalent iff:
+    Equivalence:
+        Configs are equivalent if and only if...
 
         - They have the same top-level dependency versions, and
         - Use the same fully qualified class name, and

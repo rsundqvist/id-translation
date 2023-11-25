@@ -1,3 +1,6 @@
+from datetime import datetime
+from uuid import UUID
+
 import pytest as pytest
 
 from id_translation.offline import Format
@@ -77,3 +80,62 @@ def test_formatting(fmt, expected):
 
     assert positional_true == expected
     assert positional_false == expected
+
+
+class TestPartial:
+    @pytest.mark.parametrize("id_part", ["{id}", "{id!r}", "{id!s:8.2}", "{id!r:^12}"])
+    def test_string(self, id_part):
+        self.run(id_part, kind=str)
+
+    @pytest.mark.parametrize("id_part", ["{id}", "{id!r}", "{id!s:8.2}", "{id:+_d}", "{id:_d}"])
+    def test_int(self, id_part):
+        self.run(id_part, kind=int)
+
+    @pytest.mark.parametrize("id_part", ["{id}", "{id!r}", "{id:%A, %d %B %Y}", "{id.date.__qualname__!r}"])
+    def test_datetime(self, id_part):
+        self.run(id_part, kind=datetime)
+
+    @pytest.mark.parametrize("id_part", ["{id}", "{id!r}", "{id.int:_d}"])
+    def test_uuid(self, id_part):
+        self.run(id_part, kind=UUID)
+
+    @staticmethod
+    def run(id_part, kind):
+        defaults = {
+            "int": 1999,
+            "str": "string!",
+            "datetime": datetime.fromisoformat("2019-05-11T20:30:00"),
+            "uuid": UUID("00000000-0000-0000-0000-00000134152f"),
+        }
+        fixed = "<int={int:_d} | str={str!r} | datetime={datetime:%A, %d %B %Y} | uuid={uuid.int!r:>8.4}>"
+
+        id_value = defaults[kind.__name__.lower()]
+        expected = id_part.format(id=id_value)
+
+        partial = Format(id_part + ": " + fixed).partial(defaults)
+        actual, _, fixed_part = partial.fstring().format(id=id_value).partition(": ")
+
+        assert fixed_part == fixed.format_map(defaults)
+        assert actual == expected
+
+    @pytest.mark.parametrize("optional", [False, True])
+    def test_optional(self, optional):
+        kwargs = {"required": "<Required>"}
+        if optional:
+            kwargs["optional"] = "<Optional>"
+
+        expected = Format(
+            "required: {required}"
+            " | [1/1, <Provided optional>]"
+            " | [1/2: <Provided optional> {optional}]"
+            " | [2/3: <Provided optional> {optional} <Provided optional>]"
+        )
+
+        actual = Format(
+            "required: {required}"
+            " | [1/1, {optional_provided}]"
+            " | [1/2: {optional_provided} {optional}]"
+            " | [2/3: {optional_provided} {optional} {optional_provided}]"
+        ).partial({"optional_provided": "<Provided optional>"})
+
+        assert actual.fstring(kwargs).format(**kwargs) == expected.fstring(kwargs).format(**kwargs)

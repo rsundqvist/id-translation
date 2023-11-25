@@ -1,10 +1,9 @@
-"""Functions and classes used by the ``Mapper`` for handling score matrices.
+"""Functions and classes used by the :class:`.Mapper` for handling score matrices.
 
 .. warning::
 
    This module is considered an implementation detail, and may change without notice.
 """
-
 import logging
 import warnings
 from collections import defaultdict as _defaultdict

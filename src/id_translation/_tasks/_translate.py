@@ -8,16 +8,13 @@ from numpy import isnan, unique
 from rics.misc import tname
 from rics.performance import format_seconds
 
-from id_translation.exceptions import TooManyFailedTranslationsError
-from id_translation.offline import TranslationMap
-from id_translation.types import IdType, NameToSource, NameType, SourceType
-
 from .. import _uuid_utils
 from ..dio._dict import DictIO
+from ..exceptions import TooManyFailedTranslationsError
 from ..mapping.types import UserOverrideFunction
-from ..offline import Format
+from ..offline import Format, TranslationMap
 from ..settings import logging as settings
-from ..types import Names, NameTypes, Translatable
+from ..types import IdType, Names, NameToSource, NameType, NameTypes, SourceType, Translatable
 from ._map import MappingTask
 
 LOGGER = logging.getLogger("id_translation.Translator.translate")
@@ -245,11 +242,16 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
                 f"Failed to translate {n_untranslated}/{n_total} ({f_untranslated:.1%}{{reason}}) of IDs "
                 f"for {name=} using source={translation_map.name_to_source[name]!r}. Sample IDs: {sample_ids}."
             )
+
             if f_untranslated > self.maximal_untranslated_fraction:
-                LOGGER.error(message.format(reason=f" > {self.maximal_untranslated_fraction:.1%}"), extra=extra)
+                message = message.format(
+                    reason=f" > maximal_untranslated_fraction={self.maximal_untranslated_fraction:.1%}"
+                )
+                LOGGER.error(message, extra=extra)
                 raise TooManyFailedTranslationsError(message)
             else:
-                LOGGER.debug(message.format(reason=", above limit; DEBUG logging is enabled"), extra=extra)
+                message = message.format(reason=", above limit; DEBUG logging is enabled")
+                LOGGER.debug(message, extra=extra)
 
     @staticmethod
     def _get_untranslated_ids(

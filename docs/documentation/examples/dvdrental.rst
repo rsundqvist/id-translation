@@ -47,7 +47,7 @@ more about config files.
 .. literalinclude:: resources/sql-fetcher.toml
    :caption: Configuration for fetching SQL data.
 
-To create a ``Translator``, pas the configuration files to :meth:`.Translator.from_config`.
+To create a ``Translator``, pass the configuration files to :meth:`.Translator.from_config`.
 
 .. literalinclude:: resources/dvdrental.py
    :start-at: # Create a Translator

@@ -32,6 +32,39 @@ for tm in type_modules:
     import_module(tm)
 
 
+if not os.path.exists("_autosummary"):
+    os.mkdir("_autosummary")
+shutil.copyfile("translator.rst", "_autosummary/translator.rst")
+
+
+def monkeypatch_autosummary_toc() -> None:
+    from sphinx.addnodes import toctree
+    from sphinx.ext.autosummary import Autosummary, autosummary_toc
+
+    original = Autosummary.run
+
+    def make_toc_tree_titles_shorter(self: Autosummary):
+        # tocnode['entries'] = [(".".join(docn.partition("/")[-1].split(".")[-2:]), docn) for docn in docnames]
+        toc: toctree
+        nodes = original(self)
+
+        for node in nodes:
+            if isinstance(node, autosummary_toc):
+                for toc in node.children:
+                    entries = toc["entries"]
+
+                    for i, (title, ref) in enumerate(entries):
+                        if ref.endswith("id_translation.Translator"):
+                            entries[i] = ("Translator", ref)
+                        elif title is None and ref.count(".") > 1:
+                            title = ref.partition("id_translation.")[-1]
+                            entries[i] = (title, ref)
+
+        return nodes
+
+    Autosummary.run = make_toc_tree_titles_shorter
+
+
 def callback(_app, _env, node, _contnode):  # noqa
     reftarget = node.get("reftarget")
 
@@ -63,6 +96,7 @@ def callback(_app, _env, node, _contnode):  # noqa
 
 def setup(app):  # noqa
     app.connect("missing-reference", callback)  # Fixes linking of typevars
+    monkeypatch_autosummary_toc()
 
 
 # If extensions (or modules to document with autodoc) are in another
@@ -128,6 +162,7 @@ templates_path = ["_templates"]
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = [
+    "translator.rst",
     "_build",
     "_templates",
     "Thumbs.db",
@@ -183,7 +218,7 @@ html_context = {
         dict(
             title="Translator.translate",
             text="Main entry point for translation tasks.",
-            url="_autosummary/id_translation.html#id_translation.Translator.translate",
+            url="_autosummary/id_translation.Translator.translate.html",
             img="_static/translation.png",
         ),
         dict(
@@ -232,7 +267,7 @@ autodoc_typehints = "none"
 autodoc_default_options = {
     "members": True,
     "undoc-members": False,
-    "member-order": "bysource",
+    "member-order": "alphabetical",
     "show-inheritance": True,
 }
 

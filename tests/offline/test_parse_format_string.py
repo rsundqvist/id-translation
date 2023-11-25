@@ -1,7 +1,6 @@
 import pytest as pytest
 
-from id_translation.offline.parse_format_string import get_elements  # _is_delimiter,
-from id_translation.offline.parse_format_string import BadDelimiterError, Element, UnusedOptionalBlockError
+from id_translation.offline.parse_format_string import BadDelimiterError, Element, get_elements
 
 
 @pytest.mark.parametrize(
@@ -16,38 +15,57 @@ from id_translation.offline.parse_format_string import BadDelimiterError, Elemen
         (
             "{id}",
             [
-                Element(part="{id}", placeholders=["id"], required=True, positional_part="{:}"),
+                Element(part="{id}", placeholders=["id"], required=True, positional_part="{}"),
             ],
         ),
         (
-            "[{optional-id}] [[literal-angle-brackets]]",
+            "{{id}}",
             [
-                Element(part="{optional-id}", placeholders=["optional-id"], required=False, positional_part="{:}"),
+                Element(part="{{id}}", placeholders=[], required=True, positional_part="{{id}}"),
+            ],
+        ),
+        (
+            "{{id}}, {id}",
+            [
+                Element(part="{{id}}, {id}", placeholders=["id"], required=True, positional_part="{{id}}, {}"),
+            ],
+        ),
+        (
+            "[{optional-id}] [literal-angle-brackets]",
+            [
+                Element(part="{optional-id}", placeholders=["optional-id"], required=False, positional_part="{}"),
+                Element(part=" ", placeholders=[], required=True, positional_part=" "),
                 Element(
-                    part=" [literal-angle-brackets]",
+                    part="[literal-angle-brackets]",
                     placeholders=[],
                     required=True,
-                    positional_part=" [literal-angle-brackets]",
+                    positional_part="[literal-angle-brackets]",
                 ),
             ],
         ),
         (
-            "{id} [[literal-angle-brackets]]",
+            "{id} [literal-angle-brackets]",
             [
                 Element(
-                    part="{id} [literal-angle-brackets]",
+                    part="{id} ",
                     placeholders=["id"],
                     required=True,
-                    positional_part="{:} [literal-angle-brackets]",
+                    positional_part="{} ",
+                ),
+                Element(
+                    part="[literal-angle-brackets]",
+                    placeholders=[],
+                    required=True,
+                    positional_part="[literal-angle-brackets]",
                 ),
             ],
         ),
         (
             "!{id}:[:{code}<]:{name}<",
             [
-                Element(part="!{id}:", placeholders=["id"], required=True, positional_part="!{:}:"),
-                Element(part=":{code}<", placeholders=["code"], required=False, positional_part=":{:}<"),
-                Element(part=":{name}<", placeholders=["name"], required=True, positional_part=":{:}<"),
+                Element(part="!{id}:", placeholders=["id"], required=True, positional_part="!{}:"),
+                Element(part=":{code}<", placeholders=["code"], required=False, positional_part=":{}<"),
+                Element(part=":{name}<", placeholders=["name"], required=True, positional_part=":{}<"),
             ],
         ),
         (
@@ -57,18 +75,101 @@ from id_translation.offline.parse_format_string import BadDelimiterError, Elemen
                     part="{id}:{first_name}",
                     placeholders=["id", "first_name"],
                     required=True,
-                    positional_part="{:}:{:}",
+                    positional_part="{}:{}",
                 ),
-                Element(part=" '{nickname}'", placeholders=["nickname"], required=False, positional_part=" '{:}'"),
-                Element(part=", age {age}", placeholders=["age"], required=False, positional_part=", age {:}"),
+                Element(part=" '{nickname}'", placeholders=["nickname"], required=False, positional_part=" '{}'"),
+                Element(part=", age {age}", placeholders=["age"], required=False, positional_part=", age {}"),
                 Element(part=".", placeholders=[], required=True, positional_part="."),
+            ],
+        ),
+        (
+            " [literal-angle-brackets] ",
+            [
+                Element(
+                    part=" ",
+                    placeholders=[],
+                    required=True,
+                    positional_part=" ",
+                ),
+                Element(
+                    part="[literal-angle-brackets]",
+                    placeholders=[],
+                    required=True,
+                    positional_part="[literal-angle-brackets]",
+                ),
+                Element(
+                    part=" ",
+                    placeholders=[],
+                    required=True,
+                    positional_part=" ",
+                ),
+            ],
+        ),
+        (
+            " [[{required}]], [literal-angle-brackets] ",
+            [
+                Element(
+                    part=" [{required}], ",
+                    placeholders=["required"],
+                    required=True,
+                    positional_part=" [{}], ",
+                ),
+                Element(
+                    part="[literal-angle-brackets]",
+                    placeholders=[],
+                    required=True,
+                    positional_part="[literal-angle-brackets]",
+                ),
+                Element(
+                    part=" ",
+                    placeholders=[],
+                    required=True,
+                    positional_part=" ",
+                ),
+            ],
+        ),
+        (
+            " [[{required}]], [{optional-1} [[{optional-2}]] {{just-some-curlies}}] ",
+            [
+                Element(
+                    part=" [{required}], ",
+                    placeholders=["required"],
+                    required=True,
+                    positional_part=" [{}], ",
+                ),
+                Element(
+                    part="{optional-1} [{optional-2}] {{just-some-curlies}}",
+                    placeholders=["optional-1", "optional-2"],
+                    required=False,
+                    positional_part="{} [{}] {{just-some-curlies}}",
+                ),
+                Element(
+                    part=" ",
+                    placeholders=[],
+                    required=True,
+                    positional_part=" ",
+                ),
             ],
         ),
     ],
 )
 def test_get_elements(fmt, expected):
     actual = get_elements(fmt)
-    assert actual == expected
+    if actual == expected:
+        return
+
+    for i, (a, e) in enumerate(zip(actual, expected)):
+        assert a.placeholders == e.placeholders, i
+        assert a.required == e.required, i
+
+    assert "".join(a.part for a in actual) == "".join(e.part for e in expected)
+    assert "".join(a.positional_part for a in actual) == "".join(e.positional_part for e in expected)
+
+    for i, (a, e) in enumerate(zip(actual, expected)):
+        assert a.placeholders == e.placeholders, i
+        assert a.required == e.required, i
+
+    assert len(actual) == len(expected)
 
 
 @pytest.mark.parametrize(
@@ -86,6 +187,20 @@ def test_improper_brackets(fmt, i, msg):
         get_elements(fmt)
 
 
-def test_optional_block_without_placeholders():
-    with pytest.raises(UnusedOptionalBlockError, match="(1, 6)"):
-        get_elements(" [aaaa] ")
+def test_foo():
+    from id_translation.offline import Format
+
+    x = Format(" [aaaa] {x}").fstring()
+    print(x)
+
+    fmt_ = (
+        "required: {required}"
+        " | [1/1, {optional_provided}]"
+        " | [1/2: {optional_provided} {optional_not_provided}]"
+        " | [2/3: {optional_provided} {optional_not_provided} {optional_provided}]"
+        " | []"
+    )
+    fmt = Format(fmt_)
+    print(fmt)
+    print(fmt.fstring(fmt.placeholders))
+    print(fmt_)

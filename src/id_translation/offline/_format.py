@@ -1,4 +1,4 @@
-from typing import Iterable, List
+from typing import Any, Iterable, List, Mapping
 
 from rics.misc import tname
 
@@ -11,38 +11,40 @@ class Format:
 
     Translation formats are similar to regular f-strings, with two important exceptions:
 
-        1. Positional placeholders (``'{}'``) may not be used; correct form is ``'{placeholder-name}'``.
-        2. Substrings surrounded by ``'[]'`` denote an optional element. Optional elements..
+    1. Positional placeholders (``'{}'``) may not be used; correct form is ``'{placeholder-name}'``.
+    2. Placeholders surrounded by ``'[]'`` denote an optional element. Optional elements are rendered...
 
-           * `Must` contain at least one placeholder.
-           * Are rendered only if `all` of its placeholders are defined.
-           * Are rendered `without` delimiting brackets.
+       * Only if `all` of its placeholders are defined.
+       * Without delimiting brackets.
+       * As literal text (with brackets) if there is no placeholder in the block.
 
-     .. hint::
+    .. hint::
 
-        Literal angle brackets are added by doubling the wanted character, as for ``'{'`` and ``'}'`` in plain Python
-        f-strings. For example, ``'[['`` will render a ``'['``-literal.
+       Double the wanted bracket character to render as a literal, analogous to ``'{{'`` and ``'}}'``
+       in plain Python f-strings. See the example below for a demonstration.
 
     Args:
         fmt: A translation fstring.
 
     Examples:
-        A format string with an optionl element.
+        A format string using literal angle brackets and an optional element.
 
         >>> from id_translation.offline import Format
-        >>> fmt = Format('{id}:{name}[, nice={is_nice}]')
+        >>> fmt = Format("{id}:[[{name}]][, nice={is_nice}]")
 
-        The ``Format`` class when used directly only returns required placeholders by default..
+        The ``Format`` class when used directly only returns required placeholders by default...
 
-        >>> fmt.fstring(), fmt.fstring().format(id=0, name='Tarzan')
-        ('{id}:{name}', '0:Tarzan')
+        >>> fmt.fstring()
+        '{id}:[{name}]'
+        >>> fmt.fstring().format(id=0, name="Tarzan")
+        '0:[Tarzan]'
 
-        ..but the `placeholders` attribute can be used to retrieve all placeholders, required and optional:
+        ...but the :attr:`placeholders` attribute can be used to retrieve all placeholders, required and optional:
 
         >>> fmt.placeholders
         ('id', 'name', 'is_nice')
-        >>> fmt.fstring(fmt.placeholders).format(id=1, name='Morris', is_nice=True)
-        '1:Morris, nice=True'
+        >>> fmt.fstring(fmt.placeholders).format(id=1, name="Morris", is_nice=True)
+        '1:[Morris], nice=True'
 
     The :class:`.Translator` will automatically add optional placeholders, if they are present in the source.
 
@@ -56,17 +58,17 @@ class Format:
 
     Convert to string and truncate to eight characters.
 
-    >>> Format('{id!s:.8}:{name!r}').fstring().format(id=uuid, name='Sofia')
+    >>> Format("{id!s:.8}:{name!r}").fstring().format(id=uuid, name="Sofia")
     "550e8400:'Sofia'"
 
-    See the :py:ref:`formatspec` documentation for details.
+    See the official :py:ref:`formatspec` documentation for details.
     """
 
     def __init__(self, fmt: str) -> None:
         self._fmt = fmt
-        self._elements: List[parse_format_string.Element] = self._parse_format_string(fmt)
+        self._elements: List[parse_format_string.Element] = parse_format_string.get_elements(fmt)
 
-    def fstring(self, placeholders: Iterable[str] = None, positional: bool = False) -> str:
+    def fstring(self, placeholders: Iterable[str] = None, *, positional: bool = False) -> str:
         """Create a format string for the given placeholders.
 
         Args:
@@ -91,6 +93,19 @@ class Format:
             return e.required or set(placeholders).issuperset(e.placeholders)
 
         return "".join(e.positional_part if positional else e.part for e in filter(predicate, self._elements))
+
+    def partial(self, defaults: Mapping[str, Any]) -> "Format":
+        """Get a partially formatted :meth:`fstring`.
+
+        Args:
+            defaults: Keys which should be replaced with real values. Keys which are **not** part of `defaults` will
+                be left as-is.
+
+        Returns:
+            A partially formatted fstring.
+        """
+        parts, _ = parse_format_string.Element.parse_block(self._fmt, defaults=defaults)
+        return Format("".join(parts))
 
     @staticmethod
     def parse(fmt: FormatType) -> "Format":
@@ -126,16 +141,5 @@ class Format:
             ans.extend(e.placeholders)
         return tuple(ans)
 
-    @classmethod
-    def _parse_format_string(cls, format_string: str) -> List[parse_format_string.Element]:
-        return parse_format_string.get_elements(format_string)
-
-    def __str__(self) -> str:
-        def repr_part(e: parse_format_string.Element) -> str:
-            s = e.part.replace("[", "[[").replace("]", "]]")
-            return s if e.required else f"[{s}]"
-
-        return "".join(map(repr_part, self._elements))
-
     def __repr__(self) -> str:
-        return f"{tname(self)}({self.__str__()!r})"
+        return f"{tname(self)}({self._fmt!r})"

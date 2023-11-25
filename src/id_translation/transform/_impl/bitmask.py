@@ -39,7 +39,7 @@ class BitmaskTransformer(Transformer[IdType]):
 
         >>> btr = BitmaskTransformer(overrides={0b000: "NOT_SET", 0b1000: "OVERFLOW!"})
 
-        Create a ``Translator`` using bitmask transforms for the `'bitmasks'` source.
+        Create a :class:`.Translator` using bitmask transforms for the `'bitmasks'` source.
 
         >>> from id_translation import Translator
         >>> data = {"id": [1, 4, 8], "name": ["name-of-1", "name-of-4", "0b1000"]}

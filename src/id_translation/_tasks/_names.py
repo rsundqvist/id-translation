@@ -46,7 +46,7 @@ class NamesTask(BaseTask[NameType, SourceType, IdType]):
         if ignore_names is not None:
             self.ignore_names = ignore_names if callable(ignore_names) else as_list(ignore_names)
 
-        # A callable (str) -> bool, if given
+        # A callable (NameType) -> bool, if given
         self.override_function = override_function
 
         # Task outputs

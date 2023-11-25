@@ -9,8 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - The `Translate.translate()`-method now have overloads for improved typing.
-- User-defined ID and translation transformation framework: `id_translation.transform`
-- Bitmask translation support: `id_translation.transform.BitmaskTransformer`
+- User-defined ID and translation transformation framework: `id_translation.transform`.
+- Bitmask translation support: `id_translation.transform.BitmaskTransformer`.
+- Serialization methods for `TranslationMap`: `to_dicts()`, `to_pandas()`, `from_pandas()`. Translations maps are
+  returned by `Translator.fetch()` and the `cache` attribute.
 
 ### Changed
 - Make `Translator.translated_names()` optionally return a mapping dict instead of just names.
@@ -22,6 +24,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update `SqlFetcher`:
   * No longer uses table sizes. This could be expensive for large tables.
   * Simplify selection filtering; now only uses `SqlFetcher.select_where()` instead of two separate methods.
+- Renamed `Translator.store()` -> `Translator.go_offline()`.
+- Change `Translator.default_fmt` to `Format("<Failed: id={id!r}>")` (was `None`).
+
+### Fixed
+- Fixed issues in `Format`:
+  - Fixed rendering of `{id}` when used in fallback format.
+  - Fixed rendering of escaped curly brackets `{{literal-text}}`.
+  - Convert optional blocks without placeholders to literal text.
 
 ### Removed
 - Attribute translation is no longer support. `Translator.allow_name_inheritance` attribute as been removed, as well as

@@ -1,4 +1,5 @@
 """Factory functions for translation classes."""
+
 from contextlib import contextmanager as _contextmanager
 from pathlib import Path as _Path
 from typing import (
@@ -11,7 +12,6 @@ from typing import (
     Iterable,
     List,
     Optional,
-    Tuple,
     Type,
 )
 
@@ -20,11 +20,10 @@ from rics._internal_support.types import PathLikeType
 from rics.collections import dicts
 
 from . import exceptions, fetching
-from ._config_utils import ConfigMetadata as _ConfigMetadata
-from ._load_toml import load_toml_file as _load_toml_file
 from .mapping import HeuristicScore as _HeuristicScore, Mapper as _Mapper
 from .transform.types import Transformer as _Transformer
 from .types import IdType, NameType, SourceType
+from .utils import ConfigMetadata as _ConfigMetadata, load_toml_file as _load_toml_file
 
 if TYPE_CHECKING:
     from ._translator import Translator
@@ -199,15 +198,13 @@ class TranslatorFactory(_Generic[NameType, SourceType, IdType]):
             translator_config = config.pop("translator", {})
             mapper = self._make_mapper("translator", translator_config)
             default_fmt_placeholders: Optional[dicts.InheritedKeysDict[SourceType, str, _Any]]
-            default_fmt, default_fmt_placeholders = _make_default_translations(**config.pop("unknown_ids", {}))
+            _make_default_translations(translator_config, config.pop("unknown_ids", {}))
 
             translator_config["transformers"] = self._handler_transformers(config.pop("transform", {}))
 
             ans = self.clazz(
                 fetcher,
                 mapper=mapper,
-                default_fmt=default_fmt,
-                default_fmt_placeholders=default_fmt_placeholders,
                 **translator_config,
             )
 
@@ -294,16 +291,16 @@ class TranslatorFactory(_Generic[NameType, SourceType, IdType]):
 
 
 def _make_default_translations(
-    **config: _Any,
-) -> Tuple[str, Optional[dicts.InheritedKeysDict[SourceType, str, _Any]]]:  # pragma: no cover
+    out: Dict[str, _Any],
+    config: Dict[str, _Any],
+) -> None:
     _check_allowed_keys(["fmt", "overrides"], config, toml_path="translator.unknown_ids")
 
-    fmt = config.pop("fmt", None)
+    if "fmt" in config:
+        out["default_fmt"] = config.pop("fmt")
     if "overrides" in config:
         shared, specific = _split_overrides(config.pop("overrides"))
-        return fmt, dicts.InheritedKeysDict(specific, default=shared)
-    else:
-        return fmt, None
+        out["default_fmt_placeholders"] = dicts.InheritedKeysDict(specific, default=shared)
 
 
 def _check_allowed_keys(allowed: Iterable[str], actual: Iterable[str], toml_path: str) -> None:  # pragma: no cover

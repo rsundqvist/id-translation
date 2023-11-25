@@ -1,5 +1,5 @@
 from copy import copy
-from typing import Any, Dict, Generic, Iterator, List, Mapping, Optional, Set, Union
+from typing import TYPE_CHECKING, Any, Dict, Generic, Iterator, List, Mapping, Optional, Sequence, Set, Union
 
 from rics.collections.dicts import InheritedKeysDict, reverse_dict
 from rics.misc import tname
@@ -9,7 +9,10 @@ from ..types import HasSources, IdType, NameToSource, NameType, SourceType
 from ._format import Format
 from ._format_applier import FormatApplier
 from ._magic_dict import MagicDict
-from .types import FormatType, SourcePlaceholderTranslations
+from .types import FormatType, PlaceholderTranslations, SourcePlaceholderTranslations
+
+if TYPE_CHECKING:
+    import pandas
 
 
 class TranslationMap(
@@ -58,6 +61,64 @@ class TranslationMap(
         self._reverse_mode: bool = False
         self.enable_uuid_heuristics = enable_uuid_heuristics
 
+    def to_dicts(self) -> Dict[SourceType, Dict[str, Sequence[Any]]]:
+        """Get the underlying data used for translations as dicts.
+
+        This is equivalent using :meth:`to_pandas`, then calling ``DataFrame.to_dict(orient='list')`` on each frame.
+
+        Returns:
+            A dict ``{source: {placeholder: [values...]}}``.
+        """
+        return {applier.source: applier.to_dict() for applier in self._format_appliers.values()}
+
+    def to_pandas(self) -> Dict[SourceType, "pandas.DataFrame"]:
+        """Get the underlying data used for translations as :class:`pandas.DataFrame`.
+
+        Returns:
+            A dict ``{source: DataFrame}``.
+        """
+        return {applier.source: applier.to_pandas() for applier in self._format_appliers.values()}
+
+    def to_translations(self, fmt: FormatType = None) -> Dict[SourceType, MagicDict[IdType]]:
+        """Create translations for all sources.
+
+        Returned values are of type :class:`.MagicDict`. To convert to regular built-in dicts, run
+
+        .. code-block::
+
+           translations = translation_map.to_translations()
+           as_regular_dicts = {
+              source: dict(magic)
+              for source, magic in translations.items()
+           }
+
+        on the returned dict-of-magic-dicts.
+
+        Args:
+            fmt: :class:`.Format` to use. If ``None``, fall back to init format.
+
+        Returns:
+            A dict of translations ``{source: MagicDict}``.
+        """
+        return {source: self.apply(source, fmt=fmt) for source in self.sources}
+
+    @classmethod
+    def from_pandas(
+        cls, frames: Dict[SourceType, "pandas.DataFrame"]
+    ) -> "TranslationMap[NameType, SourceType, IdType]":
+        """Create a new instance from a :class:`pandas.DataFrame` dict.
+
+        Args:
+            frames: A dict ``{source: DataFrame}``.
+
+        Returns:
+            A new ``TranslationMap``.
+        """
+        source_translations = {
+            source: PlaceholderTranslations.from_dataframe(source, frame) for source, frame in frames.items()
+        }
+        return cls(source_translations)
+
     def apply(
         self, name_or_source: Union[NameType, SourceType], fmt: FormatType = None, default_fmt: FormatType = None
     ) -> MagicDict[IdType]:
@@ -65,7 +126,7 @@ class TranslationMap(
 
         Args:
             name_or_source: A name or source to translate.
-            fmt: Format to use. If ``None``, fall back to init format.
+            fmt: :class:`.Format` to use. If ``None``, fall back to init format.
             default_fmt: Alternative format for default translation. Resolution: Arg -> init arg, fmt arg, init fmt arg
 
         Returns:
@@ -194,6 +255,6 @@ class TranslationMap(
 
     def __repr__(self) -> str:
         sources = ", ".join(
-            {f"'{formatter.source}': {len(formatter)} IDs" for formatter in self._format_appliers.values()}
+            f"'{formatter.source}': {len(formatter)} IDs" for formatter in self._format_appliers.values()
         )
         return f"{tname(self)}({sources})"

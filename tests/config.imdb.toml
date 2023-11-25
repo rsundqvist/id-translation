@@ -49,7 +49,7 @@ duplicate_source_discovered_action = "ignore"
 ################################################################################
 [fetching.PandasFetcher]
 read_function = "read_json"
-read_path_format = "tests/imdb/{}.json"
+read_path_format = "${TEST_ROOT}/imdb/{}.json"
 
 # ------------------------------------------------------------------------------
 # Placeholder mapping configuration. Binds actual names in sources (such as

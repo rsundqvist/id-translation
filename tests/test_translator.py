@@ -8,12 +8,13 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from id_translation import Translator as RealTranslator, _config_utils
+from id_translation import Translator as RealTranslator
 from id_translation.dio.exceptions import NotInplaceTranslatableError, UntranslatableTypeError
 from id_translation.exceptions import MissingNamesError, TooManyFailedTranslationsError, TranslationDisabledWarning
 from id_translation.fetching.exceptions import UnknownSourceError
 from id_translation.mapping import Mapper
 from id_translation.mapping.exceptions import MappingError, MappingWarning, UserMappingError
+from id_translation.utils import _config_utils
 
 from .conftest import ROOT
 
@@ -65,7 +66,7 @@ def test_dummy_translation_doesnt_crash(with_id, with_override, store):
     if with_id:
         names[0] = "id"
     if store:
-        t.store(data, names=names)
+        t.go_offline(data, names=names)
 
     ans = t.translate(  # type: ignore[call-overload]
         data,
@@ -81,7 +82,7 @@ def test_translate_without_id(hex_fetcher):
     ans = UnitTestTranslator(hex_fetcher, fmt=without_id).translate({"positive_numbers": [-1, 0, 1]})
     assert ans == {
         "positive_numbers": [
-            None,
+            "<Failed: id=-1>",
             "0x0, positive=True",
             "0x1, positive=True",
         ]
@@ -97,7 +98,7 @@ def test_can_pickle(translator, copy):
 
 @pytest.mark.parametrize("copy", [False, True])
 def test_offline(hex_fetcher, copy):
-    translator = UnitTestTranslator(hex_fetcher, fmt="{id}:{hex}[, positive={positive}]").store()
+    translator = UnitTestTranslator(hex_fetcher, fmt="{id}:{hex}[, positive={positive}]").go_offline()
     if copy:
         translator = translator.copy()
     _translate(translator)
@@ -117,7 +118,7 @@ def _translate(translator):
     ans = translator.translate({"positive_numbers": [-1, 0, 1, 2], "negative_numbers": [-1, 0]})
     assert ans == {
         "positive_numbers": [
-            None,
+            "<Failed: id=-1>",
             "0:0x0, positive=True",
             "1:0x1, positive=True",
             "2:0x2, positive=True",
@@ -156,7 +157,7 @@ def test_store_and_restore(hex_fetcher, tmp_path):
     translated_data = translator.translate(data)
 
     path = tmp_path.joinpath("translator.pkl")
-    translator.store(path=path)
+    translator.go_offline(path=path)
     restored = UnitTestTranslator.restore(path=path)
 
     translated_by_restored = restored.translate(data)
@@ -173,11 +174,11 @@ def test_store_with_explicit_values(hex_fetcher):
     )
 
     with pytest.raises(MappingError) as e, pytest.warns(UserWarning) as w:
-        translator.store(data, ignore_names=data)
+        translator.go_offline(data, ignore_names=data)
         assert "No names left" in str(w)
         assert "not store" in str(e)
 
-    translator.store(data)
+    translator.go_offline(data)
     expected_num_fetches = hex_fetcher.num_fetches
     assert sorted(translator._cached_tmap.sources) == sorted(data)
     actual = translator.translate(data)
@@ -227,7 +228,7 @@ def test_complex_default(hex_fetcher):
     default_fmt_placeholders = {"default": {"positive": "POSITIVE/NEGATIVE", "hex": "HEX"}}
     t = UnitTestTranslator(
         hex_fetcher, fmt=fmt, default_fmt=default_fmt, default_fmt_placeholders=default_fmt_placeholders
-    ).store()
+    ).go_offline()
 
     in_range = t.translate({"positive_numbers": [-1, 0, 1]})
     assert in_range == {
@@ -250,7 +251,7 @@ def test_complex_default(hex_fetcher):
 def test_id_only_default(hex_fetcher):
     fmt = "{id}:{hex}[, positive={positive}]"
     default_fmt = "{id} is not known"
-    t = UnitTestTranslator(hex_fetcher, fmt=fmt, default_fmt=default_fmt).store()
+    t = UnitTestTranslator(hex_fetcher, fmt=fmt, default_fmt=default_fmt).go_offline()
 
     in_range = t.translate({"positive_numbers": [-1, 0, 1]})
     assert in_range == {
@@ -288,7 +289,7 @@ def test_extra_placeholder():
 def test_plain_default(hex_fetcher):
     fmt = "{id}:{hex}[, positive={positive}]"
     default_fmt = "UNKNOWN"
-    t = UnitTestTranslator(hex_fetcher, fmt=fmt, default_fmt=default_fmt).store()
+    t = UnitTestTranslator(hex_fetcher, fmt=fmt, default_fmt=default_fmt).go_offline()
 
     in_range = t.translate({"positive_numbers": [-1, 0, 1]})
     assert in_range == {
@@ -305,11 +306,11 @@ def test_plain_default(hex_fetcher):
 
 def test_no_default(hex_fetcher):
     fmt = "{id}:{hex}[, positive={positive}]"
-    t = UnitTestTranslator(hex_fetcher, fmt=fmt).store()
+    t = UnitTestTranslator(hex_fetcher, fmt=fmt).go_offline()
     in_range = t.translate({"positive_numbers": [-1, 0, 1]})
     assert in_range == {
         "positive_numbers": [
-            None,
+            "<Failed: id=-1>",
             "0:0x0, positive=True",
             "1:0x1, positive=True",
         ]
@@ -317,7 +318,7 @@ def test_no_default(hex_fetcher):
 
     out_of_range = t.translate({"positive_numbers": [-5000, 10000]})
     assert out_of_range == {
-        "positive_numbers": [None, None],
+        "positive_numbers": ["<Failed: id=-5000>", "<Failed: id=10000>"],
     }
 
 
@@ -380,11 +381,11 @@ def test_untranslated_reporting(caplog):
 
 def test_reverse(hex_fetcher):
     fmt = "{id}:{hex}[, positive={positive}]"
-    t = UnitTestTranslator(hex_fetcher, fmt=fmt).store()
+    t = UnitTestTranslator(hex_fetcher, fmt=fmt).go_offline()
 
     translated = {
         "positive_numbers": [
-            None,
+            "<Failed: id=-1>",
             "0:0x0, positive=True",
             "1:0x1, positive=True",
         ]
@@ -436,7 +437,7 @@ def test_float_ids(translator):
 def test_load_persistent_instance(tmp_path):
     config_path = ROOT.joinpath("dvdrental/translation.toml")  # Uses an in-memory fetcher.
 
-    expected = [None, "1:Action", "2:Animation"]
+    expected = ["<Failed: id=0>", "1:Action", "2:Animation"]
     translatable: List[int] = [0, 1, 2]
     args = (translatable, "category_id")
 
@@ -476,7 +477,7 @@ def test_repeated_names(translator, ids, names, expected_untranslated):
     actual = translator.translate(ids, names)
     assert len(actual) == len(ids)
     for i in expected_untranslated:
-        assert actual[i] is None
+        assert actual[i] == f"<Failed: id={ids[i]}>"
 
     if len(ids) != len(names):
         return
@@ -486,7 +487,7 @@ def test_repeated_names(translator, ids, names, expected_untranslated):
     df.columns = names
     actual = translator.translate(df)
     for i in expected_untranslated:
-        assert actual.iloc[0, i] is None
+        assert actual.iloc[0, i] == f"<Failed: id={ids[i]}>"
 
 
 def test_temporary_translate_fmt(translator, monkeypatch):
@@ -625,7 +626,7 @@ def test_fetch(translator):
 
     translatable = {"numbers": [-1, 0, 1]}
     name_to_source = {"numbers": "positive_numbers"}
-    tmap = translator.fetch(translatable, name_to_source=name_to_source)
+    tmap = translator.fetch(translatable, names=name_to_source)
     assert translator.online
 
     actual = resolve_io(translatable).insert(translatable, list(translatable), tmap, True)

@@ -56,7 +56,7 @@ def run(dialect: str, *, use_uuid_column: bool, id_type: Callable[[str], IdType]
 
     # This should be done after, or we might "cheat" on the selection step. Once fetched, IDs fetched will be coerced to
     # uuid.UUID by the MagicDict. This may mask issues in online-mode related to the generated WHERE-clause.
-    translator.store()
+    translator.go_offline()
     assert not translator.online
     assert sorted(translator.cache[table]) == sorted(UUID(e) for e in EXPECTED)
 
