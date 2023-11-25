@@ -12,7 +12,7 @@ from .types import TranslatedIds
 class MagicDict(MutableMapping[IdType, str]):
     """Dictionary type for translated IDs.
 
-    If `default_value` is given, it is used as the default answer for any calls to `__getitem__` where the key is
+    If `default_value` is given, it is used as the default answer for any calls to ``__getitem__`` where the key is
     not in `translated_ids`.
 
     Args:

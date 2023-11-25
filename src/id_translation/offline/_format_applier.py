@@ -59,9 +59,20 @@ class FormatApplier(Generic[NameType, SourceType, IdType]):
         fstring = fmt.fstring(placeholders, positional=True)
         real_translations = self._apply(fstring, placeholders)
 
-        if default_fmt or default_fmt_placeholders:
-            fmap = {ID: "{}", **(default_fmt_placeholders or {})}
-            default_fstring = (default_fmt or fmt).fstring(fmap, positional=False).format(**fmap)
+        if default_fmt is not None or default_fmt_placeholders is not None:
+            if default_fmt is None:
+                default_fmt = fmt
+            if default_fmt_placeholders is None:
+                default_fmt_placeholders = {}
+
+            partial = default_fmt.partial(default_fmt_placeholders)
+            try:
+                default_fstring = partial.fstring(positional=True)
+            except KeyError as e:
+                raise ValueError(
+                    f"All required placeholders except {{{ID}}} must be provided for {default_fmt=}:"
+                    f" {default_fmt.required_placeholders}."
+                ) from e
         else:
             default_fstring = None
 
