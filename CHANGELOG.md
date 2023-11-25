@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * No longer uses table sizes. This could be expensive for large tables.
   * Simplify selection filtering; now only uses `SqlFetcher.select_where()` instead of two separate methods.
 - Renamed `Translator.store()` -> `Translator.go_offline()`.
+- Change `Translator.default_fmt` to `Format("<Failed: id={id!r}>")` (was `None`).
 
 ### Fixed
 - Fixed issues in `Format`:

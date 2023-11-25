@@ -77,6 +77,8 @@ ID_TRANSLATION_DISABLED: Literal["ID_TRANSLATION_DISABLED"] = "ID_TRANSLATION_DI
 if TYPE_CHECKING:
     ID_TRANSLATION_PANDAS_IS_TYPED: bool = False
 
+DEFAULT_FORMAT = Format("<Failed: id={id!r}>")
+
 
 class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
     """End-user interface for all translation tasks.
@@ -146,7 +148,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         fetcher: FetcherTypes[NameType, SourceType, IdType] = None,
         fmt: FormatType = "{id}:{name}",
         mapper: Mapper[NameType, SourceType, None] = None,
-        default_fmt: FormatType = None,
+        default_fmt: FormatType = DEFAULT_FORMAT,
         default_fmt_placeholders: MakeType[SourceType, str, Any] = None,
         enable_uuid_heuristics: bool = False,
         transformers: Dict[SourceType, Transformer[IdType]] = None,
@@ -663,10 +665,6 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         Returns:
             A translated copy of `translatable` if ``inplace=False``, otherwise ``None``.
 
-        Notes:
-            Untranslatable IDs will be ``None`` (rather than ``str``, as indicated by the type hints) if the
-            :class:`.Translator` was created with neither of `default_fmt` and `default_fmt_placeholders`.
-
         Examples:
             Manual `name-to-source <../documentation/translation-primer.html#name-to-source-mapping>`__ mapping with a
             temporary name-only :class:`.Format`.
@@ -1037,18 +1035,26 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             >>> translation_map
             TranslationMap('animals': 3 IDs, 'people': 2 IDs)
 
-            Convert to finished translations.
+            **Convert to finished translations.**
 
-            * :meth:`.TranslationMap.to_translations` → ``{source: MagicDict}``, where a :class:`.MagicDict` is similar to a
-              regular ``dict[IdType, str]``-type dict.
+            * :meth:`.TranslationMap.to_translations` → ``{source: MagicDict}``, where a :class:`.MagicDict` is similar
+              to a regular ``dict[IdType, str]``-type dict.
 
             >>> people = translation_map.to_translations()["people"]
-            >>> type(people).__name__, f"{people.default_value=}"
-            ('MagicDict', 'people.default_value=None')
             >>> people
             {1999: '1999:Sofia', 1991: '1991:Richard'}
 
-            Convert to raw translation data.
+            .. warning::
+
+               The :class:`.MagicDict` class is used internally and has a few important differences from the built-in
+               type. Please refer to the :class:`.MagicDict` class documentation for details.
+
+            To convert to a :class:`.MagicDict` to a regular ``dict``, simply use the dict constructor:
+
+            >>> dict(people)
+            {1999: '1999:Sofia', 1991: '1991:Richard'}
+
+            **Convert to raw translation data.**
 
             * :meth:`.TranslationMap.to_pandas` → ``{source: DataFrame}``
             * :meth:`.TranslationMap.to_dicts` → ``{source: {placeholder: [values...]}}``
@@ -1182,32 +1188,17 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
 def _handle_default(
     fmt: Format,
-    default_fmt: Optional[FormatType],
+    default_fmt: FormatType,
     default_fmt_placeholders: Optional[MakeType[SourceType, str, Any]],
 ) -> Tuple[Optional[InheritedKeysDict[SourceType, str, Any]], Optional[Format]]:  # pragma: no cover
-    if default_fmt is None and default_fmt_placeholders is None:
-        return None, None
+    default_fmt = Format.parse(default_fmt)
 
-    dt: Optional[InheritedKeysDict[SourceType, str, Any]] = None
+    if not default_fmt_placeholders:
+        return InheritedKeysDict(), default_fmt
 
     if isinstance(default_fmt_placeholders, InheritedKeysDict):
-        dt = default_fmt_placeholders
-    elif isinstance(default_fmt_placeholders, dict):
-        dt = InheritedKeysDict.make(default_fmt_placeholders)
-
-    dfmt: Optional[Format]
-    if default_fmt is None:
-        dfmt = None
-    elif isinstance(default_fmt, str):
-        dfmt = Format(default_fmt)
+        default_placeholders = default_fmt_placeholders
     else:
-        dfmt = default_fmt
+        default_placeholders = InheritedKeysDict.make(default_fmt_placeholders)
 
-    if dt is not None and dfmt is None:
-        # Force a default format if default translations are given
-        dfmt = fmt
-
-    if dfmt is not None:
-        dt = dt or InheritedKeysDict()
-
-    return dt, dfmt
+    return default_placeholders, fmt if default_fmt is DEFAULT_FORMAT else default_fmt

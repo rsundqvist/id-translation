@@ -82,7 +82,7 @@ def test_translate_without_id(hex_fetcher):
     ans = UnitTestTranslator(hex_fetcher, fmt=without_id).translate({"positive_numbers": [-1, 0, 1]})
     assert ans == {
         "positive_numbers": [
-            None,
+            "<Failed: id=-1>",
             "0x0, positive=True",
             "0x1, positive=True",
         ]
@@ -118,7 +118,7 @@ def _translate(translator):
     ans = translator.translate({"positive_numbers": [-1, 0, 1, 2], "negative_numbers": [-1, 0]})
     assert ans == {
         "positive_numbers": [
-            None,
+            "<Failed: id=-1>",
             "0:0x0, positive=True",
             "1:0x1, positive=True",
             "2:0x2, positive=True",
@@ -310,7 +310,7 @@ def test_no_default(hex_fetcher):
     in_range = t.translate({"positive_numbers": [-1, 0, 1]})
     assert in_range == {
         "positive_numbers": [
-            None,
+            "<Failed: id=-1>",
             "0:0x0, positive=True",
             "1:0x1, positive=True",
         ]
@@ -318,7 +318,7 @@ def test_no_default(hex_fetcher):
 
     out_of_range = t.translate({"positive_numbers": [-5000, 10000]})
     assert out_of_range == {
-        "positive_numbers": [None, None],
+        "positive_numbers": ["<Failed: id=-5000>", "<Failed: id=10000>"],
     }
 
 
@@ -385,7 +385,7 @@ def test_reverse(hex_fetcher):
 
     translated = {
         "positive_numbers": [
-            None,
+            "<Failed: id=-1>",
             "0:0x0, positive=True",
             "1:0x1, positive=True",
         ]
@@ -437,7 +437,7 @@ def test_float_ids(translator):
 def test_load_persistent_instance(tmp_path):
     config_path = ROOT.joinpath("dvdrental/translation.toml")  # Uses an in-memory fetcher.
 
-    expected = [None, "1:Action", "2:Animation"]
+    expected = ["<Failed: id=0>", "1:Action", "2:Animation"]
     translatable: List[int] = [0, 1, 2]
     args = (translatable, "category_id")
 
@@ -477,7 +477,7 @@ def test_repeated_names(translator, ids, names, expected_untranslated):
     actual = translator.translate(ids, names)
     assert len(actual) == len(ids)
     for i in expected_untranslated:
-        assert actual[i] is None
+        assert actual[i] == f"<Failed: id={ids[i]}>"
 
     if len(ids) != len(names):
         return
@@ -487,7 +487,7 @@ def test_repeated_names(translator, ids, names, expected_untranslated):
     df.columns = names
     actual = translator.translate(df)
     for i in expected_untranslated:
-        assert actual.iloc[0, i] is None
+        assert actual.iloc[0, i] == f"<Failed: id={ids[i]}>"
 
 
 def test_temporary_translate_fmt(translator, monkeypatch):

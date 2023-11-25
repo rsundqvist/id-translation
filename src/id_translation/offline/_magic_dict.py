@@ -20,6 +20,44 @@ class MagicDict(MutableMapping[IdType, str]):
         default_value: A string with exactly one or zero placeholders.
         enable_uuid_heuristics: Enabling may improve matching when :py:class:`~uuid.UUID`-like IDs are in use.
         transformer: Initialized :class:`.Transformer` instance.
+
+    Examples:
+        Behaviour with :attr:`default_value`.
+
+        >>> magic = MagicDict(
+        ...    {1999: "1999:Sofia", 1991: "1991:Richard"},
+        ...    default_value="<Failed: id={!r}>",
+        ... )
+        >>> magic
+        {1999: '1999:Sofia', 1991: '1991:Richard'}
+
+        Calls to ``__getitem__`` and ``__contains__`` will never return ``False``.
+
+        >>> magic[1999], 1999 in magic
+        ('1999:Sofia', True)
+        >>> magic["1999"], "1999" in magic
+        ("<Failed: id='1999'>", True)
+
+        Special handling for :py:class:`uuid.UUID` and ``UUID``-like strings improve matching.
+
+        >>> from uuid import UUID
+        >>> string_uuid = "550e8400-e29b-41d4-a716-446655440000"
+        >>> magic = MagicDict(
+        ...    {string_uuid: "Found!"},
+        ...    enable_uuid_heuristics=True,
+        ... )
+        >>> magic
+        {UUID('550e8400-e29b-41d4-a716-446655440000'): 'Found!'}
+
+        >>> magic[string_uuid], magic[UUID(string_uuid)]
+        ('Found!', 'Found!')
+
+        Converting to a regular ``dict``.
+
+        >>> dict(magic)
+        {UUID('550e8400-e29b-41d4-a716-446655440000'): 'Found!'}
+
+        Casting to ``dict`` removes all special handling.
     """
 
     LOGGER = logging.getLogger(__package__).getChild("MagicDict")
