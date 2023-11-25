@@ -1,24 +1,17 @@
 import logging
 from dataclasses import dataclass
-from os import getenv
-from sys import platform
 from typing import Dict, List, Literal, Set, Tuple, cast, get_args
 
 import pytest
 
 from id_translation import Translator
 
-from .conftest import DIALECTS, get_df, setup_for_dialect
+from .conftest import DIALECTS, LINUX_ONLY, get_df, setup_for_dialect
 
 KindType = Literal["translate", "map", "fetch"]
 CACHE: Dict[str, List["KeyEventDetails"]] = {}
 
-pytestmark = [
-    pytest.mark.parametrize("dialect", DIALECTS),
-    pytest.mark.skipif(
-        getenv("CI") == "true" and platform != "linux", reason="No Docker for Mac and Windows in CI/CD."
-    ),
-]
+pytestmark = [pytest.mark.parametrize("dialect", DIALECTS), LINUX_ONLY]
 
 
 @dataclass(frozen=True)

@@ -32,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Fixed rendering of `{id}` when used in fallback format.
   - Fixed rendering of escaped curly brackets `{{literal-text}}`.
   - Convert optional blocks without placeholders to literal text.
+- The `PandasFetcher` now properly handles remote filesystems.
 
 ### Removed
 - Attribute translation is no longer support. `Translator.allow_name_inheritance` attribute as been removed, as well as

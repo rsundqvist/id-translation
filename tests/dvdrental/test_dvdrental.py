@@ -1,21 +1,16 @@
-from itertools import product
-from os import getenv
 from pathlib import Path
-from sys import platform
 
 import pandas as pd
 import pytest
 
 from id_translation import Translator
 
-from .conftest import DIALECTS, check_status, get_df, setup_for_dialect
+from .conftest import DIALECTS, LINUX_ONLY, check_status, get_df, setup_for_dialect
 
-pytestmark = pytest.mark.skipif(
-    getenv("CI") == "true" and platform != "linux", reason="No Docker for Mac and Windows in CI/CD."
-)
+pytestmark = [pytest.mark.parametrize("dialect", DIALECTS), LINUX_ONLY]
 
 
-@pytest.mark.parametrize("dialect, with_schema", product(DIALECTS, [False, True]))
+@pytest.mark.parametrize("with_schema", [False, True])
 def test_dvd_rental(dialect, with_schema):
     check_status(dialect)
     translator: Translator[str, str, int] = Translator.from_config(*setup_for_dialect(dialect))
@@ -33,7 +28,6 @@ def test_dvd_rental(dialect, with_schema):
     pd.testing.assert_frame_equal(actual, expected)
 
 
-@pytest.mark.parametrize("dialect", DIALECTS)
 def test_load_persistent_instance(tmp_path, dialect):
     translator: Translator[str, str, int]
     cfg = setup_for_dialect(dialect)

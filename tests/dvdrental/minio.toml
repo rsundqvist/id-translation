@@ -1,0 +1,23 @@
+[translator]
+fmt = "{id}:{name}"
+
+################################################################################
+# Fetching configuration.
+################################################################################
+[fetching.PandasFetcher]
+read_path_format = "s3://pytest/imdb/{}.csv"
+
+[fetching.PandasFetcher.read_function_kwargs.storage_options]
+key = "minioadmin"
+secret = "minioadmin"
+client_kwargs = { endpoint_url = "http://localhost:9000" }
+
+[fetching.mapping]
+# unmapped_values_action = "ignore"
+
+[fetching.mapping.overrides.name_basics]
+id = "nconst"
+name = "primaryName"
+[fetching.mapping.overrides.title_basics]
+id = "tconst"
+name = "primaryTitle"

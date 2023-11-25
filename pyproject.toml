@@ -82,6 +82,9 @@ coverage = "^7.3.1"
 pytest-cov = "^4.1.0"
 codespell = "^2.2.5"
 
+# Minio tests
+s3fs = { version = "^2023.10.0", platform = "linux" }
+
 # db drivers and related dependencies
 pg8000 = "^1.30.2"
 pymssql = "^2.2.10"

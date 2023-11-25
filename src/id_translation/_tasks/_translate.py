@@ -15,6 +15,7 @@ from ..mapping.types import UserOverrideFunction
 from ..offline import Format, TranslationMap
 from ..settings import logging as settings
 from ..types import IdType, Names, NameToSource, NameType, NameTypes, SourceType, Translatable
+from ..utils.logging import cast_unsafe
 from ._map import MappingTask
 
 LOGGER = logging.getLogger("id_translation.Translator.translate")
@@ -234,9 +235,13 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
                 continue
             f_untranslated = n_untranslated / n_total
 
-            sample_ids = list(self._get_untranslated_ids(get_ids(name), mask=mask))
+            sample_ids = self._get_untranslated_ids(get_ids(name), mask=mask)
 
-            extra = {"name_of_ids": name, "source": translation_map.name_to_source[name], "sample_ids": sample_ids}
+            extra = {
+                "name_of_ids": name,
+                "source": translation_map.name_to_source[name],
+                "sample_ids": cast_unsafe(sample_ids),
+            }
 
             message = (
                 f"Failed to translate {n_untranslated}/{n_total} ({f_untranslated:.1%}{{reason}}) of IDs "

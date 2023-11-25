@@ -15,3 +15,10 @@ services:
     image: rsundqvist/sakila-preload:mssql
     ports:
       - "5003:1433"
+
+  minio:
+    image: minio/minio:latest
+    entrypoint: [ "minio", "server", "--address", "0.0.0.0:9000", "--console-address", "0.0.0.0:9001", "/data" ]
+    ports:
+      - 9000:9000
+      - 9001:9001
