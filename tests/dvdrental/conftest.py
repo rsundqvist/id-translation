@@ -1,10 +1,19 @@
 import os
+from os import getenv
 from pathlib import Path
+from sys import platform
 from typing import List, Tuple
 
 import pandas as pd
+import pytest
 import sqlalchemy
 import yaml  # type: ignore
+
+LINUX_ONLY = pytest.mark.skipif(
+    # Exported to other test modules
+    getenv("CI") == "true" and platform != "linux",
+    reason="No Docker for Mac and Windows in CI/CD.",
+)
 
 ROOT = Path(__file__).parent
 DOCKER_ROOT = ROOT.joinpath("docker")
