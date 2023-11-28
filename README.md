@@ -27,12 +27,9 @@ for multiple different SQL dialects and schema naming paradigms. The included TO
 support functions make it easy to create and share working configurations with anyone who needs them.
 
 # Cookiecutter template project
-The fastest way to get started with `id-translation` is the 🍪[id-translation-project] cookiecutter template. The 
-template [README](https://github.com/rsundqvist/id-translation-project/blob/master/README.md#quickstart) contains 
-step-by-step instructions for creating and verifying new generated projects.
-
-The template is designed to allow power users to quickly specify shared configurations that "just work" for other users;
-see the example below.
+The fastest way to get started with `id-translation` is the 🍪[id-translation-project] cookiecutter template. It is
+designed to allow power users to quickly specify shared configurations that "just work" for other users; see the example
+below.
 
 ```python
 from big_corporation_inc.id_translation import translate
@@ -43,8 +40,8 @@ print(
 ```
 
 Check out this [demo project](https://github.com/rsundqvist/id-translation-project/tree/master/demo/bci-id-translation)
-to get a preview of what Your generated project might look like, or continue to the next section for a brief feature 
-overview.
+(and its 📚[generated documentation](https://rsundqvist.github.io/id-translation-project/)) to get a preview of what 
+Your generated project might look like, or continue to the next section for a brief feature overview.
 
 [id-translation-project]: https://github.com/rsundqvist/id-translation-project/
 
@@ -57,11 +54,11 @@ overview.
 - Configure using [TOML][translator-config], support for [persistent] instances stored on disk.
 
 [pandas-translation]: https://id-translation.readthedocs.io/en/stable/documentation/examples/notebooks/cookbook/pandas-index.html
-[translate]: https://id-translation.readthedocs.io/en/stable/_autosummary/id_translation.html#id_translation.Translator.translate
+[translate]: https://id-translation.readthedocs.io/en/stable/_autosummary/id_translation.Translator.translate.html
 [format]: https://id-translation.readthedocs.io/en/stable/_autosummary/id_translation.offline.html#id_translation.offline.Format
 [n2s-mapping]: https://id-translation.readthedocs.io/en/stable/documentation/translation-primer.html#name-to-source-mapping
 [pm-mapping]: https://id-translation.readthedocs.io/en/stable/documentation/translation-primer.html#placeholder-mapping
-[persistent]: https://id-translation.readthedocs.io/en/stable/_autosummary/id_translation.html#id_translation.Translator.load_persistent_instance
+[persistent]: https://id-translation.readthedocs.io/en/stable/_autosummary/id_translation.Translator.load_persistent_instance.html
 [sql-fetcher]: https://id-translation.readthedocs.io/en/stable/_autosummary/id_translation.fetching.html#id_translation.fetching.SqlFetcher
 [pandas-fetcher]: https://id-translation.readthedocs.io/en/stable/_autosummary/id_translation.fetching.html#id_translation.fetching.PandasFetcher
 [translator-config]: https://id-translation.readthedocs.io/en/stable/documentation/translator-config.html
@@ -75,11 +72,8 @@ is available on GitHub: https://github.com/rsundqvist/id-translation
 pip install -U id-translation
 ```
 
-This is the preferred method to install ``id-translation``, as it will always install the
+This is the preferred method to install `id-translation`, as it will always install the
 most recent stable release.
-
-If you don't have [pip] installed, this [Python installation guide] can guide
-you through the process.
 
 # License
 [MIT](LICENSE.md)
@@ -93,5 +87,3 @@ All contributions, bug reports, bug fixes, documentation improvements, enhanceme
 started, see the [Contributing Guide](CONTRIBUTING.md) and [Code of Conduct](CODE_OF_CONDUCT.md).
 
 [Python Package Index (PyPI)]: https://pypi.org/project/id-translation
-[pip]: https://pip.pypa.io
-[Python installation guide]: http://docs.python-guide.org/en/stable/starting/installation/

@@ -230,7 +230,15 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
             fetcher = self._id_to_fetcher[fid]
             if LOGGER.isEnabledFor(logging.DEBUG):
                 LOGGER.debug(f"Begin FETCH job for {len(tasks[fid])} sources using {self._fmt_fetcher(fetcher)}.")
-            return fid, fetcher.fetch(tasks[fid], placeholders, required=required, task_id=task_id)
+
+            result = fetcher.fetch(
+                tasks[fid],
+                placeholders,
+                required=required,
+                task_id=task_id,
+                enable_uuid_heuristics=enable_uuid_heuristics,
+            )
+            return fid, result
 
         with ThreadPoolExecutor(max_workers=self.max_workers, thread_name_prefix=tname(self)) as executor:
             futures = [executor.submit(fetch, fid) for fid in tasks]
@@ -295,9 +303,14 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         def fetch_all(fetcher: Fetcher[SourceType, IdType]) -> FetchResult[SourceType]:
             if debug_logging_enabled:
                 LOGGER.debug(f"Begin FETCH_ALL job using {self._fmt_fetcher(fetcher)}.")
-            return id(fetcher), fetcher.fetch_all(
-                placeholders, required=required, task_id=task_id, enable_uuid_heuristics=enable_uuid_heuristics
+
+            result = fetcher.fetch_all(
+                placeholders,
+                required=required,
+                task_id=task_id,
+                enable_uuid_heuristics=enable_uuid_heuristics,
             )
+            return id(fetcher), result
 
         with ThreadPoolExecutor(max_workers=self.max_workers, thread_name_prefix=tname(self)) as executor:
             futures = [executor.submit(fetch_all, fetcher) for fetcher in self.fetchers]
