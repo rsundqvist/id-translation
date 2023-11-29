@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2023-11-29
+
 ### Added
 - The `Translate.translate()`-method now have overloads for improved typing.
 - User-defined ID and translation transformation framework: `id_translation.transform`.
@@ -174,7 +176,8 @@ cookiecutter template.
 - Switch to relative imports.
 - Fix some intersphinx issues.
 
-[Unreleased]: https://github.com/rsundqvist/id-translation/compare/v0.5.1...HEAD
+[Unreleased]: https://github.com/rsundqvist/id-translation/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/rsundqvist/id-translator/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/rsundqvist/id-translator/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/rsundqvist/id-translator/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/rsundqvist/id-translator/compare/v0.3.1...v0.4.0
