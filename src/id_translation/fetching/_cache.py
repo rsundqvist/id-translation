@@ -138,7 +138,7 @@ class CacheAccess(Generic[SourceType, IdType]):
         if not use_cached:
             return None
 
-        self._logger.info(f"Use cached data for {source=}: {reason}. Cache dir: '{self.cache_dir}'.")
+        self._logger.debug(f"Use cached data for {source=}: {reason}. Cache dir: '{self.cache_dir}'.")
 
         path = self.source_path(source)
         try:
