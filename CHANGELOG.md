@@ -7,10 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Some cosmetic logging and documentation issues.
+
 ## [0.6.0] - 2023-11-29
 
 ### Added
-- The `Translate.translate()`-method now have overloads for improved typing.
+- The `Translate.translate()`-method now has overloads for improved typing.
 - User-defined ID and translation transformation framework: `id_translation.transform`.
 - Bitmask translation support: `id_translation.transform.BitmaskTransformer`.
 - Serialization methods for `TranslationMap`: `to_dicts()`, `to_pandas()`, `from_pandas()`. Translations maps are
@@ -21,11 +24,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Caching data for the `AbstractFether` has been updated.
   * Reduce the amount of excess data stored (now: records only).
   * Store records per source instead of all sources in the same *.pkl*-file.
-- Improve handling for `UUID`-like IDs. `Fetcher` implementations now adhere `Translator` settings in regard to UUID 
-  mitigations. As special handling UUIDs when `SQLAlchemy<2`.
+- Improve handling for `UUID`-like IDs. `Fetcher` implementations now respect `Translator` settings with regard to UUID 
+  mitigations.
 - Update `SqlFetcher`:
   * No longer uses table sizes. This could be expensive for large tables.
   * Simplify selection filtering; now only uses `SqlFetcher.select_where()` instead of two separate methods.
+  * Add special handling of UUIDs when `SQLAlchemy<2`.
 - Renamed `Translator.store()` -> `Translator.go_offline()`.
 - Change `Translator.default_fmt` to `Format("<Failed: id={id!r}>")` (was `None`).
 

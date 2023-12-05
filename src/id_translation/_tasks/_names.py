@@ -71,7 +71,7 @@ class NamesTask(BaseTask[NameType, SourceType, IdType]):
         names: Optional[List[NameType]] = self.io.names(self.translatable)
         if names is None:
             raise MissingNamesError(
-                f"Failed to derive names for {self.type_name!r}-type data."
+                f"Failed to derive names for {self.type_name}-type data."
                 "\nHint: Use the 'names'-argument to specify names to translate."
             )
         self._extracted_names = names

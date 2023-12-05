@@ -2,7 +2,7 @@ import logging
 import warnings
 from collections import defaultdict
 from time import perf_counter
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Set, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Set, Union, get_args
 
 from numpy import isnan, unique
 from rics.misc import tname
@@ -14,7 +14,7 @@ from ..exceptions import TooManyFailedTranslationsError
 from ..mapping.types import UserOverrideFunction
 from ..offline import Format, TranslationMap
 from ..settings import logging as settings
-from ..types import IdType, Names, NameToSource, NameType, NameTypes, SourceType, Translatable
+from ..types import IdType, IdTypes, Names, NameToSource, NameType, NameTypes, SourceType, Translatable
 from ..utils.logging import cast_unsafe
 from ._map import MappingTask
 
@@ -100,10 +100,11 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
                 source_to_ids[name_to_source[name]].update(ids)
 
         if num_coerced > 100:  # pragma: no cover
+            types = f"({', '.join(t.__name__ for t in get_args(IdTypes))})"
             warnings.warn(
-                f"To ensure proper fetcher operation, {num_coerced} float-type IDs have been coerced to integers. "
-                f"Enforcing supported data types for IDs (str and int) in your {self.type_name!r}-data may improve "
-                f"performance. Affected names ({len(float_names)}): {float_names}.",
+                f"To ensure proper fetcher operation, {num_coerced} float-type IDs have been coerced to int. "
+                f"Enforcing supported data types {types} for IDs in your {self.type_name}-data may improve performance."
+                f" Affected names ({len(float_names)}): {float_names}.",
                 stacklevel=3,
             )
         return source_to_ids
