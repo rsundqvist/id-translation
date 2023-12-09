@@ -83,8 +83,9 @@ def test_cache_with_call_count(
     operations,
     expected_call_counts,
     clear,
+    monkeypatch,
 ):
-    CacheAccess.base_cache_dir_for_all_fetchers = lambda _: fetch_all_cache_dir.joinpath("test_cache_with_call_count")  # type: ignore
+    monkeypatch.setattr(CacheAccess, "BASE_CACHE_PATH", fetch_all_cache_dir.joinpath("test_cache_with_call_count"))
 
     assert len(operations) == len(expected_call_counts)
     expected_data = fetcher.fetch_all()
@@ -107,8 +108,8 @@ def test_cache_with_call_count(
         assert test_fetcher.fetch_translations_call_count == expected_count, msg
 
 
-def test_cache_doesnt_refresh_itself(data, fetch_all_cache_dir):
-    CacheAccess.base_cache_dir_for_all_fetchers = lambda _: fetch_all_cache_dir.joinpath("doesnt_refresh_itself")  # type: ignore
+def test_cache_doesnt_refresh_itself(data, fetch_all_cache_dir, monkeypatch):
+    monkeypatch.setattr(CacheAccess, "BASE_CACHE_PATH", fetch_all_cache_dir.joinpath("doesnt_refresh_itself"))
     test_fetcher = CacheTestFetcher(data, key="doesnt_refresh_itself")
     test_fetcher.fetch_all()
     metadata_path = test_fetcher._create_cache_access().metadata_path
@@ -121,9 +122,9 @@ def test_cache_doesnt_refresh_itself(data, fetch_all_cache_dir):
     assert actual_metadata == expected_metadata
 
 
-def test_corrupted_cache(caplog, fetcher, fetch_all_cache_dir):
+def test_corrupted_cache(caplog, fetcher, fetch_all_cache_dir, monkeypatch):
     test_root = fetch_all_cache_dir.joinpath("test_corrupted_cache")
-    CacheAccess.base_cache_dir_for_all_fetchers = lambda *_: test_root  # type: ignore
+    monkeypatch.setattr(CacheAccess, "BASE_CACHE_PATH", test_root)
     test_fetcher = CacheTestFetcher(fetcher._data, key="test_corrupted_cache")
     test_fetcher.fetch_all()
     caplog.clear()
@@ -150,8 +151,8 @@ def test_corrupted_cache(caplog, fetcher, fetch_all_cache_dir):
     assert not test_root.exists()
 
 
-def test_placeholders_invalidate_cache(data, fetch_all_cache_dir):
-    CacheAccess.base_cache_dir_for_all_fetchers = lambda _: fetch_all_cache_dir.joinpath("placeholders")  # type: ignore
+def test_placeholders_invalidate_cache(data, fetch_all_cache_dir, monkeypatch):
+    monkeypatch.setattr(CacheAccess, "BASE_CACHE_PATH", fetch_all_cache_dir.joinpath("placeholders"))
     data = data.copy()
 
     original_metadata = CacheTestFetcher(data, key="new_placeholders")._create_cache_access()._metadata
