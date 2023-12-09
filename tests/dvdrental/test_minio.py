@@ -13,12 +13,12 @@ pytestmark = LINUX_ONLY
 CONFIG_FILE = Path(__file__).parent / "minio.toml"
 
 # Emits non JSON-serializable log messages.
-logging.getLogger("botocore").setLevel(logging.WARNING)
-logging.getLogger("s3fs").setLevel(logging.WARNING)
-logging.getLogger("fsspec").setLevel(logging.WARNING)
+for name in "botocore", "s3fs", "fsspec":
+    logging.getLogger(name).setLevel(logging.WARNING)
 
 
 def test_pandas_fetcher():
+    # Doesn't actually belong here, but requires Docker. So this is convenient.
     put_objects()
 
     translator: Translator[str, str, int] = Translator.from_config(CONFIG_FILE)
