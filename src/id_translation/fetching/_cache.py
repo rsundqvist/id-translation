@@ -3,7 +3,7 @@ import pickle  # noqa: S403
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Generic, List, Optional
+from typing import Any, Dict, Generic, List, Optional, Tuple, Type
 
 import pandas as pd
 
@@ -79,20 +79,30 @@ class CacheAccess(Generic[SourceType, IdType]):
         metadata: Metadata object used to determine cache validity.
     """
 
-    CLEAR_CACHE_EXCEPTION_TYPES = (pickle.UnpicklingError,)
-    """Error types which trigger cache deletion."""
+    CLEAR_CACHE_EXCEPTION_TYPES: Tuple[Type[Exception], ...] = (pickle.UnpicklingError,)
+    """Error types which trigger cache deletion"""
+
+    BASE_CACHE_PATH: Path = Path.home().joinpath(".cache/id-translation/cached-fetcher-data/")
+    """Top-level cache dir for all fetchers managed by any ``CacheAccess``-instance."""
 
     @classmethod
-    def base_cache_dir_for_all_fetchers(cls) -> Path:
+    def base_cache_dir_for_all_fetchers(cls) -> Path:  # pragma: no cover
         """Top-level cache dir for all fetchers managed by any ``CacheAccess``-instance."""
-        return Path.home().absolute().joinpath(".cache/id-translation/cached-fetcher-data/")
+        import warnings
+
+        warnings.warn(
+            "This method has been deprecated. Please use CacheAccess.BASE_CACHE_PATH instead.",
+            category=DeprecationWarning,
+            stacklevel=2,
+        )
+        return cls.BASE_CACHE_PATH
 
     @classmethod
     def clear_all_cache_data(cls) -> None:
         """Remove the entire cache directory tree for ALL instances."""
         import shutil
 
-        cache_dir = cls.base_cache_dir_for_all_fetchers()
+        cache_dir = cls.BASE_CACHE_PATH
         print(f"Deleting the common cache directory tree at:\n    '{cache_dir}'")
         shutil.rmtree(cache_dir)
 
@@ -106,14 +116,14 @@ class CacheAccess(Generic[SourceType, IdType]):
         self._max_age = max_age.to_pytimedelta()  # Avoids serializing pandas types.
         self._metadata: CacheMetadata[SourceType, IdType] = metadata
         top_level_key = next(iter(self._metadata.cache_keys))
-        self._base_dir = self.base_cache_dir_for_all_fetchers().joinpath(top_level_key)
+        self._base_dir = self.BASE_CACHE_PATH.joinpath(top_level_key)
         self._logger = logging.getLogger(__package__).getChild("CacheAccess").getChild(top_level_key)
 
     @property
     def cache_dir(self) -> Path:
         """Get the cache directory used by this ``CacheAccess``.
 
-        Created from :meth:`base_cache_dir_for_all_fetchers` and the first value of :attr:`CacheMetadata.cache_keys`.
+        Created from :attr:`BASE_CACHE_PATH` and the first value of :attr:`CacheMetadata.cache_keys`.
 
         Returns:
             Cache dir for a single fetcher.

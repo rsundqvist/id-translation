@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Some cosmetic logging and documentation issues.
+- The base cache path for fetcher data is now configurable using `CacheAccess.BASE_CACHE_PATH`.
 
 ## [0.6.0] - 2023-11-29
 

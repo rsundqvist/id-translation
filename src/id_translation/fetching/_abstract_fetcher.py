@@ -33,7 +33,8 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
 
     .. hint::
 
-       Clear caches with :meth:`.CacheAccess.clear_all_cache_data`.
+       * Clear caches with :meth:`.CacheAccess.clear_all_cache_data`.
+       * Change cache root directory with :attr:`.CacheAccess.BASE_CACHE_PATH`.
 
     Args:
         mapper: A :class:`.Mapper` instance used to adapt placeholder names in sources to wanted names, i.e.
