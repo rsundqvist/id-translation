@@ -35,8 +35,6 @@ handled internally by :meth:`AbstractFetcher.map_placeholders <fetching.Abstract
 * Red denotes :attr:`~Translator.fetcher` ownership.
 * Blue indicates a task that is delegated to an object owned by the :class:`Translator`.
 
-The diagram should be read top to bottom, left to right.
-
 .. figure:: ../_images/translation-flow.drawio.png
 
    Simplified call diagram for a translation task. Optional paths and error handling are omitted, as well as most
@@ -52,7 +50,7 @@ concepts remain the same, no matter how translation data is retrieved.
 
 Translatable data
 -----------------
-We're translating a `"Bite report"` a misfortunate petting zoo, shown below.
+The `"Bite report"` to translate is shown below.
 
 .. csv-table:: biting-victims-2019-05-11.csv
    :file: examples/notebooks/translation-primer/biting-victims-2019-05-11.csv
