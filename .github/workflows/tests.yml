@@ -12,7 +12,7 @@ on:
         description: "Test scenario tags"
   push:
     branches:
-     - master
+      - master
   pull_request:
     branches:
 
@@ -46,7 +46,7 @@ jobs:
       matrix:
         os: [ Ubuntu, MacOS, Windows ]
         python-version: [ '3.8', '3.9', '3.10', '3.11' ]
-        experimental: [false]
+        experimental: [ false ]
     steps:
       - uses: actions/checkout@v3
 
@@ -54,6 +54,12 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
+
+      - name: Cache Docker images.
+        if: matrix.os == 'Ubuntu'
+        uses: ScribeMD/docker-cache@0.3.6
+        with:
+          key: docker-all #  ${{ runner.os }}-${{ hashFiles(paths) }}
 
       - name: Start Docker databases
         # No Docker for Mac and Windows in CI/CD.
