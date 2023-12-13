@@ -55,18 +55,14 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Cache Docker images.
-        if: matrix.os == 'Ubuntu'
-        uses: ScribeMD/docker-cache@0.3.6
-        with:
-          key: docker-all #  ${{ runner.os }}-${{ hashFiles(paths) }}
-
       - name: Start Docker databases
         # No Docker for Mac and Windows in CI/CD.
         if: matrix.os == 'Ubuntu'
+        uses: ScribeMD/docker-cache@0.3.6
+        with:
+          key: docker-images
         shell: bash
-        run: |
-          ./run-docker-dvdrental.sh
+        run: ./run-docker-dvdrental.sh
 
       - name: Install system deps
         shell: bash
