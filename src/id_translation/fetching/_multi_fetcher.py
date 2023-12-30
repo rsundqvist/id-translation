@@ -101,31 +101,27 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         return self._placeholders
 
     def initialize_sources(self, task_id: int = -1, *, force: bool = False) -> None:
-        if self._placeholders is None or force:
-            fid_to_placeholders = self._initialize_sources(task_id)
-            self._source_to_id = self._make_source_to_id(fid_to_placeholders)
+        if not (self._placeholders is None or force):
+            return
 
-            self._placeholders = {}
-            for fid, placeholders in fid_to_placeholders.items():
-                placeholders = {
-                    source: placeholders[source] for source in placeholders if self._source_to_id[source] == fid
-                }
+        fid_to_placeholders = self._initialize_sources(task_id)
+        self._source_to_id = self._make_source_to_id(fid_to_placeholders)
 
-                if placeholders:
-                    self._placeholders.update(placeholders)
-                else:
-                    fetcher = self._id_to_fetcher[fid]
-                    pretty = f"{'optional' if fetcher.optional else 'non-optional'} {self._fmt_fetcher(fetcher)}"
-                    LOGGER.warning(
-                        f"Discarding {pretty}: All sources found in higher-ranking fetchers.",
-                        extra=dict(task_id=task_id, placeholders=placeholders),
-                    )
-                    fetcher.close()
-                    del self._id_to_rank[fid]
-                    del self._id_to_fetcher[fid]
+        self._placeholders = {}
+        for fid, placeholders in fid_to_placeholders.items():
+            original = dict(placeholders)
+            placeholders = {
+                source: placeholders[source] for source in placeholders if self._source_to_id[source] == fid
+            }
 
-            if not self._id_to_fetcher:
-                warnings.warn("No fetchers. See log output for more information.", UserWarning, stacklevel=1)
+            if placeholders:
+                self._placeholders.update(placeholders)
+                continue
+
+            self._handle_all_sources_outranked(task_id, fetcher_id=fid, discarded=original)
+
+        if not self._id_to_fetcher:
+            warnings.warn("No fetchers. See log output for more information.", UserWarning, stacklevel=1)
 
     def _initialize_sources(self, task_id: int) -> Dict[int, Dict[SourceType, List[str]]]:
         retval: Dict[int, Dict[SourceType, List[str]]] = {}
@@ -141,24 +137,28 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
                         "Discarding optional %s: Raised\n    %s\nwhen getting sources.",
                         self._fmt_fetcher(fid),
                         f"{type(e).__name__}: {e}",
+                        exc_info=True,
                     )
                     fetcher.close()
                     del self._id_to_rank[fid]
                     del self._id_to_fetcher[fid]
                     continue
-            else:
-                fetcher.initialize_sources(task_id, force=True)
-                placeholders = fetcher.placeholders
 
                 if len(placeholders) == 0:
-                    level = self._optional_discard_level if fetcher.optional else logging.WARNING
+                    level = self._optional_discard_level
                     if LOGGER.isEnabledFor(level):
-                        pretty = f"{'optional' if fetcher.optional else 'non-optional'} {self._fmt_fetcher(fetcher)}"
-                        LOGGER.log(level, f"Discarding {pretty}: No sources.")
+                        LOGGER.log(level, f"Discarding optional {self._fmt_fetcher(fetcher)}: No sources.")
                     fetcher.close()
                     del self._id_to_rank[fid]
                     del self._id_to_fetcher[fid]
                     continue
+
+            else:
+                fetcher.initialize_sources(task_id, force=True)
+                placeholders = fetcher.placeholders
+
+                if len(placeholders) == 0 and LOGGER.isEnabledFor(logging.WARNING):
+                    LOGGER.warning(f"Required {self._fmt_fetcher(fetcher)} does not provide any sources.")
 
             retval[fid] = placeholders
 
@@ -414,3 +414,23 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         fetcher_id = id(fetcher)
         rank = self._id_to_rank[fetcher_id]
         return f"rank-{rank} fetcher {fetcher} at {hex(fetcher_id)}"
+
+    def _handle_all_sources_outranked(
+        self, task_id: int, *, fetcher_id: int, discarded: Dict[SourceType, List[str]]
+    ) -> None:
+        fetcher = self._id_to_fetcher[fetcher_id]
+
+        if LOGGER.isEnabledFor(logging.WARNING):
+            reason = "All sources found in higher-ranking fetchers."
+            pretty = self._fmt_fetcher(fetcher)
+            LOGGER.warning(
+                f"Discarding optional {pretty}: {reason}."
+                if fetcher.optional
+                else f"Required {pretty} is useless, but will be kept: {reason}.",
+                extra={"task_id": task_id, "discarded": discarded, "fetcher_id": fetcher_id},
+            )
+
+        if fetcher.optional:
+            fetcher.close()
+            del self._id_to_rank[fetcher_id]
+            del self._id_to_fetcher[fetcher_id]

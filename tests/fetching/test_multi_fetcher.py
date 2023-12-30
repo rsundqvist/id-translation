@@ -15,7 +15,7 @@ from ..conftest import ROOT
 @pytest.fixture(scope="module")
 def fetchers(data: Dict[str, pd.DataFrame]) -> Collection[AbstractFetcher[str, int]]:
     humans_fetcher: MemoryFetcher[str, int] = MemoryFetcher({"humans": data["humans"]})
-    empty_fetcher: MemoryFetcher[str, int] = MemoryFetcher()
+    empty_fetcher: MemoryFetcher[str, int] = MemoryFetcher(optional=True)
     everything_fetcher: MemoryFetcher[str, int] = MemoryFetcher(data)
 
     with pytest.warns(FetcherWarning, match="empty"):
@@ -41,9 +41,10 @@ def test_sources(multi_fetcher):
 
 def test_sources_per_child(multi_fetcher):
     children = multi_fetcher.fetchers
-    assert len(children) == 2
+    assert len(children) == 3
     assert children[0].sources == ["humans"]
     assert sorted(children[1].sources) == ["animals", "big_table", "huge_table", "humans"]
+    assert sorted(children[2].sources) == []
 
 
 def test_placeholders(multi_fetcher):
@@ -106,12 +107,15 @@ def test_fetch(multi_fetcher: MultiFetcher[str, int], data: Dict[str, pd.DataFra
 def test_ranks(multi_fetcher, fetchers):
     humans_fetcher, empty_fetcher, everything_fetcher, sql_fetcher = fetchers
 
-    assert len(multi_fetcher.fetchers) == 2
+    assert len(multi_fetcher.fetchers) == 3
     assert humans_fetcher in multi_fetcher.fetchers
+    assert empty_fetcher not in multi_fetcher.fetchers
     assert everything_fetcher in multi_fetcher.fetchers
+    assert sql_fetcher in multi_fetcher.fetchers
 
     assert multi_fetcher._id_to_rank[id(humans_fetcher)] == 0
     assert multi_fetcher._id_to_rank[id(everything_fetcher)] == 2
+    assert multi_fetcher._id_to_rank[id(sql_fetcher)] == 3
 
 
 def test_from_config():
@@ -198,3 +202,30 @@ class CrashFetcher(MemoryFetcher[str, int]):
             raise ValueError("I crashed!")
 
         return super()._initialize_sources(task_id)
+
+
+@pytest.mark.filterwarnings("ignore:No fetchers:UserWarning")
+class TestNoSources:
+    def test_required(self, caplog):
+        fetcher: MultiFetcher[str, int] = MultiFetcher(MemoryFetcher({}, optional=False))
+        fetcher.initialize_sources()
+
+        assert len(fetcher.fetchers) == 1
+
+        assert len(caplog.records) == 2
+        assert caplog.records[0].levelname == "WARNING"
+        assert "does not provide any sources" in caplog.messages[0]
+        assert "useless" in caplog.messages[1]
+
+    @pytest.mark.parametrize("level", ["DEBUG", "WARNING"])
+    def test_optional(self, caplog, level):
+        fetcher: MultiFetcher[str, int] = MultiFetcher(
+            MemoryFetcher({}, optional=True), optional_fetcher_discarded_log_level=level
+        )
+        fetcher.initialize_sources()
+
+        assert len(fetcher.fetchers) == 0
+
+        assert len(caplog.records) == 1
+        assert caplog.records[0].levelname == level
+        assert caplog.messages[0].startswith("Discard")
