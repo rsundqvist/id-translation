@@ -46,7 +46,7 @@ def test_short_circuit(value, candidates, expect_match):
     ],
 )
 def test_value_fstring_alias(fstring, expected_value):
-    actual_value, actual_candidates = hf.value_fstring_alias("VALUE", list("abc"), None, fstring, kwarg="KWARG")
+    actual_value, actual_candidates = hf.value_fstring_alias("VALUE", list("abc"), None, fstring=fstring, kwarg="KWARG")
     assert actual_value == expected_value
     assert actual_candidates == list("abc")
 
@@ -60,13 +60,13 @@ def test_value_fstring_alias(fstring, expected_value):
     ],
 )
 def test_value_fstring_alias_for_value(for_value, expected_value):
-    args = ("VALUE", list("abc"), "context", "{context}")
+    args = ("VALUE", list("abc"), "context")
     if expected_value is None:
         with pytest.raises(ValueError, match="does not contain {value}"):
-            hf.value_fstring_alias(*args, for_value=for_value)
+            hf.value_fstring_alias(*args, fstring="{context}", for_value=for_value)
         return
 
-    actual_value, actual_candidates = hf.value_fstring_alias(*args, for_value=for_value)
+    actual_value, actual_candidates = hf.value_fstring_alias(*args, fstring="{context}", for_value=for_value)
     assert actual_value == expected_value
     assert actual_candidates == list("abc")
 
@@ -85,10 +85,12 @@ def test_candidate_fstring_alias(fstring, expected_candidates):
 
     if expected_candidates is None:
         with pytest.raises(ValueError, match="does not contain {candidate}"):
-            hf.candidate_fstring_alias("VALUE", candidates, None, fstring, kwarg="KWARG")
+            hf.candidate_fstring_alias("VALUE", candidates, None, fstring=fstring, kwarg="KWARG")
         return
 
-    actual_value, actual_candidates = hf.candidate_fstring_alias("VALUE", candidates, None, fstring, kwarg="KWARG")
+    actual_value, actual_candidates = hf.candidate_fstring_alias(
+        "VALUE", candidates, None, fstring=fstring, kwarg="KWARG"
+    )
 
     assert candidates == ["CAND0", "CAND1"]
     assert actual_value == "VALUE"

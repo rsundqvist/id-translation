@@ -43,10 +43,11 @@ def short_circuit(
     value: str,
     candidates: Set[str],
     context: _Any,
+    *,
     value_regex: Union[str, re.Pattern[str]],
     target_candidate: str,
 ) -> Set[str]:
-    """Short circuit `value` to the target candidate if the target and regex conditions are met.
+    """Short-circuit `value` to the target candidate if the target and regex conditions are met.
 
     If `target_candidate` is in `candidates` and `value` matches the given `value_regex`, a single-element set
     ``{target_candidate}`` is returned which will trigger short-circuiting in the calling ``Mapper``. If either of
@@ -57,28 +58,22 @@ def short_circuit(
         candidates: Candidates for `value`.
         context: Always ignored, exists for compatibility.
         value_regex: A pattern match against `value`. Case-insensitive by default.
-        target_candidate: The candidate to short circuit to.
+        target_candidate: The candidate to short-circuit to.
 
     Returns:
         A single-element set ``{target_candidate}``, iff both conditions are met. An empty set otherwise.
 
 
     Examples:
-        The main purpose of this method is to bind any name (a `value`) matching the given regex pattern to a
-        pre-defined source (a `candidate`, e.g. a table in a SQL database). For example, to always match any bite
-        victim-columns to the `humans` table (see the :ref:`translation-primer` page), we might specify:
+        Always match any bite victim-columns to the `humans` table (see the :ref:`translation-primer` page).
 
-        >>> value = "first_bite_victim"
-        >>> value_regex= ".*_bite_victim$"  # If the column ends with '_bite_victim'..
-        >>> target_candidate = "humans"  # Match it to the 'humans' table.
-        >>> short_circuit(value, {"humans", "animals"}, None, value_regex, target_candidate)
+        >>> short_circuit(
+        ...   "first_bite_victim", {"humans", "animals"}, None,
+        ...   value_regex=".*_bite_victim$", target_candidate="humans"
+        ... )
         {'humans'}
 
-        Short-circuiting will only trigger of both conditions are met. If the example below, we can see that no value is
-        returned since the target candidate is not among the given candidates.
-
-        >>> short_circuit(value, {"animals"}, None, value_regex, target_candidate)
-        set()
+        Short-circuiting will only trigger if the `value_regex` matches, and the `target_candidate` is present.
     """
     candidates = set(candidates)
     pattern = re.compile(value_regex, flags=re.IGNORECASE) if isinstance(value_regex, str) else value_regex
@@ -96,28 +91,33 @@ def short_circuit(
     return {target_candidate}
 
 
-def force_lower_case(value: str, candidates: Iterable[str], context: _Any) -> Tuple[str, Iterable[str]]:
+def force_lower_case(value: str, candidates: Iterable[str], context: _Any) -> Tuple[str, List[str]]:
     """Force lower-case in `value` and `candidates`."""
-    return value.lower(), list(map(str.lower, candidates))
+    return value.lower(), [c.lower() for c in candidates]
 
 
 def value_fstring_alias(
     value: str,
     candidates: Iterable[str],
     context: _Any,
+    *,
     fstring: str,
     for_value: str = None,
     **kwargs: _Any,
 ) -> Tuple[str, Iterable[str]]:
     """Return a value formatted by `fstring`.
 
+    .. note::
+
+       This function modifies the `value`. Candidates are always returned as-is.
+
     Args:
         value: An element to find matches for.
         candidates: Potential matches for `value`. Not used (returned as given).
         context: Context in which the function is being called.
         fstring: The format string to use. Can use `value` and `context` as placeholders.
-        for_value: If given, apply only if ``value == for_value``. When `if_value_equals` is given, `fstring` arguments
-            which do not use the `value` as a placeholder key are permitted.
+        for_value: If given, apply only if ``value == for_value``. When `for_value` is given, `fstring` arguments which
+            do not use the `value` as a placeholder key are permitted.
         **kwargs: Additional keyword placeholders in `fstring`.
 
     Returns:
@@ -125,6 +125,15 @@ def value_fstring_alias(
 
     Raises:
         ValueError: If `fstring` does not contain a placeholder `'value'` and `for_value` is not given.
+
+    Examples:
+        Keys ``{value}`` and ``{context}`` are always available.
+
+        >>> value_fstring_alias("id", ["dog_id"], "dog", fstring="{context}_{value}")
+        ('dog_id', ['dog_id'])
+
+        In cases such as these, consider using :func:`smurf_columns` instead, which will work both for ``table="dog"``
+        (as above), and with ``table="dogs"``.
     """
     if not for_value and "{value}" not in fstring:
         # No longer a function of the value.
@@ -143,10 +152,15 @@ def candidate_fstring_alias(
     value: str,
     candidates: Iterable[str],
     context: _Any,
+    *,
     fstring: str,
     **kwargs: _Any,
 ) -> Tuple[str, Iterable[str]]:
     """Return candidates formatted by `fstring`.
+
+    .. note::
+
+       This function modifies the `candidates`. The `value` is always returned as-is.
 
     Args:
         value: An element to find matches for. Not used (returned as given).
@@ -164,4 +178,4 @@ def candidate_fstring_alias(
     if "{candidate}" not in fstring:
         raise ValueError(f"Invalid {fstring=} passed to candidate_fstring_alias(); does not contain {{candidate}}.")
 
-    return value, map(lambda c: fstring.format(value=value, candidate=c, context=context, **kwargs), candidates)
+    return value, [fstring.format(value=value, candidate=c, context=context, **kwargs) for c in candidates]
