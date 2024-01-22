@@ -137,9 +137,7 @@ class BitmaskTransformer(Transformer[IdType]):
     def is_decomposable(cls, i: int, /) -> bool:
         """Check if `i` is decomposable into bitmask values.
 
-        An integer ``i`` is decomposable if it is:
-            1. positive, and
-            2. not a power of two
+        An integer `i` is decomposable if and only if `i > 2`, and `i` is not a power of two.
 
         Args:
             i: Any integer.
