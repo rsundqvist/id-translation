@@ -33,7 +33,7 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
     """Fetcher which combines the results of other fetchers.
 
     Args:
-        *fetchers: Fetchers to wrap.
+        *children: Fetchers to wrap.
         max_workers: Number of threads to use for fetching. Fetch instructions will be dispatched using a
              :py:class:`~concurrent.futures.ThreadPoolExecutor`. Individual fetchers will be called at most once per
              ``fetch()`` or ``fetch_all()`` call made with the ``MultiFetcher``.
@@ -44,18 +44,18 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
 
     def __init__(
         self,
-        *fetchers: Fetcher[SourceType, IdType],
+        *children: Fetcher[SourceType, IdType],
         max_workers: int = 1,
         duplicate_translation_action: ActionLevel.ParseType = ActionLevel.WARN,
         duplicate_source_discovered_action: ActionLevel.ParseType = ActionLevel.WARN,
         optional_fetcher_discarded_log_level: Union[int, str] = "DEBUG",
     ) -> None:
-        for pos, f in enumerate(fetchers):
+        for pos, f in enumerate(children):
             if not isinstance(f, Fetcher):  # pragma: no cover
                 raise TypeError(f"Argument {pos} is of type {type(f)}, expected Fetcher subtype.")
 
-        self._id_to_rank: Dict[int, int] = {id(f): rank for rank, f in enumerate(fetchers)}
-        self._id_to_fetcher: Dict[int, Fetcher[SourceType, IdType]] = {id(f): f for f in fetchers}
+        self._id_to_rank: Dict[int, int] = {id(f): rank for rank, f in enumerate(children)}
+        self._id_to_fetcher: Dict[int, Fetcher[SourceType, IdType]] = {id(f): f for f in children}
         self.max_workers: int = max_workers
         self._duplicate_translation_action = _ACTION_LEVEL_HELPER.verify(
             duplicate_translation_action, "duplicate_translation_action"
@@ -72,7 +72,7 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
             optional_fetcher_discarded_log_level = as_int
         self._optional_discard_level = optional_fetcher_discarded_log_level
 
-        if len(self.fetchers) != len(fetchers):
+        if len(self.children) != len(children):
             raise ValueError("Repeat fetcher instance(s)!")  # pragma: no cover
 
         self._placeholders: Optional[Dict[SourceType, List[str]]] = None
@@ -87,7 +87,7 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         return all(f.online for f in self._id_to_fetcher.values())  # pragma: no cover
 
     @property
-    def fetchers(self) -> List[Fetcher[SourceType, IdType]]:
+    def children(self) -> List[Fetcher[SourceType, IdType]]:
         """Return child fetchers."""
         return list(self._id_to_fetcher.values())
 
@@ -284,7 +284,7 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         if LOGGER.isEnabledFor(log_level.enter):
             LOGGER.log(
                 log_level.enter,
-                f"Dispatch FETCH_ALL jobs for {len(self.fetchers)} fetchers on {self.max_workers} threads.",
+                f"Dispatch FETCH_ALL jobs for {len(self.children)} fetchers on {self.max_workers} threads.",
                 extra=dict(
                     event_key=event_key,
                     event_stage="ENTER",
@@ -292,7 +292,7 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
                     placeholders=placeholders,
                     required_placeholders=required,
                     max_workers=self.max_workers,
-                    num_fetchers=len(self.fetchers),
+                    num_fetchers=len(self.children),
                     fetch_all=True,
                     task_id=task_id,
                 ),
@@ -313,7 +313,7 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
             return id(fetcher), result
 
         with ThreadPoolExecutor(max_workers=self.max_workers, thread_name_prefix=tname(self)) as executor:
-            futures = [executor.submit(fetch_all, fetcher) for fetcher in self.fetchers]
+            futures = [executor.submit(fetch_all, fetcher) for fetcher in self.children]
             ans = self._gather(futures)
 
         if LOGGER.isEnabledFor(log_level.exit):
@@ -321,7 +321,7 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
             LOGGER.log(
                 log_level.exit,
                 f"Completed FETCH_ALL jobs for {len(ans)} sources using "
-                f"{len(self.fetchers)} fetchers in {format_seconds(execution_time)}.",
+                f"{len(self.children)} fetchers in {format_seconds(execution_time)}.",
                 extra=dict(
                     event_key=event_key,
                     event_stage="EXIT",
@@ -329,7 +329,7 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
                     execution_time=execution_time,
                     sources=list(ans),
                     max_workers=self.max_workers,
-                    num_fetchers=len(self.fetchers),
+                    num_fetchers=len(self.children),
                     fetch_all=True,
                     task_id=task_id,
                 ),

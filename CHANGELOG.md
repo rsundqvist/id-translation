@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Lower cache hit default log level from INFO to DEBUG.
+- Rename `MultiFetcher.fetchers` -> `MultiFetcher.children`.
 
 ### Fixed
 - Some cosmetic logging and documentation issues.

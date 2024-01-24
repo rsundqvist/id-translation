@@ -40,7 +40,7 @@ def test_sources(multi_fetcher):
 
 
 def test_sources_per_child(multi_fetcher):
-    children = multi_fetcher.fetchers
+    children = multi_fetcher.children
     assert len(children) == 3
     assert children[0].sources == ["humans"]
     assert sorted(children[1].sources) == ["animals", "big_table", "huge_table", "humans"]
@@ -59,8 +59,8 @@ def test_placeholders(multi_fetcher):
 def test_process_future():
     # Dict[str, Dict[str, List[int]]]
     # Dict[str, Dict[str, Sequence[Any]]]
-    fetchers: List[MemoryFetcher[str, int]] = [MemoryFetcher({f"{i=}": {"id": [1, 2, 3]}}) for i in range(10)]
-    fetcher: MultiFetcher[str, int] = MultiFetcher(*fetchers)
+    children: List[MemoryFetcher[str, int]] = [MemoryFetcher({f"{i=}": {"id": [1, 2, 3]}}) for i in range(10)]
+    fetcher: MultiFetcher[str, int] = MultiFetcher(*children)
 
     ans: SourcePlaceholderTranslations[str] = {}
     source_ranks: Dict[str, int] = {}
@@ -107,11 +107,11 @@ def test_fetch(multi_fetcher: MultiFetcher[str, int], data: Dict[str, pd.DataFra
 def test_ranks(multi_fetcher, fetchers):
     humans_fetcher, empty_fetcher, everything_fetcher, sql_fetcher = fetchers
 
-    assert len(multi_fetcher.fetchers) == 3
-    assert humans_fetcher in multi_fetcher.fetchers
-    assert empty_fetcher not in multi_fetcher.fetchers
-    assert everything_fetcher in multi_fetcher.fetchers
-    assert sql_fetcher in multi_fetcher.fetchers
+    assert len(multi_fetcher.children) == 3
+    assert humans_fetcher in multi_fetcher.children
+    assert empty_fetcher not in multi_fetcher.children
+    assert everything_fetcher in multi_fetcher.children
+    assert sql_fetcher in multi_fetcher.children
 
     assert multi_fetcher._id_to_rank[id(humans_fetcher)] == 0
     assert multi_fetcher._id_to_rank[id(everything_fetcher)] == 2
@@ -120,11 +120,11 @@ def test_ranks(multi_fetcher, fetchers):
 
 def test_from_config():
     main_config = ROOT.joinpath("config.imdb.toml")
-    extra_fetchers = [
+    extra_children = [
         ROOT.joinpath("config.toml"),
         ROOT.joinpath("config.toml"),
     ]
-    Translator.from_config(main_config, extra_fetchers)
+    Translator.from_config(main_config, extra_children)
 
 
 class TestOptionalFetchers:
@@ -180,13 +180,13 @@ class TestOptionalFetchers:
 
         if expected is None:
             with pytest.raises(ValueError, match="I crashed!"):
-                fetcher.sources
+                fetcher.initialize_sources()
         else:
-            fetcher.sources
-            fetchers = set(fetcher.fetchers)
-            assert len(fetchers) == len(expected)
+            fetcher.initialize_sources()
+            actual = set(fetcher.children)
+            assert len(actual) == len(expected)
             for c in (children[i] for i in expected):
-                assert c in fetchers
+                assert c in actual
 
 
 class CrashFetcher(MemoryFetcher[str, int]):
@@ -210,7 +210,7 @@ class TestNoSources:
         fetcher: MultiFetcher[str, int] = MultiFetcher(MemoryFetcher({}, optional=False))
         fetcher.initialize_sources()
 
-        assert len(fetcher.fetchers) == 1
+        assert len(fetcher.children) == 1
 
         assert len(caplog.records) == 2
         assert caplog.records[0].levelname == "WARNING"
@@ -224,7 +224,7 @@ class TestNoSources:
         )
         fetcher.initialize_sources()
 
-        assert len(fetcher.fetchers) == 0
+        assert len(fetcher.children) == 0
 
         assert len(caplog.records) == 1
         assert caplog.records[0].levelname == level

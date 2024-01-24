@@ -15,7 +15,7 @@ def test_dvd_rental(dialect, with_schema):
     check_status(dialect)
     translator: Translator[str, str, int] = Translator.from_config(*setup_for_dialect(dialect))
 
-    sql_fetcher = translator.fetcher.fetchers[1]  # type: ignore[attr-defined]
+    sql_fetcher = translator.fetcher.children[1]  # type: ignore[attr-defined]
     assert sql_fetcher._schema is None
     if with_schema:
         sql_fetcher._schema = {"mysql": "sakila", "postgresql": "public", "mssql": "dbo"}[dialect]
