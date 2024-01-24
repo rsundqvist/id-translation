@@ -240,9 +240,6 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
         Returns:
             A copy of this :class:`.Translator` with `overrides` applied.
-
-        Raises:
-            NotImplementedError: If ``share_fetcher=False``.
         """
         kwargs: Dict[str, Any] = {
             "fmt": self._fmt,
@@ -256,7 +253,20 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         if "default_fmt_placeholders" not in kwargs:
             kwargs["default_fmt_placeholders"] = self._default_fmt_placeholders
         if "fetcher" not in kwargs:
-            kwargs["fetcher"] = deepcopy(self.fetcher) if self.online else self._cached_tmap.copy()
+            fetcher: Union[Fetcher[SourceType, IdType], TranslationMap[NameType, SourceType, IdType]]
+            if self.online:
+                fetcher = self.fetcher
+                try:
+                    fetcher = deepcopy(fetcher)
+                except TypeError as e:
+                    msg = (
+                        f"Failed to clone fetcher (TypeError: {e}). Caller instance will be reused."
+                        "\nTo suppress this warning: Translator.copy(fetcher=Translator.fetcher)"
+                    )
+                    warnings.warn(msg, category=UserWarning, stacklevel=2)
+            else:
+                fetcher = self._cached_tmap.copy()
+            kwargs["fetcher"] = fetcher
 
         return type(self)(**kwargs)
 

@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Some cosmetic logging and documentation issues.
 - The base cache path for fetcher data is now configurable using `CacheAccess.BASE_CACHE_PATH`.
 - The `MultiFetcher` will no longer discard required fetchers for any reason.
+- Fall back to fetcher reuse in `Translator.clone()` when `deepcopy(Translator.fetcher)` fails.
 
 ## [0.6.0] - 2023-11-29
 

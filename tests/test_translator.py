@@ -637,3 +637,17 @@ def test_map_scores(translator):
     actual = translator.map_scores({"p": 0, "positive_numbers": 1, "foo": 0}).values.tolist()
     inf = float("inf")
     assert actual == [[inf, -inf], [inf, -inf], [0.0, 0.0]]
+
+
+def test_fetcher_clone_type_error():
+    from id_translation.fetching import SqlFetcher
+
+    translator = UnitTestTranslator(fetcher=SqlFetcher("sqlite:///"))
+    fetcher_id = id(translator.fetcher)
+
+    with pytest.warns(UserWarning, match="reuse"):
+        copy = translator.copy()
+
+    assert isinstance(translator, UnitTestTranslator)
+    assert id(copy) != id(translator)
+    assert id(copy.fetcher) == fetcher_id
