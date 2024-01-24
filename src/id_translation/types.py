@@ -1,5 +1,9 @@
 """Types used for translation.
 
+.. hint::
+
+   Use :func:`.register_io` to register custom :class:`.DataStructureIO` implementations.
+
 Rules of thumb
 --------------
 * The :attr:`IdTypes` are the only `"truly"` translatable types. Collections thereof are also supported.
