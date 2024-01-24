@@ -138,11 +138,13 @@ def make_translator(online: str, transformer: BitmaskTransformer) -> Translator[
         read_function_kwargs={"converters": {0: binary_to_decimal}},
     )
     ret: Translator[str, str, int] = Translator(fetcher, transformers={"vehicles": transformer})
+    assert ret.transformers["vehicles"] is transformer
 
     if online == "online":
         pass
     elif online == "offline":
         ret.go_offline()
+        assert ret.cache.transformers["vehicles"] is transformer
     else:
         raise ValueError(f"{online=}")
 

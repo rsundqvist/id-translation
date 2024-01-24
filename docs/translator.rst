@@ -81,10 +81,10 @@ Miscellaneous
    :toctree:
 
    Translator.copy
-   Translator.get_transformer
 
 .. rubric:: Attributes attributes
 .. autosummary::
    :toctree:
 
    Translator.enable_uuid_heuristics
+   Translator.transformers

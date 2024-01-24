@@ -153,7 +153,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         enable_uuid_heuristics: bool = False,
         transformers: Dict[SourceType, Transformer[IdType]] = None,
     ) -> None:
-        self._transformers = transformers
+        self._transformers = {} if transformers is None else transformers
 
         self._fmt = fmt if isinstance(fmt, Format) else Format(fmt)
         self._default_fmt_placeholders: Optional[InheritedKeysDict[SourceType, str, Any]]
@@ -167,7 +167,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         if fetcher is None:
             from .testing import TestFetcher, TestMapper
 
-            self._fetcher = TestFetcher([])  # No explidecit sources
+            self._fetcher = TestFetcher([])  # No explicit sources
             if mapper:  # pragma: no cover
                 warnings.warn(
                     f"Mapper instance {mapper} given; consider creating a TestFetcher([sources..])-instance manually.",
@@ -1117,16 +1117,10 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         translation_map.name_to_source = task.name_to_source  # Update
         return translation_map
 
-    def get_transformer(self, source: SourceType) -> Optional[Transformer[IdType]]:
-        """Get the transformer to use for `source`.
-
-        Args:
-            source: A source.
-
-        Returns:
-            A :class:`.Transformer` or ``None``.
-        """
-        return None if self._transformers is None else self._transformers.get(source)
+    @property
+    def transformers(self) -> Dict[SourceType, Transformer[IdType]]:
+        """Get a dict ``{source: transformer}`` of :class:`.Transformer` instances used by this ``Translator``."""
+        return self._transformers
 
     def _execute_fetch(
         self, task: TranslationTask[NameType, SourceType, IdType]
@@ -1134,7 +1128,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         source_to_ids = task.extract_ids()
 
         for source in source_to_ids:
-            if (transformer := self.get_transformer(source)) is not None:
+            if (transformer := self._transformers.get(source)) is not None:
                 transformer.update_ids(source_to_ids[source])
 
         ids_to_fetch = [IdsToFetch(source, ids=ids) for source, ids in source_to_ids.items()]

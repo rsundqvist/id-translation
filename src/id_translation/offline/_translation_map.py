@@ -237,6 +237,15 @@ class TranslationMap(
     def enable_uuid_heuristics(self, value: bool) -> None:
         self._enable_uuid_heuristics = value
 
+    @property
+    def transformers(self) -> Dict[SourceType, Transformer[IdType]]:
+        """Get a dict ``{source: transformer}`` of :class:`.Transformer` instances used by this ``TranslationMap``."""
+        return {
+            source: applier.transformer
+            for source, applier in self._format_appliers.items()
+            if applier.transformer is not None
+        }
+
     def copy(self) -> "TranslationMap[NameType, SourceType, IdType]":
         """Make a copy of this ``TranslationMap``."""
         return copy(self)

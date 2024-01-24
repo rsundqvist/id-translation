@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - New short-circuiting function `mapping.heuristic_functions.smurf_columns()`.
 - New function `dio.register_io()`, allowing users to create their own custom IO implementations.
+- New property `Translator.transformers`, allowing users to register new transformers after initialization.
 
 ### Changed
 - Lower cache hit default log level from INFO to DEBUG.
@@ -20,6 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The base cache path for fetcher data is now configurable using `CacheAccess.BASE_CACHE_PATH`.
 - The `MultiFetcher` will no longer discard required fetchers for any reason.
 - Fall back to fetcher reuse in `Translator.clone()` when `deepcopy(Translator.fetcher)` fails.
+
+### Removed
+- The ` Translator.get_transformer` method (redundant: use `Translator.transformers.get()` instead). 
 
 ## [0.6.0] - 2023-11-29
 

@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Dict, Generic, List, Sequence
+from typing import TYPE_CHECKING, Any, Dict, Generic, List, Optional, Sequence
 
 from rics.misc import tname
 
@@ -126,6 +126,11 @@ class FormatApplier(Generic[NameType, SourceType, IdType]):
     def placeholders(self) -> List[str]:
         """Return placeholder names in sorted order."""
         return list(self._translations.placeholders)
+
+    @property
+    def transformer(self) -> Optional[Transformer[IdType]]:
+        """Get the :class:`.Transformer` instance (or ``None``) used by this ``FormatApplier``."""
+        return self._transformer
 
     def __len__(self) -> int:
         return len(self._translations.records)
