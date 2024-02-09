@@ -84,8 +84,8 @@ include a ``execution_time``-value in seconds. Messages related to mapping will 
 
 .. literalinclude:: dvdrental-records.json
    :caption: A ``TRANSLATOR.TRANSLATE.EXIT``-record emitted on the ``INFO``-level.
-   :lines: 8279-
-   :lineno-start: 8279
+   :lines: 8302-
+   :lineno-start: 8302
    :emphasize-lines: 2,5,15,22,25,26,28,30-34,36
 
 A few of the more interesting parts of the record have been highlighted. Click :download:`here <dvdrental-records.json>`

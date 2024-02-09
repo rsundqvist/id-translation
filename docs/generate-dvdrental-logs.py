@@ -74,7 +74,7 @@ def main():
         extra_fetchers=[ROOT / "sql-fetcher.toml"],
     )
     expected = pd.read_csv(ROOT / "translated.csv", index_col=0, parse_dates=["rental_date", "return_date"])
-    sql_fetcher = translator.fetcher.fetchers[1]
+    sql_fetcher = translator.fetcher.children[1]
 
     with sql_fetcher.engine.connect() as conn:
         records = list(conn.execute(sqlalchemy.text((ROOT / "docker/tests/query.sql").read_text())))
