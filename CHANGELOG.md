@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2024-02-09
+
 ### Added
 - New short-circuiting function `mapping.heuristic_functions.smurf_columns()`.
 - New function `dio.register_io()`, allowing users to create their own custom IO implementations.
@@ -195,7 +197,8 @@ cookiecutter template.
 - Switch to relative imports.
 - Fix some intersphinx issues.
 
-[Unreleased]: https://github.com/rsundqvist/id-translation/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/rsundqvist/id-translation/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/rsundqvist/id-translator/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/rsundqvist/id-translator/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/rsundqvist/id-translator/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/rsundqvist/id-translator/compare/v0.4.0...v0.5.0
