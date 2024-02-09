@@ -49,11 +49,11 @@ optional = true
 # https://github.com/astropy/astropy/pull/12270
 sphinx = "^7.1.2"
 sphinx-gallery = "^0.14.0"
-pydata-sphinx-theme = "^0.14.1"
+pydata-sphinx-theme = "^0.14.4"
 myst-parser = "^2.0.0"
 nbsphinx = "^0.9.3"
 ipython = "<8.13.0"
-sphinxcontrib-programoutput = "^0.17"
+sphinxcontrib-programoutput = "^0.17.0"
 
 [tool.poetry.group.notebooks]
 optional = true
