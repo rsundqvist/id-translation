@@ -31,12 +31,15 @@ class DictIO(DataStructureIO):
         tmap: TranslationMap[NameType, SourceType, IdType],
         copy: bool,
     ) -> Optional[Dict[NameType, Any]]:
-        from ._resolve import resolve_io
+        from rics.logs import disable_temporarily
 
-        translated = {
-            key: resolve_io(value).insert(value, [key], tmap, copy=True) if key in names else value
-            for key, value in translatable.items()
-        }
+        from ._resolve import LOGGER as RESOLVE_IO_LOGGER, resolve_io
+
+        with disable_temporarily(RESOLVE_IO_LOGGER):
+            translated = {
+                key: resolve_io(value).insert(value, [key], tmap, copy=True) if key in names else value
+                for key, value in translatable.items()
+            }
 
         if copy:
             return translated

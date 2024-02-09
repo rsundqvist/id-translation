@@ -637,7 +637,11 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         return modified_hamming(value, candidates, context)
 
     def __str__(self) -> str:
-        sources = self.sources if self.sources else "<no sources>"
+        class NoSources:
+            def __repr__(self) -> str:
+                return "<no sources>"
+
+        sources = self.sources if self.sources else NoSources()
         return f"{tname(self)}({sources=})"
 
 

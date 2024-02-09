@@ -404,7 +404,7 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
 
     def __repr__(self) -> str:
         max_workers = self.max_workers
-        fetchers = "\n    ".join(map(str, self._id_to_fetcher.values()))
+        fetchers = "\n    ".join(f"{f}," for f in self._id_to_fetcher.values())
         return f"{tname(self)}({max_workers=}, fetchers=[\n    {fetchers}\n])"
 
     def _fmt_fetcher(self, fetcher: Union[int, Fetcher[SourceType, IdType]]) -> str:
