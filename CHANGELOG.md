@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Fixed an issue which sometimes caused a crash when verifying translations.
+- Fixed an issue which sometimes caused a crash when one or more names were empty. 
+
 ## [0.7.0] - 2024-02-09
 
 ### Added
