@@ -69,10 +69,14 @@ def smurf_columns(
 ) -> Set[str]:
     """Short-circuit `placeholder` to a matching smurf column.
 
-    The smurf naming convention (or anti-pattern, depending on who you ask) refers the practice of naming columns after
-    the table. Examples include column names such as `'country_id'` or `'city_name'` for tables `'country'` or
-    `'cities'` (plural; both forms are supported). Special handling is implemented for ``placeholder="name"``, which
-    will match when the singular-form table name is found in `columns`.
+    The smurf naming convention (or anti-pattern, depending on who you ask) refers the practice of including the name
+    of the table in the column name, especially for the primary key ID column.
+
+    Typical columns one might encounter are ``country.country_id`` and ``cities.city_name``. Note that, for the latter
+    match to be made, you must pass ``plural_to_singular=True | dict``.
+
+    Special handling is implemented for ``placeholder="name"``, which will match when the singular-form table name is
+    found in `columns`.
 
     Args:
         placeholder: A :class:`~id_translation.offline.Format` placeholder.
@@ -300,7 +304,8 @@ class NounTransformer:
     """Naive utility class for transforming nouns to singular form.
 
     This class performs simple heuristics to convert nouns commonly used as database table names. It will quickly break
-    either if given nouns that are already on singular form, or are not trivially converted to singular form.
+    either if given nouns that are already on singular form, or are not trivially convertible (see
+    :attr:`PLURAL_TO_SINGULAR_SUFFIXES`) to singular form.
 
     Examples:
         >>> nt = NounTransformer(custom={"geese": "goose"})

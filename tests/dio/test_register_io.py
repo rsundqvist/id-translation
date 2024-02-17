@@ -44,7 +44,7 @@ class DummyIO(DataStructureIO):
     @staticmethod
     def extract(translatable, names):
         assert translatable is Data.test_object
-        return {"source": Data.test_object_id}
+        return {"source": [Data.test_object_id]}
 
     @staticmethod
     def insert(translatable, names, tmap, copy):

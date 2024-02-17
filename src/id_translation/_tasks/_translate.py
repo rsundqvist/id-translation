@@ -25,8 +25,6 @@ NUM_SAMPLE_IDS = 10
 if TYPE_CHECKING:
     from .._translator import Translator
 
-LOGGER = logging.getLogger("id_translation.Translator.translate")
-
 
 class TranslationTask(MappingTask[NameType, SourceType, IdType]):
     """Ephemeral class for performing a single translation task on a `translatable`."""
@@ -53,7 +51,7 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
             override_function=override_function,
         )
 
-        if not (0.0 <= maximal_untranslated_fraction <= 1):  # pragma: no cover
+        if not (0.0 <= maximal_untranslated_fraction <= 1):
             raise ValueError(f"Argument {maximal_untranslated_fraction=} is not a valid fraction")
 
         self.fmt = fmt
@@ -89,7 +87,7 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
                 # Float IDs aren't officially supported, but is common when using Pandas since int types cannot be NaN.
                 # This is sometimes a problem for the built-in set (see https://github.com/numpy/numpy/issues/9358), and
                 # for several database drivers.
-                arr = unique(ids)  # type: ignore[var-annotated]
+                arr = unique(ids)
                 keep_mask = ~isnan(arr)
                 num_coerced += keep_mask.sum()  # Somewhat inaccurate; includes repeat IDs from other names
                 source_to_ids[name_to_source[name]].update(arr[keep_mask].astype(int, copy=False))
@@ -189,14 +187,17 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
 
         return None if inplace else result
 
+    def _should_verify(self) -> bool:
+        return LOGGER.isEnabledFor(logging.DEBUG) or self.maximal_untranslated_fraction < 1.0
+
     def verify(self, translation_map: TranslationMap[NameType, SourceType, IdType]) -> None:
         """Verify translations.
 
         Performs translation with pre-defined formats, counting the number of IDs which are (and aren't) known to the
         translation map.
         """
-        if not (LOGGER.isEnabledFor(logging.DEBUG) or self.maximal_untranslated_fraction < 1.0):
-            pass
+        if not self._should_verify():
+            return
 
         name_to_mask: Dict[NameType, Sequence[Any]] = self.io.extract(self.translatable, self.io_names)
 
