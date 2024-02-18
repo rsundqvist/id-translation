@@ -1,6 +1,7 @@
 import logging
 import warnings
 from collections import defaultdict
+from copy import deepcopy
 from time import perf_counter
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Set, Union, get_args
 
@@ -64,11 +65,18 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
 
         self.key_event_level = settings.TRANSLATE_ONLINE if self.caller.online else settings.TRANSLATE_OFFLINE
 
+        self._names_without_ids: Set[NameType] = set()
+
     @property
     def io_names(self) -> List[NameType]:
         """Names for which IDs should be extracted from the `translatable`."""
         # Preserve input order for names, if given. These names may be repeated.
-        return self.names_to_translate if self.names_from_user is None else self.names_from_user
+        if self.names_from_user is None:
+            names = self.names_to_translate
+        else:
+            names = self.names_from_user
+
+        return [n for n in names if n not in self._names_without_ids]
 
     def extract_ids(self) -> Dict[SourceType, Set[IdType]]:
         """Extract IDs to fetch from the translatable."""
@@ -78,7 +86,7 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
         float_names: List[NameType] = []
         num_coerced = 0
         ids: Sequence[IdType]
-        for name, ids in self.io.extract(self.translatable, self.io_names).items():
+        for name, ids in self._extract_ids().items():
             if len(ids) == 0:
                 continue
 
@@ -199,15 +207,12 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
         if not self._should_verify():
             return
 
-        name_to_mask: Dict[NameType, Sequence[Any]] = self.io.extract(self.translatable, self.io_names)
-
-        if self.enable_uuid_heuristics:
-            for name in name_to_mask:
-                name_to_mask[name] = _uuid_utils.try_cast_many(name_to_mask[name])
+        name_to_ids = self._name_to_ids_in_order()
+        name_to_mask = deepcopy(name_to_ids)
 
         fmt, default_fmt = translation_map.fmt, translation_map.default_fmt
         try:
-            translation_map.fmt = ""  # type: ignore[assignment]
+            translation_map.fmt = Format("")
             translation_map.default_fmt = None
             DictIO.insert(
                 name_to_mask,
@@ -218,26 +223,13 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
         finally:
             translation_map.fmt, translation_map.default_fmt = fmt, default_fmt
 
-        name_to_ids: Optional[Dict[NameType, Sequence[IdType]]] = None
-
-        def get_ids(n: NameType) -> Sequence[Any]:
-            nonlocal name_to_ids
-            if name_to_ids is None:
-                # It would be nice to pass just names=[n], but semantics may change depending
-                # on the number of names given. Is there a way to do this safely?
-                name_to_ids = self.io.extract(self.translatable, names=self.io_names)
-                if self.enable_uuid_heuristics:
-                    for n in name_to_ids:
-                        name_to_ids[n] = _uuid_utils.try_cast_many(name_to_ids[n])
-            return name_to_ids[n]
-
         for name, mask in name_to_mask.items():
             n_untranslated, n_total = sum(t is None for t in mask), len(mask)
             if n_untranslated == 0:
                 continue
             f_untranslated = n_untranslated / n_total
 
-            sample_ids = self._get_untranslated_ids(get_ids(name), mask=mask)
+            sample_ids = self._get_untranslated_ids(name_to_ids[name], mask=mask)
 
             extra = {
                 "name_of_ids": name,
@@ -259,6 +251,20 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
             else:
                 message = message.format(reason=", above limit; DEBUG logging is enabled")
                 LOGGER.debug(message, extra=extra)
+
+    def _name_to_ids_in_order(self) -> Dict[NameType, Sequence[Any]]:
+        name_to_ids: Dict[NameType, Sequence[Any]] = self._extract_ids()
+        if self.enable_uuid_heuristics:
+            name_to_ids = {name: _uuid_utils.try_cast_many(name_to_ids[name]) for name in name_to_ids}
+        return name_to_ids
+
+    def _extract_ids(self) -> Dict[NameType, Sequence[IdType]]:
+        name_to_ids: Dict[NameType, Sequence[IdType]] = self.io.extract(self.translatable, self.io_names)
+
+        name_to_ids = {name: ids for name, ids in name_to_ids.items() if len(ids) > 0}
+        if not self._names_without_ids:
+            self._names_without_ids = set(self.io_names).difference(name_to_ids)
+        return name_to_ids
 
     @staticmethod
     def _get_untranslated_ids(

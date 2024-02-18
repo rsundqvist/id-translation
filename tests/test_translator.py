@@ -345,16 +345,24 @@ def test_no_names(translator):
         translator.translate(pd.Series(range(3)))
 
 
-def test_untranslated_fraction():
+def test_untranslated_fraction_single_name():
     translator = UnitTestTranslator({"source": {"id": [0], "name": ["zero"]}}, default_fmt="{id} not translated")
 
     translator.translate([0, 1], names="source", maximal_untranslated_fraction=0.5)
 
-    with pytest.raises(TooManyFailedTranslationsError):
+    with pytest.raises(TooManyFailedTranslationsError, match="translate 1/3"):
         translator.translate([0, 0, 1], names="source", maximal_untranslated_fraction=0.0)
 
-    with pytest.raises(TooManyFailedTranslationsError):
+    with pytest.raises(TooManyFailedTranslationsError, match="translate 1/1"):
         translator.translate(1, names="source", maximal_untranslated_fraction=0.0)
+
+
+def test_untranslated_fraction_multiple_names(translator, hex_fetcher):
+    translator = UnitTestTranslator(hex_fetcher, enable_uuid_heuristics=True, fmt="{id}:{hex}")
+    translatable = {"negative_numbers": [1, 1], "positive_numbers": [0, 1, 2]}
+
+    with pytest.raises(TooManyFailedTranslationsError, match="translate 2/2"):
+        translator.translate(translatable, maximal_untranslated_fraction=0.0)
 
 
 def test_untranslated_reporting(caplog):
@@ -651,3 +659,9 @@ def test_fetcher_clone_type_error():
     assert isinstance(translator, UnitTestTranslator)
     assert id(copy) != id(translator)
     assert id(copy.fetcher) == fetcher_id
+
+
+def test_empty(translator):
+    actual = translator.translate({"p": [], "n": [-1]}, maximal_untranslated_fraction=1.0)
+    assert actual == {"p": [], "n": ["-1:-0x1, positive=False"]}
+    assert translator.translated_names(with_source=True) == {"n": "negative_numbers", "p": "positive_numbers"}
