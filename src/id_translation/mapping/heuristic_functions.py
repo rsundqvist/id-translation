@@ -13,12 +13,16 @@ VERBOSE: bool = False
 LOGGER = logging.getLogger(__package__).getChild("verbose").getChild("heuristic_functions")
 
 
+_NOUN_TRANSFORMER_CACHE: Dict[str, Callable[[str], str]] = {}
+PluralToSingularArg = Union[bool, Dict[str, str], Callable[[str], str], str]
+
+
 def like_database_table(
     name: str,
     tables: Iterable[str],
     context: _Any,
     *,
-    plural_to_singular: bool | Dict[str, str] = True,
+    plural_to_singular: PluralToSingularArg = True,
 ) -> Tuple[str, List[str]]:
     """Normalize `name` and `tables` to appear as base-form nouns.
 
@@ -28,6 +32,9 @@ def like_database_table(
         context: Ignored.
         plural_to_singular: Convert plural-form to singular form. Pass a ``dict`` to specify custom transformations,
             backed by the default transformer. See :class:`NounTransformer` for details. Set to ``False`` to disable.
+
+            To use a custom transformer, pass a callable ``(str) -> str``, or the fully qualified name of such as
+            callable. The callable will be resolved using :func:`rics.misc.get_by_full_name`, then cached.
 
     Returns:
         A tuple ``(normalized_name, normalized_table_names)``.
@@ -47,7 +54,7 @@ def like_database_table(
 
         Inputs are coerced to lower case.
     """
-    to_singular = _make_noun_transformer(plural_to_singular)
+    to_singular = _get_noun_transformer(plural_to_singular)
 
     def _normalize_noun(noun: str) -> str:
         noun = noun.lower()
@@ -65,7 +72,7 @@ def smurf_columns(
     columns: Iterable[str],
     table: str,
     *,
-    plural_to_singular: bool | Dict[str, str] = False,
+    plural_to_singular: PluralToSingularArg = False,
 ) -> Set[str]:
     """Short-circuit `placeholder` to a matching smurf column.
 
@@ -85,6 +92,9 @@ def smurf_columns(
             the `columns` (or :attr:`~id_translation.Translator.placeholders`) belong.
         plural_to_singular: Convert plural-form to singular form. Pass a ``dict`` to specify custom transformations,
             backed by the default transformer. See :class:`NounTransformer` for details. Set to ``False`` to disable.
+
+            To use a custom transformer, pass a callable ``(str) -> str``, or the fully qualified name of such as
+            callable. The callable will be resolved using :func:`rics.misc.get_by_full_name`, then cached.
 
     Returns:
         A single-element set ``{column}``, iff a match is found. An empty set otherwise.
@@ -130,7 +140,7 @@ def smurf_columns(
         * :func:`like_database_table`
         * :func:`value_fstring_alias`
     """
-    to_singular = _make_noun_transformer(plural_to_singular)
+    to_singular = _get_noun_transformer(plural_to_singular)
     table = to_singular(table.lower())
 
     placeholder = placeholder.lower()
@@ -307,6 +317,25 @@ class NounTransformer:
     either if given nouns that are already on singular form, or are not trivially convertible (see
     :attr:`PLURAL_TO_SINGULAR_SUFFIXES`) to singular form.
 
+    .. note::
+       For more complex use cases, consider defining using a language-processing framework such as
+       `inflect (PyPI) <https://pypi.org/project/inflect/>`_ instead.
+
+    Pass ``plural_to_singular=<fully-qualified-name>`` to use your implementation in any function that accepts a
+    `plural_to_singular`-argument.
+
+    .. code-block:: python
+
+       def my_transform(plural: str) -> str:
+           import inflect
+           p = inflect.engine()
+           return p.singular_noun(plural)
+
+       smurf_columns(
+           ... ,
+           plural_to_singular="__main__.heuristics.my_transform"
+       )
+
     Examples:
         >>> nt = NounTransformer(custom={"geese": "goose"})
         >>> nt("city"), nt("cities")
@@ -326,18 +355,28 @@ class NounTransformer:
 
     IRREGULARS: Dict[str, str] = {
         "species": "species",
+        # Not really irregular
+        "phases": "phase",
+        "exercises": "exercise",
     }
     """Known irregular plural-to-singular transformations."""
 
     # https://wordtoolbox.com/nouns-ending-with/<letter-combination>
     PLURAL_TO_SINGULAR_SUFFIXES: Tuple[Tuple[str, str], ...] = (
-        ("ies", "y"),  # cities -> city
-        ("es", ""),  # irises -> iris, and many others
+        ("ies", "y"),  # cit[ies] -> cit[y]
+        ("ives", "ife"),  # l[ives] -> l[ife]
+        ("ves", "f"),  # hal[ves] -> hal[f]
+        ("oes", "o"),  # tomat[oes] -> tomat[o]
+        ("hes", "h"),  # has[hes] -> has[h]
+        ("ses", "s"),  # iri[ses] -> iri[s]
+        ("xes", "x"),  # bo[xes] -> bo[x]
         ("s", ""),  # catch-all
     )
     """Plural-to-singular suffix mappings."""
 
-    def __init__(self, custom: Dict[str, str]) -> None:
+    def __init__(self, custom: Dict[str, str] = None) -> None:
+        if custom is None:
+            custom = {}
         self._pre = {**self.IRREGULARS, **custom}
 
     def __call__(self, noun: str) -> str:
@@ -353,10 +392,23 @@ class NounTransformer:
         return plural
 
 
-def _make_noun_transformer(plural_to_singular: bool | Dict[str, str]) -> Callable[[str], str]:
+def _get_noun_transformer(plural_to_singular: PluralToSingularArg) -> Callable[[str], str]:
     """Returns a NOOP if `plural_to_singular` is ``False``."""
     if plural_to_singular is False:
         return lambda noun: noun
+
+    if isinstance(plural_to_singular, str):
+        from rics.misc import get_by_full_name
+
+        if (transformer := _NOUN_TRANSFORMER_CACHE.get(plural_to_singular)) is not None:
+            return transformer
+
+        transformer = get_by_full_name(plural_to_singular)
+        _NOUN_TRANSFORMER_CACHE[plural_to_singular] = transformer
+        return transformer
+
+    if callable(plural_to_singular):
+        return plural_to_singular
 
     if plural_to_singular is True:
         plural_to_singular = {}

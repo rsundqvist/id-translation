@@ -7,9 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Heuristic functions that accept a `plural_to_singular`-argument now also accept a custom transformer.
+
 ### Fixed
 - Fixed an issue which sometimes caused a crash when verifying translations.
-- Fixed an issue which sometimes caused a crash when one or more names were empty. 
+- Fixed an issue which sometimes caused a crash when one or more names were empty.
+- Added new `NounTransformer` singular-to-plural heuristics. Fixes transforms for nouns
+  such as _'languages'_, '_states_', and many others.
 
 ## [0.7.0] - 2024-02-09
 
