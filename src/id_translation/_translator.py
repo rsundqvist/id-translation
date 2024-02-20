@@ -242,8 +242,8 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             A copy of this :class:`.Translator` with `overrides` applied.
         """
         kwargs: Dict[str, Any] = {
-            "fmt": self._fmt,
-            "default_fmt": self._default_fmt,
+            "fmt": self.fmt,
+            "default_fmt": self.default_fmt,
             "enable_uuid_heuristics": self.enable_uuid_heuristics,
             **overrides,
         }
@@ -829,6 +829,16 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         return self._fetcher.placeholders if self.online else self._cached_tmap.placeholders
 
     @property
+    def fmt(self) -> Format:
+        """Main translation :class:`.Format`."""
+        return self._fmt
+
+    @property
+    def default_fmt(self) -> Optional[Format]:
+        """Alternative translation :class:`.Format`, used for unknown IDs."""
+        return self._default_fmt
+
+    @property
     def enable_uuid_heuristics(self) -> bool:
         """Enabling may improve matching when :py:class:`~uuid.UUID`-like IDs are in use."""
         return self._enable_uuid_heuristics
@@ -843,7 +853,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         """Return the :class:`.Fetcher` instance used to retrieve translations."""
         if not self.online:
             raise ConnectionStatusError(
-                "Cannot fetch new translations.\nHint: Use theTranslator.cache-property to access the data."
+                "Cannot fetch new translations.\nHint: Use the Translator.cache-property to access the data."
             )
 
         return self._fetcher

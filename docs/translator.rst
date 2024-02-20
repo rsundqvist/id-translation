@@ -73,8 +73,11 @@ Working offline
 
    Translator.cache
 
-Miscellaneous
+Configuration
 ~~~~~~~~~~~~~
+Most ``Translator`` attributes are read-only. To change the attributes below, use the ``copy`` method with attribute
+overrides.
+
 .. rubric:: Methods
 
 .. autosummary::
@@ -82,9 +85,11 @@ Miscellaneous
 
    Translator.copy
 
-.. rubric:: Attributes attributes
+.. rubric:: Attributes
 .. autosummary::
    :toctree:
 
+   Translator.fmt
+   Translator.default_fmt
    Translator.enable_uuid_heuristics
    Translator.transformers

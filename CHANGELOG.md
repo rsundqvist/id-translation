@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Heuristic functions that accept a `plural_to_singular`-argument now also accept a custom transformer.
+- Expose read-only attributes `Translator.fmt` and `default_fmt`.
 
 ### Fixed
 - Fixed an issue which sometimes caused a crash when verifying translations.
