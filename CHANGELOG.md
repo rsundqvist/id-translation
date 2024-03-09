@@ -13,9 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Fixed an issue which sometimes caused a crash when verifying translations.
-- Fixed an issue which sometimes caused a crash when one or more names were empty.
-- Added new `NounTransformer` singular-to-plural heuristics. Fixes transforms for nouns
-  such as _'languages'_, '_states_', and many others.
+- Fixed an issue which sometimes caused a crash when one or more names were empty (zero IDs).
+- Fixed plural-to-singular (`NounTransformer`) transforms of nouns such as _'languages'_, '_states_', and many others.
+- Fixed a performance issue for large `pandas.Series` and `Index` objects.
 
 ## [0.7.0] - 2024-02-09
 

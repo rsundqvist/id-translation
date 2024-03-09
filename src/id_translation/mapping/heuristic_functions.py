@@ -33,7 +33,7 @@ def like_database_table(
         plural_to_singular: Convert plural-form to singular form. Pass a ``dict`` to specify custom transformations,
             backed by the default transformer. See :class:`NounTransformer` for details. Set to ``False`` to disable.
 
-            To use a custom transformer, pass a callable ``(str) -> str``, or the fully qualified name of such as
+            To use a custom transformer, pass a callable ``(str) -> str``, or the fully qualified name of such a
             callable. The callable will be resolved using :func:`rics.misc.get_by_full_name`, then cached.
 
     Returns:
@@ -93,7 +93,7 @@ def smurf_columns(
         plural_to_singular: Convert plural-form to singular form. Pass a ``dict`` to specify custom transformations,
             backed by the default transformer. See :class:`NounTransformer` for details. Set to ``False`` to disable.
 
-            To use a custom transformer, pass a callable ``(str) -> str``, or the fully qualified name of such as
+            To use a custom transformer, pass a callable ``(str) -> str``, or the fully qualified name of such a
             callable. The callable will be resolved using :func:`rics.misc.get_by_full_name`, then cached.
 
     Returns:
