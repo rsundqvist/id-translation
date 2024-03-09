@@ -1,0 +1,54 @@
+name: benchmark
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      logLevel:
+        description: "Log level"
+        required: true
+        default: "info"
+      tags:
+        required: false
+        description: "Test scenario tags"
+
+env:
+  POETRY_VERSION: 1.7.1
+
+jobs:
+  benchmark:
+    name: Linting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.11
+
+      - name: Install
+        shell: bash
+        run: |
+          pip install poetry==$POETRY_VERSION
+          poetry config virtualenvs.create false
+          poetry install --only main,test
+
+      - name: Sanity check
+        shell: bash
+        run: pytest tests/test_performance.py::test_baseline
+
+      - name: Benchmark
+        shell: bash
+        run: |
+          pytest tests/test_performance.py --benchmark-only --benchmark-histogram=.benchmarks/plots/histogram
+
+      # compare:
+      #  # upload:
+      # - name: Upload benchmark data
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: coverage-data
+      #     path: ".coverage.*"

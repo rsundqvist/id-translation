@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "id-translation-benchmark"
+version = "0.1.0"
+description = "Benchmark suite for `id-translation`."
+authors = ["Richard Sundqvist <richard.sundqvist@live.se>"]
+license = "MIT"
+
+[tool.poetry.dependencies]
+python = "~3.11.8"
+
+id-translation = ">=0.5.1"
+pandas = ">=2.2.1"
+pyarrow = ">=15.0.1"
+
+click = "~8.1.7"
+
+# pytest = "~8.0.2"
+# pytest-benchmark = { version = "~4.0.0", extras = ["histogram"] }
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

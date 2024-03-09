@@ -21,9 +21,11 @@ COVERAGE_REPORT = COVERAGE_DIR.joinpath("index.html")
 SOURCE_DIR = ROOT_DIR.joinpath("src/id_translation")
 TEST_DIR = ROOT_DIR.joinpath("tests")
 NOTEBOOK_DIR = ROOT_DIR.joinpath("jupyterlab")
+BENCHMARK_DIR = ROOT_DIR.joinpath("benchmark")
 PYTHON_TARGETS = [
     SOURCE_DIR,
     TEST_DIR,
+    BENCHMARK_DIR,
     ROOT_DIR.joinpath("noxfile.py"),
     Path(__file__),
 ]
@@ -192,3 +194,8 @@ def version(c: Context, part: str, dry_run: bool = False) -> None:
         _run(c, f"poetry run bump2version {' '.join(bump_options)} {part} --commit-args='--no-verify'")
         print(f"Undo changes to release-only files: {' '.join(map(repr, no_dev))}")
         _run(c, f"git checkout HEAD^ -- {' '.join(no_dev)} && git commit --amend --no-edit --no-verify --quiet")
+
+
+@task
+def benchmark(c: Context) -> None:
+    pass
