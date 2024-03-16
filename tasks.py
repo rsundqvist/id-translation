@@ -2,6 +2,7 @@
 
 Execute 'invoke --list' for guidance on using Invoke.
 """
+
 import platform
 import webbrowser
 from pathlib import Path
@@ -13,8 +14,6 @@ from invoke.runners import Result
 ROOT_DIR = Path(__file__).parent
 DOCS_DIR = ROOT_DIR.joinpath("docs")
 DOCS_BUILD_DIR = DOCS_DIR.joinpath("_build")
-DOCS_GEN_DIR = DOCS_DIR.joinpath("_autosummary")
-DOCS_INDEX = DOCS_BUILD_DIR.joinpath("index.html")
 COVERAGE_FILE = ROOT_DIR.joinpath(".coverage")
 COVERAGE_DIR = ROOT_DIR.joinpath("htmlcov")
 COVERAGE_REPORT = COVERAGE_DIR.joinpath("index.html")
@@ -24,6 +23,7 @@ NOTEBOOK_DIR = ROOT_DIR.joinpath("jupyterlab")
 PYTHON_TARGETS = [
     SOURCE_DIR,
     TEST_DIR,
+    NOTEBOOK_DIR,
     ROOT_DIR.joinpath("noxfile.py"),
     Path(__file__),
 ]
@@ -66,37 +66,37 @@ def clean_tests(c: Context) -> None:
 def clean_docs(c: Context) -> None:
     """Clean up files from documentation builds."""
     _run(c, f"rm -fr {DOCS_BUILD_DIR}")
-    _run(c, f"rm -fr {DOCS_GEN_DIR}")
+
+    dirs = "_autosummary", "changelog", "auto_examples", "gen_modules", "documentation/examples/notebooks"
+    more_dirs = " ".join(map(str, map(DOCS_DIR.joinpath, dirs)))
+    _run(c, f"rm -fr {more_dirs}")
 
 
-@task(pre=[clean_build, clean_python, clean_tests, clean_docs])
-def clean(c: Context) -> None:
+@task
+def clean_ruff(c: Context) -> None:
+    """Clean ruff cache (linter)."""
+    _run(c, "ruff clean")
+
+
+@task(pre=[clean_build, clean_python, clean_ruff, clean_tests, clean_docs])
+def clean(_: Context) -> None:
     """Run all clean sub-tasks."""
 
 
-@task
-def install_hooks(c: Context) -> None:
-    """Install pre-commit hooks."""
-    _run(c, "poetry run pre-commit install")
-
-
-@task
-def hooks(c: Context) -> None:
-    """Run pre-commit hooks."""
-    _run(c, "poetry run pre-commit run --all-files")
-
-
-@task(name="format", help={"check": "Checks if source is formatted without applying changes"})
+@task(name="format")
 def format_(c: Context, check: bool = False) -> None:
     """Format code."""
-    isort_options = ["--check-only", "--diff"] if check else []
-    _run(c, f"poetry run isort {' '.join(isort_options)} {PYTHON_TARGETS_STR}")
-    black_options = ["--diff", "--check"] if check else ["--quiet"]
-    _run(c, f"poetry run black {' '.join(black_options)} {PYTHON_TARGETS_STR}")
+    format_options = ["--check", "--diff"] if check else []
+    _run(c, f"poetry run ruff format {' '.join(format_options)} {PYTHON_TARGETS_STR}")
+    if not check:
+        _run(c, f"poetry run ruff check --fix-only {' '.join(format_options)} {PYTHON_TARGETS_STR}")
 
-    notebooks_only = r"--include .*\.ipynb"
-    _run(c, f"poetry run black {notebooks_only} {' '.join(black_options)} {NOTEBOOK_DIR}")
-    # _run(c, f"poetry run isort {' '.join(isort_options)} {NOTEBOOK_DIR}")
+
+@task
+def flake8(c: Context, check: bool = False) -> None:
+    """Run flake8."""
+    lint_options = ["--no-fix"] if check else []
+    _run(c, f"poetry run ruff check {' '.join(lint_options)} {PYTHON_TARGETS_STR}")
 
 
 @task
@@ -106,19 +106,16 @@ def spelling(c: Context) -> None:
 
 
 @task
-def flake8(c: Context) -> None:
-    """Run flake8."""
-    _run(c, f"poetry run flakeheaven lint {SOURCE_DIR} {TEST_DIR}")
-
-
-@task
 def safety(c: Context) -> None:
     """Run safety."""
-    _run(c, "poetry export --format=requirements.txt --without-hashes | poetry run safety check --stdin --full-report")
+    _run(
+        c,
+        "poetry export --format=requirements.txt --without-hashes | poetry run safety check --stdin --full-report",
+    )
 
 
-@task(pre=[flake8, safety, call(format_, check=True), spelling])
-def lint(c: Context) -> None:
+@task(pre=[safety, call(flake8, check=True), call(format_, check=True), spelling])
+def lint(_: Context) -> None:
     """Run all linting."""
 
 
@@ -166,10 +163,11 @@ def coverage(c: Context, fmt: str = "report", open_browser: bool = False) -> Non
 )
 def docs(c: Context, open_browser: bool = False) -> None:
     """Build documentation."""
-    build_docs = f"sphinx-build -T -E -W --keep-going -a -j auto -b html {DOCS_DIR} {DOCS_BUILD_DIR}"
+    build_docs = f"sphinx-build -T -E -W --keep-going -a {DOCS_DIR} {DOCS_BUILD_DIR}"
     _run(c, build_docs)
     if open_browser:
-        webbrowser.open(DOCS_INDEX.absolute().as_uri())
+        index = DOCS_BUILD_DIR / "index.html"
+        webbrowser.open(index.absolute().as_uri())
 
 
 @task(
@@ -189,6 +187,29 @@ def version(c: Context, part: str, dry_run: bool = False) -> None:
         no_dev = ["CHANGELOG.md"]
 
         part = "dev"
-        _run(c, f"poetry run bump2version {' '.join(bump_options)} {part} --commit-args='--no-verify'")
+        _run(
+            c,
+            f"poetry run bump2version {' '.join(bump_options)} {part} --commit-args='--no-verify'",
+        )
         print(f"Undo changes to release-only files: {' '.join(map(repr, no_dev))}")
-        _run(c, f"git checkout HEAD^ -- {' '.join(no_dev)} && git commit --amend --no-edit --no-verify --quiet")
+        _run(
+            c,
+            f"git checkout HEAD^ -- {' '.join(no_dev)} && git commit --amend --no-edit --no-verify --quiet",
+        )
+
+
+@task
+def pyupgrade(c: Context, check: bool = False) -> None:
+    """Apply ``pyupgrade`` to all .py-files in ``PYTHON_TARGETS``."""
+    flags = ["--py311-plus"]
+    if not check:
+        flags.append("--exit-zero-even-if-changed")
+
+    def apply(*paths: Path) -> None:
+        for path in paths:
+            if path.is_file() and path.suffix == ".py":
+                _run(c, f"pyupgrade {' '.join(flags)} {path}")
+            elif path.is_dir():
+                apply(*path.rglob("*/*.py"))
+
+    apply(*PYTHON_TARGETS)
