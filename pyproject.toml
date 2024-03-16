@@ -35,7 +35,7 @@ classifiers = [
 python = "<4,>=3.11"
 
 pandas = ">=2.0.3"
-sqlalchemy = ">=1.4.16"
+sqlalchemy = ">=2.0.5"  # 2.0.5 (YANKED) is the minimum version where UUID tests pass for Microsoft SQL server.
 rics = ">=4.0.1"
 
 [tool.poetry.group.docs]

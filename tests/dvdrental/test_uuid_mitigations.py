@@ -13,11 +13,6 @@ from id_translation.types import IdType
 
 from .conftest import DIALECTS, get_connection_string
 
-xfail_sqlalchemy_v1 = pytest.mark.xfail(
-    SqlFetcher._SQLALCHEMY_VERSION.major < 2,
-    reason="Needs SQLAlchemy version 2",
-    strict=True,
-)
 
 pytestmark = [
     pytest.mark.skipif(
@@ -83,7 +78,6 @@ class TestMySQL(Base):
 class TestPostgres(Base):
     dialect = "postgresql"
 
-    @xfail_sqlalchemy_v1
     def test_string_column(self, id_type):
         super().test_string_column(id_type)
 

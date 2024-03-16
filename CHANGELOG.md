@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Python minimum version is now `3.11` (was `3.8`).
 - Minimum `pandas` version is now `2.0.3` (was `1.1.0`).
+- Minimum `sqlalchemy` version is now `2.0.5` (was `1.4.16`).
 
 ## [0.7.1] - 2024-03-09
 
