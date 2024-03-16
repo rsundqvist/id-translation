@@ -3,4 +3,4 @@ ignore-words-list =
     ans
 
 summary = true
-skip = *.json
+skip = *.json,*.ipynb

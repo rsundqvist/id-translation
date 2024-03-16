@@ -1,5 +1,6 @@
 """Sphinx configuration."""
 import os
+from datetime import datetime, timezone
 from zipfile import ZipFile
 
 if True:  # E402 hack
@@ -11,7 +12,7 @@ if True:  # E402 hack
 # list see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 import shutil
-from importlib import import_module
+from importlib import import_module, metadata
 
 from docutils.nodes import Text, reference
 from rics._internal_support.changelog import split_changelog
@@ -110,9 +111,10 @@ def setup(app):  # noqa
 
 # General information about the project.
 
-project = id_translation.__title__
-copyright = id_translation.__copyright__  # noqa: A001
-author = id_translation.__author__
+_metadata = metadata.metadata(id_translation.__name__)
+project = _metadata["Name"]
+copyright = _metadata["Author"] + f", {datetime.now(timezone.utc).year}"
+author = _metadata["Author"]
 # The version info for the project you're documenting, acts as replacement
 # for |version| and |release|, also used in various other places throughout
 # the built documents.

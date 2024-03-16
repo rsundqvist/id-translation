@@ -10,17 +10,15 @@ Environment variables
     Global switch. When ``true``, the :meth:`Translator.translate`-method returns immediately.
 """
 
-import logging
+import logging as _logging
 
 from ._translator import Translator
-
-from .__version__ import __author__  # isort:skip
-from .__version__ import __copyright__  # isort:skip
-from .__version__ import __title__, __description__, __version__  # isort:skip
 
 __all__ = [
     "Translator",
     "__version__",  # Make MyPy happy
 ]
 
-logging.getLogger(__name__).addHandler(logging.NullHandler())
+__version__ = "0.7.1.dev1"
+
+_logging.getLogger(__name__).addHandler(_logging.NullHandler())

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Python `3.12` is now fully tested and supported in CI/CD.
+
+### Changed
+- Python minimum version is now `3.11` (was `3.8`).
+- Minimum `pandas` version is now `2.0.3` (was `1.1.0`).
+
 ## [0.7.1] - 2024-03-09
 
 ### Changed
