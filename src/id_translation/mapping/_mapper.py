@@ -16,7 +16,13 @@ from . import filter_functions as mf
 from . import score_functions as sf
 from ._cardinality import Cardinality
 from ._directional_mapping import DirectionalMapping
-from .exceptions import MappingError, MappingWarning, UserMappingError, UserMappingWarning
+from .exceptions import (
+    MappingError,
+    UnmappedValuesError,
+    UnmappedValuesWarning,
+    UserMappingError,
+    UserMappingWarning,
+)
 from .types import CandidateType, ContextType, FilterFunction, ScoreFunction, UserOverrideFunction, ValueType
 
 with warnings.catch_warnings():
@@ -154,16 +160,21 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):
     def _report_unmapped(self, msg: str) -> None:
         if self.unmapped_values_action is ActionLevel.RAISE:
             msg += (
-                "\nHint: set "
+                "\nHint: Set "
                 f"unmapped_values_action='{ActionLevel.WARN.value}' or "
                 f"unmapped_values_action='{ActionLevel.IGNORE.value}' "
                 "to allow unmapped values."
             )
             self.logger.error(msg)
-            raise MappingError(msg)
+            raise UnmappedValuesError(msg)
         elif self.unmapped_values_action is ActionLevel.WARN:
             self.logger.warning(msg)
-            warnings.warn(msg, MappingWarning, stacklevel=2)
+            msg += (
+                "\nHint: Set "
+                f"unmapped_values_action='{ActionLevel.IGNORE.value}' to hide this warning, or"
+                f"unmapped_values_action='{ActionLevel.RAISE.value}' to raise an UnmappedValuesError."
+            )
+            warnings.warn(msg, UnmappedValuesWarning, stacklevel=2)
         else:
             self._get_verbose_logger().debug(msg)
 

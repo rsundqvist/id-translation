@@ -3,15 +3,15 @@
 from warnings import simplefilter as _simplefilter
 
 
-class ConfigurationError(ValueError):
+class ConfigurationError(TypeError):
     """Raised in case of bad configuration."""
 
 
-class ConnectionStatusError(ValueError):
+class ConnectionStatusError(ConnectionError):
     """Raised when trying to perform operations in a bad online/offline state."""
 
 
-class TranslationError(ValueError):
+class TranslationError(Exception):
     """Base class for translation errors."""
 
 

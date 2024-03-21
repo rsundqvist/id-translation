@@ -3,14 +3,18 @@
 from typing import Any as _Any
 
 
-class MappingError(ValueError):
-    """Something failed to map."""
+class MappingError(Exception):
+    """Base exception class for all mapping-related issues."""
 
     def __init__(self, msg: str, ref: str = "") -> None:
         link = "https://id-translation.readthedocs.io/en/stable/documentation/mapping-primer.html"
         if ref:
             link += f"#{ref}"
         super().__init__(f"{msg}\n\nFor help, please refer to the {link} page.")
+
+
+class UnmappedValuesError(MappingError):
+    """Raised when there are unmapped values left after filtering and unmapped_values_action='raise'."""
 
 
 class ScoringDisabledError(MappingError):
@@ -56,7 +60,11 @@ class CardinalityError(MappingError):
 
 
 class MappingWarning(UserWarning):
-    """Something failed to map."""
+    """Base warning class for all mapping-related issues."""
+
+
+class UnmappedValuesWarning(MappingWarning):
+    """Raised when there are unmapped values left after filtering and unmapped_values_action='raise'."""
 
 
 class UserMappingWarning(MappingWarning):

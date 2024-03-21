@@ -14,12 +14,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Python minimum version is now `3.11` (was `3.8`).
 - Minimum `pandas` version is now `2.0.3` (was `1.1.0`).
 - Minimum `sqlalchemy` version is now `2.0.5` (was `1.4.16`).
+- Updated base exceptions for several `id_translation.*.exceptions`-members:
+  * `DataStructureIOError`: `RuntimeError` -> `TypeError`
+  * `ConfigurationError`: `ValueError` -> `TypeError`
+  * `ConnectionStatusError`: `ValueError` -> `ConnectionError`
+  * `TranslationError`: `ValueError` -> `Exception`
+  * `MappingError`: `ValueError` -> `Exception`
+- Make  `unmapped_values_action != 'ignore'` actions more specific: Raise new `UnmappedValuesError(MappingError)` or 
+  warn `UnmappedValuesWarning(MappingWarning)` (used to raise parent types directly). Add hints to warning message.
 
 ## [0.7.1] - 2024-03-09
 
 ### Changed
 - Heuristic functions that accept a `plural_to_singular`-argument now also accept a custom transformer.
 - Expose read-only attributes `Translator.fmt` and `default_fmt`.
+- Updated base exceptions for several `id_translation.*.exceptions`-members:
+  * `DataStructureIOError`: `RuntimeError` -> `TypeError`
+  * `ConfigurationError`: `ValueError` -> `TypeError`
+  * `ConnectionStatusError`: `ValueError` -> `ConnectionError`
+  * `TranslationError`: `ValueError` -> `Exception`
+  * `MappingError`: `ValueError` -> `Exception`
+- Make  `unmapped_values_action != 'ignore'` actions more specific: Raise new `UnmappedValuesError(MappingError)` or 
+  warn `UnmappedValuesWarning(MappingWarning)` (used to raise parent types directly). Add hints to warning message.
 
 ### Fixed
 - Fixed an issue which sometimes caused a crash when verifying translations.
