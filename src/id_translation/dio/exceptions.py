@@ -3,7 +3,7 @@
 from typing import Any as _Any
 
 
-class DataStructureIOError(RuntimeError):
+class DataStructureIOError(TypeError):
     """Base class for IO exceptions."""
 
 

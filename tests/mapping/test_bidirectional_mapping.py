@@ -2,6 +2,7 @@ import itertools
 
 import pytest
 from id_translation.mapping import Cardinality, DirectionalMapping
+from id_translation.mapping.exceptions import CardinalityError
 from id_translation.mapping.types import LeftToRight
 
 
@@ -95,16 +96,15 @@ def test_reverse(mapping):
 @pytest.mark.parametrize(
     "cardinality, left_to_right, right_to_left, expected_error, expected_message",
     [
-        (None, None, None, ValueError, "at least one"),
-        (Cardinality.OneToOne, {"ab": ("AB", "A", "B")}, None, ValueError, "cannot cast explicit given "),
-        (None, {"ab": ("AB", "A", "B")}, {"ab": ("AB", "A", "B")}, ValueError, "side mismatch"),
+        (None, None, None, ValueError, "At least one"),
+        (Cardinality.OneToOne, {"ab": ("AB", "A", "B")}, None, CardinalityError, "Cannot cast explicit given "),
+        (None, {"ab": ("AB", "A", "B")}, {"ab": ("AB", "A", "B")}, ValueError, "Right-side mismatch"),
     ],
     ids=["No input", "Incorrect cardinality", "Incorrect bidirectional input"],
 )
 def test_invalid_inputs(cardinality, left_to_right, right_to_left, expected_error, expected_message):
-    with pytest.raises(expected_error) as e:
+    with pytest.raises(expected_error, match=expected_message):
         DirectionalMapping(cardinality, left_to_right=left_to_right, right_to_left=right_to_left, _verify=True)
-    assert expected_message in str(e.value).lower()
 
 
 def test_equal():
