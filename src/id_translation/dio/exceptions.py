@@ -1,6 +1,6 @@
 """Data structure I  exceptions."""
 
-from typing import Any, Type
+from typing import Any as _Any
 
 
 class DataStructureIOError(RuntimeError):
@@ -14,7 +14,7 @@ class UntranslatableTypeError(DataStructureIOError):
         t: A type.
     """
 
-    def __init__(self, t: Type[Any]) -> None:
+    def __init__(self, t: type[_Any]) -> None:
         super().__init__(f"Type {t} cannot be translated.")
 
 
@@ -25,5 +25,5 @@ class NotInplaceTranslatableError(DataStructureIOError):
         arg: Something that can't be translated inplace.
     """
 
-    def __init__(self, arg: Any) -> None:
+    def __init__(self, arg: _Any) -> None:
         super().__init__(f"Inplace translation not possible or implemented for type: {type(arg)}")

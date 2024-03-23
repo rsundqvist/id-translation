@@ -1,10 +1,12 @@
-from typing import Dict, Sequence
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
 import pytest
-
 from id_translation.dio import resolve_io
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 NAMES = list("abcd")
 VALUES = [3, 1, 5, 6]
@@ -17,7 +19,7 @@ def test_extract_single_explicit_name(ttype):
     except TypeError:
         data = ttype(VALUES)
 
-    actual: Dict[str, Sequence[int]] = resolve_io(data).extract(data, names=["a"])
+    actual: dict[str, Sequence[int]] = resolve_io(data).extract(data, names=["a"])
     assert len(actual) == 1
     assert sorted(actual["a"]) == sorted(VALUES)
 
@@ -25,5 +27,5 @@ def test_extract_single_explicit_name(ttype):
 @pytest.mark.parametrize("ttype", [list, tuple, pd.Index, pd.Series, np.array])
 def test_sequence_extract_multiple_names(ttype):
     data = ttype(VALUES)
-    actual: Dict[str, Sequence[int]] = resolve_io(data).extract(data, names=NAMES)
-    assert actual == {n: [v] for n, v, in zip(NAMES, VALUES)}
+    actual: dict[str, Sequence[int]] = resolve_io(data).extract(data, names=NAMES)
+    assert actual == {n: [v] for n, v in zip(NAMES, VALUES)}

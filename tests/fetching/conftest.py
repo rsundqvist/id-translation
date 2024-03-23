@@ -1,14 +1,12 @@
 from pathlib import Path
-from shutil import rmtree
 from tempfile import TemporaryDirectory
-from typing import Dict
 
 import pandas as pd
 import pytest
 
 
 @pytest.fixture(scope="module")
-def data() -> Dict[str, pd.DataFrame]:
+def data() -> dict[str, pd.DataFrame]:
     return {
         "animals": pd.DataFrame(
             {"id": [0, 1, 2], "name": ["Tarzan", "Morris", "Simba"], "is_nice": [False, True, True]}

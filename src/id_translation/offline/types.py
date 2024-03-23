@@ -1,6 +1,11 @@
 """Types used for offline translation."""
-import dataclasses
-from typing import TYPE_CHECKING, Any as _Any, Dict, Generic as _Generic, Sequence, Tuple, Union
+
+from collections.abc import Sequence as _Sequence
+from dataclasses import dataclass as _dataclass
+from typing import TYPE_CHECKING
+from typing import Any as _Any
+from typing import Generic as _Generic
+from typing import Union as _Union
 
 import pandas as pd
 
@@ -9,23 +14,23 @@ from ..types import ID, IdType, SourceType
 if TYPE_CHECKING:
     from ._format import Format
 
-FormatType = Union[str, "Format"]
+FormatType = _Union[str, "Format"]
 
-PlaceholdersTuple = Tuple[str, ...]
-TranslatedIds = Dict[IdType, str]  # {id: translation}
+PlaceholdersTuple = tuple[str, ...]
+TranslatedIds = dict[IdType, str]  # {id: translation}
 
 
-@dataclasses.dataclass
+@_dataclass
 class PlaceholderTranslations(_Generic[SourceType]):
     """Matrix of ID translation components returned by fetchers."""
 
-    MakeTypes = Union["PlaceholderTranslations", pd.DataFrame, Dict[str, Sequence]]  # type: ignore[type-arg]
+    MakeTypes = _Union["PlaceholderTranslations", pd.DataFrame, dict[str, _Sequence]]  # type: ignore[type-arg]
 
     source: SourceType
     """Source from which translations were retrieved."""
     placeholders: PlaceholdersTuple
     """Names of placeholders in the order in which they appear in `records`."""
-    records: Sequence[Sequence[_Any]]
+    records: _Sequence[_Sequence[_Any]]
     """Matrix of shape `N x M` where `N` is the number of IDs returned and `M` is the length of `placeholders`."""
     id_pos: int = -1
     """Position if the the ID placeholder in `placeholders`."""
@@ -54,7 +59,7 @@ class PlaceholderTranslations(_Generic[SourceType]):
 
         raise TypeError(data)  # pragma: no cover
 
-    def to_dict(self, max_rows: int = 0) -> Dict[str, Sequence[_Any]]:
+    def to_dict(self, max_rows: int = 0) -> dict[str, _Sequence[_Any]]:
         """Create a dict representation of the translations."""
         records = self.records[:max_rows] if max_rows else self.records
         return {placeholder: [row[i] for row in records] for i, placeholder in enumerate(self.placeholders)}
@@ -63,7 +68,7 @@ class PlaceholderTranslations(_Generic[SourceType]):
     def to_dicts(
         source_translations: "SourcePlaceholderTranslations[SourceType]",
         max_rows: int = 0,
-    ) -> Dict[SourceType, Dict[str, Sequence[_Any]]]:
+    ) -> dict[SourceType, dict[str, _Sequence[_Any]]]:
         """Create a nested dict representation of the translations."""
         return {source: translations.to_dict(max_rows) for source, translations in source_translations.items()}
 
@@ -73,14 +78,14 @@ class PlaceholderTranslations(_Generic[SourceType]):
         return cls(
             source,
             placeholders=tuple(data),
-            records=data.values.tolist(),
+            records=data.to_numpy().tolist(),
             id_pos=data.columns.get_loc(ID) if ID in data else -1,
         )
 
     @classmethod
-    def from_dict(cls, source: SourceType, data: Dict[str, Sequence[_Any]]) -> "PlaceholderTranslations[SourceType]":
+    def from_dict(cls, source: SourceType, data: dict[str, _Sequence[_Any]]) -> "PlaceholderTranslations[SourceType]":
         """Create instance from a dict."""
         return cls.from_dataframe(source, pd.DataFrame.from_dict(data))
 
 
-SourcePlaceholderTranslations = Dict[SourceType, PlaceholderTranslations[SourceType]]
+SourcePlaceholderTranslations = dict[SourceType, PlaceholderTranslations[SourceType]]

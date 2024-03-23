@@ -1,5 +1,7 @@
 """Errors and warnings related to fetching."""
-from typing import Any as _Any, Iterable
+
+from collections.abc import Iterable
+from typing import Any as _Any
 
 
 class FetcherWarning(RuntimeWarning):

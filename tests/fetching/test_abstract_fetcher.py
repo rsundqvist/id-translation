@@ -175,6 +175,7 @@ def test_new_cache_key_invalidates_cache():
 class CacheTestFetcher(MemoryFetcher[str, int]):
     def __init__(self, data: Dict[str, pd.DataFrame], key: str) -> None:
         super().__init__(data, fetch_all_cache_max_age="100d", cache_keys=[CacheTestFetcher.__name__] + [key])
+    def __init__(self, data: dict[str, pd.DataFrame], key: str) -> None:
         self.fetch_translations_call_count = 0
         self._online = True
 

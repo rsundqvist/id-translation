@@ -3,12 +3,12 @@ import sys
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, Tuple
+from typing import Any
 
 from rics.performance import format_seconds
 
 
-def _initialize_versions() -> Dict[str, str]:
+def _initialize_versions() -> dict[str, str]:
     from pandas import __version__ as pandas_version
     from rics import __version__ as rics
     from sqlalchemy import __version__ as sqlalchemy
@@ -37,17 +37,17 @@ class BaseMetadata(ABC):
         created: The time at which the metadata was originally created.
     """
 
-    def __init__(self, versions: Dict[str, str] = None, created: datetime = None) -> None:
+    def __init__(self, versions: dict[str, str] | None = None, created: datetime | None = None) -> None:
         self.versions = versions or _initialize_versions()
         self.created = created or datetime.now()
 
     @abstractmethod
-    def _serialize(self, to_json: Dict[str, Any]) -> Dict[str, Any]:
+    def _serialize(self, to_json: dict[str, Any]) -> dict[str, Any]:
         """Turn `to_json` into JSON-serializable types."""
 
     @classmethod
     @abstractmethod
-    def _deserialize(cls, from_json: Dict[str, Any]) -> Dict[str, Any]:
+    def _deserialize(cls, from_json: dict[str, Any]) -> dict[str, Any]:
         """Turn `from_json` into desired types."""
 
     @abstractmethod
@@ -91,7 +91,7 @@ class BaseMetadata(ABC):
         assert not raw, f"Not deserialized: {raw}."  # noqa:  S101
         return cls(**kwargs)
 
-    def use_cached(self, metadata_path: Path, max_age: timedelta) -> Tuple[bool, str]:
+    def use_cached(self, metadata_path: Path, max_age: timedelta) -> tuple[bool, str]:
         """Check status of stored metadata config based a desired configuration ``self``.
 
         Args:

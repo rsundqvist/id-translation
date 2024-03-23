@@ -4,12 +4,15 @@
 
    This module is considered an implementation detail, and may change without notice.
 """
+
 import logging
 import warnings
 from collections import defaultdict as _defaultdict
+from collections.abc import Iterable as _Iterable
 from contextlib import contextmanager as _contextmanager
 from dataclasses import dataclass as _dataclass
-from typing import Dict, Generic as _Generic, Iterable, List, Optional, Tuple
+from typing import Generic as _Generic
+from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -67,7 +70,7 @@ class MatchScores:
         logger: Explicit ``Logger`` instance to use.
     """
 
-    def __init__(self, scores: pd.DataFrame, min_score: float, logger: logging.Logger = None) -> None:
+    def __init__(self, scores: pd.DataFrame, min_score: float, logger: logging.Logger | None = None) -> None:
         self._min_score = min_score
         self._matrix = scores
         self._logger = _MATCH_SCORES_LOGGER if logger is None else logger
@@ -87,13 +90,13 @@ class MatchScores:
         Returns:
             A ``DirectionalMapping``.
         """
-        matches: List[MatchScores.Record[ValueType, CandidateType]]
-        rejections: List[MatchScores.Reject[ValueType, CandidateType]]
+        matches: list[MatchScores.Record[ValueType, CandidateType]]
+        rejections: list[MatchScores.Reject[ValueType, CandidateType]]
         matches, rejections = self._match(cardinality)
 
         left_to_right = _defaultdict(list)
         for record in list(matches):
-            supersedes: List[MatchScores.Reject[ValueType, CandidateType]] = []
+            supersedes: list[MatchScores.Reject[ValueType, CandidateType]] = []
             if self.logger.isEnabledFor(logging.DEBUG) and rejections:
                 for rr in rejections:
                     if record in (rr.superseding_value, rr.superseding_candidate):
@@ -128,9 +131,9 @@ class MatchScores:
 
     def _match(
         self, cardinality: _Cardinality = None
-    ) -> Tuple[List["MatchScores.Record[ValueType, CandidateType]"], List["Reject[ValueType, CandidateType]"]]:
-        rejections: Optional[List[MatchScores.Reject[ValueType, CandidateType]]] = None
-        records: List["MatchScores.Record[ValueType, CandidateType]"] = self.get_above()
+    ) -> tuple[list["MatchScores.Record[ValueType, CandidateType]"], list["Reject[ValueType, CandidateType]"]]:
+        rejections: list[MatchScores.Reject[ValueType, CandidateType]] | None = None
+        records: list["MatchScores.Record[ValueType, CandidateType]"] = self.get_above()
 
         if self.logger.isEnabledFor(logging.DEBUG):
             rejections = []
@@ -152,12 +155,12 @@ class MatchScores:
         sorted_scores.sort_values(ascending=False, inplace=True, kind="stable")
         return sorted_scores
 
-    def get_above(self) -> List["MatchScores.Record[ValueType, CandidateType]"]:
+    def get_above(self) -> list["MatchScores.Record[ValueType, CandidateType]"]:
         """Get all records with scores `above` the threshold."""
         s = self._get_sorted()
         return self._from_series(s[s >= self._min_score])
 
-    def get_below(self) -> List["MatchScores.Record[ValueType, CandidateType]"]:
+    def get_below(self) -> list["MatchScores.Record[ValueType, CandidateType]"]:
         """Get all records with scores `below` the threshold."""
         s = self._get_sorted()
         return self._from_series(s[s < self._min_score])
@@ -177,7 +180,7 @@ class MatchScores:
             return f"{repr(self.value)} -> '{self.candidate}'; score={self.score:.3f}"
 
     @classmethod
-    def _from_series(cls, s: pd.Series) -> List[Record[ValueType, CandidateType]]:
+    def _from_series(cls, s: pd.Series) -> list[Record[ValueType, CandidateType]]:
         return [MatchScores.Record(value, candidate, score) for (value, candidate), score in s.items()]
 
     @_dataclass(frozen=True)
@@ -224,7 +227,7 @@ class MatchScores:
     def _raise_if_ambiguous(
         self,
         record: Record,  # type: ignore[type-arg]
-        matches: Dict,  # type: ignore[type-arg]
+        matches: dict,  # type: ignore[type-arg]
         kind: str,
         cardinality: _Cardinality,
     ) -> None:
@@ -249,11 +252,11 @@ class MatchScores:
 
     def _select_one_to_one(
         self,
-        records: Iterable[Record[ValueType, CandidateType]],
-        rejections: List[Reject[ValueType, CandidateType]] = None,
-    ) -> Iterable[Record[ValueType, CandidateType]]:
-        mvs: Dict[ValueType, MatchScores.Record[ValueType, CandidateType]] = {}
-        mcs: Dict[CandidateType, MatchScores.Record[ValueType, CandidateType]] = {}
+        records: _Iterable[Record[ValueType, CandidateType]],
+        rejections: list[Reject[ValueType, CandidateType]] | None = None,
+    ) -> _Iterable[Record[ValueType, CandidateType]]:
+        mvs: dict[ValueType, MatchScores.Record[ValueType, CandidateType]] = {}
+        mcs: dict[CandidateType, MatchScores.Record[ValueType, CandidateType]] = {}
 
         for record in records:
             self._raise_if_ambiguous(record, mcs, "candidate", _Cardinality.OneToOne)
@@ -275,10 +278,10 @@ class MatchScores:
 
     def _select_one_to_many(
         self,
-        records: Iterable[Record[ValueType, CandidateType]],
-        rejections: List[Reject[ValueType, CandidateType]] = None,
-    ) -> Iterable[Record[ValueType, CandidateType]]:
-        mcs: Dict[CandidateType, MatchScores.Record[ValueType, CandidateType]] = {}
+        records: _Iterable[Record[ValueType, CandidateType]],
+        rejections: list[Reject[ValueType, CandidateType]] | None = None,
+    ) -> _Iterable[Record[ValueType, CandidateType]]:
+        mcs: dict[CandidateType, MatchScores.Record[ValueType, CandidateType]] = {}
 
         for record in records:
             self._raise_if_ambiguous(record, mcs, "candidate", _Cardinality.OneToMany)
@@ -292,10 +295,10 @@ class MatchScores:
 
     def _select_many_to_one(
         self,
-        records: Iterable[Record[ValueType, CandidateType]],
-        rejections: List[Reject[ValueType, CandidateType]] = None,
-    ) -> Iterable[Record[ValueType, CandidateType]]:
-        mvs: Dict[ValueType, MatchScores.Record[ValueType, CandidateType]] = {}
+        records: _Iterable[Record[ValueType, CandidateType]],
+        rejections: list[Reject[ValueType, CandidateType]] | None = None,
+    ) -> _Iterable[Record[ValueType, CandidateType]]:
+        mvs: dict[ValueType, MatchScores.Record[ValueType, CandidateType]] = {}
 
         for record in records:
             self._raise_if_ambiguous(record, mvs, "value", cardinality=_Cardinality.ManyToOne)
@@ -309,9 +312,9 @@ class MatchScores:
 
     def _select_many_to_many(
         self,
-        records: Iterable[Record[ValueType, CandidateType]],
-        rejections: List[Reject[ValueType, CandidateType]] = None,
-    ) -> Iterable[Record[ValueType, CandidateType]]:
+        records: _Iterable[Record[ValueType, CandidateType]],
+        rejections: list[Reject[ValueType, CandidateType]] | None = None,
+    ) -> _Iterable[Record[ValueType, CandidateType]]:
         for record in records:
             if record.score < self._min_score:
                 if rejections is not None:

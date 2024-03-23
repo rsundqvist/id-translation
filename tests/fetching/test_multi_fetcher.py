@@ -1,8 +1,7 @@
-from typing import Collection, Dict, List
+from collections.abc import Collection
 
 import pandas as pd
 import pytest
-
 from id_translation import Translator
 from id_translation.fetching import AbstractFetcher, MemoryFetcher, MultiFetcher, SqlFetcher, exceptions
 from id_translation.fetching.exceptions import FetcherWarning
@@ -13,7 +12,7 @@ from ..conftest import ROOT
 
 
 @pytest.fixture(scope="module")
-def fetchers(data: Dict[str, pd.DataFrame]) -> Collection[AbstractFetcher[str, int]]:
+def fetchers(data: dict[str, pd.DataFrame]) -> Collection[AbstractFetcher[str, int]]:
     humans_fetcher: MemoryFetcher[str, int] = MemoryFetcher({"humans": data["humans"]})
     empty_fetcher: MemoryFetcher[str, int] = MemoryFetcher(optional=True)
     everything_fetcher: MemoryFetcher[str, int] = MemoryFetcher(data)
@@ -59,11 +58,11 @@ def test_placeholders(multi_fetcher):
 def test_process_future():
     # Dict[str, Dict[str, List[int]]]
     # Dict[str, Dict[str, Sequence[Any]]]
-    children: List[MemoryFetcher[str, int]] = [MemoryFetcher({f"{i=}": {"id": [1, 2, 3]}}) for i in range(10)]
+    children: list[MemoryFetcher[str, int]] = [MemoryFetcher({f"{i=}": {"id": [1, 2, 3]}}) for i in range(10)]
     fetcher: MultiFetcher[str, int] = MultiFetcher(*children)
 
     ans: SourcePlaceholderTranslations[str] = {}
-    source_ranks: Dict[str, int] = {}
+    source_ranks: dict[str, int] = {}
 
     def make_and_process(rank):
         pht = PlaceholderTranslations.make("source", pd.DataFrame([rank], columns=["rank"]))
@@ -92,7 +91,7 @@ def test_fetch_all(multi_fetcher, expected):
     assert actual == expected
 
 
-def test_fetch(multi_fetcher: MultiFetcher[str, int], data: Dict[str, pd.DataFrame]) -> None:
+def test_fetch(multi_fetcher: MultiFetcher[str, int], data: dict[str, pd.DataFrame]) -> None:
     required = {"id"}
     placeholders = {"name", "is_nice"}
 
@@ -197,7 +196,7 @@ class CrashFetcher(MemoryFetcher[str, int]):
     def __str__(self) -> str:
         return f"CrashFetcher({self.crash}, optional={self.optional})"
 
-    def _initialize_sources(self, task_id: int) -> Dict[str, List[str]]:
+    def _initialize_sources(self, task_id: int) -> dict[str, list[str]]:
         if self.crash:
             raise ValueError("I crashed!")
 

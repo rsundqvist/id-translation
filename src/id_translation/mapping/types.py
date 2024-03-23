@@ -1,27 +1,29 @@
 """Types used for mapping."""
+
 import typing as _t
+from typing import Optional
 
 HL = _t.TypeVar("HL", bound=_t.Hashable)
 """_t.Hashable type on the left side of a directional relationship."""
 HR = _t.TypeVar("HR", bound=_t.Hashable)
 """_t.Hashable type on the right side of a directional relationship."""
-LeftToRight = _t.Dict[HL, _t.Tuple[HR, ...]]
+LeftToRight = dict[HL, tuple[HR, ...]]
 """A left-to-right mapping."""
-RightToLeft = _t.Dict[HR, _t.Tuple[HL, ...]]
+RightToLeft = dict[HR, tuple[HL, ...]]
 """A right-to-left mapping."""
 
 ValueType = _t.TypeVar("ValueType", bound=_t.Hashable)
 """A type of item being mapped."""
 CandidateType = _t.TypeVar("CandidateType", bound=_t.Hashable)
 """A type of item being mapped."""
-MatchTuple = _t.Tuple[CandidateType, ...]
+MatchTuple = tuple[CandidateType, ...]
 """A tuple of candidates matched to a value."""
 ContextType = _t.TypeVar("ContextType", bound=_t.Hashable)
 """Type of context in which mapping is being performed."""
 
 UserOverrideFunction = _t.Callable[
-    [ValueType, _t.Set[CandidateType], _t.Optional[ContextType]],
-    _t.Optional[CandidateType],
+    [ValueType, set[CandidateType], Optional[ContextType]],
+    Optional[CandidateType],
 ]
 """Signature for a user-defined override function.
 
@@ -35,7 +37,7 @@ Returns:
 """
 
 ScoreFunction = _t.Callable[
-    [ValueType, _t.Iterable[CandidateType], _t.Optional[ContextType]],
+    [ValueType, _t.Iterable[CandidateType], Optional[ContextType]],
     _t.Iterable[float],
 ]
 """Signature for a likeness score function.
@@ -53,8 +55,8 @@ Yields:
 """
 
 AliasFunction = _t.Callable[
-    [ValueType, _t.Iterable[CandidateType], _t.Optional[ContextType]],
-    _t.Tuple[ValueType, _t.Iterable[CandidateType]],
+    [ValueType, _t.Iterable[CandidateType], Optional[ContextType]],
+    tuple[ValueType, _t.Iterable[CandidateType]],
 ]
 """Signature for an alias function for heuristic scoring.
 
@@ -71,8 +73,8 @@ Returns:
 """
 
 FilterFunction = _t.Callable[
-    [ValueType, _t.Iterable[CandidateType], _t.Optional[ContextType]],
-    _t.Set[CandidateType],
+    [ValueType, _t.Iterable[CandidateType], Optional[ContextType]],
+    set[CandidateType],
 ]
 """Signature for a filter function.
 

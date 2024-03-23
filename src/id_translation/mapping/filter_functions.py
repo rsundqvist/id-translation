@@ -1,7 +1,9 @@
 """Functions that return a subset of candidates with which to continue the matching procedure."""
+
 import logging
 import re
-from typing import Any as _Any, Iterable, Set
+from collections.abc import Iterable as _Iterable
+from typing import Any as _Any
 
 from ..types import ID
 from . import exceptions
@@ -12,11 +14,11 @@ LOGGER = logging.getLogger(__package__).getChild("verbose").getChild("filter_fun
 
 def filter_names(
     value: str,
-    candidates: Iterable[str],
+    candidates: _Iterable[str],
     context: _Any,
     regex: str,
     remove: bool = False,
-) -> Set[str]:
+) -> set[str]:
     """Filter names to translate based on `regex`.
 
     Analogous to the built-in :py:func:`filter`-function, ``filter_names`` keep only the names that match the given
@@ -62,11 +64,11 @@ def filter_names(
 
 def filter_sources(
     value: str,
-    candidates: Iterable[str],
+    candidates: _Iterable[str],
     context: _Any,
     regex: str,
     remove: bool = False,
-) -> Set[str]:
+) -> set[str]:
     """Filter sources based on `regex`.
 
     Args:
@@ -110,12 +112,12 @@ def filter_sources(
 
 
 def filter_placeholders(
-    value: str,
-    candidates: Iterable[str],
+    value: str,  # noqa: ARG001
+    candidates: _Iterable[str],
     context: _Any,
     regex: str,
     remove: bool = False,
-) -> Set[str]:
+) -> set[str]:
     """Filter placeholders, as they appear in the source given by `context`, based on `regex`.
 
     Args:

@@ -3,7 +3,8 @@
 See Also:
     The :class:`~.HeuristicScore` class.
 """
-from typing import Iterable, Optional
+
+from collections.abc import Iterable as _Iterable
 
 from . import exceptions
 from .types import CandidateType, ContextType, ValueType
@@ -13,11 +14,12 @@ VERBOSE: bool = False
 
 def modified_hamming(
     name: str,
-    candidates: Iterable[str],
-    context: Optional[ContextType],
+    candidates: _Iterable[str],
+    context: ContextType | None,  # noqa: ARG001
+    *,
     add_length_ratio_term: bool = True,
     positional_penalty: float = 0.001,
-) -> Iterable[float]:
+) -> _Iterable[float]:
     """Compute hamming distance modified by length ratio, from the back. Score range is ``[0, 1]``.
 
     Keyword Args:
@@ -47,12 +49,16 @@ def modified_hamming(
     yield from (s - i * positional_penalty for i, s in enumerate(map(_apply, candidates)))
 
 
-def equality(value: ValueType, candidates: Iterable[CandidateType], context: Optional[ContextType]) -> Iterable[float]:
+def equality(
+    value: ValueType,
+    candidates: _Iterable[CandidateType],
+    context: ContextType | None,  # noqa: ARG001
+) -> _Iterable[float]:
     """Return 1.0 if ``k == c_i``, 0.0 otherwise.
 
     Examples:
         >>> from id_translation.mapping.score_functions import equality
-        >>> list(equality('a', 'aAb', context=None))
+        >>> list(equality("a", "aAb", context=None))
         [1.0, 0.0, 0.0]
     """
     yield from map(float, (value == c for c in candidates))
@@ -60,10 +66,10 @@ def equality(value: ValueType, candidates: Iterable[CandidateType], context: Opt
 
 def disabled(
     value: ValueType,
-    candidates: Iterable[CandidateType],
-    context: Optional[ContextType],
+    candidates: _Iterable[CandidateType],
+    context: ContextType | None,
     strict: bool = True,
-) -> Iterable[float]:
+) -> _Iterable[float]:
     """Special value to indicate that scoring logic has been disabled.
 
     This is a workaround to allow users to indicate that the scoring logic is disabled, and that overrides should be

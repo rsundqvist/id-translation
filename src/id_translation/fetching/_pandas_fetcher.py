@@ -1,5 +1,6 @@
+from collections.abc import Callable, Iterable, Mapping
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterable, List, Mapping, Union
+from typing import Any
 
 import pandas as pd
 from rics._internal_support.types import PathLikeType
@@ -43,9 +44,9 @@ class PandasFetcher(AbstractFetcher[str, IdType]):
 
     def __init__(
         self,
-        read_function: Union[PandasReadFunction, str] = "read_csv",
-        read_path_format: Union[str, FormatFn] = "data/{}.csv",
-        read_function_kwargs: Mapping[str, Any] = None,
+        read_function: PandasReadFunction | str = "read_csv",
+        read_path_format: str | FormatFn = "data/{}.csv",
+        read_function_kwargs: Mapping[str, Any] | None = None,
         online: bool = False,
         **kwargs: Any,
     ) -> None:
@@ -59,7 +60,7 @@ class PandasFetcher(AbstractFetcher[str, IdType]):
         self._online = online
         self._kwargs = read_function_kwargs or {}
 
-        self._source_paths: Dict[str, str] = {}
+        self._source_paths: dict[str, str] = {}
 
     def read(self, source_path: PathLikeType) -> pd.DataFrame:
         """Read a ``DataFrame`` from a source path.
@@ -105,7 +106,7 @@ class PandasFetcher(AbstractFetcher[str, IdType]):
 
         return source_paths
 
-    def _find_sources_fsspec(self, pattern: str) -> Dict[str, str]:
+    def _find_sources_fsspec(self, pattern: str) -> dict[str, str]:
         from fsspec.core import url_to_fs  # type: ignore
 
         fs, _ = url_to_fs(pattern, **self._kwargs.get("storage_options", {}))
@@ -118,13 +119,13 @@ class PandasFetcher(AbstractFetcher[str, IdType]):
 
         return source_paths
 
-    def _find_sources_pathlib(self, pattern: str) -> Dict[str, str]:
+    def _find_sources_pathlib(self, pattern: str) -> dict[str, str]:
         path = Path(pattern)
         iterator = path.parent.glob(path.name)
         return self._make_source_paths(iterator)
 
     @staticmethod
-    def _make_source_paths(iterator: Iterable[Path]) -> Dict[str, str]:
+    def _make_source_paths(iterator: Iterable[Path]) -> dict[str, str]:
         source_paths = {}
         for path in map(Path, iterator):
             source = path.with_suffix("").name

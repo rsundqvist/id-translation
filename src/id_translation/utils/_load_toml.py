@@ -1,13 +1,10 @@
 import sys
 from typing import Any, Dict
+from typing import Any
 
+import tomllib
 from rics._internal_support.types import PathLikeType
 from rics.misc import interpolate_environment_variables
-
-if sys.version_info >= (3, 11):
-    import tomllib
-else:
-    import tomli as tomllib  # pragma: no cover
 
 
 def load_toml_file(
@@ -16,7 +13,7 @@ def load_toml_file(
     allow_interpolation: bool = False,
     allow_nested: bool = False,
     allow_blank: bool = False,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Load a TOML file.
 
     This function reads a TOML file with forced `UTF-8` encoding (as per the standard). It will optionally perform

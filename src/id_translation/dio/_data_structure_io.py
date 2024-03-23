@@ -1,6 +1,8 @@
 """Insertion and extraction of IDs and translations."""
+
 from abc import abstractmethod
-from typing import Any, Dict, List, Optional, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 from ..offline import TranslationMap
 from ..types import IdType, NameType, SourceType
@@ -15,7 +17,7 @@ class DataStructureIO:
         """Return ``True`` if the implementation handles data for the type of `arg`."""
 
     @staticmethod
-    def names(translatable: Any) -> Optional[List[NameType]]:
+    def names(translatable: Any) -> list[NameType] | None:
         """Extract names from `translatable`.
 
         Args:
@@ -28,7 +30,7 @@ class DataStructureIO:
 
     @staticmethod
     @abstractmethod
-    def extract(translatable: Any, names: List[NameType]) -> Dict[NameType, Sequence[IdType]]:
+    def extract(translatable: Any, names: list[NameType]) -> dict[NameType, Sequence[IdType]]:
         """Extract IDs from `translatable`.
 
         Args:
@@ -42,8 +44,8 @@ class DataStructureIO:
     @staticmethod
     @abstractmethod
     def insert(
-        translatable: Any, names: List[NameType], tmap: TranslationMap[NameType, SourceType, IdType], copy: bool
-    ) -> Optional[Any]:
+        translatable: Any, names: list[NameType], tmap: TranslationMap[NameType, SourceType, IdType], copy: bool
+    ) -> Any | None:
         """Insert translations into `translatable`.
 
         Args:

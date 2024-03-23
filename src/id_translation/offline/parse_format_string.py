@@ -1,19 +1,14 @@
 """Utility module for parsing raw ``Format`` input strings."""
 
-import typing as _t
+import collections.abc as _abc
 from dataclasses import dataclass as _dataclass
 from string import Formatter as _Formatter
+from typing import Any as _Any
 
 OPTIONAL_BLOCK_START_DELIMITER = "["
 _START = OPTIONAL_BLOCK_START_DELIMITER
 OPTIONAL_BLOCK_END_DELIMITER = "]"
 _END = OPTIONAL_BLOCK_END_DELIMITER
-
-_formatter = _Formatter()
-_hint = (
-    f"Hint: Use double characters to escape '{_START}' and '{_END}', "
-    f"e.g. '{_START * 2}' to render a single '{_START}'-character."
-)
 
 
 class MalformedOptionalBlockError(ValueError):
@@ -44,6 +39,10 @@ class BadDelimiterError(MalformedOptionalBlockError):
  {problem_locations}""".strip()
             )
         else:
+            hint = (
+                f"Hint: Use double characters to escape '{_START}' and '{_END}', "
+                f"e.g. '{_START * 2}' to render a single '{_START}'-character."
+            )
             info = (
                 "there is no block to close"
                 if open_idx == -1
@@ -54,7 +53,7 @@ class BadDelimiterError(MalformedOptionalBlockError):
                 f"""Malformed optional block. Got '{format_string[idx]}' at i={idx}, but {info}.
     '{format_string}'
      {problem_locations}
-{_hint}""".strip()
+{hint}""".strip()
             )
 
 
@@ -64,7 +63,7 @@ class Element:
 
     part: str
     """String literal."""
-    placeholders: _t.List[str]
+    placeholders: list[str]
     """Placeholder names in `part`, if any."""
     required: bool
     """Flag indicating whether the element may be excluded."""
@@ -90,7 +89,7 @@ class Element:
         return Element(fmt, placeholders, not (placeholders and in_optional_block), "".join(parts))
 
     @classmethod
-    def parse_block(cls, block: str, defaults: _t.Mapping[str, _t.Any] = None) -> _t.Tuple[_t.List[str], _t.List[str]]:
+    def parse_block(cls, block: str, defaults: _abc.Mapping[str, _Any] | None = None) -> tuple[list[str], list[str]]:
         """Parse an entire block with optional defaults for placeholders found.
 
         Using `defaults`:
@@ -120,7 +119,9 @@ class Element:
         replaced_parts_index = []
         placeholders_index = []
 
-        for literal_text, field_name, format_spec, conversion in _formatter.parse(block):
+        formatter = _Formatter()
+
+        for literal_text, field_name, format_spec, conversion in formatter.parse(block):
             parts.append(literal_text.replace("{", "{{").replace("}", "}}"))
             if field_name:
                 placeholder, _, attribute = field_name.partition(".")
@@ -147,8 +148,8 @@ class Element:
         return parts, placeholders
 
 
-def _get_delimiter_index(part: str, *, start: bool) -> _t.Optional[int]:
-    def _exec(func: _t.Callable[[str], int], sign: str) -> _t.Optional[int]:
+def _get_delimiter_index(part: str, *, start: bool) -> int | None:
+    def _exec(func: _abc.Callable[[str], int], sign: str) -> int | None:
         try:
             return func(sign)
         except ValueError:
@@ -161,8 +162,11 @@ def _get_delimiter_index(part: str, *, start: bool) -> _t.Optional[int]:
 
 
 def _get_formatting_parts(
-    *, attribute: _t.Optional[str], conversion: _t.Optional[str], format_spec: _t.Optional[str]
-) -> _t.Iterable[str]:
+    *,
+    attribute: str | None,
+    conversion: str | None,
+    format_spec: str | None,
+) -> _abc.Iterable[str]:
     if attribute:
         yield "."
         yield attribute
@@ -174,7 +178,7 @@ def _get_formatting_parts(
         yield format_spec
 
 
-def get_elements(fmt: str) -> _t.List[Element]:
+def get_elements(fmt: str) -> list[Element]:  # noqa: PLR0912
     """Split a format string into elements.
 
     Args:

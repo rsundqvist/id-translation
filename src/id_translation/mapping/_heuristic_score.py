@@ -1,5 +1,6 @@
 import logging
-from typing import Any, Dict, Generic, Iterable, List, Optional, Tuple, Union
+from collections.abc import Iterable
+from typing import Any, Generic
 
 from rics.misc import get_by_full_name, tname
 
@@ -42,18 +43,19 @@ class HeuristicScore(Generic[ValueType, CandidateType, ContextType]):
 
     def __init__(
         self,
-        score_function: Union[str, ScoreFunction[ValueType, CandidateType, ContextType]],
+        score_function: str | ScoreFunction[ValueType, CandidateType, ContextType],
         heuristics: Iterable[
-            Union[
-                Union[str, HeuristicsTypes[ValueType, CandidateType, ContextType]],
-                Tuple[Union[str, HeuristicsTypes[ValueType, CandidateType, ContextType]], Dict[str, Any]],
-            ]
+            (
+                str
+                | HeuristicsTypes[ValueType, CandidateType, ContextType]
+                | tuple[str | HeuristicsTypes[ValueType, CandidateType, ContextType], dict[str, Any]]
+            )
         ],
     ) -> None:
         self._score: ScoreFunction[ValueType, CandidateType, ContextType] = (
             get_by_full_name(score_function, score_functions) if isinstance(score_function, str) else score_function
         )
-        self._heuristics: List[Tuple[HeuristicsTypes[ValueType, CandidateType, ContextType], Dict[str, Any]]] = []
+        self._heuristics: list[tuple[HeuristicsTypes[ValueType, CandidateType, ContextType], dict[str, Any]]] = []
 
         for h in heuristics:
             func, kwargs = h if isinstance(h, tuple) else (h, {})
@@ -66,8 +68,8 @@ class HeuristicScore(Generic[ValueType, CandidateType, ContextType]):
 
     def add_heuristic(
         self,
-        heuristic: Union[str, HeuristicsTypes[ValueType, CandidateType, ContextType]],
-        kwargs: Dict[str, Any] = None,
+        heuristic: str | HeuristicsTypes[ValueType, CandidateType, ContextType],
+        kwargs: dict[str, Any] | None = None,
     ) -> None:
         """Add a new heuristic."""
         new_heuristic = (_resolve_heuristic(heuristic), kwargs or {})
@@ -79,7 +81,7 @@ class HeuristicScore(Generic[ValueType, CandidateType, ContextType]):
         return f"{tname(self)}({score_function=}, {heuristics=})"
 
     def __call__(
-        self, value: ValueType, candidates: Iterable[CandidateType], context: Optional[ContextType], **kwargs: Any
+        self, value: ValueType, candidates: Iterable[CandidateType], context: ContextType | None, **kwargs: Any
     ) -> Iterable[float]:
         """Apply `score_function` with heuristics and short-circuiting."""
         candidates = list(candidates)
@@ -155,7 +157,7 @@ def _stringify(*args: Any) -> str:
 
 
 def _resolve_heuristic(
-    func_or_name: Union[str, HeuristicsTypes[ValueType, CandidateType, ContextType]]
+    func_or_name: str | HeuristicsTypes[ValueType, CandidateType, ContextType],
 ) -> HeuristicsTypes[ValueType, CandidateType, ContextType]:
     if isinstance(func_or_name, str):
         for m in filter_functions, heuristic_functions:

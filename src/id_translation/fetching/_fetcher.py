@@ -1,5 +1,6 @@
 from abc import abstractmethod
-from typing import Generic, Iterable
+from collections.abc import Iterable
+from typing import Generic
 
 from ..offline.types import SourcePlaceholderTranslations
 from ..types import HasSources, IdType, SourceType
@@ -50,7 +51,7 @@ class Fetcher(Generic[SourceType, IdType], HasSources[SourceType]):
         placeholders: Iterable[str] = (),
         *,
         required: Iterable[str] = (),
-        task_id: int = None,
+        task_id: int | None = None,
         enable_uuid_heuristics: bool = False,
     ) -> SourcePlaceholderTranslations[SourceType]:
         """Retrieve placeholder translations from the source.
@@ -82,7 +83,7 @@ class Fetcher(Generic[SourceType, IdType], HasSources[SourceType]):
         placeholders: Iterable[str] = (),
         *,
         required: Iterable[str] = (),
-        task_id: int = None,
+        task_id: int | None = None,
         enable_uuid_heuristics: bool = False,
     ) -> SourcePlaceholderTranslations[SourceType]:
         """Fetch as much data as possible.

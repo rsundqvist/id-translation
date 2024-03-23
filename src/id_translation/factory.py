@@ -1,18 +1,22 @@
 """Factory functions for translation classes."""
 
+from collections.abc import (
+    Callable as _Callable,
+)
+from collections.abc import (
+    Generator as _Generator,
+)
+from collections.abc import (
+    Iterable as _Iterable,
+)
 from contextlib import contextmanager as _contextmanager
 from pathlib import Path as _Path
+from typing import TYPE_CHECKING
 from typing import (
-    TYPE_CHECKING,
     Any as _Any,
-    Callable,
-    Dict,
-    Generator as _Generator,
+)
+from typing import (
     Generic as _Generic,
-    Iterable,
-    List,
-    Optional,
-    Type,
 )
 
 from rics import misc
@@ -20,15 +24,17 @@ from rics._internal_support.types import PathLikeType
 from rics.collections import dicts
 
 from . import exceptions, fetching
-from .mapping import HeuristicScore as _HeuristicScore, Mapper as _Mapper
+from .mapping import HeuristicScore as _HeuristicScore
+from .mapping import Mapper as _Mapper
 from .transform.types import Transformer as _Transformer
 from .types import IdType, NameType, SourceType
-from .utils import ConfigMetadata as _ConfigMetadata, load_toml_file as _load_toml_file
+from .utils import ConfigMetadata as _ConfigMetadata
+from .utils import load_toml_file as _load_toml_file
 
 if TYPE_CHECKING:
     from ._translator import Translator
 
-FetcherFactory = Callable[[str, Dict[str, _Any]], fetching.AbstractFetcher[_Any, _Any]]
+FetcherFactory = _Callable[[str, dict[str, _Any]], fetching.AbstractFetcher[_Any, _Any]]
 """A callable which creates new ``AbstractFetcher`` instances from a dict config.
 
 Config format is described in :ref:`translator-config-fetching`.
@@ -45,7 +51,7 @@ Raises:
     TypeError: If `clazz` is not an AbstractFetcher subtype.
 """
 
-MapperFactory = Callable[[Dict[str, _Any], bool], Optional[_Mapper[_Any, _Any, _Any]]]
+MapperFactory = _Callable[[dict[str, _Any], bool], _Mapper[_Any, _Any, _Any] | None]
 """A callable which creates new ``Mapper`` instances from a dict config.
 
 Config format is described in :ref:`translator-config-mapping`.
@@ -63,7 +69,7 @@ Raises:
     ConfigurationError: If `config` is invalid.
 """
 
-TransformerFactory = Callable[[str, Dict[str, _Any]], _Transformer[_Any]]
+TransformerFactory = _Callable[[str, dict[str, _Any]], _Transformer[_Any]]
 """A callable which creates new ``Transformer`` instances from a dict config.
 
 Config format is described in :ref:`translator-config-transform`.
@@ -80,7 +86,7 @@ Raises:
 """
 
 
-def default_fetcher_factory(clazz: str, config: Dict[str, _Any]) -> fetching.AbstractFetcher[SourceType, IdType]:
+def default_fetcher_factory(clazz: str, config: dict[str, _Any]) -> fetching.AbstractFetcher[SourceType, IdType]:
     """Create an ``AbstractFetcher`` from config."""
     fetcher_class = misc.get_by_full_name(clazz, default_module=fetching)
     fetcher = fetcher_class(**config)
@@ -89,7 +95,7 @@ def default_fetcher_factory(clazz: str, config: Dict[str, _Any]) -> fetching.Abs
     return fetcher
 
 
-def default_mapper_factory(config: Dict[str, _Any], for_fetcher: bool) -> Optional[_Mapper[_Any, _Any, _Any]]:
+def default_mapper_factory(config: dict[str, _Any], for_fetcher: bool) -> _Mapper[_Any, _Any, _Any] | None:
     """Create a ``Mapper`` from config."""
     if "score_function" in config and isinstance(config["score_function"], dict):
         score_function = config.pop("score_function")
@@ -140,7 +146,7 @@ def default_mapper_factory(config: Dict[str, _Any], for_fetcher: bool) -> Option
     return _Mapper(**config)
 
 
-def default_transformer_factory(clazz: str, config: Dict[str, _Any]) -> _Transformer[IdType]:
+def default_transformer_factory(clazz: str, config: dict[str, _Any]) -> _Transformer[IdType]:
     """Create a ``Transformer`` from config."""
     from rics.misc import get_by_full_name
 
@@ -169,14 +175,14 @@ class TranslatorFactory(_Generic[NameType, SourceType, IdType]):
     def __init__(
         self,
         file: PathLikeType,
-        fetchers: Iterable[PathLikeType],
-        clazz: Type["Translator[NameType, SourceType, IdType]"] = None,
+        fetchers: _Iterable[PathLikeType],
+        clazz: type["Translator[NameType, SourceType, IdType]"] | None = None,
     ) -> None:
         from ._translator import Translator
 
         self.file = str(file)
         self.extra_fetchers = list(map(str, fetchers))
-        self.clazz: Type[Translator[NameType, SourceType, IdType]] = clazz or Translator[NameType, SourceType, IdType]
+        self.clazz: type[Translator[NameType, SourceType, IdType]] = clazz or Translator[NameType, SourceType, IdType]
         self._metaconf = _read_metaconf(self.file)
 
     def create(self) -> "Translator[NameType, SourceType, IdType]":
@@ -187,7 +193,7 @@ class TranslatorFactory(_Generic[NameType, SourceType, IdType]):
             self.clazz,
         )
         with _rethrow_with_file(self.file):
-            config: Dict[str, _Any] = self.load_toml_file(self.file)
+            config: dict[str, _Any] = self.load_toml_file(self.file)
 
         fetcher: fetching.Fetcher[SourceType, IdType] = self._handle_fetching(
             config.pop("fetching", {}), self.extra_fetchers, _cache_keys_from_config_metadata(config_metadata)
@@ -211,7 +217,7 @@ class TranslatorFactory(_Generic[NameType, SourceType, IdType]):
             ans._config_metadata = config_metadata
             return ans
 
-    def load_toml_file(self, path: str) -> Dict[str, _Any]:
+    def load_toml_file(self, path: str) -> dict[str, _Any]:
         """Read a TOML file from `path`."""
         config = dict(allow_interpolation=True)
         config.update(self._metaconf.get("env", {}))
@@ -219,13 +225,13 @@ class TranslatorFactory(_Generic[NameType, SourceType, IdType]):
 
     def _handle_fetching(
         self,
-        config: Dict[str, _Any],
-        extra_fetchers: List[str],
-        default_cache_keys: List[List[str]],
+        config: dict[str, _Any],
+        extra_fetchers: list[str],
+        default_cache_keys: list[list[str]],
     ) -> fetching.Fetcher[SourceType, IdType]:
         multi_fetcher_kwargs = config.pop("MultiFetcher", {})
 
-        fetchers: List[fetching.Fetcher[SourceType, IdType]] = []
+        fetchers: list[fetching.Fetcher[SourceType, IdType]] = []
 
         if config:
             with _rethrow_with_file(self.file):
@@ -246,7 +252,7 @@ class TranslatorFactory(_Generic[NameType, SourceType, IdType]):
         return fetchers[0] if len(fetchers) == 1 else fetching.MultiFetcher(*fetchers, **multi_fetcher_kwargs)
 
     @classmethod
-    def _make_mapper(cls, parent_section: str, config: Dict[str, _Any]) -> Optional[_Mapper[_Any, _Any, _Any]]:
+    def _make_mapper(cls, parent_section: str, config: dict[str, _Any]) -> _Mapper[_Any, _Any, _Any] | None:
         if "mapping" not in config:
             return None  # pragma: no cover
 
@@ -258,7 +264,7 @@ class TranslatorFactory(_Generic[NameType, SourceType, IdType]):
         return TranslatorFactory.MAPPER_FACTORY(config, for_fetcher)
 
     @classmethod
-    def _make_fetcher(cls, cache_keys: List[str], **config: _Any) -> fetching.AbstractFetcher[SourceType, IdType]:
+    def _make_fetcher(cls, cache_keys: list[str], **config: _Any) -> fetching.AbstractFetcher[SourceType, IdType]:
         mapper = cls._make_mapper("fetching", config) if "mapping" in config else None
 
         if len(config) == 0:  # pragma: no cover
@@ -276,8 +282,8 @@ class TranslatorFactory(_Generic[NameType, SourceType, IdType]):
 
     @classmethod
     def _handler_transformers(
-        cls, per_source: Dict[SourceType, Dict[str, _Any]]
-    ) -> Dict[SourceType, _Transformer[IdType]]:
+        cls, per_source: dict[SourceType, dict[str, _Any]]
+    ) -> dict[SourceType, _Transformer[IdType]]:
         transformers = {}
 
         for source, config in per_source.items():
@@ -291,8 +297,8 @@ class TranslatorFactory(_Generic[NameType, SourceType, IdType]):
 
 
 def _make_default_translations(
-    out: Dict[str, _Any],
-    config: Dict[str, _Any],
+    out: dict[str, _Any],
+    config: dict[str, _Any],
 ) -> None:
     _check_allowed_keys(["fmt", "overrides"], config, toml_path="translator.unknown_ids")
 
@@ -303,7 +309,7 @@ def _make_default_translations(
         out["default_fmt_placeholders"] = dicts.InheritedKeysDict(specific, default=shared)
 
 
-def _check_allowed_keys(allowed: Iterable[str], actual: Iterable[str], toml_path: str) -> None:  # pragma: no cover
+def _check_allowed_keys(allowed: _Iterable[str], actual: _Iterable[str], toml_path: str) -> None:
     bad_keys = set(actual).difference(allowed)
     if bad_keys:
         raise ValueError(f"Forbidden keys {sorted(bad_keys)} in [{toml_path}]-section.")
@@ -315,12 +321,12 @@ def _split_overrides(overrides: _Any) -> _Any:
     return shared, specific
 
 
-def _cache_keys_from_config_metadata(config_metadata: _ConfigMetadata) -> List[List[str]]:
+def _cache_keys_from_config_metadata(config_metadata: _ConfigMetadata) -> list[list[str]]:
     # Use the config filename and sha hash as the default keys
-    return list(map(lambda t: [t[0].name, t[1]], (config_metadata.main,) + config_metadata.extra_fetchers))
+    return list(map(lambda t: [t[0].name, t[1]], (config_metadata.main, *config_metadata.extra_fetchers)))
 
 
-def _read_metaconf(file: str) -> Dict[str, _Any]:
+def _read_metaconf(file: str) -> dict[str, _Any]:
     path = _Path(file).with_name("metaconf.toml")
     if path.exists():
         metaconf = _load_toml_file(path)

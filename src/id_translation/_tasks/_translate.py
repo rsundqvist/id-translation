@@ -1,9 +1,10 @@
 import logging
 import warnings
 from collections import defaultdict
+from collections.abc import Sequence
 from copy import deepcopy
 from time import perf_counter
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Set, Union, get_args
+from typing import TYPE_CHECKING, Any, get_args
 
 from numpy import isnan, unique
 from rics.misc import tname
@@ -35,10 +36,10 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
         caller: "Translator[NameType, SourceType, IdType]",
         translatable: Translatable[NameType, IdType],
         fmt: Format,
-        names: Union[NameTypes[NameType], NameToSource[NameType, SourceType]] = None,
+        names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
         *,
         ignore_names: Names[NameType] = None,
-        override_function: UserOverrideFunction[NameType, SourceType, None] = None,
+        override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
         inplace: bool = False,
         maximal_untranslated_fraction: float = 1.0,
         reverse: bool = False,
@@ -59,16 +60,16 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
         self.inplace = inplace
         self.maximal_untranslated_fraction = maximal_untranslated_fraction
         self.reverse = reverse
-        self.parent: Optional[Translatable[NameType, IdType]] = None
+        self.parent: Translatable[NameType, IdType] | None = None
 
         self.enable_uuid_heuristics = enable_uuid_heuristics
 
         self.key_event_level = settings.TRANSLATE_ONLINE if self.caller.online else settings.TRANSLATE_OFFLINE
 
-        self._names_without_ids: Set[NameType] = set()
+        self._names_without_ids: set[NameType] = set()
 
     @property
-    def io_names(self) -> List[NameType]:
+    def io_names(self) -> list[NameType]:
         """Names for which IDs should be extracted from the `translatable`."""
         # Preserve input order for names, if given. These names may be repeated.
         if self.names_from_user is None:
@@ -78,12 +79,12 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
 
         return [n for n in names if n not in self._names_without_ids]
 
-    def extract_ids(self) -> Dict[SourceType, Set[IdType]]:
+    def extract_ids(self) -> dict[SourceType, set[IdType]]:
         """Extract IDs to fetch from the translatable."""
         name_to_source = self.name_to_source
-        source_to_ids: Dict[SourceType, Set[IdType]] = defaultdict(set)
+        source_to_ids: dict[SourceType, set[IdType]] = defaultdict(set)
 
-        float_names: List[NameType] = []
+        float_names: list[NameType] = []
         num_coerced = 0
         ids: Sequence[IdType]
         for name, ids in self._extract_ids().items():
@@ -178,7 +179,7 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
 
     def insert(
         self, translation_map: TranslationMap[NameType, SourceType, IdType]
-    ) -> Optional[Translatable[NameType, str]]:
+    ) -> Translatable[NameType, str] | None:
         """Insert translated IDs into the `translatable`, based on data retrieved by the fetcher."""
         inplace = self.inplace
 
@@ -252,14 +253,14 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
                 message = message.format(reason=", above limit; DEBUG logging is enabled")
                 LOGGER.debug(message, extra=extra)
 
-    def _name_to_ids_in_order(self) -> Dict[NameType, Sequence[Any]]:
-        name_to_ids: Dict[NameType, Sequence[Any]] = self._extract_ids()
+    def _name_to_ids_in_order(self) -> dict[NameType, Sequence[Any]]:
+        name_to_ids: dict[NameType, Sequence[Any]] = self._extract_ids()
         if self.enable_uuid_heuristics:
             name_to_ids = {name: _uuid_utils.try_cast_many(name_to_ids[name]) for name in name_to_ids}
         return name_to_ids
 
-    def _extract_ids(self) -> Dict[NameType, Sequence[IdType]]:
-        name_to_ids: Dict[NameType, Sequence[IdType]] = self.io.extract(self.translatable, self.io_names)
+    def _extract_ids(self) -> dict[NameType, Sequence[IdType]]:
+        name_to_ids: dict[NameType, Sequence[IdType]] = self.io.extract(self.translatable, self.io_names)
 
         name_to_ids = {name: ids for name, ids in name_to_ids.items() if len(ids) > 0}
         if not self._names_without_ids:
@@ -270,8 +271,8 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
     def _get_untranslated_ids(
         ids: Sequence[IdType],
         *,
-        mask: Sequence[Optional[str]],
-    ) -> List[IdType]:
+        mask: Sequence[str | None],
+    ) -> list[IdType]:
         seen = set()
         retval = []
 

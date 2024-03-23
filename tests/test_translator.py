@@ -2,12 +2,11 @@ import logging
 from contextlib import contextmanager
 from dataclasses import dataclass
 from itertools import combinations_with_replacement
-from typing import Any, List, Optional
+from typing import Any
 
 import numpy as np
 import pandas as pd
 import pytest
-
 from id_translation import Translator as RealTranslator
 from id_translation.dio.exceptions import NotInplaceTranslatableError, UntranslatableTypeError
 from id_translation.exceptions import MissingNamesError, TooManyFailedTranslationsError, TranslationDisabledWarning
@@ -60,7 +59,7 @@ def test_dummy_translation_doesnt_crash(with_id, with_override, store):
     names = list(map("placeholder{}".format, range(3)))
     data = np.random.randint(0, 100, (3, 10))
 
-    def override_function(name: str, *_: Any) -> Optional[str]:
+    def override_function(name: str, *_: Any) -> str | None:
         return names[0] if name == "id" else None
 
     if with_id:
@@ -446,7 +445,7 @@ def test_load_persistent_instance(tmp_path):
     config_path = ROOT.joinpath("dvdrental/translation.toml")  # Uses an in-memory fetcher.
 
     expected = ["<Failed: id=0>", "1:Action", "2:Animation"]
-    translatable: List[int] = [0, 1, 2]
+    translatable: list[int] = [0, 1, 2]
     args = (translatable, "category_id")
 
     translator = UnitTestTranslator.load_persistent_instance(tmp_path, config_path)
@@ -616,17 +615,15 @@ class TestTranslatedNames:
 
     @staticmethod
     def type_check():
-        from typing import Dict
-
-        from typing_extensions import assert_type  # assert_type: 3.11
+        from typing import assert_type
 
         without_source = UnitTestTranslator().translated_names()
-        assert_type(without_source, List[str])
+        assert_type(without_source, list[str])
         without_source = UnitTestTranslator().translated_names(False)
-        assert_type(without_source, List[str])
+        assert_type(without_source, list[str])
 
         with_source = UnitTestTranslator().translated_names(True)
-        assert_type(with_source, Dict[str, str])
+        assert_type(with_source, dict[str, str])
 
 
 def test_fetch(translator):

@@ -1,5 +1,6 @@
 import logging
-from typing import Any, Iterator, MutableMapping, Optional, Tuple
+from collections.abc import Iterator, MutableMapping
+from typing import Any
 
 from rics.misc import tname
 
@@ -25,8 +26,8 @@ class MagicDict(MutableMapping[IdType, str]):
         Behaviour with :attr:`default_value`.
 
         >>> magic = MagicDict(
-        ...    {1999: "1999:Sofia", 1991: "1991:Richard"},
-        ...    default_value="<Failed: id={!r}>",
+        ...     {1999: "1999:Sofia", 1991: "1991:Richard"},
+        ...     default_value="<Failed: id={!r}>",
         ... )
         >>> magic
         {1999: '1999:Sofia', 1991: '1991:Richard'}
@@ -43,8 +44,8 @@ class MagicDict(MutableMapping[IdType, str]):
         >>> from uuid import UUID
         >>> string_uuid = "550e8400-e29b-41d4-a716-446655440000"
         >>> magic = MagicDict(
-        ...    {string_uuid: "Found!"},
-        ...    enable_uuid_heuristics=True,
+        ...     {string_uuid: "Found!"},
+        ...     enable_uuid_heuristics=True,
         ... )
         >>> magic
         {UUID('550e8400-e29b-41d4-a716-446655440000'): 'Found!'}
@@ -65,7 +66,7 @@ class MagicDict(MutableMapping[IdType, str]):
     def __init__(
         self,
         real_translations: TranslatedIds[IdType],
-        default_value: str = None,
+        default_value: str | None = None,
         enable_uuid_heuristics: bool = True,
         transformer: Transformer[IdType] = None,
     ) -> None:
@@ -82,7 +83,7 @@ class MagicDict(MutableMapping[IdType, str]):
             self._try_add_missing_key = transformer.try_add_missing_key
 
     @property
-    def default_value(self) -> Optional[str]:
+    def default_value(self) -> str | None:
         """Return the default string value to return for unknown keys, if any."""
         return self._default
 
@@ -134,7 +135,7 @@ class MagicDict(MutableMapping[IdType, str]):
         return repr(self._real)
 
 
-def _try_stringify_many(real_translations: TranslatedIds[IdType]) -> Tuple[TranslatedIds[IdType], bool]:
+def _try_stringify_many(real_translations: TranslatedIds[IdType]) -> tuple[TranslatedIds[IdType], bool]:
     original_ids = list(real_translations)
     try:
         new_keys = _uuid_utils.cast_many(original_ids)

@@ -1,7 +1,5 @@
-from typing import NoReturn
+from typing import NoReturn, assert_type
 from uuid import UUID
-
-from typing_extensions import assert_type
 
 from id_translation import Translator
 from id_translation.types import IdTypes

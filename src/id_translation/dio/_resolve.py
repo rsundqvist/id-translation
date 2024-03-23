@@ -1,5 +1,5 @@
 import logging
-from typing import Any, List, Type
+from typing import Any
 
 from rics.misc import get_public_module, tname
 
@@ -11,7 +11,7 @@ from ._set import SetIO
 from ._single_value import SingleValueIO
 from .exceptions import UntranslatableTypeError
 
-RESOLUTION_ORDER: List[Type[DataStructureIO]] = [
+RESOLUTION_ORDER: list[type[DataStructureIO]] = [
     DictIO,
     SetIO,
     PandasIO,
@@ -21,7 +21,7 @@ RESOLUTION_ORDER: List[Type[DataStructureIO]] = [
 LOGGER = logging.getLogger(__package__)
 
 
-def resolve_io(arg: Any) -> Type[DataStructureIO]:
+def resolve_io(arg: Any) -> type[DataStructureIO]:
     """Get an IO instance for `arg`.
 
     Args:
@@ -48,7 +48,7 @@ def resolve_io(arg: Any) -> Type[DataStructureIO]:
     raise UntranslatableTypeError(type(arg))
 
 
-def register_io(io: Type[DataStructureIO]) -> None:
+def register_io(io: type[DataStructureIO]) -> None:
     """Register a new IO implementation.
 
     This will simply add `io` to the head of the internal list of IOs. The IO framework expects ``DataStructureIO``
@@ -64,5 +64,5 @@ def register_io(io: Type[DataStructureIO]) -> None:
         LOGGER.debug(f"Registered custom IO implementation: '{_pretty_io_name(io)}'.")
 
 
-def _pretty_io_name(io: Type[DataStructureIO]) -> str:
+def _pretty_io_name(io: type[DataStructureIO]) -> str:
     return get_public_module(io, resolve_reexport=True) + "." + tname(io, prefix_classname=True)

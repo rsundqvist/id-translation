@@ -1,5 +1,6 @@
 """Mapping errors."""
-from typing import Any, Set
+
+from typing import Any as _Any
 
 
 class MappingError(ValueError):
@@ -15,7 +16,7 @@ class MappingError(ValueError):
 class ScoringDisabledError(MappingError):
     """Indicates that the scoring logic has been disabled. Raised by :func:`.score_functions.disabled`."""
 
-    def __init__(self, value: Any, candidates: Any, context: Any) -> None:
+    def __init__(self, value: _Any, candidates: _Any, context: _Any) -> None:
         super().__init__(
             "Scoring disabled.\n"
             f"The Mapper is working in strict override-only mode, so the {value=} in {context=} "
@@ -33,7 +34,7 @@ class ScoringDisabledError(MappingError):
 class AmbiguousScoreError(MappingError):
     """Indicates that the scoring logic has produces ambiguous scores."""
 
-    def __init__(self, kind: str, key: Any, match0: Any, match1: Any, cardinality: str, scores: str) -> None:
+    def __init__(self, kind: str, key: _Any, match0: _Any, match1: _Any, cardinality: str, scores: str) -> None:
         hint = f"\n{scores}\nInspect the matrix above for details. You may wish to use a different scoring method."
         super().__init__(
             f"Ambiguous mapping of {kind}={key!r}; matches ({match0}) and ({match1}) "
@@ -44,7 +45,7 @@ class AmbiguousScoreError(MappingError):
 class UserMappingError(MappingError):
     """A user-defined mapping function did something forbidden."""
 
-    def __init__(self, msg: str, value: Any, candidates: Set[Any]) -> None:
+    def __init__(self, msg: str, value: _Any, candidates: set[_Any]) -> None:
         super().__init__(msg)
         self.value = value
         self.candidates = candidates

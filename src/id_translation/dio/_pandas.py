@@ -1,6 +1,7 @@
 import warnings
 from collections import defaultdict
-from typing import Any, Dict, List, Optional, Sequence, TypeVar, Union
+from collections.abc import Sequence
+from typing import Any, TypeVar
 
 import pandas as pd
 from pandas.api.types import is_float_dtype, is_numeric_dtype
@@ -23,7 +24,7 @@ class PandasIO(DataStructureIO):
         return isinstance(arg, (pd.DataFrame, pd.Series, pd.Index))
 
     @staticmethod
-    def names(translatable: T) -> Optional[List[NameType]]:
+    def names(translatable: T) -> list[NameType] | None:
         if isinstance(translatable, pd.DataFrame):
             return list(translatable.columns)
 
@@ -34,7 +35,7 @@ class PandasIO(DataStructureIO):
         return None if translatable.name is None else [translatable.name]
 
     @staticmethod
-    def extract(translatable: T, names: List[NameType]) -> Dict[NameType, Sequence[IdType]]:
+    def extract(translatable: T, names: list[NameType]) -> dict[NameType, Sequence[IdType]]:
         if isinstance(translatable, pd.DataFrame):
             ans = defaultdict(list)
             for i, name in enumerate(translatable.columns):
@@ -56,8 +57,8 @@ class PandasIO(DataStructureIO):
 
     @staticmethod
     def insert(
-        translatable: T, names: List[NameType], tmap: TranslationMap[NameType, SourceType, IdType], copy: bool
-    ) -> Optional[T]:
+        translatable: T, names: list[NameType], tmap: TranslationMap[NameType, SourceType, IdType], copy: bool
+    ) -> T | None:
         if not copy:
             if isinstance(translatable, pd.DataFrame):
                 pass  # Ok
@@ -105,16 +106,16 @@ class PandasIO(DataStructureIO):
 
 def _translate_pandas_vector(
     pvt: PandasVectorT,
-    names: List[NameType],
+    names: list[NameType],
     tmap: TranslationMap[NameType, SourceType, IdType],
-) -> Union[List[Optional[str]], PandasVectorT]:
+) -> list[str | None] | PandasVectorT:
     verify_names(len(pvt), names)
 
     if len(names) == 1:
         # Optimization for single-name vectors. Faster than SequenceIO for pretty much every size.
         magic_dict = tmap[names[0]]
 
-        mapping: Dict[IdType, Optional[str]]
+        mapping: dict[IdType, str | None]
         if is_numeric_dtype(pvt):
             # We don't need to cast float to int here, since hash(1.0) == hash(1). The cast in extract() is required
             # because some database drivers may complain, especially if they receive floats (especially NaN).
@@ -122,7 +123,7 @@ def _translate_pandas_vector(
             return pvt.map(mapping)
         else:
             mapping = {}
-            data: List[Any] = pvt.to_list()
+            data: list[Any] = pvt.to_list()
             for i, idx in enumerate(data):
                 if idx in mapping:
                     value = mapping[idx]

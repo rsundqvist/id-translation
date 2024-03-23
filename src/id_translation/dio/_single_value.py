@@ -1,4 +1,5 @@
-from typing import Any, Dict, List, Sequence
+from collections.abc import Sequence
+from typing import Any
 from uuid import UUID
 
 from ..offline import TranslationMap
@@ -15,7 +16,7 @@ class SingleValueIO(DataStructureIO):
         return isinstance(arg, (int, str, UUID))
 
     @staticmethod
-    def extract(translatable: IdType, names: List[NameType]) -> Dict[NameType, Sequence[IdType]]:
+    def extract(translatable: IdType, names: list[NameType]) -> dict[NameType, Sequence[IdType]]:
         if len(names) != 1:  # pragma: no cover
             raise ValueError("Length of names must be one.")
 
@@ -23,7 +24,7 @@ class SingleValueIO(DataStructureIO):
 
     @staticmethod
     def insert(
-        translatable: IdType, names: List[NameType], tmap: TranslationMap[NameType, SourceType, IdType], copy: bool
+        translatable: IdType, names: list[NameType], tmap: TranslationMap[NameType, SourceType, IdType], copy: bool
     ) -> str:
         if not copy:  # pragma: no cover
             raise NotInplaceTranslatableError(translatable)
