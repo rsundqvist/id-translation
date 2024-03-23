@@ -70,7 +70,7 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         if isinstance(optional_fetcher_discarded_log_level, str):
             as_int = logging.getLevelName(optional_fetcher_discarded_log_level.upper())
             if not isinstance(as_int, int):
-                raise ValueError(
+                raise TypeError(
                     f"Bad {optional_fetcher_discarded_log_level=}. Use an integer or a valid log level name."
                 )
             optional_fetcher_discarded_log_level = as_int
@@ -112,17 +112,19 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         self._source_to_id = self._make_source_to_id(fid_to_placeholders)
 
         self._placeholders = {}
-        for fid, placeholders in fid_to_placeholders.items():
-            original = dict(placeholders)
+        for fid, source_to_placeholders in fid_to_placeholders.items():
+            discarded = dict(source_to_placeholders)
             placeholders = {
-                source: placeholders[source] for source in placeholders if self._source_to_id[source] == fid
+                source: placeholders
+                for source, placeholders in source_to_placeholders.items()
+                if self._source_to_id[source] == fid
             }
 
             if placeholders:
                 self._placeholders.update(placeholders)
                 continue
 
-            self._handle_all_sources_outranked(task_id, fetcher_id=fid, discarded=original)
+            self._handle_all_sources_outranked(task_id, fetcher_id=fid, discarded=discarded)
 
         if not self._id_to_fetcher:
             warnings.warn("No fetchers. See log output for more information.", UserWarning, stacklevel=1)
@@ -135,7 +137,7 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
                 try:
                     fetcher.initialize_sources(task_id, force=True)
                     placeholders = fetcher.placeholders
-                except Exception as e:  # noqa: B902
+                except Exception as e:
                     LOGGER.log(
                         self._optional_discard_level,
                         "Discarding optional %s: Raised\n    %s\nwhen getting sources.",
@@ -398,13 +400,12 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
 
         if action is ActionLevel.IGNORE:
             LOGGER.debug(msg)
+        elif action is ActionLevel.RAISE:
+            LOGGER.error(msg)
+            raise exceptions.DuplicateSourceError(msg)
         else:
-            if action is ActionLevel.RAISE:
-                LOGGER.error(msg)
-                raise exceptions.DuplicateSourceError(msg)
-            else:
-                warnings.warn(msg, exceptions.DuplicateSourceWarning, stacklevel=2)
-                LOGGER.warning(msg)
+            warnings.warn(msg, exceptions.DuplicateSourceWarning, stacklevel=2)
+            LOGGER.warning(msg)
 
     def __repr__(self) -> str:
         max_workers = self.max_workers

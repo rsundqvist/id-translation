@@ -37,7 +37,7 @@ def enable_verbose_debug_messages():  # type: ignore  # noqa
     >>> from id_translation.mapping import Mapper, support
     >>> with support.enable_verbose_debug_messages():
     ...     Mapper().apply("ab", candidates="abc")
-    """  # noqa: DAR301
+    """
     from . import _VERBOSE_LOGGER, _mapper, filter_functions, heuristic_functions, score_functions
 
     before = filter_functions.VERBOSE, heuristic_functions.VERBOSE, score_functions.VERBOSE, _VERBOSE_LOGGER.disabled
@@ -100,7 +100,7 @@ class MatchScores:
             if self.logger.isEnabledFor(logging.DEBUG) and rejections:
                 for rr in rejections:
                     if record in (rr.superseding_value, rr.superseding_candidate):
-                        supersedes.append(rr)
+                        supersedes.append(rr)  # noqa: PERF401
 
             if self.logger.isEnabledFor(logging.DEBUG):
                 reason = "(short-circuit or override)" if record.score == np.inf else f">= {self._min_score}"
@@ -116,8 +116,8 @@ class MatchScores:
             unmapped_values = set(self._matrix.index.difference(left_to_right))
             for value in unmapped_values:
                 lst = []
-                for rr in filter(lambda r: r.record.value == value, rejections):  # noqa: B023
-                    lst.append(f"    {rr.explain(self._min_score, full=True)}")
+                for rr in filter(lambda r: r.record.value == value, rejections):
+                    lst.append(f"    {rr.explain(self._min_score, full=True)}")  # noqa: PERF401
                 value_reasons = "\n".join(lst)
                 self.logger.debug(f"Could not map {value=}:\n{value_reasons}")
 
@@ -151,8 +151,8 @@ class MatchScores:
         return list(matches), rejections or []
 
     def _get_sorted(self) -> pd.Series:
-        sorted_scores: pd.Series = self._matrix.stack()
-        sorted_scores.sort_values(ascending=False, inplace=True, kind="stable")
+        sorted_scores: pd.Series = self._matrix.stack()  # noqa: PD013
+        sorted_scores = sorted_scores.sort_values(ascending=False, kind="stable")
         return sorted_scores
 
     def get_above(self) -> list["MatchScores.Record[ValueType, CandidateType]"]:
@@ -177,7 +177,7 @@ class MatchScores:
         """Likeness score computed by some scoring function."""
 
         def __str__(self) -> str:
-            return f"{repr(self.value)} -> '{self.candidate}'; score={self.score:.3f}"
+            return f"{self.value!r} -> '{self.candidate}'; score={self.score:.3f}"
 
     @classmethod
     def _from_series(cls, s: pd.Series) -> list[Record[ValueType, CandidateType]]:
@@ -216,10 +216,10 @@ class MatchScores:
                 ands = []
                 if self.superseding_value:
                     extra = f": {self.superseding_value}" if full else ""
-                    ands.append(f"value={repr(self.superseding_value.value)}{extra}")
+                    ands.append(f"value={self.superseding_value.value!r}{extra}")
                 if self.superseding_candidate:
                     extra = f": {self.superseding_candidate}" if full else ""
-                    ands.append(f"candidate={repr(self.superseding_candidate.candidate)}{extra}")
+                    ands.append(f"candidate={self.superseding_candidate.candidate!r}{extra}")
                 why = f" (superseded on {' and '.join(ands)})"
 
             return f"{self.record}{why}."

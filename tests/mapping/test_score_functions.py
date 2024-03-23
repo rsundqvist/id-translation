@@ -1,9 +1,8 @@
 from pathlib import Path
 
 import pytest
-from numpy.random import choice, randint
-
 from id_translation.mapping import score_functions as sf
+from numpy.random import default_rng
 
 WORDS = Path(__file__).parent.joinpath("words.txt").read_text().splitlines()
 
@@ -43,12 +42,15 @@ def make(count, dtype):
 def make_str(count):
     ans = []
 
+    rng = default_rng(2019_05_11)
+
     for i in range(count):
         joiner = ["-", "_"][i % 2]
-        ans.append(joiner.join(choice(WORDS, randint(1, 4))))
+        ans.append(joiner.join(rng.choice(WORDS, rng.integers(1, 4))))
 
     return ans
 
 
 def make_int(count):
-    return list(randint(-10, 10, count))
+    rng = default_rng(2019_05_11)
+    return list(rng.integers(-10, 10, count))

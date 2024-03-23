@@ -17,7 +17,7 @@ class KeyEventLogLevel(_t.NamedTuple):
          based on type='DataFrame'.
     """
 
-    exit: int = _l.DEBUG  # noqa: A003
+    exit: int = _l.DEBUG
     """Log level for the ``EXIT`` message, e.g. ``TRANSLATOR.TRANSLATE.EXIT``.
 
     .. code-block:: python
@@ -29,7 +29,7 @@ class KeyEventLogLevel(_t.NamedTuple):
     """
 
 
-class logging:
+class logging:  # noqa: N801
     """Global logging settings used by all instances."""
 
     TRANSLATE_ONLINE: KeyEventLogLevel = KeyEventLogLevel(exit=_l.INFO)

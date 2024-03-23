@@ -9,8 +9,7 @@ with warnings.catch_warnings():
     from id_translation.mapping import Cardinality, DirectionalMapping, support
 
 
-@pytest.mark.parametrize("crash", [True, False])
-def test_enable_verbose_debug_messages(crash):
+def test_enable_verbose_debug_messages():
     from id_translation.mapping import filter_functions, heuristic_functions, score_functions
 
     before = False, True, False
@@ -19,7 +18,7 @@ def test_enable_verbose_debug_messages(crash):
     with support.enable_verbose_debug_messages():
         assert all((filter_functions.VERBOSE, heuristic_functions.VERBOSE, score_functions.VERBOSE))
 
-    assert (filter_functions.VERBOSE, heuristic_functions.VERBOSE, score_functions.VERBOSE) == before
+    assert before == (filter_functions.VERBOSE, heuristic_functions.VERBOSE, score_functions.VERBOSE)
 
 
 @pytest.mark.parametrize(

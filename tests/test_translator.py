@@ -57,7 +57,7 @@ def test_dummy_translation_doesnt_crash(with_id, with_override, store):
     t = UnitTestTranslator(fmt="{id}:{first}:{second}:{third}")
 
     names = list(map("placeholder{}".format, range(3)))
-    data = np.random.randint(0, 100, (3, 10))
+    data = np.random.default_rng(2019_05_11).integers(0, 100, (3, 10))
 
     def override_function(name: str, *_: Any) -> str | None:
         return names[0] if name == "id" else None
@@ -276,13 +276,13 @@ def test_extra_placeholder():
         default_fmt="{id}:{right}",
         default_fmt_placeholders=dict(default={"left": "left-value", "right": "right-value"}),
     )
-    assert "1:right-value" == t.translate(1, names="people")
+    assert t.translate(1, names="people") == "1:right-value"
 
-    t = t.copy(default_fmt="{left}, {right}")  # type: ignore[assignment]
-    assert "left-value, right-value" == t.translate(1, names="people")
+    t = t.copy(default_fmt="{left}, {right}")
+    assert t.translate(1, names="people") == "left-value, right-value"
 
-    t = t.copy(default_fmt_placeholders=dict(default={"left": "LEFT", "right": "RIGHT"}))  # type: ignore[assignment]
-    assert "LEFT, RIGHT" == t.translate(1, names="people")
+    t = t.copy(default_fmt_placeholders=dict(default={"left": "LEFT", "right": "RIGHT"}))
+    assert t.translate(1, names="people") == "LEFT, RIGHT"
 
 
 def test_plain_default(hex_fetcher):
@@ -368,7 +368,7 @@ def test_untranslated_reporting(caplog):
     translator = UnitTestTranslator({"source": {"id": [0, 1, 2, 3, 4]}}, fmt="{id}")
     translator.translate(
         {"none": [-1, -100], "partial": [-1, 1, 2], "all": [0, 1]},
-        override_function=lambda n, s, i: "source",
+        override_function=lambda *_: "source",
         inplace=True,
     )
 
@@ -409,23 +409,23 @@ def test_reverse(hex_fetcher):
 
 
 def test_simple_function_overrides(translator):
-    actual = translator.translate(1, names="whatever", override_function=lambda *args: "positive_numbers")
+    actual = translator.translate(1, names="whatever", override_function=lambda *_: "positive_numbers")
     assert actual == "1:0x1, positive=True"
 
-    actual = translator.translate(1, names="positive_numbers", override_function=lambda *args: None)
+    actual = translator.translate(1, names="positive_numbers", override_function=lambda *_: None)
     assert actual == "1:0x1, positive=True"
 
     with pytest.raises(UserMappingError):
-        translator.translate(1, names="whatever", override_function=lambda *args: "bad")
+        translator.translate(1, names="whatever", override_function=lambda *_: "bad")
 
 
 def test_override_fetcher(translator):
     old_fetcher = translator.fetcher
-    assert "1:0x1, positive=True" == translator.translate(1, names="positive_numbers")
+    assert translator.translate(1, names="positive_numbers") == "1:0x1, positive=True"
     expected = old_fetcher.num_fetches
 
     translator = translator.copy(fetcher={"positive_numbers": {"id": [1], "hex": ["0x1"], "positive": [True]}})
-    assert "1:0x1, positive=True" == translator.translate(1, names="positive_numbers")
+    assert translator.translate(1, names="positive_numbers") == "1:0x1, positive=True"
     assert expected == old_fetcher.num_fetches
 
 
@@ -639,7 +639,7 @@ def test_fetch(translator):
 
 
 def test_map_scores(translator):
-    actual = translator.map_scores({"p": 0, "positive_numbers": 1, "foo": 0}).values.tolist()
+    actual = translator.map_scores({"p": 0, "positive_numbers": 1, "foo": 0}).to_numpy().tolist()
     inf = float("inf")
     assert actual == [[inf, -inf], [inf, -inf], [0.0, 0.0]]
 

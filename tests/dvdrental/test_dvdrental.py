@@ -2,7 +2,6 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
-
 from id_translation import Translator
 
 from .conftest import DIALECTS, LINUX_ONLY, check_status, get_df, setup_for_dialect
@@ -29,7 +28,6 @@ def test_dvd_rental(dialect, with_schema):
 
 
 def test_load_persistent_instance(tmp_path, dialect):
-    translator: Translator[str, str, int]
     cfg = setup_for_dialect(dialect)
 
     expected_metadata = Translator.load_persistent_instance(tmp_path, *cfg).config_metadata

@@ -15,6 +15,7 @@ Base fetchers:
     * :class:`.AbstractFetcher`: Implements high-level operations such as
       `placeholder mapping <../documentation/translation-primer.html#placeholder-mapping>`__.
 """
+
 from ._abstract_fetcher import AbstractFetcher
 from ._cache import CacheAccess, CacheMetadata
 from ._fetcher import Fetcher

@@ -1,7 +1,6 @@
 import numpy as np
 import pandas as pd
 import pytest
-
 from id_translation.dio import resolve_io
 from id_translation.dio.exceptions import NotInplaceTranslatableError
 

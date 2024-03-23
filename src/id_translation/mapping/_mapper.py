@@ -11,7 +11,9 @@ from rics.collections.dicts import InheritedKeysDict
 from rics.misc import get_by_full_name, tname
 from rics.performance import format_perf_counter
 
-from . import exceptions, filter_functions as mf, score_functions as sf
+from . import exceptions
+from . import filter_functions as mf
+from . import score_functions as sf
 from ._cardinality import Cardinality
 from ._directional_mapping import DirectionalMapping
 from .exceptions import MappingError, MappingWarning, UserMappingError, UserMappingWarning
@@ -139,7 +141,7 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):
 
             l2r = dm.left_to_right
             matches = " Matches:\n" + "\n".join(
-                (f"    {v!r} -> {repr(l2r[v]) if v in l2r else '<no matches>'}" for v in values)
+                f"    {v!r} -> {repr(l2r[v]) if v in l2r else '<no matches>'}" for v in values
             )
 
             verbose_logger.debug(
@@ -324,7 +326,7 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):
             ):
                 if self.logger.isEnabledFor(logging.DEBUG):
                     self.logger.debug(
-                        f"Using override {repr(value)} -> {repr(override_candidate)} returned by {override_function=}."
+                        f"Using override {value!r} -> {override_candidate!r} returned by {override_function=}."
                     )
                 apply(value, override_candidate)
 
@@ -374,7 +376,7 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):
                 continue
             if self.unknown_user_override_action is not ActionLevel.IGNORE and user_override not in candidates:
                 msg = (
-                    f"The user-defined override function {func} returned an unknown candidate={repr(user_override)} for"
+                    f"The user-defined override function {func} returned an unknown candidate={user_override!r} for"
                     f" {value=}."
                     "\nHint: If this is intended behaviour, set unknown_user_override_action='ignore' to allow."
                 )

@@ -1,10 +1,9 @@
 import pytest
-
 from id_translation import Translator
 from id_translation.dio import DataStructureIO, register_io, resolve_io
 
 
-def test_register_io(register_tmp_io):
+def test_register_io():
     assert resolve_io(Data.test_object) is DummyIO
     assert resolve_io(1) is not DummyIO
 
@@ -14,7 +13,7 @@ def test_register_io(register_tmp_io):
     assert actual == Data.expected
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def register_tmp_io():
     from id_translation.dio import _resolve
 
@@ -33,7 +32,7 @@ class Data:
 
 class DummyIO(DataStructureIO):
     @staticmethod
-    def handles_type(arg, *args, **kwargs):
+    def handles_type(arg, *_args, **_kwargs):
         return arg is Data.test_object
 
     @staticmethod
@@ -44,10 +43,12 @@ class DummyIO(DataStructureIO):
     @staticmethod
     def extract(translatable, names):
         assert translatable is Data.test_object
-        return {"source": [Data.test_object_id]}
+        assert names == ["source"]
+        return {names[0]: [Data.test_object_id]}
 
     @staticmethod
     def insert(translatable, names, tmap, copy):
         assert copy
         assert translatable is Data.test_object
-        return tmap["source"][Data.test_object_id]
+        assert names == ["source"]
+        return tmap[names[0]][Data.test_object_id]

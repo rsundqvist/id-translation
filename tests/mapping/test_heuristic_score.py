@@ -1,5 +1,4 @@
 import pytest
-
 from id_translation.mapping import HeuristicScore
 
 CS = float("inf")  # Short-circuited/chosen by override

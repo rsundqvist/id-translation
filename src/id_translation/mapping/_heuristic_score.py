@@ -95,14 +95,14 @@ class HeuristicScore(Generic[ValueType, CandidateType, ContextType]):
         h_value = value
         h_candidates = list(candidates)
         for func, func_kwargs in self._heuristics:
-            func_kwargs = func_kwargs.copy()
+            func_kwargs = func_kwargs.copy()  # noqa: PLW2901
             mutate = func_kwargs.pop("mutate", False)
             res = func(h_value, h_candidates, context, **func_kwargs)
             if isinstance(res, tuple):  # Alias function -- res is a modified (value, candidates) tuple
                 res_value, res_candidates = res[0], list(res[1])
                 res_scores = list(self._score(res_value, res_candidates, context, **kwargs))
                 for i, heuristic_score in enumerate(res_scores):
-                    heuristic_score -= positional_penalty
+                    heuristic_score -= positional_penalty  # noqa: PLW2901
                     best[i] = max(best[i], heuristic_score)
 
                 if log_aliases:
@@ -130,15 +130,15 @@ class HeuristicScore(Generic[ValueType, CandidateType, ContextType]):
 
                 if heuristic_functions.VERBOSE and LOGGER.isEnabledFor(logging.DEBUG):
                     base_args = ", ".join([repr(h_value), repr(h_candidates), f"{context=}"])
-                    extra_args = ", ".join(f"{k}={repr(v)}" for k, v, in func_kwargs.items())
+                    extra_args = ", ".join(f"{k}={v!r}" for k, v in func_kwargs.items())
                     info = f"{tname(func)}({', '.join([base_args, extra_args])})"
-                    LOGGER.debug(f"Short-circuit {value=} -> candidates={repr(res)}, triggered by {info}.")
+                    LOGGER.debug(f"Short-circuit {value=} -> candidates={res!r}, triggered by {info}.")
                 yield from (float("inf") if c in res else -float("inf") for c in h_candidates)
                 return
 
         if heuristic_functions.VERBOSE and LOGGER.isEnabledFor(logging.DEBUG):
             changes = [
-                f"{repr(cand)}: {score:.2f} -> {heuristic_score:.2f} ({heuristic_score - score:+.2f})"
+                f"{cand!r}: {score:.2f} -> {heuristic_score:.2f} ({heuristic_score - score:+.2f})"
                 for cand, score, heuristic_score in zip(candidates, base_score, best)
             ]
             LOGGER.debug(f"Heuristics scores for {value=}: [{', '.join(changes)}]")
@@ -152,7 +152,7 @@ class HeuristicScore(Generic[ValueType, CandidateType, ContextType]):
 
 def _stringify(*args: Any) -> str:
     f, kwargs = args[0] if len(args) == 1 else args
-    kwlist = (f"{k}={repr(v)}" for k, v in kwargs.items())
+    kwlist = (f"{k}={v!r}" for k, v in kwargs.items())
     return f"{tname(f)}({', '.join(kwlist)})"
 
 
@@ -163,7 +163,7 @@ def _resolve_heuristic(
         for m in filter_functions, heuristic_functions:
             try:
                 return get_by_full_name(func_or_name, m)  # type: ignore[no-any-return]
-            except AttributeError:
+            except AttributeError:  # noqa: PERF203
                 pass
 
         raise NameError(func_or_name)

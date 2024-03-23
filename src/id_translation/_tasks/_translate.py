@@ -102,11 +102,11 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
                 source_to_ids[name_to_source[name]].update(arr[keep_mask].astype(int, copy=False))
             else:
                 if self.enable_uuid_heuristics:
-                    ids = _uuid_utils.try_cast_many(ids)
+                    ids = _uuid_utils.try_cast_many(ids)  # noqa: PLW2901
 
                 source_to_ids[name_to_source[name]].update(ids)
 
-        if num_coerced > 100:  # pragma: no cover
+        if num_coerced > 100:  # pragma: no cover  # noqa: PLR2004
             types = f"({', '.join(t.__name__ for t in get_args(IdTypes))})"
             warnings.warn(
                 f"To ensure proper fetcher operation, {num_coerced} float-type IDs have been coerced to int. "

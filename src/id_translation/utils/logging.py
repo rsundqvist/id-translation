@@ -1,4 +1,5 @@
 """Logging utilities."""
+
 import typing as _t
 from uuid import UUID as _UUID
 

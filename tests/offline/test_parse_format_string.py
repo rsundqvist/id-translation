@@ -1,5 +1,4 @@
-import pytest as pytest
-
+import pytest
 from id_translation.offline.parse_format_string import BadDelimiterError, Element, get_elements
 
 
