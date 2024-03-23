@@ -1,3 +1,0 @@
-[submodule "jupyterlab"]
-	path = jupyterlab
-	url = https://github.com/rsundqvist/notebooks.git

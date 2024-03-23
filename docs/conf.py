@@ -291,7 +291,7 @@ sphinx_gallery_conf = {
 
 # -- Nbsphinx ------------------------------------------------------------------
 nbsphinx_execute = "never"
-shutil.copytree("../jupyterlab/id-translation/demo/", "documentation/examples/notebooks", dirs_exist_ok=True)
+shutil.copytree("../notebooks/demo/", "documentation/examples/notebooks", dirs_exist_ok=True)
 
 # -- Randoms stuff -------------------------------------------------------------
 split_changelog("changelog", "../CHANGELOG.md")
