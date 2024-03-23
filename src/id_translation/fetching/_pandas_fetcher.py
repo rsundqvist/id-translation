@@ -77,8 +77,11 @@ class PandasFetcher(AbstractFetcher[str, IdType]):
         """Get the path for `source`."""
         return self._format_source(source)
 
-    def find_sources(self) -> Dict[str, str]:
+    def find_sources(self, task_id: int = -1) -> dict[str, str]:
         """Resolve sources and their associated paths.
+
+        Args:
+            task_id: Used for logging.
 
         Sources are resolved in three steps:
 
@@ -100,9 +103,9 @@ class PandasFetcher(AbstractFetcher[str, IdType]):
             source_paths = self._find_sources_pathlib(pattern)
 
         if not source_paths:  # pragma: no cover
-            self.logger.warning(f"Bad path pattern: '{pattern}' did not match any files.")
+            self.logger.warning(f"Bad path pattern: '{pattern}' did not match any files.", extra={"task_id": task_id})
 
-        self.logger.debug(f"Source paths resolved: {source_paths}")
+        self.logger.debug(f"Source paths resolved: {source_paths}", extra={"task_id": task_id})
 
         return source_paths
 
@@ -132,8 +135,8 @@ class PandasFetcher(AbstractFetcher[str, IdType]):
             source_paths[source] = str(path)
         return source_paths
 
-    def _initialize_sources(self, task_id: int) -> Dict[str, List[str]]:
-        self._source_paths = self.find_sources()
+    def _initialize_sources(self, task_id: int) -> dict[str, list[str]]:
+        self._source_paths = self.find_sources(task_id)
         return {source: self.read(path).columns.tolist() for source, path in self._source_paths.items()}
 
     def fetch_translations(self, instr: FetchInstruction[str, IdType]) -> PlaceholderTranslations[str]:

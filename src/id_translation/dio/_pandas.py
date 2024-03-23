@@ -67,39 +67,14 @@ class PandasIO(DataStructureIO):
             else:
                 raise NotInplaceTranslatableError(translatable)
 
-        if isinstance(translatable, pd.MultiIndex):
-            df = translatable.to_frame()
-            PandasIO.insert(df, names, tmap, copy=False)
-            return pd.MultiIndex.from_frame(df, names=translatable.names)
-
         if isinstance(translatable, pd.Index):
-            result = _translate_pandas_vector(translatable, names, tmap)
-            if isinstance(result, pd.Index):
-                return result
-            return pd.Index(result, name=translatable.name, copy=False)
+            return _translate_index(translatable, names, tmap)
 
         if isinstance(translatable, pd.DataFrame):
-            if copy:
-                translatable = translatable.copy()
-
-            for i, name in enumerate(translatable.columns):
-                if name in names:
-                    translatable.iloc[:, i] = _translate_pandas_vector(translatable.iloc[:, i], [name], tmap)
-
-            return translatable if copy else None
+            return _translate_frame(translatable, names, tmap, copy)
 
         if isinstance(translatable, pd.Series):
-            result = _translate_pandas_vector(translatable, names, tmap)
-
-            if copy:
-                if isinstance(result, pd.Series):
-                    return result
-                return pd.Series(result, index=translatable.index, name=translatable.name, copy=False)
-
-            with warnings.catch_warnings():
-                warnings.simplefilter(action="ignore", category=FutureWarning)  # TODO(issues/170): PDEP-6 check
-                translatable[:] = result
-            return None
+            return _translate_series(translatable, names, tmap, copy)
 
         raise TypeError(f"This should not happen: {type(translatable)=}")  # pragma: no cover
 
@@ -135,6 +110,62 @@ def _translate_pandas_vector(
         return data
     else:
         return translate_sequence(pvt, names, tmap)
+
+
+def _translate_index(
+    index: T,
+    names: list[NameType],
+    tmap: TranslationMap[NameType, SourceType, IdType],
+) -> T | None:
+    if isinstance(index, pd.MultiIndex):
+        df = index.to_frame()
+        _translate_frame(df, names, tmap, copy=False)
+        return pd.MultiIndex.from_frame(df, names=index.names)
+
+    result = _translate_pandas_vector(index, names, tmap)
+    if isinstance(result, pd.Index):
+        return result
+    return pd.Index(result, name=index.name, copy=False)
+
+
+def _translate_frame(
+    df: pd.DataFrame,
+    names: list[NameType],
+    tmap: TranslationMap[NameType, SourceType, IdType],
+    copy: bool,
+) -> pd.DataFrame:
+    if copy:
+        df = df.copy()
+
+    original_columns = df.columns
+
+    try:
+        df.columns = pd.RangeIndex(len(original_columns))
+        for name, int_col in zip(original_columns, df.columns, strict=True):
+            if name in names:
+                translated = _translate_pandas_vector(df[int_col], [name], tmap)
+                df[int_col] = translated
+    finally:
+        df.columns = original_columns
+
+    return df if copy else None
+
+
+def _translate_series(
+    series: pd.Series,
+    names: list[NameType],
+    tmap: TranslationMap[NameType, SourceType, IdType],
+    copy: bool,
+) -> pd.Series | None:
+    result = _translate_pandas_vector(series, names, tmap)
+    if copy:
+        if isinstance(result, pd.Series):
+            return result
+        return pd.Series(result, index=series.index, name=series.name, copy=False)
+    with warnings.catch_warnings():
+        warnings.simplefilter(action="ignore", category=FutureWarning)  # TODO(issues/170): PDEP-6 check
+        series[:] = result
+    return None
 
 
 def _float_to_int(pvt: PandasVectorT) -> PandasVectorT:

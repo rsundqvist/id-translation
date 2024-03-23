@@ -149,7 +149,6 @@ class DirectionalMapping(Generic[HL, HR]):
         return {k: tuple(set(m)) for k, m in other_side.items()}
 
     def _verify(self, expected: "DirectionalMapping[HL, HR]") -> None:
-        # TODO; This should only be done during testing I think
         self._verify_side(self.left, expected.left, "Left")
         self._verify_side(self.right, expected.right, "Right")
 
