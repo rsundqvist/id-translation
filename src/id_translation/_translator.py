@@ -14,6 +14,7 @@ from typing import (
     NoReturn,
     Self,
     Union,
+    Unpack,
     overload,
 )
 
@@ -39,6 +40,7 @@ from .offline.types import (
     SourcePlaceholderTranslations,
 )
 from .transform.types import Transformer
+from .translator_typing import CopyParams, FetcherTypes
 from .types import (
     ID,
     CopyTranslatable,
@@ -64,12 +66,6 @@ from .utils import ConfigMetadata
 
 LOGGER = logging.getLogger(__package__).getChild("Translator")
 
-FetcherTypes = Union[
-    TranslationMap[NameType, SourceType, IdType],
-    Fetcher[SourceType, IdType],
-    SourcePlaceholderTranslations[SourceType],
-    dict[SourceType, PlaceholderTranslations.MakeTypes],
-]
 
 ID_TRANSLATION_DISABLED: Literal["ID_TRANSLATION_DISABLED"] = "ID_TRANSLATION_DISABLED"
 
@@ -145,7 +141,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
     def __init__(
         self,
-        fetcher: FetcherTypes[NameType, SourceType, IdType] = None,
+        fetcher: FetcherTypes[NameType, SourceType, IdType] | None = None,
         fmt: FormatType = "{id}:{name}",
         mapper: Mapper[NameType, SourceType, None] = None,
         default_fmt: FormatType = DEFAULT_FORMAT,
@@ -227,7 +223,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             raise ValueError("Not created using Translator.from_config()")  # pragma: no cover
         return self._config_metadata
 
-    def copy(self, **overrides: Any) -> Self:
+    def copy(self, **overrides: Unpack[CopyParams[NameType, SourceType, IdType]]) -> Self:
         """Make a copy of this :class:`.Translator`.
 
         Args:
