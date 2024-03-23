@@ -1,6 +1,6 @@
 import logging
 import warnings
-from typing import TYPE_CHECKING, List, Optional, Set, Tuple, Union
+from typing import TYPE_CHECKING
 
 from rics.collections.misc import as_list
 
@@ -24,9 +24,9 @@ class NamesTask(BaseTask[NameType, SourceType, IdType]):
         self,
         caller: "Translator[NameType, SourceType, IdType]",
         translatable: Translatable[NameType, IdType],
-        names: Union[NameTypes[NameType], NameToSource[NameType, SourceType]] = None,
-        ignore_names: Names[NameType] = None,
-        override_function: UserOverrideFunction[NameType, SourceType, None] = None,
+        names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
+        ignore_names: Names[NameType] | None = None,
+        override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
     ) -> None:
         super().__init__(caller, translatable)
 
@@ -39,10 +39,10 @@ class NamesTask(BaseTask[NameType, SourceType, IdType]):
         names, override_function = _handle_input_names(names, override_function)
 
         # Explicit, user-given names
-        self.names_from_user: Optional[List[NameType]] = None if names is None else as_list(names)
+        self.names_from_user: list[NameType] | None = None if names is None else as_list(names)
 
         # Names to exclude. May not be combined with explicit names (verified above).
-        self.ignore_names: Optional[Names[NameType]] = None
+        self.ignore_names: Names[NameType] | None = None
         if ignore_names is not None:
             self.ignore_names = ignore_names if callable(ignore_names) else as_list(ignore_names)
 
@@ -51,11 +51,11 @@ class NamesTask(BaseTask[NameType, SourceType, IdType]):
 
         # Task outputs
         self._need_name_extraction: bool = True
-        self._extracted_names: Optional[List[NameType]] = None
-        self._mapper_input_names: Optional[List[NameType]] = None
+        self._extracted_names: list[NameType] | None = None
+        self._mapper_input_names: list[NameType] | None = None
 
     @property
-    def extracted_names(self) -> List[NameType]:
+    def extracted_names(self) -> list[NameType]:
         """Names extracted from `translatable`, based on ``type(translatable)``."""
         if self._extracted_names is not None:
             return self._extracted_names
@@ -68,7 +68,7 @@ class NamesTask(BaseTask[NameType, SourceType, IdType]):
             )
         self._need_name_extraction = False
 
-        names: Optional[List[NameType]] = self.io.names(self.translatable)
+        names: list[NameType] | None = self.io.names(self.translatable)
         if names is None:
             raise MissingNamesError(
                 f"Failed to derive names for {self.type_name}-type data."
@@ -78,13 +78,13 @@ class NamesTask(BaseTask[NameType, SourceType, IdType]):
         return self._extracted_names
 
     @property
-    def mapper_input_names(self) -> List[NameType]:
+    def mapper_input_names(self) -> list[NameType]:
         """Names that should be mapped to sources."""
         if self._mapper_input_names is None:
             self._mapper_input_names = self._filter_names()
         return self._mapper_input_names
 
-    def _filter_names(self) -> List[NameType]:
+    def _filter_names(self) -> list[NameType]:
         names = self.names_from_user
 
         if names is not None:
@@ -111,9 +111,9 @@ class NamesTask(BaseTask[NameType, SourceType, IdType]):
 
 
 def _handle_input_names(
-    names: Optional[Union[NameTypes[NameType], NameToSource[NameType, SourceType]]],
-    override_function: Optional[UserOverrideFunction[NameType, SourceType, None]],
-) -> Tuple[Optional[List[NameType]], Optional[UserOverrideFunction[NameType, SourceType, None]]]:
+    names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None,
+    override_function: UserOverrideFunction[NameType, SourceType, None] | None,
+) -> tuple[list[NameType] | None, UserOverrideFunction[NameType, SourceType, None] | None]:
     if names is None:
         return None, override_function
 
@@ -136,7 +136,7 @@ class _UserDefinedNameToSourceMapping:
                 )
         self._name_to_source = name_to_source
 
-    def __call__(self, name: NameType, sources: Set[SourceType], context: None) -> Optional[SourceType]:
+    def __call__(self, name: NameType, _sources: set[SourceType], _context: None) -> SourceType | None:
         return self._name_to_source.get(name)
 
     def __repr__(self) -> str:

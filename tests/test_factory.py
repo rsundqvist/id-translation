@@ -1,7 +1,6 @@
-from typing import Any, Type
+from typing import Any
 
 import pytest
-
 from id_translation import Translator
 from id_translation.exceptions import ConfigurationError
 from id_translation.factory import default_fetcher_factory
@@ -25,7 +24,7 @@ class AnotherFetcherType(MemoryFetcher[SourceType, IdType]):
 )
 def test_default_fetcher_factory(
     clazz: str,
-    expected_type: Type[AbstractFetcher[Any, Any]],
+    expected_type: type[AbstractFetcher[Any, Any]],
 ) -> None:
     fetcher: AbstractFetcher[str, int] = default_fetcher_factory(clazz, dict(data={}))
     assert isinstance(fetcher, expected_type)

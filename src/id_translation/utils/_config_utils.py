@@ -2,7 +2,7 @@ import json
 import logging
 from hashlib import sha256
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Tuple, Type
+from typing import TYPE_CHECKING, Any
 
 from ._base_metadata import BaseMetadata
 from ._load_toml import load_toml_file
@@ -33,8 +33,8 @@ class ConfigMetadata(BaseMetadata):
 
     def __init__(
         self,
-        main: Tuple[Path, str],
-        extra_fetchers: Tuple[Tuple[Path, str], ...],
+        main: tuple[Path, str],
+        extra_fetchers: tuple[tuple[Path, str], ...],
         clazz: str,
         **kwargs: Any,
     ) -> None:
@@ -43,7 +43,7 @@ class ConfigMetadata(BaseMetadata):
         self.extra_fetchers = extra_fetchers
         self.clazz = clazz
 
-    def _serialize(self, to_json: Dict[str, Any]) -> Dict[str, Any]:
+    def _serialize(self, to_json: dict[str, Any]) -> dict[str, Any]:
         kwargs = dict(
             main=tuple(map(str, to_json.pop("main"))),
             extra_fetchers=[tuple(map(str, t)) for t in to_json.pop("extra_fetchers")],
@@ -52,8 +52,8 @@ class ConfigMetadata(BaseMetadata):
         return kwargs
 
     @classmethod
-    def _deserialize(cls, from_json: Dict[str, Any]) -> Dict[str, Any]:
-        def to_path_tuple(args: List[str]) -> Tuple[Path, str]:
+    def _deserialize(cls, from_json: dict[str, Any]) -> dict[str, Any]:
+        def to_path_tuple(args: list[str]) -> tuple[Path, str]:
             return Path(args[0]), args[1]
 
         return dict(
@@ -90,8 +90,8 @@ class ConfigMetadata(BaseMetadata):
     @staticmethod
     def from_toml_paths(
         path: str,
-        extra_fetchers: List[str],
-        clazz: Type["Translator[Any, Any, Any]"],
+        extra_fetchers: list[str],
+        clazz: type["Translator[Any, Any, Any]"],
     ) -> "ConfigMetadata":
         """Convenience function for creating ``ConfigMetadata`` instances."""
         return ConfigMetadata(
@@ -101,7 +101,7 @@ class ConfigMetadata(BaseMetadata):
         )
 
 
-def _create_path_tuple(str_path: str) -> Tuple[Path, str]:
+def _create_path_tuple(str_path: str) -> tuple[Path, str]:
     p = Path(str_path).expanduser().absolute()
     content = load_toml_file(p)
     return p, sha256(json.dumps(content).encode()).hexdigest()

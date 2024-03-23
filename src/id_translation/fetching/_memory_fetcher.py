@@ -1,4 +1,5 @@
-from typing import Any, Dict, List, Mapping, Sequence, Union
+from collections.abc import Mapping, Sequence
+from typing import Any
 
 import pandas as pd
 
@@ -18,12 +19,13 @@ class MemoryFetcher(AbstractFetcher[SourceType, IdType]):
 
     def __init__(
         self,
-        data: Union[
-            SourcePlaceholderTranslations[SourceType],
-            Dict[SourceType, PlaceholderTranslations[SourceType]],
-            Dict[SourceType, pd.DataFrame],
-            Mapping[SourceType, Mapping[str, Sequence[Any]]],
-        ] = None,
+        data: (
+            SourcePlaceholderTranslations[SourceType]
+            | dict[SourceType, PlaceholderTranslations[SourceType]]
+            | dict[SourceType, pd.DataFrame]
+            | Mapping[SourceType, Mapping[str, Sequence[Any]]]
+            | None
+        ) = None,
         return_all: bool = True,
         **kwargs: Any,
     ) -> None:
@@ -33,7 +35,7 @@ class MemoryFetcher(AbstractFetcher[SourceType, IdType]):
         )
         self.return_all = return_all
 
-    def _initialize_sources(self, task_id: int) -> Dict[SourceType, List[str]]:
+    def _initialize_sources(self, task_id: int) -> dict[SourceType, list[str]]:  # noqa: ARG002
         return {source: list(pht.placeholders) for source, pht in self._data.items()}
 
     def fetch_translations(self, instr: FetchInstruction[SourceType, IdType]) -> PlaceholderTranslations[SourceType]:

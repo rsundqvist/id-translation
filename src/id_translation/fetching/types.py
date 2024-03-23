@@ -1,7 +1,7 @@
 """Types related to translation fetching."""
 
 from dataclasses import dataclass as _dataclass
-from typing import Generic as _Generic, Optional, Set
+from typing import Generic as _Generic
 
 from ..offline.types import PlaceholdersTuple
 from ..types import IdType, SourceType
@@ -13,7 +13,7 @@ class IdsToFetch(_Generic[SourceType, IdType]):
 
     source: SourceType
     """Where to fetch from."""
-    ids: Set[IdType]
+    ids: set[IdType]
     """Unique IDs to fetch translations for."""
 
 
@@ -25,9 +25,9 @@ class FetchInstruction(_Generic[SourceType, IdType]):
     """Where to fetch from."""
     placeholders: PlaceholdersTuple
     """All desired placeholders in preferred order."""
-    required: Set[str]
+    required: set[str]
     """Placeholders that must be included in the response."""
-    ids: Optional[Set[IdType]]
+    ids: set[IdType] | None
     """Unique IDs to fetch translations for."""
     task_id: int
     """Used for logging purposes."""

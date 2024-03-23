@@ -1,4 +1,5 @@
-from typing import Any, Dict, List, Optional, Sequence, Union
+from collections.abc import Sequence
+from typing import Any
 
 from rics.collections.misc import as_list
 
@@ -17,23 +18,24 @@ class DictIO(DataStructureIO):
         return isinstance(arg, dict)
 
     @staticmethod
-    def names(translatable: Dict[NameType, IdType]) -> List[NameType]:
+    def names(translatable: dict[NameType, IdType]) -> list[NameType]:
         return list(translatable)
 
     @staticmethod
-    def extract(translatable: Dict[NameType, IdType], names: List[NameType]) -> Dict[NameType, Sequence[IdType]]:
+    def extract(translatable: dict[NameType, IdType], names: list[NameType]) -> dict[NameType, Sequence[IdType]]:
         return {name: as_list(translatable[name]) for name in names}
 
     @staticmethod
     def insert(
-        translatable: Union[Dict[NameType, IdType], Dict[NameType, Sequence[IdType]]],
-        names: List[NameType],
+        translatable: dict[NameType, IdType] | dict[NameType, Sequence[IdType]],
+        names: list[NameType],
         tmap: TranslationMap[NameType, SourceType, IdType],
         copy: bool,
-    ) -> Optional[Dict[NameType, Any]]:
+    ) -> dict[NameType, Any] | None:
         from rics.logs import disable_temporarily
 
-        from ._resolve import LOGGER as RESOLVE_IO_LOGGER, resolve_io
+        from ._resolve import LOGGER as RESOLVE_IO_LOGGER
+        from ._resolve import resolve_io
 
         with disable_temporarily(RESOLVE_IO_LOGGER):
             translated = {

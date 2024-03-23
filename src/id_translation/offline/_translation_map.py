@@ -1,5 +1,6 @@
+from collections.abc import Iterator, Mapping, Sequence
 from copy import copy
-from typing import TYPE_CHECKING, Any, Dict, Generic, Iterator, List, Mapping, Optional, Sequence, Set, Union
+from typing import TYPE_CHECKING, Any, Generic, Union
 
 from rics.collections.dicts import InheritedKeysDict, reverse_dict
 from rics.misc import tname
@@ -44,24 +45,24 @@ class TranslationMap(
         default_fmt: FormatType = None,
         default_fmt_placeholders: InheritedKeysDict[SourceType, str, Any] = None,
         enable_uuid_heuristics: bool = True,
-        transformers: Dict[SourceType, Transformer[IdType]] = None,
+        transformers: dict[SourceType, Transformer[IdType]] | None = None,
     ) -> None:
         self.default_fmt = default_fmt  # type: ignore
         self.default_fmt_placeholders = default_fmt_placeholders  # type: ignore
         self.fmt = fmt  # type: ignore
 
         transformers = transformers or {}
-        self._format_appliers: Dict[SourceType, FormatApplier[NameType, SourceType, IdType]] = {
+        self._format_appliers: dict[SourceType, FormatApplier[NameType, SourceType, IdType]] = {
             source: FormatApplier(translations, transformer=transformers.get(source))
             for source, translations in source_translations.items()
         }
-        self._names_and_sources: Set[Union[NameType, SourceType]] = set()
+        self._names_and_sources: set[NameType | SourceType] = set()
         self.name_to_source = name_to_source or {}
 
         self._reverse_mode: bool = False
         self.enable_uuid_heuristics = enable_uuid_heuristics
 
-    def to_dicts(self) -> Dict[SourceType, Dict[str, Sequence[Any]]]:
+    def to_dicts(self) -> dict[SourceType, dict[str, Sequence[Any]]]:
         """Get the underlying data used for translations as dicts.
 
         This is equivalent using :meth:`to_pandas`, then calling ``DataFrame.to_dict(orient='list')`` on each frame.
@@ -71,7 +72,7 @@ class TranslationMap(
         """
         return {applier.source: applier.to_dict() for applier in self._format_appliers.values()}
 
-    def to_pandas(self) -> Dict[SourceType, "pandas.DataFrame"]:
+    def to_pandas(self) -> dict[SourceType, "pandas.DataFrame"]:
         """Get the underlying data used for translations as :class:`pandas.DataFrame`.
 
         Returns:
@@ -79,7 +80,7 @@ class TranslationMap(
         """
         return {applier.source: applier.to_pandas() for applier in self._format_appliers.values()}
 
-    def to_translations(self, fmt: FormatType = None) -> Dict[SourceType, MagicDict[IdType]]:
+    def to_translations(self, fmt: FormatType = None) -> dict[SourceType, MagicDict[IdType]]:
         """Create translations for all sources.
 
         Returned values are of type :class:`.MagicDict`. To convert to regular built-in dicts, run
@@ -104,7 +105,7 @@ class TranslationMap(
 
     @classmethod
     def from_pandas(
-        cls, frames: Dict[SourceType, "pandas.DataFrame"]
+        cls, frames: dict[SourceType, "pandas.DataFrame"]
     ) -> "TranslationMap[NameType, SourceType, IdType]":
         """Create a new instance from a :class:`pandas.DataFrame` dict.
 
@@ -120,7 +121,7 @@ class TranslationMap(
         return cls(source_translations)
 
     def apply(
-        self, name_or_source: Union[NameType, SourceType], fmt: FormatType = None, default_fmt: FormatType = None
+        self, name_or_source: NameType | SourceType, fmt: FormatType = None, default_fmt: FormatType = None
     ) -> MagicDict[IdType]:
         """Create translations for a given name or source.
 
@@ -164,16 +165,16 @@ class TranslationMap(
         )
 
     @property
-    def names(self) -> List[NameType]:
+    def names(self) -> list[NameType]:
         """Return names that can be translated."""
         return list(self.name_to_source)
 
     @property
-    def sources(self) -> List[SourceType]:
+    def sources(self) -> list[SourceType]:
         return list(self._format_appliers)
 
     @property
-    def placeholders(self) -> Dict[SourceType, List[str]]:
+    def placeholders(self) -> dict[SourceType, list[str]]:
         return {applier.source: applier.placeholders for applier in self._format_appliers.values()}
 
     @property
@@ -187,21 +188,21 @@ class TranslationMap(
         self._names_and_sources = set(value).union(self._format_appliers)
 
     @property
-    def fmt(self) -> Optional[Format]:
+    def fmt(self) -> Format | None:
         """Return the translation format."""
         return self._fmt
 
     @fmt.setter
-    def fmt(self, value: Optional[FormatType]) -> None:
+    def fmt(self, value: FormatType | None) -> None:
         self._fmt = None if value is None else Format.parse(value)
 
     @property
-    def default_fmt(self) -> Optional[Format]:
+    def default_fmt(self) -> Format | None:
         """Return the format specification to use instead of `fmt` for fallback translation."""
         return self._default_fmt
 
     @default_fmt.setter
-    def default_fmt(self, value: Optional[FormatType]) -> None:
+    def default_fmt(self, value: FormatType | None) -> None:
         self._default_fmt = None if value is None else Format.parse(value)
 
     @property
@@ -210,7 +211,7 @@ class TranslationMap(
         return self._default_fmt_placeholders
 
     @default_fmt_placeholders.setter
-    def default_fmt_placeholders(self, value: Optional[InheritedKeysDict[SourceType, str, Any]]) -> None:
+    def default_fmt_placeholders(self, value: InheritedKeysDict[SourceType, str, Any] | None) -> None:
         self._default_fmt_placeholders = InheritedKeysDict() if value is None else InheritedKeysDict.make(value)
 
     @property
@@ -238,7 +239,7 @@ class TranslationMap(
         self._enable_uuid_heuristics = value
 
     @property
-    def transformers(self) -> Dict[SourceType, Transformer[IdType]]:
+    def transformers(self) -> dict[SourceType, Transformer[IdType]]:
         """Get a dict ``{source: transformer}`` of :class:`.Transformer` instances used by this ``TranslationMap``."""
         return {
             source: applier.transformer
@@ -250,13 +251,13 @@ class TranslationMap(
         """Make a copy of this ``TranslationMap``."""
         return copy(self)
 
-    def __getitem__(self, name_or_source: Union[NameType, SourceType]) -> MagicDict[IdType]:
+    def __getitem__(self, name_or_source: NameType | SourceType) -> MagicDict[IdType]:
         return self.apply(name_or_source)
 
     def __len__(self) -> int:
         return len(self._names_and_sources)
 
-    def __iter__(self) -> Iterator[Union[NameType, SourceType]]:
+    def __iter__(self) -> Iterator[NameType | SourceType]:
         return iter(self._names_and_sources)
 
     def __bool__(self) -> bool:

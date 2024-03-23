@@ -1,11 +1,9 @@
-from typing import NoReturn, Union
+from typing import NoReturn, assert_type
 
 import pandas as pd
-from typing_extensions import assert_type
-
 from id_translation import Translator
 
-t: Translator[str, str, Union[int, str]] = Translator()
+t: Translator[str, str, int | str] = Translator()
 OutType = str
 
 ID_TRANSLATION_PANDAS_IS_TYPED: bool = False  # pandas-stubs or similar

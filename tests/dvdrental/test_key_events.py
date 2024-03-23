@@ -1,15 +1,14 @@
 import logging
 from dataclasses import dataclass
-from typing import Dict, List, Literal, Set, Tuple, cast, get_args
+from typing import Literal, cast, get_args
 
 import pytest
-
 from id_translation import Translator
 
 from .conftest import DIALECTS, LINUX_ONLY, get_df, setup_for_dialect
 
 KindType = Literal["translate", "map", "fetch"]
-CACHE: Dict[str, List["KeyEventDetails"]] = {}
+CACHE: dict[str, list["KeyEventDetails"]] = {}
 
 pytestmark = [pytest.mark.parametrize("dialect", DIALECTS), LINUX_ONLY]
 
@@ -17,7 +16,7 @@ pytestmark = [pytest.mark.parametrize("dialect", DIALECTS), LINUX_ONLY]
 @dataclass(frozen=True)
 class KeyEventDetails:
     task_id: int
-    key: Tuple[str, str]
+    key: tuple[str, str]
     is_enter: bool
     kind: KindType
     record: logging.LogRecord
@@ -52,7 +51,7 @@ class TestKeyEvents:
             assert ked.record.levelno == logging.DEBUG, ked
 
     def test_no_nested_enter_on_same_key(self, dialect, caplog):
-        active_keys: Set[Tuple[str, str]] = set()
+        active_keys: set[tuple[str, str]] = set()
 
         for i, ked in enumerate(get_key_event_details(dialect, caplog)):
             if ked.is_enter:
@@ -83,8 +82,6 @@ class TestKeyEvents:
 
 
 def get_key_event_details(dialect, caplog):
-    global CACHE
-
     if dialect in CACHE:
         return CACHE[dialect]
 
@@ -105,7 +102,7 @@ def get_key_event_details(dialect, caplog):
         ret.append(
             KeyEventDetails(
                 task_id=r.task_id,
-                key=cast(Tuple[str, str], tuple(r.event_key.split("."))),
+                key=cast(tuple[str, str], tuple(r.event_key.split("."))),
                 is_enter=r.event_stage == "ENTER",
                 kind=KeyEventDetails.get_kind(r.event_key),
                 index=i,

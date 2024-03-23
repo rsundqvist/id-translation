@@ -1,5 +1,6 @@
 import logging
 import warnings
+from collections.abc import Collection, Iterable
 from dataclasses import dataclass
 from time import perf_counter
 from typing import Any, Generic, Literal, TypeAlias
@@ -73,12 +74,12 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
     def __init__(
         self,
         connection_string: str,
-        password: str = None,
-        whitelist_tables: Iterable[str] = None,
+        password: str | None = None,
+        whitelist_tables: Iterable[str] | None = None,
         blacklist_tables: Iterable[str] = (),
-        schema: str = None,
+        schema: str | None = None,
         include_views: bool = False,
-        engine_kwargs: Dict[str, Any] = None,
+        engine_kwargs: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -90,9 +91,9 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
 
         self._blacklist = set(blacklist_tables)
 
-        self._table_summaries: Dict[str, TableSummary[IdType]] = {}
+        self._table_summaries: dict[str, TableSummary[IdType]] = {}
 
-        self._whitelist: Optional[List[str]]
+        self._whitelist: list[str] | None
         if whitelist_tables is None:
             self._whitelist = None
         else:
@@ -111,7 +112,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         cls,
         select: sqlalchemy.sql.Select[tuple[IdType, ...]],
         *,
-        ids: Optional[Set[IdType]],
+        ids: set[IdType] | None,
         id_column: sqlalchemy.sql.ColumnElement[IdType],
         table: sqlalchemy.Table,  # noqa: ARG003
     ) -> sqlalchemy.sql.Select[tuple[IdType, ...]]:
@@ -203,8 +204,8 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
     def uuid_like(
         self,
         id_column: sqlalchemy.Column[IdType],
-        ids: Optional[Set[IdType]],
-    ) -> Optional[bool]:
+        ids: set[IdType] | None,
+    ) -> bool | None:
         """Determine whether `id_column` should be passed to :meth:`cast_id_column_to_uuid`.
 
         .. note::
@@ -284,7 +285,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
     def online(self) -> bool:
         return self._engine is not None  # pragma: no cover
 
-    def _initialize_sources(self, task_id: int) -> Dict[str, List[str]]:
+    def _initialize_sources(self, task_id: int) -> dict[str, list[str]]:
         self._table_summaries = self._get_summaries(task_id)
         return {
             name: [str(c.name) for c in table_summary.columns] for name, table_summary in self._table_summaries.items()
@@ -321,8 +322,8 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
     def create_engine(
         cls,
         connection_string: str,
-        password: Optional[str],
-        engine_kwargs: Dict[str, Any],
+        password: str | None,
+        engine_kwargs: dict[str, Any],
     ) -> sqlalchemy.engine.Engine:
         """Factory method used by ``__init__``.
 
@@ -343,7 +344,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         )
 
     @classmethod
-    def parse_connection_string(cls, connection_string: str, password: Optional[str]) -> str:
+    def parse_connection_string(cls, connection_string: str, password: str | None) -> str:
         """Parse a connection string."""
         if password:
             if "{password}" in connection_string:
@@ -355,7 +356,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
                 )
         return connection_string
 
-    def _get_summaries(self, task_id: int) -> Dict[str, TableSummary[IdType]]:
+    def _get_summaries(self, task_id: int) -> dict[str, TableSummary[IdType]]:
         start = perf_counter()
         metadata = self.get_metadata()
 
@@ -453,11 +454,11 @@ class _BinaryUuid(TypeDecorator[UUID]):
     impl = BINARY(length)
     cache_ok = True
 
-    def process_bind_param(self, value: Optional[UUID], dialect: Any) -> Optional[bytes]:
+    def process_bind_param(self, value: UUID | None, _dialect: Any) -> bytes | None:
         """Mimic UUID_TO_BIN."""
         return None if value is None else value.bytes
 
-    def process_result_value(self, value: Optional[bytes], dialect: Any) -> Optional[UUID]:
+    def process_result_value(self, value: bytes | None, _dialect: Any) -> UUID | None:
         """Mimic BIN_TO_UUID."""
         return None if value is None else UUID(bytes=value)
 
@@ -467,11 +468,11 @@ class _String32Uuid(TypeDecorator[UUID]):
     impl = CHAR(length)
     cache_ok = True
 
-    def process_bind_param(self, value: Optional[UUID], dialect: Any) -> Optional[str]:
+    def process_bind_param(self, value: UUID | None, _dialect: Any) -> str | None:
         """To string representation without dashes."""
         return None if value is None else value.hex
 
-    def process_result_value(self, value: Optional[str], dialect: Any) -> Optional[UUID]:
+    def process_result_value(self, value: str | None, _dialect: Any) -> UUID | None:
         """From string representation without dashes."""
         return None if value is None else UUID(value)
 
@@ -481,10 +482,10 @@ class _String36Uuid(TypeDecorator[UUID]):
     impl = CHAR(length)
     cache_ok = True
 
-    def process_bind_param(self, value: Optional[UUID], dialect: Any) -> Optional[str]:
+    def process_bind_param(self, value: UUID | None, _dialect: Any) -> str | None:
         """To string representation with dashes."""
         return None if value is None else str(value)
 
-    def process_result_value(self, value: Optional[str], dialect: Any) -> Optional[UUID]:
+    def process_result_value(self, value: str | None, _dialect: Any) -> UUID | None:
         """From string representation with dashes."""
         return None if value is None else UUID(value)

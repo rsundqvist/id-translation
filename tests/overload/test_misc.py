@@ -1,6 +1,4 @@
-from typing import Any, List, Set
-
-from typing_extensions import assert_type
+from typing import Any, assert_type
 
 from id_translation import Translator
 
@@ -9,7 +7,7 @@ OutType = str
 
 
 def type_list() -> None:
-    expected = List[OutType]
+    expected = list[OutType]
 
     li = [1]
     assert_type(t.translate(li), expected)
@@ -39,7 +37,7 @@ def type_list() -> None:
 
 
 def type_set() -> None:
-    expected = Set[OutType]
+    expected = set[OutType]
 
     si = {1}
     assert_type(t.translate(si), expected)

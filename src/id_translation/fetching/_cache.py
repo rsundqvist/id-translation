@@ -1,9 +1,9 @@
 import logging
-import pickle  # noqa: S403
+import pickle
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Generic, List, Optional, Tuple, Type
+from typing import Any, Generic
 
 import pandas as pd
 
@@ -27,8 +27,8 @@ class CacheMetadata(BaseMetadata, Generic[SourceType, IdType], HasSources[Source
     def __init__(
         self,
         *,
-        cache_keys: List[str],
-        placeholders: Dict[SourceType, List[str]],
+        cache_keys: list[str],
+        placeholders: dict[SourceType, list[str]],
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -38,12 +38,12 @@ class CacheMetadata(BaseMetadata, Generic[SourceType, IdType], HasSources[Source
         self._placeholders = placeholders
 
     @property
-    def cache_keys(self) -> List[str]:
+    def cache_keys(self) -> list[str]:
         """Yields hierarchical cache keys for this metadata."""
         return self._cache_keys.copy()
 
     @property
-    def placeholders(self) -> Dict[SourceType, List[str]]:
+    def placeholders(self) -> dict[SourceType, list[str]]:
         return self._placeholders
 
     def _is_equivalent(self, other: "BaseMetadata") -> str:
@@ -61,13 +61,13 @@ class CacheMetadata(BaseMetadata, Generic[SourceType, IdType], HasSources[Source
 
         return ""
 
-    def _serialize(self, to_json: Dict[str, Any]) -> Dict[str, Any]:
+    def _serialize(self, to_json: dict[str, Any]) -> dict[str, Any]:
         ans = to_json.copy()
         to_json.clear()
         return ans
 
     @classmethod
-    def _deserialize(cls, from_json: Dict[str, Any]) -> Dict[str, Any]:
+    def _deserialize(cls, from_json: dict[str, Any]) -> dict[str, Any]:
         return dict(cache_keys=from_json.pop("_cache_keys"), placeholders=from_json.pop("_placeholders"))
 
 
@@ -79,7 +79,7 @@ class CacheAccess(Generic[SourceType, IdType]):
         metadata: Metadata object used to determine cache validity.
     """
 
-    CLEAR_CACHE_EXCEPTION_TYPES: Tuple[Type[Exception], ...] = (pickle.UnpicklingError,)
+    CLEAR_CACHE_EXCEPTION_TYPES: tuple[type[Exception], ...] = (pickle.UnpicklingError,)
     """Error types which trigger cache deletion"""
 
     BASE_CACHE_PATH: Path = Path.home().joinpath(".cache/id-translation/cached-fetcher-data/")
@@ -142,7 +142,7 @@ class CacheAccess(Generic[SourceType, IdType]):
         """Get the data path for `source`."""
         return self.data_dir / f"{source}.pkl"
 
-    def read_cache(self, source: SourceType) -> Optional[PlaceholderTranslations[SourceType]]:
+    def read_cache(self, source: SourceType) -> PlaceholderTranslations[SourceType] | None:
         """Read cached translation data for `source`."""
         use_cached, reason = self._metadata.use_cached(self.metadata_path, self._max_age)
         if not use_cached:

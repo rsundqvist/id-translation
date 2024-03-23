@@ -1,7 +1,7 @@
 import logging
 import warnings
 from time import perf_counter
-from typing import TYPE_CHECKING, List, Optional, Union
+from typing import TYPE_CHECKING
 
 import pandas as pd
 
@@ -10,8 +10,8 @@ from ._names import NamesTask
 
 if TYPE_CHECKING:
     from .._translator import Translator
+    from ..mapping import DirectionalMapping
 
-from ..mapping import DirectionalMapping
 from ..mapping.exceptions import MappingError, MappingWarning
 from ..settings import logging as settings
 from ..types import IdType, Names, NameToSource, NameType, NameTypes, SourceType, Translatable
@@ -26,10 +26,10 @@ class MappingTask(NamesTask[NameType, SourceType, IdType]):
         self,
         caller: "Translator[NameType, SourceType, IdType]",
         translatable: Translatable[NameType, IdType],
-        names: Union[NameTypes[NameType], NameToSource[NameType, SourceType]] = None,
+        names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
         *,
         ignore_names: Names[NameType] = None,
-        override_function: UserOverrideFunction[NameType, SourceType, None] = None,
+        override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
     ) -> None:
         super().__init__(
             caller,
@@ -40,7 +40,7 @@ class MappingTask(NamesTask[NameType, SourceType, IdType]):
         )
 
         # Task outputs
-        self._name_to_source: Optional[NameToSource[NameType, SourceType]] = None
+        self._name_to_source: NameToSource[NameType, SourceType] | None = None
 
     @property
     def name_to_source(self) -> NameToSource[NameType, SourceType]:
@@ -50,7 +50,7 @@ class MappingTask(NamesTask[NameType, SourceType, IdType]):
         return self._name_to_source
 
     @property
-    def names_to_translate(self) -> List[NameType]:
+    def names_to_translate(self) -> list[NameType]:
         """Keys of :attr:`name_to_source`."""
         return list(self.name_to_source)
 

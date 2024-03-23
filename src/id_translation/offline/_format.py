@@ -1,4 +1,5 @@
-from typing import Any, Iterable, List, Mapping
+from collections.abc import Iterable, Mapping
+from typing import Any
 
 from rics.misc import tname
 
@@ -66,9 +67,9 @@ class Format:
 
     def __init__(self, fmt: str) -> None:
         self._fmt = fmt
-        self._elements: List[parse_format_string.Element] = parse_format_string.get_elements(fmt)
+        self._elements: list[parse_format_string.Element] = parse_format_string.get_elements(fmt)
 
-    def fstring(self, placeholders: Iterable[str] = None, *, positional: bool = False) -> str:
+    def fstring(self, placeholders: Iterable[str] | None = None, *, positional: bool = False) -> str:
         """Create a format string for the given placeholders.
 
         Args:

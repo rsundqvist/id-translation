@@ -2,7 +2,6 @@ import os
 from os import getenv
 from pathlib import Path
 from sys import platform
-from typing import List, Tuple
 
 import pandas as pd
 import pytest
@@ -62,8 +61,8 @@ def get_connection_string(dialect: str, with_password: bool = True) -> str:
     return ans.format(password=kwargs["password"]) if with_password else ans
 
 
-def setup_for_dialect(dialect: str) -> Tuple[Path, List[Path]]:
-    os.environ["DVDRENTAL_PASSWORD"] = "Sofia123!"
+def setup_for_dialect(dialect: str) -> tuple[Path, list[Path]]:
+    os.environ["DVDRENTAL_PASSWORD"] = "Sofia123!"  # noqa: S105
     os.environ["DVDRENTAL_CONNECTION_STRING"] = get_connection_string(dialect, with_password=False)
     return (
         ROOT.joinpath("translation.toml"),

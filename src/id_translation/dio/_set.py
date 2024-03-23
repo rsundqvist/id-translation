@@ -1,4 +1,5 @@
-from typing import Any, Dict, List, Optional, Sequence, Set
+from collections.abc import Sequence
+from typing import Any
 
 from ..offline import TranslationMap
 from ..types import IdType, NameType, SourceType
@@ -13,7 +14,7 @@ class SetIO(DataStructureIO):
         return isinstance(arg, set)
 
     @staticmethod
-    def extract(translatable: Set[IdType], names: List[NameType]) -> Dict[NameType, Sequence[IdType]]:
+    def extract(translatable: set[IdType], names: list[NameType]) -> dict[NameType, Sequence[IdType]]:
         if len(names) != 1:  # pragma: no cover
             raise ValueError("Length of names must be one.")
 
@@ -21,8 +22,8 @@ class SetIO(DataStructureIO):
 
     @staticmethod
     def insert(
-        translatable: Set[IdType], names: List[NameType], tmap: TranslationMap[NameType, SourceType, IdType], copy: bool
-    ) -> Optional[Set[Optional[str]]]:
+        translatable: set[IdType], names: list[NameType], tmap: TranslationMap[NameType, SourceType, IdType], copy: bool
+    ) -> set[str | None] | None:
         magic_dict = tmap[names[0]]
         translated = {magic_dict.get(e) for e in translatable}
 

@@ -32,6 +32,7 @@ operates. See https://github.com/python/typing/issues/548 for details on this su
 
 All ``pandas`` types will be ``None`` without stubs, which will break the overloads.
 """
+
 import abc as _abc
 import typing as _type
 from typing import TYPE_CHECKING
@@ -40,7 +41,7 @@ from uuid import UUID as _UUID
 ID: str = "id"
 """Name of the ID placeholder."""
 
-IdTypes = _type.Union[int, str, _UUID]
+IdTypes = int | str | _UUID
 """Type of the value being translated into human-readable labels."""
 IdType = _type.TypeVar("IdType", bound=IdTypes)
 """Type variable bound by :attr:`IdTypes`."""
@@ -52,48 +53,43 @@ if TYPE_CHECKING:
     import pandas
 
 
-CopyTranslatable = _type.Union[
+CopyTranslatable: _type.TypeAlias = (
     # Scalar
-    IdType,
+    IdType
+    |
     # Tuple
-    _type.Tuple[IdType],
-    _type.Tuple[IdType, IdType],
-    _type.Tuple[IdType, IdType, IdType],
-    _type.Tuple[IdType, ...],
-]
+    tuple[IdType]
+    | tuple[IdType, IdType]
+    | tuple[IdType, IdType, IdType]
+    | tuple[IdType, ...]
+)
 
-_InplaceTranslatable = _type.Union[
-    _type.List[IdType],
-    _type.List[_type.List[IdType]],
-    _type.Set[IdType],
-]
+_InplaceTranslatable: _type.TypeAlias = list[IdType] | list[list[IdType]] | set[IdType]
 
 
 # From CopyTranslatable
-DictToId = _type.Dict[NameType, IdType]
-DictToList = _type.Dict[NameType, _type.List[IdType]]
-DictToSet = _type.Dict[NameType, _type.Set[IdType]]
-DictToOneTuple = _type.Dict[NameType, _type.Tuple[IdType]]
-DictToTwoTuple = _type.Dict[NameType, _type.Tuple[IdType, IdType]]
-DictToThreeTuple = _type.Dict[NameType, _type.Tuple[IdType, IdType, IdType]]
-DictToVarTuple = _type.Dict[NameType, _type.Tuple[IdType, ...]]
-DictTranslatable = _type.Union[
-    DictToId[NameType, IdType],
-    DictToList[NameType, IdType],
-    DictToSet[NameType, IdType],
-    DictToOneTuple[NameType, IdType],
-    DictToTwoTuple[NameType, IdType],
-    DictToThreeTuple[NameType, IdType],
-    DictToVarTuple[NameType, IdType],
-]
+DictToId = dict[NameType, IdType]
+DictToList = dict[NameType, list[IdType]]
+DictToSet = dict[NameType, set[IdType]]
+DictToOneTuple = dict[NameType, tuple[IdType]]
+DictToTwoTuple = dict[NameType, tuple[IdType, IdType]]
+DictToThreeTuple = dict[NameType, tuple[IdType, IdType, IdType]]
+DictToVarTuple = dict[NameType, tuple[IdType, ...]]
+DictTranslatable = (
+    DictToId[NameType, IdType]
+    | DictToList[NameType, IdType]
+    | DictToSet[NameType, IdType]
+    | DictToOneTuple[NameType, IdType]
+    | DictToTwoTuple[NameType, IdType]
+    | DictToThreeTuple[NameType, IdType]
+    | DictToVarTuple[NameType, IdType]
+)
+
 PandasTranslatable = _type.Union["pandas.DataFrame", "pandas.Series", "pandas.Index"]
 
-InplaceTranslatable = _type.Union[
-    DictTranslatable[NameType, IdType],
-    _InplaceTranslatable[IdType],
-]
+InplaceTranslatable: _type.TypeAlias = DictTranslatable[NameType, IdType] | _InplaceTranslatable[IdType]
 
-Translatable = _type.Union[InplaceTranslatable[NameType, IdType], CopyTranslatable[IdType], PandasTranslatable]
+Translatable: _type.TypeAlias = InplaceTranslatable[NameType, IdType] | CopyTranslatable[IdType] | PandasTranslatable
 """Enumeration of translatable types.
 
 Types ``int``, ``str``, and ``UUID`` can be translated, or a collection thereof. Some :mod:`numpy` and :mod:`pandas`
@@ -111,14 +107,14 @@ and will do its best to return a data structure of the same type (albeit with el
 SourceType = _type.TypeVar("SourceType", bound=_type.Hashable)
 """Type used to describe sources. Typically a string for things like files and database tables."""
 
-NameToSource = _type.Dict[NameType, SourceType]
+NameToSource = dict[NameType, SourceType]
 """A mapping from name to source."""
 
 NamesPredicate = _type.Callable[[NameType], bool]
 """A predicate type on names."""
-NameTypes = _type.Union[NameType, _type.Iterable[NameType]]
+NameTypes: _type.TypeAlias = NameType | _type.Iterable[NameType]
 """A union of a name type, or an iterable thereof."""
-Names = _type.Union[NameTypes[NameType], NamesPredicate[NameType]]
+Names: _type.TypeAlias = NameTypes[NameType] | NamesPredicate[NameType]
 """Acceptable name types."""
 
 
@@ -126,17 +122,17 @@ class HasSources(_abc.ABC, _type.Generic[SourceType]):
     """Indicates that `sources` and `placeholders` are available."""
 
     @property
-    def sources(self) -> _type.List[SourceType]:
+    def sources(self) -> list[SourceType]:
         """A list of known Source names, such as ``cities`` or ``languages``."""
         return list(self.placeholders)
 
     @property
     @_abc.abstractmethod
-    def placeholders(self) -> _type.Dict[SourceType, _type.List[str]]:
+    def placeholders(self) -> dict[SourceType, list[str]]:
         """Placeholders for all known Source names, such as ``id`` or ``name``.
 
         These are the (possibly unmapped) placeholders that may be used for translation.
 
         Returns:
             A dict ``{source: [placeholders..]}``.
-        """  # noqa: DAR202
+        """

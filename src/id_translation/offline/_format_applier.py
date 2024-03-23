@@ -1,4 +1,5 @@
-from typing import TYPE_CHECKING, Any, Dict, Generic, List, Optional, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Any, Generic
 
 from rics.misc import tname
 
@@ -37,7 +38,7 @@ class FormatApplier(Generic[NameType, SourceType, IdType]):
         fmt: Format,
         placeholders: PlaceholdersTuple = None,
         default_fmt: Format = None,
-        default_fmt_placeholders: Dict[str, Any] = None,
+        default_fmt_placeholders: dict[str, Any] | None = None,
         enable_uuid_heuristics: bool = True,
     ) -> MagicDict[IdType]:
         """Translate IDs.
@@ -78,7 +79,7 @@ class FormatApplier(Generic[NameType, SourceType, IdType]):
 
         return MagicDict(real_translations, default_fstring, enable_uuid_heuristics, self._transformer)
 
-    def to_dict(self) -> Dict[str, Sequence[Any]]:
+    def to_dict(self) -> dict[str, Sequence[Any]]:
         """Get the underlying data used for translations as a dict.
 
         Returns:
@@ -123,12 +124,12 @@ class FormatApplier(Generic[NameType, SourceType, IdType]):
         return self._translations.source
 
     @property
-    def placeholders(self) -> List[str]:
+    def placeholders(self) -> list[str]:
         """Return placeholder names in sorted order."""
         return list(self._translations.placeholders)
 
     @property
-    def transformer(self) -> Optional[Transformer[IdType]]:
+    def transformer(self) -> Transformer[IdType] | None:
         """Get the :class:`.Transformer` instance (or ``None``) used by this ``FormatApplier``."""
         return self._transformer
 

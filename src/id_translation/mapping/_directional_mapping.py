@@ -1,4 +1,5 @@
-from typing import Any, Dict, Generic, Hashable, Iterable, Mapping, Optional, Tuple, TypeVar
+from collections.abc import Hashable, Iterable, Mapping
+from typing import Any, Generic, TypeVar
 
 from rics.misc import tname
 
@@ -28,12 +29,12 @@ class DirectionalMapping(Generic[HL, HR]):
     def __init__(
         self,
         cardinality: Cardinality.ParseType = None,
-        left_to_right: Mapping[HL, Iterable[HR]] = None,
-        right_to_left: Mapping[HR, Iterable[HL]] = None,
+        left_to_right: Mapping[HL, Iterable[HR]] | None = None,
+        right_to_left: Mapping[HR, Iterable[HL]] | None = None,
         _verify: bool = True,
     ) -> None:
-        self._left_to_right: Dict[HL, Tuple[HR, ...]] = self._to_other(left_to_right, right_to_left)
-        self._right_to_left: Dict[HR, Tuple[HL, ...]] = self._to_other(right_to_left, left_to_right)
+        self._left_to_right: dict[HL, tuple[HR, ...]] = self._to_other(left_to_right, right_to_left)
+        self._right_to_left: dict[HR, tuple[HL, ...]] = self._to_other(right_to_left, left_to_right)
 
         if left_to_right is not None and right_to_left is not None and _verify:
             self._verify(expected=DirectionalMapping(cardinality, left_to_right=left_to_right, _verify=False))
@@ -50,12 +51,12 @@ class DirectionalMapping(Generic[HL, HR]):
         return self._cardinality
 
     @property
-    def left(self) -> Tuple[HL, ...]:
+    def left(self) -> tuple[HL, ...]:
         """Left-side elements in the mapping."""
         return tuple(self._left_to_right)
 
     @property
-    def right(self) -> Tuple[HR, ...]:
+    def right(self) -> tuple[HR, ...]:
         """Right-side elements in the mapping."""
         return tuple(self._right_to_left)
 
@@ -83,7 +84,7 @@ class DirectionalMapping(Generic[HL, HR]):
             _verify=False,
         )
 
-    def flatten(self) -> Dict[HL, HR]:
+    def flatten(self) -> dict[HL, HR]:
         """Return a flattened version of self as a dict.
 
         Returns:
@@ -130,9 +131,9 @@ class DirectionalMapping(Generic[HL, HR]):
     @classmethod
     def _to_other(
         cls,
-        primary_side: Mapping[Any, Iterable[Any]] = None,
-        backup_side: Mapping[Any, Iterable[Any]] = None,
-    ) -> Dict[Any, Any]:
+        primary_side: Mapping[Any, Iterable[Any]] | None = None,
+        backup_side: Mapping[Any, Iterable[Any]] | None = None,
+    ) -> dict[Any, Any]:
         if primary_side is not None:
             return primary_side  # type: ignore[return-value]
 
@@ -173,7 +174,7 @@ class DirectionalMapping(Generic[HL, HR]):
     @classmethod
     def _handle_cardinality(
         cls,
-        expected: Optional[Cardinality.ParseType],
+        expected: Cardinality.ParseType | None,
         left: LeftToRight[HL, HR],
         right: RightToLeft[HR, HL],
         verify: bool,
@@ -206,7 +207,7 @@ class DirectionalMapping(Generic[HL, HR]):
             raise ValueError(f"{name}-side mismatch: Got {actual} but expected {expected}.")
 
 
-def _select(elements: Iterable[HAnySide], items: Dict[HL, Tuple[HR, ...]], exclude: bool) -> Dict[HL, Tuple[HR, ...]]:
+def _select(elements: Iterable[HAnySide], items: dict[HL, tuple[HR, ...]], exclude: bool) -> dict[HL, tuple[HR, ...]]:
     if not exclude:
         missing_elements = set(elements).difference(items)
         if missing_elements:

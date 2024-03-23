@@ -1,7 +1,8 @@
 import logging
 import warnings
+from collections.abc import Iterable
 from time import perf_counter
-from typing import Any, Dict, Generic, Iterable, List, Optional, Set, Tuple, Union
+from typing import Any, Generic
 
 import numpy as np
 import pandas as pd
@@ -48,18 +49,18 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):
 
     def __init__(
         self,
-        score_function: Union[str, ScoreFunction[ValueType, CandidateType, ContextType]] = "disabled",
-        score_function_kwargs: Dict[str, Any] = None,
+        score_function: str | ScoreFunction[ValueType, CandidateType, ContextType] = "disabled",
+        score_function_kwargs: dict[str, Any] | None = None,
         filter_functions: Iterable[
-            Tuple[Union[str, FilterFunction[ValueType, CandidateType, ContextType]], Dict[str, Any]]
+            tuple[str | FilterFunction[ValueType, CandidateType, ContextType], dict[str, Any]]
         ] = (),
         min_score: float = 0.90,
-        overrides: Union[
-            InheritedKeysDict[ContextType, ValueType, CandidateType], Dict[ValueType, CandidateType]
-        ] = None,
+        overrides: InheritedKeysDict[ContextType, ValueType, CandidateType]
+        | dict[ValueType, CandidateType]
+        | None = None,
         unmapped_values_action: ActionLevel.ParseType = ActionLevel.IGNORE,
         unknown_user_override_action: ActionLevel.ParseType = ActionLevel.RAISE,
-        cardinality: Optional[Cardinality.ParseType] = Cardinality.ManyToOne,
+        cardinality: Cardinality.ParseType | None = Cardinality.ManyToOne,
         verbose_logging: bool = False,
     ) -> None:
         if min_score <= 0 or np.isinf(min_score):
@@ -68,13 +69,13 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):
         self._score = get_by_full_name(score_function, sf) if isinstance(score_function, str) else score_function
         self._score_kwargs = score_function_kwargs or {}
         self._min_score = min_score
-        self._overrides: Union[
-            InheritedKeysDict[ContextType, ValueType, CandidateType], Dict[ValueType, CandidateType]
-        ] = (overrides if isinstance(overrides, InheritedKeysDict) else (overrides or {}))
+        self._overrides: InheritedKeysDict[ContextType, ValueType, CandidateType] | dict[ValueType, CandidateType] = (
+            overrides if isinstance(overrides, InheritedKeysDict) else (overrides or {})
+        )
         self._unmapped_action: ActionLevel = ActionLevel.verify(unmapped_values_action)
         self._bad_candidate_action: ActionLevel = ActionLevel.verify(unknown_user_override_action)
         self._cardinality = None if cardinality is None else Cardinality.parse(cardinality, strict=True)
-        self._filters: List[Tuple[FilterFunction[ValueType, CandidateType, ContextType], Dict[str, Any]]] = [
+        self._filters: list[tuple[FilterFunction[ValueType, CandidateType, ContextType], dict[str, Any]]] = [
             ((get_by_full_name(func, mf) if isinstance(func, str) else func), kwargs)
             for func, kwargs in filter_functions
         ]
@@ -266,7 +267,7 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):
         return logger
 
     @property
-    def cardinality(self) -> Optional[Cardinality]:
+    def cardinality(self) -> Cardinality | None:
         """Return upper cardinality bound during mapping."""
         return self._cardinality
 
@@ -304,10 +305,10 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):
     def _handle_overrides(
         self,
         scores: pd.DataFrame,
-        context: Optional[ContextType],
-        override_function: Optional[UserOverrideFunction[ValueType, CandidateType, ContextType]],
-    ) -> List[ValueType]:
-        applied: Dict[ValueType, CandidateType] = {}
+        context: ContextType | None,
+        override_function: UserOverrideFunction[ValueType, CandidateType, ContextType] | None,
+    ) -> list[ValueType]:
+        applied: dict[ValueType, CandidateType] = {}
 
         def apply(v: ValueType, oc: CandidateType) -> None:
             scores.loc[v, :] = -np.inf
@@ -343,8 +344,8 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):
     def _get_static_overrides(
         self,
         values: Iterable[ValueType],
-        context: Optional[ContextType],
-    ) -> Dict[ValueType, CandidateType]:
+        context: ContextType | None,
+    ) -> dict[ValueType, CandidateType]:
         if not self._overrides:
             return {}
 
@@ -362,8 +363,8 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):
         func: UserOverrideFunction[ValueType, CandidateType, ContextType],
         values: Iterable[ValueType],
         candidates: Iterable[CandidateType],
-        context: Optional[ContextType],
-    ) -> List[Tuple[ValueType, CandidateType]]:
+        context: ContextType | None,
+    ) -> list[tuple[ValueType, CandidateType]]:
         candidates = set(candidates)
 
         ans = []
@@ -394,9 +395,9 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):
         self,
         value: ValueType,
         candidates: Iterable[CandidateType],
-        context: Optional[ContextType],
-        kwargs: Dict[str, Any],
-    ) -> Set[CandidateType]:
+        context: ContextType | None,
+        kwargs: dict[str, Any],
+    ) -> set[CandidateType]:
         candidates = list(candidates)
         filtered_candidates = set(candidates)
 
@@ -435,7 +436,7 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):
         Returns:
             A copy of this ``Mapper`` with `overrides` applied.
         """
-        kwargs: Dict[str, Any] = {
+        kwargs: dict[str, Any] = {
             "score_function": self._score,
             "min_score": self._min_score,
             "unmapped_values_action": self.unmapped_values_action,

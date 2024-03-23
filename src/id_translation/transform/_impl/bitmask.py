@@ -58,7 +58,7 @@ class BitmaskTransformer(Transformer[IdType]):
         self,
         joiner: str = " & ",
         *,
-        overrides: Mapping[IdType, str] = None,
+        overrides: Mapping[IdType, str] | None = None,
         force_decomposition: bool = False,
     ) -> None:
         self._joiner = joiner
@@ -69,14 +69,14 @@ class BitmaskTransformer(Transformer[IdType]):
         self._overrides = overrides or {}
 
     @classmethod
-    def update_ids(cls, ids: Set[IdType]) -> None:
+    def update_ids(cls, ids: set[IdType]) -> None:
         """Add decomposed bitmask values."""
         new_ids = set()
         for decomposed in map(cls.decompose_bitmask, ids):
             new_ids.update(decomposed)
         ids.update(new_ids)
 
-    def update_translations(self, translations: Dict[IdType, str]) -> None:
+    def update_translations(self, translations: dict[IdType, str]) -> None:
         """Join decomposed bitmask values using the `joiner` string."""
         ids_to_update: Iterable[IdType] = filter(self.is_decomposable, translations)
         if not self._force:
@@ -102,7 +102,7 @@ class BitmaskTransformer(Transformer[IdType]):
         except KeyError:
             return
 
-    def _create_composite_translation(self, bits: List[IdType], *, translations: Mapping[IdType, str]) -> str:
+    def _create_composite_translation(self, bits: list[IdType], *, translations: Mapping[IdType, str]) -> str:
         return self._joiner.join(translations[idx] for idx in bits)
 
     def __repr__(self) -> str:
@@ -111,7 +111,7 @@ class BitmaskTransformer(Transformer[IdType]):
         return f"{type(self).__name__}({self._joiner!r}, {overrides=}, {force_decomposition=})"
 
     @classmethod
-    def decompose_bitmask(cls, i: int, /) -> List[int]:
+    def decompose_bitmask(cls, i: int, /) -> list[int]:
         """Decompose a bitmask into powers of two.
 
         If `i` is not :attr:`decomposable <is_decomposable>`, an empty list is returned.
@@ -150,6 +150,7 @@ class BitmaskTransformer(Transformer[IdType]):
     @staticmethod
     def _from_toml_records(records: List[TomlOverrideRecord]) -> Dict[IdType, str]:
         keys = ("id", "override")
+    def _from_toml_records(records: list[TomlOverrideRecord]) -> dict[IdType, str]:
 
         overrides = {}
         for i, record in enumerate(records, start=1):

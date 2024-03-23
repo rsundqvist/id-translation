@@ -1,9 +1,7 @@
-from typing import Union
 from uuid import UUID
 
 import pandas as pd
 import pytest
-
 from id_translation import Translator
 from id_translation.fetching import PandasFetcher
 
@@ -24,7 +22,7 @@ class TestUuids:
 
     @classmethod
     def run(cls, read_function, tmp_path):
-        translator: Translator[str, str, Union[str, UUID]] = Translator(
+        translator: Translator[str, str, str | UUID] = Translator(
             PandasFetcher(read_function, read_path_format=str(tmp_path / "{}.suffix")),
             fmt="{id!s:.8}:{name}",
             enable_uuid_heuristics=True,

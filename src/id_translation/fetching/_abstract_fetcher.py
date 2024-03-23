@@ -1,12 +1,12 @@
 import logging
-import pickle  # noqa: 403
 import warnings
 from abc import abstractmethod
+from collections.abc import Iterable, Sequence
 from contextlib import contextmanager
 from datetime import timedelta
 from pprint import pformat
 from time import perf_counter
-from typing import Any, Dict, Iterable, List, Literal, Optional, Sequence, Set, Tuple, Union, final
+from typing import Any, Literal, final
 
 import pandas as pd
 from rics.action_level import ActionLevel
@@ -68,8 +68,8 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         allow_fetch_all: bool = True,
         fetch_all_unmapped_values_action: ActionLevel.ParseType = None,
         selective_fetch_all: bool = True,
-        fetch_all_cache_max_age: Union[str, pd.Timedelta, timedelta] = None,
-        cache_keys: Sequence[str] = None,
+        fetch_all_cache_max_age: str | pd.Timedelta | timedelta = None,
+        cache_keys: Sequence[str] | None = None,
         optional: bool = False,
     ) -> None:
         self._mapper: Mapper[str, str, SourceType] = mapper or Mapper(**self.default_mapper_kwargs())
@@ -81,11 +81,11 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
                 stacklevel=2,
             )
 
-        self._mapping_cache: Dict[SourceType, Dict[str, Optional[str]]] = {}
+        self._mapping_cache: dict[SourceType, dict[str, str | None]] = {}
         self._allow_fetch_all: bool = allow_fetch_all
         self._active_operation: Literal["FETCH", "FETCH_ALL", None] = None
 
-        self._fetch_all_unmapped_values_action: Optional[ActionLevel] = (
+        self._fetch_all_unmapped_values_action: ActionLevel | None = (
             None
             if fetch_all_unmapped_values_action is None
             else ActionLevel.verify(
@@ -99,8 +99,8 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
 
         if fetch_all_cache_max_age and not cache_keys:  # pragma: no cover
             raise ValueError("Must specify at least one cache key with 'fetch_all_cache_max_age'.")
-        self._translation_cache_access: Optional[CacheAccess[SourceType, IdType]] = None
-        self._fetch_all_cache_max_age: Optional[pd.Timedelta] = (
+        self._translation_cache_access: CacheAccess[SourceType, IdType] | None = None
+        self._fetch_all_cache_max_age: pd.Timedelta | None = (
             None if fetch_all_cache_max_age is None else pd.Timedelta(fetch_all_cache_max_age)
         )
 
@@ -115,10 +115,10 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
             logger.addFilter(adder)
             mapper_logger.addFilter(adder)
         self._optional: bool = optional
-        self._cache_keys: Optional[List[str]] = cache_keys
+        self._cache_keys: list[str] | None = cache_keys
         self.logger = logger
         self._mapper.logger = mapper_logger
-        self._placeholders: Optional[Dict[SourceType, List[str]]] = None
+        self._placeholders: dict[SourceType, list[str]] | None = None
 
     @final
     def initialize_sources(self, task_id: int = -1, *, force: bool = False) -> None:
@@ -126,7 +126,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
             self._placeholders = self._initialize_sources(task_id)
 
     @abstractmethod
-    def _initialize_sources(self, task_id: int) -> Dict[SourceType, List[str]]:
+    def _initialize_sources(self, task_id: int) -> dict[SourceType, list[str]]:
         """Perform a full (re) discovery of sources and placeholders."""
 
     @final
@@ -137,7 +137,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
 
     @final
     @property
-    def placeholders(self) -> Dict[SourceType, List[str]]:
+    def placeholders(self) -> dict[SourceType, list[str]]:
         if self._placeholders is None:
             self.initialize_sources()
             return self.placeholders
@@ -146,7 +146,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
 
     @final
     @property
-    def sources(self) -> List[SourceType]:
+    def sources(self) -> list[SourceType]:
         return list(self.placeholders)
 
     def map_placeholders(
@@ -154,10 +154,10 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         source: SourceType,
         placeholders: Iterable[str],
         *,
-        candidates: Iterable[str] = None,
+        candidates: Iterable[str] | None = None,
         clear_cache: bool = False,
-        task_id: int = None,
-    ) -> Dict[str, Optional[str]]:
+        task_id: int | None = None,
+    ) -> dict[str, str | None]:
         """Map `placeholder` names to the actual names seen in `source`.
 
         This method calls ``Mapper.apply(values=placeholders, candidates=candidates, context=source)`` using this
@@ -241,7 +241,13 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
 
         return ans
 
-    def id_column(self, source: SourceType, *, candidates: Iterable[str] = None, task_id: int = None) -> Optional[str]:
+    def id_column(
+        self,
+        source: SourceType,
+        *,
+        candidates: Iterable[str] | None = None,
+        task_id: int | None = None,
+    ) -> str | None:
         """Return the ID column for `source`."""
         return self.map_placeholders(source, [ID], candidates=candidates, task_id=task_id)[ID]
 
@@ -273,7 +279,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         if not self.online:  # pragma: no cover
             raise ConnectionStatusError("disconnected")
 
-    def get_placeholders(self, source: SourceType) -> List[str]:
+    def get_placeholders(self, source: SourceType) -> list[str]:
         """Get placeholders for `source`."""
         placeholders = self.placeholders
         if source not in placeholders:
@@ -313,7 +319,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         ids_to_fetch: Iterable[IdsToFetch[SourceType, IdType]],
         placeholders: Iterable[str] = (),
         required: Iterable[str] = (),
-        task_id: int = None,
+        task_id: int | None = None,
         enable_uuid_heuristics: bool = False,
     ) -> SourcePlaceholderTranslations[SourceType]:
         if task_id is None:
@@ -328,9 +334,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
                     ids=itf.ids,
                     task_id=task_id,
                     enable_uuid_heuristics=enable_uuid_heuristics,
-                )[
-                    0
-                ]  # Second index indicates if data is from cache -- we don't care here
+                )[0]  # Second index indicates if data is from cache -- we don't care here
                 for itf in ids_to_fetch
             }
 
@@ -339,7 +343,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         placeholders: Iterable[str] = (),
         *,
         required: Iterable[str] = (),
-        task_id: int = None,
+        task_id: int | None = None,
         enable_uuid_heuristics: bool = False,
     ) -> SourcePlaceholderTranslations[SourceType]:
         if not self._allow_fetch_all:
@@ -359,7 +363,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
     def _fetch_all(
         self,
         placeholders: PlaceholdersTuple,
-        required_placeholders: Set[str],
+        required_placeholders: set[str],
         task_id: int,
         enable_uuid_heuristics: bool,
     ) -> SourcePlaceholderTranslations[SourceType]:
@@ -475,11 +479,11 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         source: SourceType,
         placeholders: PlaceholdersTuple,
         *,
-        required_placeholders: Set[str],
+        required_placeholders: set[str],
         task_id: int,
         enable_uuid_heuristics: bool,
-        ids: Set[IdType] = None,
-    ) -> Tuple[PlaceholderTranslations[SourceType], bool]:
+        ids: set[IdType] | None = None,
+    ) -> tuple[PlaceholderTranslations[SourceType], bool]:
         start = perf_counter()
 
         placeholders = tuple(dict.fromkeys(placeholders))  # Deduplicate
@@ -542,7 +546,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
 
         return translations, False
 
-    def _verify_placeholders(self, reverse_mappings: Dict[str, str], source: SourceType, unmapped: Set[str]) -> None:
+    def _verify_placeholders(self, reverse_mappings: dict[str, str], source: SourceType, unmapped: set[str]) -> None:
         hint = ""
         if unmapped.intersection(reverse_mappings.values()):
             r = reverse_dict(reverse_mappings)
@@ -560,18 +564,18 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         self,
         source: SourceType,
         placeholders: PlaceholdersTuple,
-        required_placeholders: Set[str],
-        ids: Optional[Set[IdType]],
+        required_placeholders: set[str],
+        ids: set[IdType] | None,
         task_id: int,
         enable_uuid_heuristics: bool,
-    ) -> Tuple[Optional[Dict[str, str]], FetchInstruction[SourceType, IdType]]:
+    ) -> tuple[dict[str, str] | None, FetchInstruction[SourceType, IdType]]:
         required_placeholders.add(ID)
         if ID not in placeholders:
             placeholders = (ID,) + placeholders
 
         wanted_to_actual = self._wanted_to_actual(source, placeholders, task_id)
 
-        actual_to_wanted: Dict[str, str] = reverse_dict(wanted_to_actual)
+        actual_to_wanted: dict[str, str] = reverse_dict(wanted_to_actual)
         need_placeholder_mapping = actual_to_wanted != wanted_to_actual
         if need_placeholder_mapping:
             # We'll just map what we can here. If anything is missing it'll be caught later.
@@ -594,8 +598,8 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         )
 
     def _wanted_to_actual(
-        self, source: SourceType, wanted_placeholders: Iterable[str], task_id: int = None
-    ) -> Dict[str, str]:
+        self, source: SourceType, wanted_placeholders: Iterable[str], task_id: int | None = None
+    ) -> dict[str, str]:
         wanted_to_actual = self.map_placeholders(source, wanted_placeholders, task_id=task_id)
         return {wanted: actual for wanted, actual in wanted_to_actual.items() if actual is not None}
 
@@ -606,7 +610,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
             CacheMetadata(cache_keys=self._cache_keys, placeholders=self.placeholders),
         )
 
-    def _get_cached_translations(self, source: SourceType) -> Optional[PlaceholderTranslations[SourceType]]:
+    def _get_cached_translations(self, source: SourceType) -> PlaceholderTranslations[SourceType] | None:
         if not self.cache_enabled:
             return None
         if self._translation_cache_access is None:
@@ -621,7 +625,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         return self._translation_cache_access
 
     @classmethod
-    def default_mapper_kwargs(cls) -> Dict[str, Any]:
+    def default_mapper_kwargs(cls) -> dict[str, Any]:
         """Return default ``Mapper`` arguments for ``AbstractFetcher`` implementations."""
         return dict(
             score_function=HeuristicScore(
@@ -650,7 +654,7 @@ class _ExtrasAdder(logging.Filter):
         super().__init__()
         self.extras = extras
 
-    def filter(self, record: logging.LogRecord) -> bool:  # noqa: A003
+    def filter(self, record: logging.LogRecord) -> bool:
         for name, value in self.extras.items():
             setattr(record, name, value)
         return True

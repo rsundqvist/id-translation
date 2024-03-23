@@ -4,7 +4,7 @@ import logging
 import warnings
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from time import perf_counter
-from typing import Dict, Iterable, List, Mapping, Optional, Tuple, Union, final
+from typing import TYPE_CHECKING, final
 
 from rics.action_level import ActionLevel, ActionLevelHelper
 from rics.collections.dicts import reverse_dict
@@ -16,11 +16,15 @@ from ..offline.types import SourcePlaceholderTranslations
 from ..settings import logging as settings
 from ..types import IdType, SourceType
 from . import Fetcher, exceptions
-from .types import IdsToFetch
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping
+
+    from .types import IdsToFetch
 
 LOGGER = logging.getLogger(__package__).getChild("MultiFetcher")
 
-FetchResult = Tuple[int, SourcePlaceholderTranslations[SourceType]]
+FetchResult = tuple[int, SourcePlaceholderTranslations[SourceType]]
 
 
 _ACTION_LEVEL_HELPER = ActionLevelHelper(
@@ -48,14 +52,14 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         max_workers: int = 1,
         duplicate_translation_action: ActionLevel.ParseType = ActionLevel.WARN,
         duplicate_source_discovered_action: ActionLevel.ParseType = ActionLevel.WARN,
-        optional_fetcher_discarded_log_level: Union[int, str] = "DEBUG",
+        optional_fetcher_discarded_log_level: int | str = "DEBUG",
     ) -> None:
         for pos, f in enumerate(children):
             if not isinstance(f, Fetcher):  # pragma: no cover
                 raise TypeError(f"Argument {pos} is of type {type(f)}, expected Fetcher subtype.")
 
-        self._id_to_rank: Dict[int, int] = {id(f): rank for rank, f in enumerate(children)}
-        self._id_to_fetcher: Dict[int, Fetcher[SourceType, IdType]] = {id(f): f for f in children}
+        self._id_to_rank: dict[int, int] = {id(f): rank for rank, f in enumerate(children)}
+        self._id_to_fetcher: dict[int, Fetcher[SourceType, IdType]] = {id(f): f for f in children}
         self.max_workers: int = max_workers
         self._duplicate_translation_action = _ACTION_LEVEL_HELPER.verify(
             duplicate_translation_action, "duplicate_translation_action"
@@ -75,8 +79,8 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         if len(self.children) != len(children):
             raise ValueError("Repeat fetcher instance(s)!")  # pragma: no cover
 
-        self._placeholders: Optional[Dict[SourceType, List[str]]] = None
-        self._source_to_id: Dict[SourceType, int] = {}
+        self._placeholders: dict[SourceType, list[str]] | None = None
+        self._source_to_id: dict[SourceType, int] = {}
 
     @property
     def allow_fetch_all(self) -> bool:
@@ -87,13 +91,13 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         return all(f.online for f in self._id_to_fetcher.values())  # pragma: no cover
 
     @property
-    def children(self) -> List[Fetcher[SourceType, IdType]]:
+    def children(self) -> list[Fetcher[SourceType, IdType]]:
         """Return child fetchers."""
         return list(self._id_to_fetcher.values())
 
     @final
     @property
-    def placeholders(self) -> Dict[SourceType, List[str]]:
+    def placeholders(self) -> dict[SourceType, list[str]]:
         if self._placeholders is None:
             self.initialize_sources()
             return self.placeholders
@@ -123,8 +127,8 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         if not self._id_to_fetcher:
             warnings.warn("No fetchers. See log output for more information.", UserWarning, stacklevel=1)
 
-    def _initialize_sources(self, task_id: int) -> Dict[int, Dict[SourceType, List[str]]]:
-        retval: Dict[int, Dict[SourceType, List[str]]] = {}
+    def _initialize_sources(self, task_id: int) -> dict[int, dict[SourceType, list[str]]]:
+        retval: dict[int, dict[SourceType, list[str]]] = {}
 
         for fid, fetcher in list(self._id_to_fetcher.items()):
             if fetcher.optional:
@@ -164,12 +168,12 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
 
         return retval
 
-    def _make_source_to_id(self, fid_to_placeholders: Mapping[int, Iterable[SourceType]]) -> Dict[SourceType, int]:
+    def _make_source_to_id(self, fid_to_placeholders: Mapping[int, Iterable[SourceType]]) -> dict[SourceType, int]:
         if not fid_to_placeholders:
             return {}
 
-        source_ranks: Dict[SourceType, int] = {}
-        retval: Dict[SourceType, int] = {}
+        source_ranks: dict[SourceType, int] = {}
+        retval: dict[SourceType, int] = {}
 
         for fid, sources in fid_to_placeholders.items():
             rank = self._id_to_rank[fid]
@@ -188,13 +192,13 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         placeholders: Iterable[str] = (),
         *,
         required: Iterable[str] = (),
-        task_id: int = None,
+        task_id: int | None = None,
         enable_uuid_heuristics: bool = False,
     ) -> SourcePlaceholderTranslations[SourceType]:
         if task_id is None:
             task_id = generate_task_id()
 
-        tasks: Dict[int, List[IdsToFetch[SourceType, IdType]]] = {}
+        tasks: dict[int, list[IdsToFetch[SourceType, IdType]]] = {}
         sources = []
         for idt in ids_to_fetch:
             tasks.setdefault(self._source_to_id[idt.source], []).append(idt)
@@ -269,7 +273,7 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         placeholders: Iterable[str] = (),
         *,
         required: Iterable[str] = (),
-        task_id: int = None,
+        task_id: int | None = None,
         enable_uuid_heuristics: bool = False,
     ) -> SourcePlaceholderTranslations[SourceType]:
         if task_id is None:
@@ -348,7 +352,7 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
 
     def _gather(self, futures: Iterable[Future[FetchResult[SourceType]]]) -> SourcePlaceholderTranslations[SourceType]:
         ans: SourcePlaceholderTranslations[SourceType] = {}
-        source_ranks: Dict[SourceType, int] = {}
+        source_ranks: dict[SourceType, int] = {}
 
         for future in as_completed(futures):
             fid, translations = future.result()
@@ -360,7 +364,7 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         self,
         translations: SourcePlaceholderTranslations[SourceType],
         rank: int,
-        source_ranks: Dict[SourceType, int],
+        source_ranks: dict[SourceType, int],
         ans: SourcePlaceholderTranslations[SourceType],
     ) -> None:
         for source_translations in translations.values():
@@ -407,7 +411,7 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         fetchers = "\n    ".join(f"{f}," for f in self._id_to_fetcher.values())
         return f"{tname(self)}({max_workers=}, fetchers=[\n    {fetchers}\n])"
 
-    def _fmt_fetcher(self, fetcher: Union[int, Fetcher[SourceType, IdType]]) -> str:
+    def _fmt_fetcher(self, fetcher: int | Fetcher[SourceType, IdType]) -> str:
         """Format a managed fetcher with rank and hex ID."""
         if isinstance(fetcher, int):
             fetcher = self._id_to_fetcher[fetcher]
@@ -416,7 +420,7 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         return f"rank-{rank} fetcher {fetcher} at {hex(fetcher_id)}"
 
     def _handle_all_sources_outranked(
-        self, task_id: int, *, fetcher_id: int, discarded: Dict[SourceType, List[str]]
+        self, task_id: int, *, fetcher_id: int, discarded: dict[SourceType, list[str]]
     ) -> None:
         fetcher = self._id_to_fetcher[fetcher_id]
 

@@ -46,6 +46,6 @@ class BaseTask(Generic[NameType, SourceType, IdType]):
         return self._task_id
 
 
-def generate_task_id(start: float = None) -> int:
+def generate_task_id(start: float | None = None) -> int:
     """Generate a new task ID."""
     return round(1000 * (perf_counter() if start is None else start))

@@ -3,27 +3,31 @@
 See Also:
     The :class:`~.HeuristicScore` class.
 """
+
 from __future__ import annotations
 
 import logging
 import re
 from typing import Any as _Any, Callable, Dict, Iterable, List, Set, Tuple, Union
+import collections.abc as _abc
+import re as _re
+import typing as _t
 
 VERBOSE: bool = False
-LOGGER = logging.getLogger(__package__).getChild("verbose").getChild("heuristic_functions")
+LOGGER = _logging.getLogger(__package__).getChild("verbose").getChild("heuristic_functions")
 
 
-_NOUN_TRANSFORMER_CACHE: Dict[str, Callable[[str], str]] = {}
-PluralToSingularArg = Union[bool, Dict[str, str], Callable[[str], str], str]
+_NOUN_TRANSFORMER_CACHE: dict[str, _abc.Callable[[str], str]] = {}
+PluralToSingularArg = bool | dict[str, str] | _abc.Callable[[str], str] | str
 
 
 def like_database_table(
     name: str,
-    tables: Iterable[str],
-    context: _Any,
+    tables: _abc.Iterable[str],
+    context: _t.Any,  # noqa: ARG001
     *,
     plural_to_singular: PluralToSingularArg = True,
-) -> Tuple[str, List[str]]:
+) -> tuple[str, list[str]]:
     """Normalize `name` and `tables` to appear as base-form nouns.
 
     Args:
@@ -69,11 +73,11 @@ def like_database_table(
 
 def smurf_columns(
     placeholder: str,
-    columns: Iterable[str],
+    columns: _abc.Iterable[str],
     table: str,
     *,
     plural_to_singular: PluralToSingularArg = False,
-) -> Set[str]:
+) -> set[str]:
     """Short-circuit `placeholder` to a matching smurf column.
 
     The smurf naming convention (or anti-pattern, depending on who you ask) refers the practice of including the name
@@ -159,12 +163,12 @@ def smurf_columns(
 
 def short_circuit(
     value: str,
-    candidates: Set[str],
-    context: _Any,
+    candidates: set[str],
+    context: _t.Any,  # noqa: ARG001
     *,
-    value_regex: Union[str, re.Pattern[str]],
+    value_regex: str | _re.Pattern[str],
     target_candidate: str,
-) -> Set[str]:
+) -> set[str]:
     """Short-circuit `value` to the target candidate if the target and regex conditions are met.
 
     If `target_candidate` is in `candidates` and `value` matches the given `value_regex`, a single-element set
@@ -193,7 +197,7 @@ def short_circuit(
         Short-circuiting will only trigger if the `value_regex` matches, and the `target_candidate` is present.
     """
     candidates = set(candidates)
-    pattern = re.compile(value_regex, flags=re.IGNORECASE) if isinstance(value_regex, str) else value_regex
+    pattern = _re.compile(value_regex, flags=_re.IGNORECASE) if isinstance(value_regex, str) else value_regex
 
     if target_candidate not in candidates:
         LOGGER.getChild("short_circuit").debug(
@@ -208,20 +212,24 @@ def short_circuit(
     return {target_candidate}
 
 
-def force_lower_case(value: str, candidates: Iterable[str], context: _Any) -> Tuple[str, List[str]]:
+def force_lower_case(
+    value: str,
+    candidates: _abc.Iterable[str],
+    context: _t.Any,  # noqa: ARG001
+) -> tuple[str, list[str]]:
     """Force lower-case in `value` and `candidates`."""
     return value.lower(), [c.lower() for c in candidates]
 
 
 def value_fstring_alias(
     value: str,
-    candidates: Iterable[str],
-    context: _Any,
+    candidates: _abc.Iterable[str],
+    context: _t.Any,
     *,
     fstring: str,
-    for_value: str = None,
-    **kwargs: _Any,
-) -> Tuple[str, Iterable[str]]:
+    for_value: str | None = None,
+    **kwargs: _t.Any,
+) -> tuple[str, _abc.Iterable[str]]:
     """Return a value formatted by `fstring`.
 
     .. note::
@@ -267,12 +275,12 @@ def value_fstring_alias(
 
 def candidate_fstring_alias(
     value: str,
-    candidates: Iterable[str],
-    context: _Any,
+    candidates: _abc.Iterable[str],
+    context: _t.Any,
     *,
     fstring: str,
-    **kwargs: _Any,
-) -> Tuple[str, Iterable[str]]:
+    **kwargs: _t.Any,
+) -> tuple[str, _abc.Iterable[str]]:
     """Return candidates formatted by `fstring`.
 
     .. note::
@@ -353,7 +361,7 @@ class NounTransformer:
         See :attr:`PLURAL_TO_SINGULAR_SUFFIXES` for affected suffixes.
     """
 
-    IRREGULARS: Dict[str, str] = {
+    IRREGULARS: _t.ClassVar[dict[str, str]] = {
         "species": "species",
         # Not really irregular
         "phases": "phase",
@@ -362,7 +370,7 @@ class NounTransformer:
     """Known irregular plural-to-singular transformations."""
 
     # https://wordtoolbox.com/nouns-ending-with/<letter-combination>
-    PLURAL_TO_SINGULAR_SUFFIXES: Tuple[Tuple[str, str], ...] = (
+    PLURAL_TO_SINGULAR_SUFFIXES: tuple[tuple[str, str], ...] = (
         ("ies", "y"),  # cit[ies] -> cit[y]
         ("ives", "ife"),  # l[ives] -> l[ife]
         ("ves", "f"),  # hal[ves] -> hal[f]
@@ -374,7 +382,7 @@ class NounTransformer:
     )
     """Plural-to-singular suffix mappings."""
 
-    def __init__(self, custom: Dict[str, str] = None) -> None:
+    def __init__(self, custom: dict[str, str] | None = None) -> None:
         if custom is None:
             custom = {}
         self._pre = {**self.IRREGULARS, **custom}
@@ -392,7 +400,7 @@ class NounTransformer:
         return plural
 
 
-def _get_noun_transformer(plural_to_singular: PluralToSingularArg) -> Callable[[str], str]:
+def _get_noun_transformer(plural_to_singular: PluralToSingularArg) -> _abc.Callable[[str], str]:
     """Returns a NOOP if `plural_to_singular` is ``False``."""
     if plural_to_singular is False:
         return lambda noun: noun

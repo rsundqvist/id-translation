@@ -1,5 +1,6 @@
 import logging
 import warnings
+from collections.abc import Iterable
 from copy import deepcopy
 from datetime import timedelta
 from os import getenv
@@ -8,19 +9,13 @@ from time import perf_counter
 from typing import (
     TYPE_CHECKING,
     Any,
-    Dict,
     Generic,
-    Iterable,
-    List,
     Literal,
     NoReturn,
-    Optional,
-    Set,
-    Tuple,
+    Self,
     Union,
     overload,
 )
-from uuid import UUID
 
 import pandas
 from rics._internal_support.types import PathLikeType
@@ -38,7 +33,11 @@ from .mapping import Mapper
 from .mapping.exceptions import MappingError
 from .mapping.types import UserOverrideFunction
 from .offline import Format, TranslationMap
-from .offline.types import FormatType, PlaceholderTranslations, SourcePlaceholderTranslations
+from .offline.types import (
+    FormatType,
+    PlaceholderTranslations,
+    SourcePlaceholderTranslations,
+)
 from .transform.types import Transformer
 from .types import (
     ID,
@@ -69,12 +68,14 @@ FetcherTypes = Union[
     TranslationMap[NameType, SourceType, IdType],
     Fetcher[SourceType, IdType],
     SourcePlaceholderTranslations[SourceType],
-    Dict[SourceType, PlaceholderTranslations.MakeTypes],
+    dict[SourceType, PlaceholderTranslations.MakeTypes],
 ]
 
 ID_TRANSLATION_DISABLED: Literal["ID_TRANSLATION_DISABLED"] = "ID_TRANSLATION_DISABLED"
 
 if TYPE_CHECKING:
+    from uuid import UUID
+
     ID_TRANSLATION_PANDAS_IS_TYPED: bool = False
 
 DEFAULT_FORMAT = Format("<Failed: id={id!r}>")
@@ -151,12 +152,12 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         default_fmt: FormatType = DEFAULT_FORMAT,
         default_fmt_placeholders: MakeType[SourceType, str, Any] = None,
         enable_uuid_heuristics: bool = False,
-        transformers: Dict[SourceType, Transformer[IdType]] = None,
+        transformers: dict[SourceType, Transformer[IdType]] | None = None,
     ) -> None:
         self._transformers = {} if transformers is None else transformers
 
         self._fmt = fmt if isinstance(fmt, Format) else Format(fmt)
-        self._default_fmt_placeholders: Optional[InheritedKeysDict[SourceType, str, Any]]
+        self._default_fmt_placeholders: InheritedKeysDict[SourceType, str, Any] | None
         self._default_fmt_placeholders, self._default_fmt = _handle_default(
             self._fmt, default_fmt, default_fmt_placeholders
         )
@@ -199,15 +200,15 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         self._mapper: Mapper[NameType, SourceType, None] = mapper or Mapper()
         self._mapper.logger = logging.getLogger(__package__).getChild("mapping").getChild("name-to-source")
 
-        self._config_metadata: Optional[ConfigMetadata] = None
-        self._translated_names: Optional[NameToSource[NameType, SourceType]] = None
+        self._config_metadata: ConfigMetadata | None = None
+        self._translated_names: NameToSource[NameType, SourceType] | None = None
 
     @classmethod
     def from_config(
         cls,
         path: PathLikeType,
         extra_fetchers: Iterable[PathLikeType] = (),
-    ) -> "Translator[NameType, SourceType, IdType]":
+    ) -> Self:
         """Create a :class:`.Translator` from TOML inputs.
 
         Args:
@@ -218,11 +219,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         Returns:
             A new :class:`.Translator` instance with a :attr:`config_metadata` attribute.
         """
-        return TranslatorFactory(
-            path,
-            extra_fetchers,
-            cls,  # TODO: Higher-Kinded TypeVars or typing.Self
-        ).create()
+        return TranslatorFactory(path, extra_fetchers, cls).create()  # type: ignore[return-value]
 
     @property
     def config_metadata(self) -> ConfigMetadata:
@@ -231,7 +228,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             raise ValueError("Not created using Translator.from_config()")  # pragma: no cover
         return self._config_metadata
 
-    def copy(self, **overrides: Any) -> "Translator[NameType, SourceType, IdType]":
+    def copy(self, **overrides: Any) -> Self:
         """Make a copy of this :class:`.Translator`.
 
         Args:
@@ -241,7 +238,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         Returns:
             A copy of this :class:`.Translator` with `overrides` applied.
         """
-        kwargs: Dict[str, Any] = {
+        kwargs: dict[str, Any] = {
             "fmt": self.fmt,
             "default_fmt": self.default_fmt,
             "enable_uuid_heuristics": self.enable_uuid_heuristics,
@@ -253,7 +250,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         if "default_fmt_placeholders" not in kwargs:
             kwargs["default_fmt_placeholders"] = self._default_fmt_placeholders
         if "fetcher" not in kwargs:
-            fetcher: Union[Fetcher[SourceType, IdType], TranslationMap[NameType, SourceType, IdType]]
+            fetcher: Fetcher[SourceType, IdType] | TranslationMap[NameType, SourceType, IdType]
             if self.online:
                 fetcher = self.fetcher
                 try:
@@ -276,67 +273,63 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         def translate(
             self,
             translatable: InplaceTranslatable[NameType, IdType],
-            names: Union[NameTypes[NameType], NameToSource[NameType, SourceType]] = None,
+            names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
             *,
             # https://github.com/python/mypy/issues/7333#issuecomment-788255229
             inplace: Literal[True],
-            ignore_names: Names[NameType] = None,
-            override_function: UserOverrideFunction[NameType, SourceType, None] = None,
+            ignore_names: Names[NameType] | None = None,
+            override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
             maximal_untranslated_fraction: float = 1.0,
             # Translation specification
             reverse: bool = False,
-            fmt: FormatType = None,
-        ) -> None:
-            ...
+            fmt: FormatType | None = None,
+        ) -> None: ...
 
         @overload
         def translate(
             self,
             translatable: CopyTranslatable[IdType],
-            names: Union[NameTypes[NameType], NameToSource[NameType, SourceType]] = None,
+            names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
             *,
             # https://github.com/python/mypy/issues/7333#issuecomment-788255229
             inplace: Literal[True],
-            ignore_names: Names[NameType] = None,
-            override_function: UserOverrideFunction[NameType, SourceType, None] = None,
+            ignore_names: Names[NameType] | None = None,
+            override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
             maximal_untranslated_fraction: float = 1.0,
             # Translation specification
             reverse: bool = False,
-            fmt: FormatType = None,
-        ) -> NoReturn:
-            ...
+            fmt: FormatType | None = None,
+        ) -> NoReturn: ...
 
         @overload
         def translate(
             self,
             translatable: IdTypes,
-            names: Union[NameTypes[NameType], NameToSource[NameType, SourceType]] = None,
+            names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
             *,
             inplace: Literal[False] = False,
-            ignore_names: Names[NameType] = None,
-            override_function: UserOverrideFunction[NameType, SourceType, None] = None,
+            ignore_names: Names[NameType] | None = None,
+            override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
             maximal_untranslated_fraction: float = 1.0,
             # Translation specification
             reverse: bool = False,
-            fmt: FormatType = None,
-        ) -> str:
-            ...
+            fmt: FormatType | None = None,
+        ) -> str: ...
 
         @overload
         def translate(
             self,
-            translatable: List[IdType],
-            names: Union[NameTypes[NameType], NameToSource[NameType, SourceType]] = None,
+            translatable: list[IdType],
+            names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
             *,
             inplace: Literal[False] = False,
-            ignore_names: Names[NameType] = None,
-            override_function: UserOverrideFunction[NameType, SourceType, None] = None,
+            ignore_names: Names[NameType] | None = None,
+            override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
             maximal_untranslated_fraction: float = 1.0,
             # Translation specification
             reverse: bool = False,
-            fmt: FormatType = None,
-        ) -> List[str]:
-            ...
+            fmt: FormatType | None = None,
+        ) -> list[str]: ...
 
         # This doesn't seem to work; nested generic type issue?
         # TODO Need Higher-Kinded TypeVars?
@@ -347,30 +340,29 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         #     names: Union[NameTypes[NameType], NameToSource[NameType, SourceType]] = None,
         #     *,
         #     inplace: Literal[False] = False,
-        #     ignore_names: Names[NameType] = None,
-        #     override_function: UserOverrideFunction[NameType, SourceType, None] = None,
+        #     ignore_names: Names[NameType] | None = None,
+        #     override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
         #     maximal_untranslated_fraction: float = 1.0,
         #     # Translation specification
         #     reverse: bool = False,
-        #     fmt: FormatType = None,
+        #     fmt: FormatType | None = None,
         # ) -> List[List[str]]:
         #     ...
 
         @overload
         def translate(
             self,
-            translatable: Set[IdType],
-            names: Union[NameTypes[NameType], NameToSource[NameType, SourceType]] = None,
+            translatable: set[IdType],
+            names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
             *,
             inplace: Literal[False] = False,
-            ignore_names: Names[NameType] = None,
-            override_function: UserOverrideFunction[NameType, SourceType, None] = None,
+            ignore_names: Names[NameType] | None = None,
+            override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
             maximal_untranslated_fraction: float = 1.0,
             # Translation specification
             reverse: bool = False,
-            fmt: FormatType = None,
-        ) -> Set[str]:
-            ...
+            fmt: FormatType | None = None,
+        ) -> set[str]: ...
 
         @overload
         def translate(
@@ -378,178 +370,167 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             # This is not correct, but using the TypeVar (which the user may bind to get proper typing) doesn't work
             # at this time (python 3.11.3, mypy 1.5.1). Higher-Kinded TypeVars might solve this.
             # TODO: Higher-Kinded TypeVars
-            translatable: Union[DictToId[NameType, int], DictToId[NameType, str], DictToId[NameType, UUID]],
-            names: Union[NameTypes[NameType], NameToSource[NameType, SourceType]] = None,
+            translatable: DictToId[NameType, int] | DictToId[NameType, str] | DictToId[NameType, UUID],
+            names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
             *,
             inplace: Literal[False] = False,
-            ignore_names: Names[NameType] = None,
-            override_function: UserOverrideFunction[NameType, SourceType, None] = None,
+            ignore_names: Names[NameType] | None = None,
+            override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
             maximal_untranslated_fraction: float = 1.0,
             # Translation specification
             reverse: bool = False,
-            fmt: FormatType = None,
-        ) -> DictToId[NameType, str]:
-            ...
+            fmt: FormatType | None = None,
+        ) -> DictToId[NameType, str]: ...
 
         @overload
         def translate(
             self,
             translatable: DictToSet[NameType, IdType],
-            names: Union[NameTypes[NameType], NameToSource[NameType, SourceType]] = None,
+            names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
             *,
             inplace: Literal[False] = False,
-            ignore_names: Names[NameType] = None,
-            override_function: UserOverrideFunction[NameType, SourceType, None] = None,
+            ignore_names: Names[NameType] | None = None,
+            override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
             maximal_untranslated_fraction: float = 1.0,
             # Translation specification
             reverse: bool = False,
-            fmt: FormatType = None,
-        ) -> DictToSet[NameType, str]:
-            ...
+            fmt: FormatType | None = None,
+        ) -> DictToSet[NameType, str]: ...
 
         @overload
         def translate(
             self,
             translatable: DictToList[NameType, IdType],
-            names: Union[NameTypes[NameType], NameToSource[NameType, SourceType]] = None,
+            names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
             *,
             inplace: Literal[False] = False,
-            ignore_names: Names[NameType] = None,
-            override_function: UserOverrideFunction[NameType, SourceType, None] = None,
+            ignore_names: Names[NameType] | None = None,
+            override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
             maximal_untranslated_fraction: float = 1.0,
             # Translation specification
             reverse: bool = False,
-            fmt: FormatType = None,
-        ) -> DictToList[NameType, str]:
-            ...
+            fmt: FormatType | None = None,
+        ) -> DictToList[NameType, str]: ...
 
         @overload
         def translate(  # type: ignore[overload-overlap]  # Overlaps with DictToVarTuple
             self,
             translatable: DictToOneTuple[NameType, IdType],
-            names: Union[NameTypes[NameType], NameToSource[NameType, SourceType]] = None,
+            names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
             *,
             inplace: Literal[False] = False,
-            ignore_names: Names[NameType] = None,
-            override_function: UserOverrideFunction[NameType, SourceType, None] = None,
+            ignore_names: Names[NameType] | None = None,
+            override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
             maximal_untranslated_fraction: float = 1.0,
             # Translation specification
             reverse: bool = False,
-            fmt: FormatType = None,
-        ) -> DictToOneTuple[NameType, str]:
-            ...
+            fmt: FormatType | None = None,
+        ) -> DictToOneTuple[NameType, str]: ...
 
         @overload
         def translate(  # type: ignore[overload-overlap]  # Overlaps with DictToVarTuple
             self,
             translatable: DictToTwoTuple[NameType, IdType],
-            names: Union[NameTypes[NameType], NameToSource[NameType, SourceType]] = None,
+            names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
             *,
             inplace: Literal[False] = False,
-            ignore_names: Names[NameType] = None,
-            override_function: UserOverrideFunction[NameType, SourceType, None] = None,
+            ignore_names: Names[NameType] | None = None,
+            override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
             maximal_untranslated_fraction: float = 1.0,
             # Translation specification
             reverse: bool = False,
-            fmt: FormatType = None,
-        ) -> DictToTwoTuple[NameType, str]:
-            ...
+            fmt: FormatType | None = None,
+        ) -> DictToTwoTuple[NameType, str]: ...
 
         @overload
         def translate(  # type: ignore[overload-overlap]  # Overlaps with DictToVarTuple
             self,
             translatable: DictToThreeTuple[NameType, IdType],
-            names: Union[NameTypes[NameType], NameToSource[NameType, SourceType]] = None,
+            names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
             *,
             inplace: Literal[False] = False,
-            ignore_names: Names[NameType] = None,
-            override_function: UserOverrideFunction[NameType, SourceType, None] = None,
+            ignore_names: Names[NameType] | None = None,
+            override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
             maximal_untranslated_fraction: float = 1.0,
             # Translation specification
             reverse: bool = False,
-            fmt: FormatType = None,
-        ) -> DictToThreeTuple[NameType, str]:
-            ...
+            fmt: FormatType | None = None,
+        ) -> DictToThreeTuple[NameType, str]: ...
 
         @overload
         def translate(
             self,
             translatable: DictToVarTuple[NameType, IdType],
-            names: Union[NameTypes[NameType], NameToSource[NameType, SourceType]] = None,
+            names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
             *,
             inplace: Literal[False] = False,
-            ignore_names: Names[NameType] = None,
-            override_function: UserOverrideFunction[NameType, SourceType, None] = None,
+            ignore_names: Names[NameType] | None = None,
+            override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
             maximal_untranslated_fraction: float = 1.0,
             # Translation specification
             reverse: bool = False,
-            fmt: FormatType = None,
-        ) -> DictToVarTuple[NameType, str]:
-            ...
+            fmt: FormatType | None = None,
+        ) -> DictToVarTuple[NameType, str]: ...
 
         @overload
         def translate(
             self,
-            translatable: Tuple[IdType],
-            names: Union[NameTypes[NameType], NameToSource[NameType, SourceType]] = None,
+            translatable: tuple[IdType],
+            names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
             *,
             inplace: Literal[False] = False,
-            ignore_names: Names[NameType] = None,
-            override_function: UserOverrideFunction[NameType, SourceType, None] = None,
+            ignore_names: Names[NameType] | None = None,
+            override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
             maximal_untranslated_fraction: float = 1.0,
             # Translation specification
             reverse: bool = False,
-            fmt: FormatType = None,
-        ) -> Tuple[str]:
-            ...
+            fmt: FormatType | None = None,
+        ) -> tuple[str]: ...
 
         @overload
         def translate(
             self,
-            translatable: Tuple[IdType, IdType],
-            names: Union[NameTypes[NameType], NameToSource[NameType, SourceType]] = None,
+            translatable: tuple[IdType, IdType],
+            names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
             *,
             inplace: Literal[False] = False,
-            ignore_names: Names[NameType] = None,
-            override_function: UserOverrideFunction[NameType, SourceType, None] = None,
+            ignore_names: Names[NameType] | None = None,
+            override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
             maximal_untranslated_fraction: float = 1.0,
             # Translation specification
             reverse: bool = False,
-            fmt: FormatType = None,
-        ) -> Tuple[str, str]:
-            ...
+            fmt: FormatType | None = None,
+        ) -> tuple[str, str]: ...
 
         @overload
         def translate(
             self,
-            translatable: Tuple[IdType, IdType, IdType],
-            names: Union[NameTypes[NameType], NameToSource[NameType, SourceType]] = None,
+            translatable: tuple[IdType, IdType, IdType],
+            names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
             *,
             inplace: Literal[False] = False,
-            ignore_names: Names[NameType] = None,
-            override_function: UserOverrideFunction[NameType, SourceType, None] = None,
+            ignore_names: Names[NameType] | None = None,
+            override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
             maximal_untranslated_fraction: float = 1.0,
             # Translation specification
             reverse: bool = False,
-            fmt: FormatType = None,
-        ) -> Tuple[str, str, str]:
-            ...
+            fmt: FormatType | None = None,
+        ) -> tuple[str, str, str]: ...
 
         @overload
         def translate(
             self,
-            translatable: Tuple[IdType, ...],
-            names: Union[NameTypes[NameType], NameToSource[NameType, SourceType]] = None,
+            translatable: tuple[IdType, ...],
+            names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
             *,
             inplace: Literal[False] = False,
-            ignore_names: Names[NameType] = None,
-            override_function: UserOverrideFunction[NameType, SourceType, None] = None,
+            ignore_names: Names[NameType] | None = None,
+            override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
             maximal_untranslated_fraction: float = 1.0,
             # Translation specification
             reverse: bool = False,
-            fmt: FormatType = None,
-        ) -> Tuple[str, ...]:
-            ...
+            fmt: FormatType | None = None,
+        ) -> tuple[str, ...]: ...
 
         if ID_TRANSLATION_PANDAS_IS_TYPED:
             # pandas-stubs or similar
@@ -558,94 +539,89 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             def translate(
                 self,
                 translatable: "pandas.DataFrame",
-                names: Union[NameTypes[NameType], NameToSource[NameType, SourceType]] = None,
+                names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
                 *,
                 inplace: Literal[False] = False,
-                ignore_names: Names[NameType] = None,
-                override_function: UserOverrideFunction[NameType, SourceType, None] = None,
+                ignore_names: Names[NameType] | None = None,
+                override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
                 maximal_untranslated_fraction: float = 1.0,
                 # Translation specification
                 reverse: bool = False,
-                fmt: FormatType = None,
-            ) -> "pandas.DataFrame":
-                ...
+                fmt: FormatType | None = None,
+            ) -> "pandas.DataFrame": ...
 
             @overload
             def translate(
                 self,
                 translatable: "pandas.Series[Any]",
-                names: Union[NameTypes[NameType], NameToSource[NameType, SourceType]] = None,
+                names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
                 *,
                 inplace: Literal[False] = False,
-                ignore_names: Names[NameType] = None,
-                override_function: UserOverrideFunction[NameType, SourceType, None] = None,
+                ignore_names: Names[NameType] | None = None,
+                override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
                 maximal_untranslated_fraction: float = 1.0,
                 # Translation specification
                 reverse: bool = False,
-                fmt: FormatType = None,
-            ) -> "pandas.Series[str]":
-                ...
+                fmt: FormatType | None = None,
+            ) -> "pandas.Series[str]": ...
 
             @overload
             def translate(
                 self,
                 translatable: "pandas.Index[Any]",
-                names: Union[NameTypes[NameType], NameToSource[NameType, SourceType]] = None,
+                names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
                 *,
                 inplace: Literal[False] = False,
-                ignore_names: Names[NameType] = None,
-                override_function: UserOverrideFunction[NameType, SourceType, None] = None,
+                ignore_names: Names[NameType] | None = None,
+                override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
                 maximal_untranslated_fraction: float = 1.0,
                 # Translation specification
                 reverse: bool = False,
-                fmt: FormatType = None,
-            ) -> "pandas.Index[str]":
-                ...
+                fmt: FormatType | None = None,
+            ) -> "pandas.Index[str]": ...
 
             @overload
             def translate(
                 self,
                 translatable: Union["pandas.DataFrame", "pandas.Series[Any]"],
-                names: Union[NameTypes[NameType], NameToSource[NameType, SourceType]] = None,
+                names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
                 *,
                 inplace: Literal[True],
-                ignore_names: Names[NameType] = None,
-                override_function: UserOverrideFunction[NameType, SourceType, None] = None,
+                ignore_names: Names[NameType] | None = None,
+                override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
                 maximal_untranslated_fraction: float = 1.0,
                 # Translation specification
                 reverse: bool = False,
-                fmt: FormatType = None,
-            ) -> None:
-                ...
+                fmt: FormatType | None = None,
+            ) -> None: ...
 
             @overload
             def translate(
                 self,
                 translatable: "pandas.Index[Any]",
-                names: Union[NameTypes[NameType], NameToSource[NameType, SourceType]] = None,
+                names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
                 *,
                 # https://github.com/python/mypy/issues/7333#issuecomment-788255229
                 inplace: Literal[True],
-                ignore_names: Names[NameType] = None,
-                override_function: UserOverrideFunction[NameType, SourceType, None] = None,
+                ignore_names: Names[NameType] | None = None,
+                override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
                 maximal_untranslated_fraction: float = 1.0,
                 # Translation specification
                 reverse: bool = False,
-                fmt: FormatType = None,
-            ) -> NoReturn:
-                ...
+                fmt: FormatType | None = None,
+            ) -> NoReturn: ...
 
     def translate(
         self,
         translatable: Translatable[NameType, IdType],
-        names: Union[NameTypes[NameType], NameToSource[NameType, SourceType]] = None,
-        ignore_names: Names[NameType] = None,
+        names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
+        ignore_names: Names[NameType] | None = None,
         inplace: bool = False,
-        override_function: UserOverrideFunction[NameType, SourceType, None] = None,
+        override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
         maximal_untranslated_fraction: float = 1.0,
         reverse: bool = False,
-        fmt: FormatType = None,
-    ) -> Optional[Translatable[NameType, str]]:
+        fmt: FormatType | None = None,
+    ) -> Translatable[NameType, str] | None:
         """Translate IDs to human-readable strings.
 
         Simplified process:
@@ -732,24 +708,22 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
         task.verify(translation_map)
 
-        ans: Optional[Translatable[NameType, str]] = task.insert(translation_map)
+        ans: Translatable[NameType, str] | None = task.insert(translation_map)
 
         self._translated_names = dict(task.name_to_source)
         task.log_key_event_exit()
         return ans
 
     @overload
-    def translated_names(self, with_source: Literal[True]) -> NameToSource[NameType, SourceType]:
-        ...
+    def translated_names(self, with_source: Literal[True]) -> NameToSource[NameType, SourceType]: ...
 
     @overload
-    def translated_names(self, with_source: Literal[False] = False) -> List[NameType]:
-        ...
+    def translated_names(self, with_source: Literal[False] = False) -> list[NameType]: ...
 
     def translated_names(
         self,
-        with_source: Union[bool, Literal[True], Literal[False]] = False,  # https://github.com/python/mypy/issues/14764
-    ) -> Union[NameToSource[NameType, SourceType], List[NameType]]:
+        with_source: bool | Literal[True] | Literal[False] = False,  # https://github.com/python/mypy/issues/14764
+    ) -> NameToSource[NameType, SourceType] | list[NameType]:
         """Return the names that were translated by the most recent :meth:`.translate`-call.
 
         Args:
@@ -765,13 +739,13 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             raise ValueError("No names have been translated using this Translator.")
         return dict(self._translated_names) if with_source else list(self._translated_names)
 
-    def map(  # noqa: A003
+    def map(
         self,
         translatable: Translatable[NameType, IdType],
         names: NameTypes[NameType] = None,
         *,
-        ignore_names: Names[NameType] = None,
-        override_function: UserOverrideFunction[NameType, SourceType, None] = None,
+        ignore_names: Names[NameType] | None = None,
+        override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
     ) -> NameToSource[NameType, SourceType]:
         """Map names to translation sources.
 
@@ -796,7 +770,11 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             🔑 This is a key event method. See :ref:`key-events` for details.
         """
         return MappingTask(
-            self, translatable, names, ignore_names=ignore_names, override_function=override_function
+            self,
+            translatable,
+            names,
+            ignore_names=ignore_names,
+            override_function=override_function,
         ).name_to_source
 
     def map_scores(
@@ -804,8 +782,8 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         translatable: Translatable[NameType, IdType],
         names: NameTypes[NameType] = None,
         *,
-        ignore_names: Names[NameType] = None,
-        override_function: UserOverrideFunction[NameType, SourceType, None] = None,
+        ignore_names: Names[NameType] | None = None,
+        override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
     ) -> "pandas.DataFrame":
         """Returns raw match scores for name-to-source mapping. See :meth:`map` for details."""
         return MappingTask(
@@ -813,7 +791,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         ).compute_scores()
 
     @property
-    def sources(self) -> List[SourceType]:
+    def sources(self) -> list[SourceType]:
         """A list of known sources names.
 
         Sources are determines either by the :attr:`.fetcher` or the :attr:`.cache`.
@@ -821,11 +799,11 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         return list(self.placeholders)
 
     @property
-    def placeholders(self) -> Dict[SourceType, List[str]]:
+    def placeholders(self) -> dict[SourceType, list[str]]:
         """A dict ``source: [placeholders..]}``.
 
         Placeholders shown here are the names as they appear **in the source**.
-        """  # noqa: DAR202
+        """
         return self._fetcher.placeholders if self.online else self._cached_tmap.placeholders
 
     @property
@@ -834,7 +812,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         return self._fmt
 
     @property
-    def default_fmt(self) -> Optional[Format]:
+    def default_fmt(self) -> Format | None:
         """Alternative translation :class:`.Format`, used for unknown IDs."""
         return self._default_fmt
 
@@ -874,8 +852,8 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         cache_dir: PathLikeType,
         config_path: PathLikeType,
         extra_fetchers: Iterable[PathLikeType] = (),
-        max_age: Union[str, pandas.Timedelta, timedelta] = "12h",
-    ) -> "Translator[NameType, SourceType, IdType]":
+        max_age: str | pandas.Timedelta | timedelta = "12h",
+    ) -> Self:
         """Load or create a persistent :attr:`~.Fetcher.fetch_all`-instance.
 
         Instances are created, stored and loaded as determined by a metadata file located in the given `cache_dir`. A
@@ -910,7 +888,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         metadata_path = cache_dir.joinpath("metadata.json")
         cache_path = cache_dir.joinpath("translator.pkl")
 
-        extra_fetcher_paths: List[str] = list(map(str, extra_fetchers))
+        extra_fetcher_paths: list[str] = list(map(str, extra_fetchers))
 
         metadata = ConfigMetadata.from_toml_paths(
             str(path),
@@ -923,13 +901,13 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             return cls.restore(cache_path)
 
         LOGGER.info(f"Create new Translator; {reason}. Cache dir: '{cache_dir}'.")
-        ans: Translator[NameType, SourceType, IdType] = cls.from_config(path, extra_fetcher_paths)
-        ans.go_offline(path=cache_path)
-        metadata_path.write_text(ans.config_metadata.to_json())
-        return ans
+        translator = cls.from_config(path, extra_fetcher_paths)
+        translator.go_offline(path=cache_path)
+        metadata_path.write_text(translator.config_metadata.to_json())
+        return translator
 
     @classmethod
-    def restore(cls, path: PathLikeType) -> "Translator[NameType, SourceType, IdType]":
+    def restore(cls, path: PathLikeType) -> Self:
         """Restore a serialized :class:`.Translator`.
 
         Args:
@@ -944,7 +922,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         See Also:
             The :meth:`go_offline` method.
         """
-        import pickle  # noqa: S403
+        import pickle
 
         full_path = Path(str(path)).expanduser()
         with full_path.open("rb") as f:
@@ -964,9 +942,9 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         translatable: Translatable[NameType, IdType] = None,
         names: NameTypes[NameType] = None,
         *,
-        ignore_names: Names[NameType] = None,
+        ignore_names: Names[NameType] | None = None,
         path: PathLikeType = None,
-    ) -> "Translator[NameType, SourceType, IdType]":  # noqa: DAR401  false positive
+    ) -> Self:
         """Retrieve and store translations in memory.
 
         .. warning::
@@ -1020,7 +998,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         translatable: Translatable[NameType, IdType] = None,
         names: NameTypes[NameType] = None,
         *,
-        ignore_names: Names[NameType] = None,
+        ignore_names: Names[NameType] | None = None,
     ) -> TranslationMap[NameType, SourceType, IdType]:
         """Fetch translations.
 
@@ -1089,7 +1067,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         translatable: Translatable[NameType, IdType] = None,
         names: NameTypes[NameType] = None,
         *,
-        ignore_names: Names[NameType] = None,
+        ignore_names: Names[NameType] | None = None,
     ) -> TranslationMap[NameType, SourceType, IdType]:
         if translatable is None:
             translation_map = self._to_translation_map(self._fetch(None))
@@ -1128,7 +1106,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         return translation_map
 
     @property
-    def transformers(self) -> Dict[SourceType, Transformer[IdType]]:
+    def transformers(self) -> dict[SourceType, Transformer[IdType]]:
         """Get a dict ``{source: transformer}`` of :class:`.Transformer` instances used by this ``Translator``."""
         return self._transformers
 
@@ -1147,9 +1125,9 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
     def _fetch(
         self,
-        ids_to_fetch: Optional[List[IdsToFetch[SourceType, IdType]]],
+        ids_to_fetch: list[IdsToFetch[SourceType, IdType]] | None,
         fmt: Format = None,
-        task_id: int = None,
+        task_id: int | None = None,
     ) -> SourcePlaceholderTranslations[SourceType]:
         fmt = fmt or self._fmt
         placeholders = fmt.placeholders
@@ -1203,8 +1181,8 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 def _handle_default(
     fmt: Format,
     default_fmt: FormatType,
-    default_fmt_placeholders: Optional[MakeType[SourceType, str, Any]],
-) -> Tuple[Optional[InheritedKeysDict[SourceType, str, Any]], Optional[Format]]:  # pragma: no cover
+    default_fmt_placeholders: MakeType[SourceType, str, Any] | None,
+) -> tuple[InheritedKeysDict[SourceType, str, Any] | None, Format | None]:  # pragma: no cover
     default_fmt = Format.parse(default_fmt)
 
     if not default_fmt_placeholders:

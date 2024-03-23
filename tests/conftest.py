@@ -1,11 +1,11 @@
 import json
 import logging
+from collections.abc import Iterable
 from functools import partialmethod
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any
 
 import pytest
-
 from id_translation import Translator
 from id_translation.fetching import AbstractFetcher
 from id_translation.fetching.exceptions import UnknownIdError
@@ -53,7 +53,7 @@ class HexFetcher(AbstractFetcher[str, int]):
         )
 
     @staticmethod
-    def _run(placeholders: List[str], ids: Optional[Iterable[int]], source: str) -> Iterable[Tuple[Any, ...]]:
+    def _run(placeholders: list[str], ids: Iterable[int] | None, source: str) -> Iterable[tuple[Any, ...]]:
         ids = tuple(range(-10, 10) if ids is None else ids)
         if max(ids) > 9 or min(ids) < -10:
             raise UnknownIdError()
@@ -72,7 +72,7 @@ class HexFetcher(AbstractFetcher[str, int]):
 
             yield tuple(funcs[p](idx) for p in placeholders)
 
-    def _initialize_sources(self, task_id: int) -> Dict[str, List[str]]:
+    def _initialize_sources(self, _task_id: int) -> dict[str, list[str]]:
         placeholders = ["id", "hex", "positive"]
         return {
             "positive_numbers": placeholders,

@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Tuple, Union
+from typing import Union
 
 
 class Cardinality(Enum):
@@ -156,7 +156,7 @@ def _is_superset(c0: Cardinality, c1: Cardinality) -> bool:
     return c0_i <= c1_i and c0_j <= c1_j
 
 
-def _pos(cardinality: Cardinality) -> Tuple[int, int]:
+def _pos(cardinality: Cardinality) -> tuple[int, int]:
     for i in range(2):
         for j in range(2):
             if _MATRIX[i][j] == cardinality:

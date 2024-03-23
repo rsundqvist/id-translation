@@ -1,7 +1,5 @@
-from typing import Any, Dict, List, Set, Tuple
+from typing import Any, assert_type
 from uuid import UUID
-
-from typing_extensions import assert_type
 
 from id_translation import Translator
 
@@ -10,7 +8,7 @@ OutType = str
 
 
 def type_dict_primitive() -> None:
-    expected = Dict[int, OutType]
+    expected = dict[int, OutType]
 
     di = {1: 1}
     assert_type(t.translate(di), expected)
@@ -29,7 +27,7 @@ def type_dict_primitive() -> None:
 
 
 def type_dict_set() -> None:
-    expected = Dict[int, Set[OutType]]
+    expected = dict[int, set[OutType]]
 
     dsi = {1: {1}}
     assert_type(t.translate(dsi), expected)
@@ -43,7 +41,7 @@ def type_dict_set() -> None:
 
 
 def type_dict_list() -> None:
-    expected = Dict[int, List[OutType]]
+    expected = dict[int, list[OutType]]
 
     dli = {1: [1]}
     assert_type(t.translate(dli), expected)
@@ -57,7 +55,7 @@ def type_dict_list() -> None:
 
 
 def type_dict_one_tuple() -> None:
-    expected = Dict[int, Tuple[str]]
+    expected = dict[int, tuple[str]]
 
     dti = {1: (1,)}  # Anonymous instance is cast to vararg-tuple by mypy
     assert_type(t.translate(dti), expected)
@@ -71,7 +69,7 @@ def type_dict_one_tuple() -> None:
 
 
 def type_dict_two_tuple() -> None:
-    expected = Dict[int, Tuple[str, str]]
+    expected = dict[int, tuple[str, str]]
 
     di = {1: (1, 2)}  # Anonymous instance is cast to vararg-tuple by mypy
     assert_type(t.translate(di), expected)
@@ -85,7 +83,7 @@ def type_dict_two_tuple() -> None:
 
 
 def type_dict_three_tuple() -> None:
-    expected = Dict[int, Tuple[str, str, str]]
+    expected = dict[int, tuple[str, str, str]]
 
     dti = {1: (1, 2, 3)}  # Anonymous instance is cast to vararg-tuple by mypy
     assert_type(t.translate(dti), expected)
@@ -99,7 +97,7 @@ def type_dict_three_tuple() -> None:
 
 
 def type_dict_var_tuple() -> None:
-    expected = Dict[int, Tuple[str, ...]]
+    expected = dict[int, tuple[str, ...]]
 
     dti = {1: tuple(range(1))}
     assert_type(t.translate(dti), expected)
