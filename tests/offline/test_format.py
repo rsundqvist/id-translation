@@ -1,8 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-import pytest as pytest
-
+import pytest
 from id_translation.offline import Format
 
 

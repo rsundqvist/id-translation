@@ -2,6 +2,7 @@
 
 For an introduction to mapping, see :ref:`mapping-primer`.
 """
+
 import logging as _logging
 
 from ._cardinality import Cardinality

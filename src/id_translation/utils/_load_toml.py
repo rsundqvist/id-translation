@@ -1,5 +1,4 @@
-import sys
-from typing import Any, Dict
+from pathlib import Path
 from typing import Any
 
 import tomllib
@@ -31,7 +30,7 @@ def load_toml_file(
     Returns:
         A dict parsed from `path`.
     """
-    with open(path, encoding="UTF-8") as f:
+    with Path(path).open(encoding="UTF-8") as f:
         toml_string = f.read()
 
     if allow_interpolation:

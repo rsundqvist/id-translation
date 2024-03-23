@@ -106,7 +106,7 @@ class TestFetcher(_Fetcher[SourceType, IdType]):
         raise NotImplementedError
 
     def __repr__(self) -> str:
-        return f"TestFetcher(sources={repr(self._sources or None)})"
+        return f"TestFetcher(sources={self._sources or None!r})"
 
     def initialize_sources(self, task_id: int = -1, *, force: bool = False) -> None:
         pass

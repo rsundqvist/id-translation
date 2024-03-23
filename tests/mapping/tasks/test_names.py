@@ -1,5 +1,4 @@
 import pytest
-
 from id_translation._tasks._names import NamesTask
 
 

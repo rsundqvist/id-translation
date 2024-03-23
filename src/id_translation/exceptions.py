@@ -1,4 +1,5 @@
 """General errors for the translation suite."""
+
 from warnings import simplefilter as _simplefilter
 
 

@@ -111,21 +111,18 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
         >>> from id_translation import Translator
         >>> translation_data = {
-        ...   'animals': {
-        ...     'id': [0, 1, 2],
-        ...     'name': ['Tarzan', 'Morris', 'Simba'],
-        ...     'is_nice': [False, True, True]
-        ...   },
-        ...   'people': {
-        ...     'id': [1999, 1991, 1904],
-        ...     'name': ['Sofia', 'Richard', 'Fred']
-        ...   },
+        ...     "animals": {
+        ...         "id": [0, 1, 2],
+        ...         "name": ["Tarzan", "Morris", "Simba"],
+        ...         "is_nice": [False, True, True],
+        ...     },
+        ...     "people": {"id": [1999, 1991, 1904], "name": ["Sofia", "Richard", "Fred"]},
         ... }
-        >>> translator = Translator(translation_data, fmt='{id}:{name}[, nice={is_nice}]')
+        >>> translator = Translator(translation_data, fmt="{id}:{name}[, nice={is_nice}]")
 
         We didn't define a :class:`.Mapper`, so the names must match exactly.
 
-        >>> data = {'animals': [0, 2], 'people': [1991, 1999]}
+        >>> data = {"animals": [0, 2], "people": [1991, 1999]}
         >>> translated_data = translator.translate(data)
 
         The ``Translator`` returns a copy by default. Let's look at the translated data.
@@ -615,6 +612,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         self,
         translatable: Translatable[NameType, IdType],
         names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
+        *,
         ignore_names: Names[NameType] | None = None,
         inplace: bool = False,
         override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
@@ -685,6 +683,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
         if self.online and reverse:  # pragma: no cover
             raise ConnectionStatusError("Reverse translation cannot be performed online.")
+
         task: TranslationTask[NameType, SourceType, IdType] = TranslationTask(
             self,
             translatable,
@@ -787,7 +786,11 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
     ) -> "pandas.DataFrame":
         """Returns raw match scores for name-to-source mapping. See :meth:`map` for details."""
         return MappingTask(
-            self, translatable, names, ignore_names=ignore_names, override_function=override_function
+            self,
+            translatable,
+            names,
+            ignore_names=ignore_names,
+            override_function=override_function,
         ).compute_scores()
 
     @property
@@ -979,17 +982,16 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
         LOGGER.info(f"Created {translation_map} in {format_perf_counter(start)}.")
         if path:
-            import os
-            import pickle  # noqa: S403
+            import pickle
 
             path = Path(str(path)).expanduser()
             path.parent.mkdir(parents=True, exist_ok=True)
-            with open(path, "wb") as f:
+            with path.open("wb") as f:
                 pickle.dump(self, f)
 
             cls = type(self)
             pretty = get_public_module(cls, resolve_reexport=True) + "." + tname(self, prefix_classname=True)
-            LOGGER.info(f"Serialized {pretty!r} of size {os.path.getsize(path) / 2**20:.2g} MiB at path='{path}'.")
+            LOGGER.info(f"Serialized {pretty!r} of size {path.stat().st_size / 2**20:.2g} MiB at path='{path}'.")
 
         return self
 
@@ -1024,8 +1026,8 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                # Hidden setup code
                >>> from .fetching import MemoryFetcher
                >>> translation_data = {
-               ...   "animals": {"id": [0, 1, 2], "name": ["Tarzan", "Morris", "Simba"]},
-               ...   "people": {"id": [1999, 1991], "name": ["Sofia", "Richard"]},
+               ...     "animals": {"id": [0, 1, 2], "name": ["Tarzan", "Morris", "Simba"]},
+               ...     "people": {"id": [1999, 1991], "name": ["Sofia", "Richard"]},
                ... }
                >>> translator = Translator(MemoryFetcher(translation_data))
 
@@ -1135,8 +1137,8 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
         if self._default_fmt and ID in self._default_fmt.placeholders and ID not in placeholders:
             # Ensure that default translations can always use the ID
-            placeholders = placeholders + (ID,)
-            required = required + (ID,)
+            placeholders = (*placeholders, ID)
+            required = (*required, ID)
 
         if task_id is None:
             task_id = generate_task_id()

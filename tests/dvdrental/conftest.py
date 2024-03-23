@@ -45,12 +45,12 @@ def check_status(dialect: str) -> None:
     try:
         with engine.connect() as conn:
             count = next(conn.execute(sqlalchemy.text("SELECT count(*) FROM store")))
-    except Exception:  # noqa: B902
+    except Exception:
         msg = (
             f"Unable to connect to database for {dialect=}. Start the databases"
             " by running:\n    ./run-docker-dvdrental.sh"
         )
-        raise RuntimeError(msg)
+        raise RuntimeError(msg) from None
 
     assert count[0] == 2, f"Expected 2 stores, but got {count}."
 

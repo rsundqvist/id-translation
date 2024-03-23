@@ -1,8 +1,7 @@
 from itertools import product
-from typing import Any
+from typing import Any, ClassVar
 
 import pytest
-
 from id_translation.mapping import Cardinality, HeuristicScore, Mapper
 from id_translation.mapping.exceptions import AmbiguousScoreError
 
@@ -46,7 +45,7 @@ def run(
 ):
     values = NUMBER_OF_LEGS.copy()
     score = HeuristicScore(
-        score_function=lambda v, c, cxt: [float(c == NUMBER_OF_LEGS[v]) for c in c],  # type:ignore[var-annotated]
+        score_function=lambda v, c, _cxt: [float(c == NUMBER_OF_LEGS[v]) for c in c],  # type:ignore[var-annotated]
         heuristics=[ShortCircuit.dogs_have_4_legs] if use_short_circuit else (),
     )
     mapper = Mapper(
@@ -133,7 +132,7 @@ class FilterFunction:
 
 
 class StaticOverride:
-    nobody_gets_any_legs = {animal: 0 for animal in NUMBER_OF_LEGS}
+    nobody_gets_any_legs: ClassVar = {animal: 0 for animal in NUMBER_OF_LEGS}
 
     @classmethod
     def expected(cls, cardinality):

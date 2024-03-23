@@ -1,14 +1,13 @@
-from typing import Iterable
+from collections.abc import Iterable
 
 import pytest
-from rics.collections.dicts import InheritedKeysDict
-
 from id_translation.mapping import Cardinality, Mapper, exceptions
 from id_translation.mapping.exceptions import MappingError, ScoringDisabledError, UserMappingError, UserMappingWarning
 from id_translation.mapping.types import MatchTuple
+from rics.collections.dicts import InheritedKeysDict
 
 
-def _weird_score(value: str, candidates: Iterable[int], context: None) -> Iterable[float]:
+def _weird_score(value: str, candidates: Iterable[int], _context: None) -> Iterable[float]:
     """Hacky scores function that matches string values do integer candidates. Used to bypass the identity matching."""
     assert len(value) == 1
 

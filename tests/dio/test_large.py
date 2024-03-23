@@ -3,18 +3,17 @@
 Currently, only Pandas has them.
 """
 
+from typing import ClassVar
 from uuid import UUID
 
 import pandas as pd
 import pytest
-
 from id_translation import Translator
 
 
 @pytest.mark.parametrize("kind", [pd.Series, pd.Index])
 class TestPandas:
-    # TODO Track performance?
-    numbers = {20: "twenty", 19: "nineteen", 5: "five", 11: "eleven"}
+    numbers: ClassVar = {20: "twenty", 19: "nineteen", 5: "five", 11: "eleven"}
 
     @staticmethod
     def run(numbers, kind):

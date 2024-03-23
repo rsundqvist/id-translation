@@ -203,7 +203,6 @@ class TranslatorFactory(_Generic[NameType, SourceType, IdType]):
             _check_allowed_keys(self.TOP_LEVEL_KEYS, config, "<root>")
             translator_config = config.pop("translator", {})
             mapper = self._make_mapper("translator", translator_config)
-            default_fmt_placeholders: Optional[dicts.InheritedKeysDict[SourceType, str, _Any]]
             _make_default_translations(translator_config, config.pop("unknown_ids", {}))
 
             translator_config["transformers"] = self._handler_transformers(config.pop("transform", {}))
@@ -340,6 +339,6 @@ def _read_metaconf(file: str) -> dict[str, _Any]:
 def _rethrow_with_file(file: str) -> _Generator[None, None, None]:
     try:
         yield
-    except Exception as e:  # noqa: B902
-        msg = f"{type(e).__name__}: {e}"
-        raise exceptions.ConfigurationError(f"{msg}\n   raised when parsing file: {_Path(file).resolve()}") from e
+    except Exception as e:
+        msg = f"{type(e).__name__}: {e}\n   raised when parsing file: {_Path(file).resolve()}"
+        raise exceptions.ConfigurationError(msg) from e

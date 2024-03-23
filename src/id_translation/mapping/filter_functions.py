@@ -40,9 +40,11 @@ def filter_names(
         >>> candidates, context = {"id", "name", "birth_date"}, None
         >>> value = "employee_id"
         >>> allowed = filter_names(
-        ...     value, candidates, context,
+        ...     value,
+        ...     candidates,
+        ...     context,
         ...     regex=".*_id$",
-        ...     remove=False  # This is the default (like the built-in filter).
+        ...     remove=False,  # This is the default (like the built-in filter).
         ... )
         >>> sorted(allowed)
         ['birth_date', 'id', 'name']
@@ -87,7 +89,9 @@ def filter_sources(
         >>> value, candidates = "id", {"ignored"}
         >>> context = "some_metadata_table"
         >>> allowed = filter_sources(
-        ...     "id", candidates, context,
+        ...     "id",
+        ...     candidates,
+        ...     context,
         ...     regex=".*metadata.*",
         ...     remove=True,
         ... )
@@ -136,7 +140,9 @@ def filter_placeholders(
         >>> value, context = "ignored", "ignored"
         >>> candidates = {"id", "name", "old_id", "previous_id"}
         >>> allowed = filter_placeholders(
-        ...     value, candidates, context,
+        ...     value,
+        ...     candidates,
+        ...     context,
         ...     regex="^(old|previous).*",
         ...     remove=True,
         ... )
@@ -151,10 +157,9 @@ def filter_placeholders(
 
     if VERBOSE:
         logger = LOGGER.getChild(filter_placeholders.__name__)
-        if logger.isEnabledFor(logging.DEBUG):
-            if len(ans) < len(candidates):
-                removed = candidates.difference(ans)
-                logger.debug(f"Discard placeholders={removed!r} in source={context!r}; matches {pattern=}.")
+        if logger.isEnabledFor(logging.DEBUG) and len(ans) < len(candidates):
+            removed = candidates.difference(ans)
+            logger.debug(f"Discard placeholders={removed!r} in source={context!r}; matches {pattern=}.")
 
     return ans
 

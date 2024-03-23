@@ -38,7 +38,7 @@ class DataStructureIO:
             names: List of names in `translatable` to extract IDs for.
 
         Returns:
-            A dict ``{name, ids}``.
+            A dict ``{name: ids}``.
         """
 
     @staticmethod

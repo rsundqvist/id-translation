@@ -571,7 +571,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
     ) -> tuple[dict[str, str] | None, FetchInstruction[SourceType, IdType]]:
         required_placeholders.add(ID)
         if ID not in placeholders:
-            placeholders = (ID,) + placeholders
+            placeholders = (ID, *placeholders)
 
         wanted_to_actual = self._wanted_to_actual(source, placeholders, task_id)
 

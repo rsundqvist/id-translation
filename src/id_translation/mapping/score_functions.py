@@ -22,18 +22,25 @@ def modified_hamming(
 ) -> _Iterable[float]:
     """Compute hamming distance modified by length ratio, from the back. Score range is ``[0, 1]``.
 
-    Keyword Args:
+    Args:
+        name: A name that should be mapped one of the sources in `candidates`.
+        candidates: Candidate sources.
+        context: Should be ``None``. Always ignored, exists for compatibility.
         add_length_ratio_term: If ``True``, score is divided by ``abs(len(name) - len(candidate))``.
         positional_penalty: A penalty applied to prefer earlier `candidates`, according to the formulare
             ``penalty = index(candidate) * positional_penalty)``.
 
     Examples:
         >>> from id_translation.mapping.score_functions import modified_hamming
-        >>> list(modified_hamming('aa', ['aa', 'a', 'ab', 'aa'], context=None))
+        >>> list(modified_hamming("aa", ["aa", "a", "ab", "aa"], context=None))
         [1.0, 0.499, 0.498, 0.997]
-        >>> list(modified_hamming('aa', ['aa', 'a', 'ab', 'aa'], context=None, positional_penalty=0))
+        >>> list(
+        ...     modified_hamming(
+        ...         "aa", ["aa", "a", "ab", "aa"], context=None, positional_penalty=0
+        ...     )
+        ... )
         [1.0, 0.5, 0.5, 1.0]
-        >>> list(modified_hamming('face', ['face', 'FAce', 'race', 'place'], context=None))
+        >>> list(modified_hamming("face", ["face", "FAce", "race", "place"], context=None))
         [1.0, 0.499, 0.748, 0.372]
     """
 

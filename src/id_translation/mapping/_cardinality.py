@@ -21,7 +21,7 @@ class Cardinality(Enum):
         False
     """
 
-    _ignore_ = ["ParseType"]
+    _ignore_ = ["ParseType"]  # noqa:  RUF012
 
     ParseType = Union[str, "Cardinality"]  # Type checking
     """Types that may be interpreted as a ``Cardinality``."""
@@ -38,12 +38,12 @@ class Cardinality(Enum):
     @property
     def many_left(self) -> bool:
         """Many-relationship on the left, ``True`` for ``N:1`` and ``M:N``."""
-        return self == Cardinality.ManyToMany or self == Cardinality.ManyToOne
+        return self in {Cardinality.ManyToMany, Cardinality.ManyToOne}
 
     @property
     def many_right(self) -> bool:
         """Many-relationship on the right, ``True`` for ``1:N`` and ``M:N``."""
-        return self == Cardinality.ManyToMany or self == Cardinality.OneToMany
+        return self in {Cardinality.ManyToMany, Cardinality.OneToMany}
 
     @property
     def one_left(self) -> bool:
@@ -82,7 +82,7 @@ class Cardinality(Enum):
         See Also:
             :attr:`inverse`
         """
-        return self == Cardinality.OneToOne or self == Cardinality.ManyToMany
+        return self in {Cardinality.OneToOne, Cardinality.ManyToMany}
 
     def __ge__(self, other: "Cardinality") -> bool:
         """Equivalent to :meth:`set.issuperset`."""
@@ -138,7 +138,7 @@ def _parsing_failure_message(arg: str, strict: bool) -> str:
             strict_hint = f". Hint: set {strict=} to allow this input."
         except ValueError:
             pass
-    return f"Could not convert {arg=} to Cardinality{strict_hint} Correct input {options=} or {repr(alternatively)}"
+    return f"Could not convert {arg=} to Cardinality{strict_hint} Correct input {options=} or {alternatively!r}"
 
 
 _MATRIX = (
@@ -182,6 +182,6 @@ def _from_generous_string(s: str, strict: bool) -> Cardinality:
         if s == "N:N":
             s = "M:N"
     for c in Cardinality:
-        if s == c.value or s == c.name:
+        if s in {c.value, c.name}:
             return c
     raise ValueError(_parsing_failure_message(s, strict))

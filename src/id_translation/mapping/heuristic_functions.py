@@ -6,10 +6,8 @@ See Also:
 
 from __future__ import annotations
 
-import logging
-import re
-from typing import Any as _Any, Callable, Dict, Iterable, List, Set, Tuple, Union
 import collections.abc as _abc
+import logging as _logging
 import re as _re
 import typing as _t
 
@@ -113,8 +111,8 @@ def smurf_columns(
         explicitly enabled with ``plural_to_singular=True``.
 
         >>> smurf_columns(
-        ...   "name", ["city_id", "city_name"], "cities",
-        ...   plural_to_singular=True)
+        ...     "name", ["city_id", "city_name"], "cities", plural_to_singular=True
+        ... )
         {'city_name'}
 
         Special handling for ``placeholder="name"`` when the table name is also a column.
@@ -130,8 +128,8 @@ def smurf_columns(
         You may add custom mappings for irregular nouns.
 
         >>> smurf_columns(
-        ...   "id", ["goose_id"], "geese",
-        ...   plural_to_singular={"geese": "goose"})
+        ...     "id", ["goose_id"], "geese", plural_to_singular={"geese": "goose"}
+        ... )
         {'goose_id'}
 
     Notes:
@@ -189,8 +187,11 @@ def short_circuit(
         Always match any bite victim-columns to the `humans` table (see the :ref:`translation-primer` page).
 
         >>> short_circuit(
-        ...   "first_bite_victim", {"humans", "animals"}, None,
-        ...   value_regex=".*_bite_victim$", target_candidate="humans"
+        ...     "first_bite_victim",
+        ...     {"humans", "animals"},
+        ...     None,
+        ...     value_regex=".*_bite_victim$",
+        ...     target_candidate="humans",
         ... )
         {'humans'}
 
@@ -336,13 +337,12 @@ class NounTransformer:
 
        def my_transform(plural: str) -> str:
            import inflect
+
            p = inflect.engine()
            return p.singular_noun(plural)
 
-       smurf_columns(
-           ... ,
-           plural_to_singular="__main__.heuristics.my_transform"
-       )
+
+       smurf_columns(..., plural_to_singular="__main__.heuristics.my_transform")
 
     Examples:
         >>> nt = NounTransformer(custom={"geese": "goose"})

@@ -1,4 +1,5 @@
 """Classes used for ID and translation transformation."""
+
 import typing as _t
 
 from ..types import IdType as _IdType
@@ -32,7 +33,13 @@ class Transformer(_t.Protocol[_IdType]):
             translations: A dict of real translations ``{id: translation_string}``.
         """
 
-    def try_add_missing_key(self, key: _IdType, /, *, translations: _t.MutableMapping[_IdType, str]) -> None:
+    def try_add_missing_key(
+        self,
+        key: _IdType,  # noqa: ARG002
+        /,
+        *,
+        translations: _t.MutableMapping[_IdType, str],  # noqa: ARG002
+    ) -> None:
         """Attempt to create and add a translation for an unknown ID.
 
         Callback function used by :class:`.MagicDict` when unknown IDs are requested. Raise :class:`.TransformerStop` to
@@ -45,10 +52,11 @@ class Transformer(_t.Protocol[_IdType]):
         Raises:
             TransformerStop: If this method should not be called (again).
         """
-        raise TransformerStop("not implemented")
+        msg = f"not implemented: {type(self).__name__}.try_add_missing_key()"
+        raise TransformerStop(msg)
 
 
-class TransformerStop(ValueError):
+class TransformerStop(Exception):  # noqa: N818
     """Error indicating that this transformer method should not be called again.
 
     Transformers may raise this exception at any point, after which the method of that instance will not be called again

@@ -38,16 +38,16 @@ def _vehicles() -> pd.DataFrame:
 @pytest.fixture
 def df(_locations, _vehicles):
     ret = _locations.reindex(range(-2, 17))
-    ret.fillna("-", inplace=True)
+    ret = ret.fillna("-")
     ret["bitmask"] = ret.index.map(lambda x: str(x) if x < 0 else f"0b{x:04b}")
     ret["bitmask (int)"] = ret.index
-    ret.reset_index(inplace=True, drop=True)
+    ret = ret.reset_index(drop=True)
     return ret
 
 
 def binary_to_decimal(b):
     if "|" in b:
         # int(b, base=2) doesn't work for '0b01 | 0b10'. Neither does ast.literal_eval().
-        l, _, r = b.partition("|")
-        return binary_to_decimal(l) | binary_to_decimal(r)
+        left, _, right = b.partition("|")
+        return binary_to_decimal(left) | binary_to_decimal(right)
     return int(b, base=2)
