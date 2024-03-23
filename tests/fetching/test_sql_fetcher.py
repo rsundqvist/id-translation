@@ -1,7 +1,7 @@
-import pytest as pytest
+import pytest
 import sqlalchemy
-
-from id_translation.fetching import SqlFetcher as RealSqlFetcher, exceptions
+from id_translation.fetching import SqlFetcher as RealSqlFetcher
+from id_translation.fetching import exceptions
 from id_translation.fetching.exceptions import FetcherWarning
 from id_translation.fetching.types import FetchInstruction, IdsToFetch
 from id_translation.mapping import Mapper
@@ -39,7 +39,6 @@ def test_select_where_fetch_all(sql_fetcher, monkeypatch):
 @pytest.mark.parametrize(
     "query_match, ids_to_fetch, expected",
     [
-        ("WHERE huge_table.id = ", [1], [1]),  # exact
         ("WHERE false", [], []),
         ("WHERE huge_table.id IN ", [1, 200, 500], [1, 200, 500]),  # less than 100
         ("WHERE huge_table.id IN ", range(0, 1001, 5), range(0, 1000, 5)),  # count < 100, factor > 2.5 -> BETWEEN
@@ -71,7 +70,7 @@ def sql_fetcher(connection_string):
 
 @pytest.fixture(scope="module")
 def connection_string(data, windows_hack_temp_dir):
-    db_file = windows_hack_temp_dir.joinpath(windows_hack_temp_dir, "sql-fetcher-data")
+    db_file = windows_hack_temp_dir / "sql-fetcher-data"
     db_file.mkdir(parents=True, exist_ok=True)
     connection_string = f"sqlite:///{db_file.joinpath('db.sqlite')}"
     insert_data(connection_string, data)

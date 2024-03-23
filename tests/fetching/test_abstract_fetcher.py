@@ -1,13 +1,10 @@
-from typing import Dict
-
 import pandas as pd
 import pytest
-from rics.collections.misc import as_list
-
 from id_translation.fetching import AbstractFetcher, CacheAccess, MemoryFetcher, exceptions
 from id_translation.fetching.types import IdsToFetch
 from id_translation.mapping import Mapper
 from id_translation.mapping.exceptions import MappingWarning
+from rics.collections.misc import as_list
 
 
 @pytest.fixture(scope="module")
@@ -62,7 +59,7 @@ def test_test_crashes_with_selective_fetch_all_disabled(data):
 
 @pytest.fixture(scope="module")
 def fetch_all_cache_dir(windows_hack_temp_dir):
-    yield windows_hack_temp_dir.joinpath("abstract-fetcher-cache")
+    yield windows_hack_temp_dir / "abstract-fetcher-cache"
 
 
 @pytest.mark.parametrize(
@@ -137,15 +134,10 @@ def test_corrupted_cache(caplog, fetcher, fetch_all_cache_dir, monkeypatch):
     assert not access.data_dir.exists()
     assert not access.metadata_path.exists()
 
-    wanted_substrings = [access.data_dir, access.metadata_path]
-    expected = list(map(str, wanted_substrings))
-    actual = []
-    for message in caplog.messages:
-        for w in expected:
-            if w in message:
-                actual.append(w)
+    for substr in map(str, (access.data_dir, access.metadata_path)):
+        if not any(substr in message for message in caplog.messages):
+            raise AssertionError(f"{substr=} not found in logged messages")
 
-    assert actual == expected, "Some wanted log messages weren't found."
     assert test_root.exists()
     CacheAccess.clear_all_cache_data()
     assert not test_root.exists()

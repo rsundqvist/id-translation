@@ -1,12 +1,17 @@
 """Transformations for translating bitmask fields."""
 
+from collections.abc import Iterable, Mapping, MutableMapping
 from itertools import filterfalse
-from typing import Dict, Iterable, List, Literal, Mapping, MutableMapping, Set, Union
+from typing import TypedDict
 
 from ..types import Transformer
 
 IdType = int
-TomlOverrideRecord = Dict[Literal["id", "override"], Union[IdType, str]]  # TODO(3.11, -3.8, -3.9, -3.10) use TypedDict
+
+
+class TomlOverrideRecord(TypedDict):
+    id: IdType
+    override: str
 
 
 class BitmaskTransformer(Transformer[IdType]):
@@ -145,20 +150,20 @@ class BitmaskTransformer(Transformer[IdType]):
         Returns:
             ``True`` if `i` is decomposable into powers of two.
         """
-        return i > 2 and ((i & (-i)) != i)
+        return i > 2 and ((i & (-i)) != i)  # noqa: PLR2004
 
     @staticmethod
-    def _from_toml_records(records: List[TomlOverrideRecord]) -> Dict[IdType, str]:
-        keys = ("id", "override")
     def _from_toml_records(records: list[TomlOverrideRecord]) -> dict[IdType, str]:
+        permitted = {"id", "override"}
 
         overrides = {}
         for i, record in enumerate(records, start=1):
-            if set(record) != set(keys):
-                raise ValueError(f"Record {i}/{len(records)} is malformed: Expected keys {keys} but got: {record}")
+            if permitted != set(record):
+                msg = f"Record {i}/{len(records)} is malformed: Expected keys {permitted} but got {record}"
+                raise ValueError(msg)
 
             key = record["id"]
             if key in overrides:
                 raise ValueError(f"Duplicate ID in record {i}/{len(records)}: {record=}")
             overrides[key] = record["override"]
-        return overrides  # type: ignore[return-value]
+        return overrides

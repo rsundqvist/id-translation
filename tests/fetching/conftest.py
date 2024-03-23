@@ -19,8 +19,5 @@ def data() -> dict[str, pd.DataFrame]:
 
 @pytest.fixture(scope="module")
 def windows_hack_temp_dir():
-    with TemporaryDirectory() as tmpdir:  # 3.10; ignore_cleanup_errors=True
-        tmp_root = Path(tmpdir).parent
-    ans = tmp_root.joinpath("windows-resistant-tempdir")
-    yield ans
-    rmtree(ans, ignore_errors=True)
+    with TemporaryDirectory(ignore_cleanup_errors=True) as tmpdir:
+        yield Path(tmpdir)
