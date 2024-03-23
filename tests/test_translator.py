@@ -662,3 +662,15 @@ def test_empty(translator):
     actual = translator.translate({"p": [], "n": [-1]}, maximal_untranslated_fraction=1.0)
     assert actual == {"p": [], "n": ["-1:-0x1, positive=False"]}
     assert translator.translated_names(with_source=True) == {"n": "negative_numbers", "p": "positive_numbers"}
+
+
+def test_simple_fetcher_dict():
+    canonical_form_data = {"people": {"id": [1999, 1991], "name": ["Sofia", "Richard"]}}
+
+    simple: RealTranslator[str, str, int] = RealTranslator({"people": {1999: "Sofia", 1991: "Richard"}})
+    assert simple.cache.to_dicts() == canonical_form_data
+
+    canonical: RealTranslator[str, str, int] = RealTranslator(canonical_form_data)
+    assert canonical.cache.to_dicts() == canonical_form_data
+
+    assert simple.translate([1999, 1991], names="people") == canonical.translate([1999, 1991], names="people")

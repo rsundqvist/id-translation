@@ -7,7 +7,7 @@ def test_register_io():
     assert resolve_io(Data.test_object) is DummyIO
     assert resolve_io(1) is not DummyIO
 
-    translator: Translator[str, str, int] = Translator(Data.data)  # type: ignore[arg-type]
+    translator: Translator[str, str, int] = Translator(Data.data)
     actual = translator.translate(Data.test_object)  # type: ignore[call-overload]
 
     assert actual == Data.expected

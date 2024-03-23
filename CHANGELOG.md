@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Python `3.12` is now fully tested and supported in CI/CD.
+- New module `translator_typing`. Useful especially users who which to extend the base `Translator` implementation.
+- Added support for simplified `Translator.fetcher` arguments on the form `{source: {id: name}}`.
 
 ### Changed
 - Python minimum version is now `3.11` (was `3.8`).
@@ -28,14 +30,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Heuristic functions that accept a `plural_to_singular`-argument now also accept a custom transformer.
 - Expose read-only attributes `Translator.fmt` and `default_fmt`.
-- Updated base exceptions for several `id_translation.*.exceptions`-members:
-  * `DataStructureIOError`: `RuntimeError` -> `TypeError`
-  * `ConfigurationError`: `ValueError` -> `TypeError`
-  * `ConnectionStatusError`: `ValueError` -> `ConnectionError`
-  * `TranslationError`: `ValueError` -> `Exception`
-  * `MappingError`: `ValueError` -> `Exception`
-- Make  `unmapped_values_action != 'ignore'` actions more specific: Raise new `UnmappedValuesError(MappingError)` or 
-  warn `UnmappedValuesWarning(MappingWarning)` (used to raise parent types directly). Add hints to warning message.
 
 ### Fixed
 - Fixed an issue which sometimes caused a crash when verifying translations.

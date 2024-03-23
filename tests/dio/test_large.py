@@ -17,9 +17,8 @@ class TestPandas:
 
     @staticmethod
     def run(numbers, kind):
-        fetcher_data = {"source": {"id": list(numbers.keys()), "name": list(numbers.values())}}
         translatable = kind(list(numbers) * 1000, name="source")
-        translator = Translator(fetcher_data)  # type: ignore[var-annotated, arg-type]
+        translator: Translator[str, str, int] = Translator({"source": numbers})
 
         translator.translate(translatable)
 
