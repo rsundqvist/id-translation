@@ -19,7 +19,7 @@ COVERAGE_DIR = ROOT_DIR.joinpath("htmlcov")
 COVERAGE_REPORT = COVERAGE_DIR.joinpath("index.html")
 SOURCE_DIR = ROOT_DIR.joinpath("src/id_translation")
 TEST_DIR = ROOT_DIR.joinpath("tests")
-NOTEBOOK_DIR = ROOT_DIR.joinpath("jupyterlab")
+NOTEBOOK_DIR = ROOT_DIR.joinpath("notebooks")
 PYTHON_TARGETS = [
     SOURCE_DIR,
     TEST_DIR,
