@@ -941,9 +941,12 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
     def go_offline(
         self,
         translatable: Translatable[NameType, IdType] = None,
-        names: NameTypes[NameType] = None,
+        names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
         *,
         ignore_names: Names[NameType] | None = None,
+        override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
+        maximal_untranslated_fraction: float = 1.0,
+        fmt: FormatType | None = None,
         path: PathLikeType = None,
     ) -> Self:
         """Retrieve and store translations in memory.
@@ -956,6 +959,11 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             translatable: Data from which IDs to fetch will be extracted. Fetch all IDs if ``None``.
             names: Explicit names to translate. Derive from `translatable` if ``None``.
             ignore_names: Names **not** to translate, or a predicate ``(NameType) -> bool``.
+            override_function: A callable ``(name, sources, ids) -> Source | None``. See :meth:`.Mapper.apply`
+                for details.
+            maximal_untranslated_fraction: The maximum fraction of IDs for which translation may fail before an error is
+                raised. 1=disabled. Ignored in `reverse` mode.
+            fmt: Format to use. If ``None``, fall back to init format.
             path: If given, serialize the :class:`.Translator` to disk after retrieving data.
 
         Returns:
@@ -973,7 +981,14 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             The :meth:`restore` method.
         """
         start = perf_counter()
-        translation_map = self._user_fetch(translatable, names, ignore_names=ignore_names)
+        translation_map = self._user_fetch(
+            translatable,
+            names,
+            ignore_names=ignore_names,
+            override_function=override_function,
+            maximal_untranslated_fraction=maximal_untranslated_fraction,
+            fmt=fmt,
+        )
         self.fetcher.close()
         del self._fetcher
         self._cached_tmap = translation_map
@@ -996,20 +1011,36 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
     def fetch(
         self,
         translatable: Translatable[NameType, IdType] = None,
-        names: NameTypes[NameType] = None,
+        names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
         *,
         ignore_names: Names[NameType] | None = None,
+        override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
+        maximal_untranslated_fraction: float = 1.0,
+        fmt: FormatType | None = None,
     ) -> TranslationMap[NameType, SourceType, IdType]:
         """Fetch translations.
 
         Calling ``fetch`` without arguments will perform a :meth:`.Fetcher.fetch_all` -operation, without going offline.
-        The returned :class:`.TranslationMap` may be converted to native types.
+
+        The returned :class:`.TranslationMap` may be converted to native types with :meth:`.TranslationMap.to_dicts`.
 
         Args:
             translatable: A data structure to translate. Fetch all available data if ``None``.
             names: Explicit names to translate. Derive from `translatable` if ``None``. Alternatively, you may pass a
                 ``dict`` on the form ``{name_in_translatable: source_to_use}``.
             ignore_names: Names **not** to translate, or a predicate ``(NameType) -> bool``.
+            maximal_untranslated_fraction: The maximum fraction of IDs for which translation may fail before an error is
+                raised. 1=disabled. Ignored in `reverse` mode.
+
+            translatable: A data structure to translate.
+            names: Explicit names to translate. Derive from `translatable` if ``None``. Alternatively, you may pass a
+                ``dict`` on the form ``{name_in_translatable: source_to_use}``.
+            ignore_names: Names **not** to translate, or a predicate ``(NameType) -> bool``.
+            override_function: A callable ``(name, sources, ids) -> Source | None``. See :meth:`.Mapper.apply`
+                for details.
+            maximal_untranslated_fraction: The maximum fraction of IDs for which translation may fail before an error is
+                raised. 1=disabled. Ignored in `reverse` mode.
+            fmt: Format to use. If ``None``, fall back to init format.
 
         Returns:
             A :class:`.TranslationMap`.
@@ -1060,31 +1091,56 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             >>> translation_map.to_dicts()["people"]
             {'id': [1999, 1991], 'name': ['Sofia', 'Richard']}
         """
-        return self._user_fetch(translatable, names, ignore_names=ignore_names)
+        return self._user_fetch(
+            translatable,
+            names,
+            ignore_names=ignore_names,
+            override_function=override_function,
+            maximal_untranslated_fraction=maximal_untranslated_fraction,
+            fmt=fmt,
+        )
 
     def _user_fetch(
         self,
         translatable: Translatable[NameType, IdType] = None,
-        names: NameTypes[NameType] = None,
+        names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
         *,
         ignore_names: Names[NameType] | None = None,
+        override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
+        maximal_untranslated_fraction: float = 1.0,
+        fmt: FormatType | None = None,
     ) -> TranslationMap[NameType, SourceType, IdType]:
+        fmt = self._fmt if fmt is None else Format.parse(fmt)
+
         if translatable is None:
-            translation_map = self._to_translation_map(self._fetch(None))
+            translation_map = self._to_translation_map(self._fetch(None), fmt=fmt)
             if names is not None:
                 names = as_list(names)
-                translation_map.name_to_source = self.mapper.apply(names, translation_map.sources).flatten()
+                translation_map.name_to_source = self.mapper.apply(
+                    names,
+                    translation_map.sources,
+                    override_function=override_function,
+                ).flatten()
         else:
-            name_to_source = self.map(translatable, names, ignore_names=ignore_names)
-            if not name_to_source:
-                pretty = repr(tname(translatable, prefix_classname=True))
-                raise MappingError(f"No names in the {pretty}-type data were mapped.")
+            task = TranslationTask(
+                self,
+                translatable,
+                self._fmt,
+                names,
+                ignore_names=ignore_names,
+                maximal_untranslated_fraction=maximal_untranslated_fraction,
+                enable_uuid_heuristics=self._enable_uuid_heuristics,
+            )
+            if not task.name_to_source:
+                msg = f"No names in the {tname(translatable, prefix_classname=True)!r}-type data were mapped."
+                raise MappingError(msg)
 
-            task = TranslationTask(self, translatable, self._fmt, name_to_source)
             translation_map = self._get_updated_tmap(task, force_fetch=True)
             if LOGGER.isEnabledFor(logging.DEBUG):
                 not_fetched = set(self.fetcher.sources).difference(translation_map.sources)
                 LOGGER.debug(f"Available sources {not_fetched} were not fetched.")
+
+            task.verify(translation_map)
 
         return translation_map
 

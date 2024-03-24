@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Methods `Translator.fetch()` and `go_offline()` now expose arguments (such as 
+  `maximal_untranslated_fraction`) that were previously limited to `translate()`.
+
 ## [0.8.0] - 2024-03-23
 
 ### Added

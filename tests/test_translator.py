@@ -638,6 +638,35 @@ def test_fetch(translator):
     assert actual == translator.translate(translatable, names=name_to_source)
 
 
+def test_fetch_args(translator):
+    with pytest.raises(TooManyFailedTranslationsError):
+        translator.fetch({"positive_numbers": [-1]}, maximal_untranslated_fraction=0)
+
+    assert translator.fetch({"positive_numbers": [-1]}).to_dicts() == {
+        "positive_numbers": {"hex": [], "id": [], "positive": []}
+    }
+    assert translator.fetch({"positive_numbers": [1]}).to_dicts() == {
+        "positive_numbers": {"hex": ["0x1"], "id": [1], "positive": [True]}
+    }
+    assert translator.online
+
+
+def test_go_offline_args(translator):
+    original_fetcher_id = id(translator.fetcher)
+    translator = translator.copy()
+
+    assert translator.online
+    assert id(translator.fetch) != original_fetcher_id
+
+    with pytest.raises(TooManyFailedTranslationsError):
+        translator.go_offline({"positive_numbers": [-1]}, maximal_untranslated_fraction=0)
+    assert translator.online
+
+    translator.go_offline({"positive_numbers": [1]}, maximal_untranslated_fraction=0)
+    assert not translator.online
+    assert translator.cache.to_dicts() == {"positive_numbers": {"hex": ["0x1"], "id": [1], "positive": [True]}}
+
+
 def test_map_scores(translator):
     actual = translator.map_scores({"p": 0, "positive_numbers": 1, "foo": 0}).to_numpy().tolist()
     inf = float("inf")
