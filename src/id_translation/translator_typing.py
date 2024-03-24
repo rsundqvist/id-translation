@@ -36,19 +36,30 @@ FetcherTypes = (
 """All valid input types for creating a ``Translator``."""
 
 
-class CopyParams(_t.TypedDict, _t.Generic[_tt.NameType, _tt.SourceType, _tt.IdType], total=False):
-    """Arguments of :meth:`.Translator.copy`.
+class MapParams(_t.TypedDict, _t.Generic[_tt.NameType, _tt.SourceType, _tt.IdType], total=False):
+    """Arguments of :meth:`.Translator.map` and :meth:`.Translator.map_scores`."""
 
-    Usage example: ``**kwargs: typing.Unpack[CopyParams]``.
-    """
+    translatable: _t.Required[_tt.Translatable[_tt.NameType, _tt.IdType]]
+    names: _tt.NameTypes[_tt.NameType] | None
+    ignore_names: _tt.Names[_tt.NameType] | None
+    override_function: _UserOverrideFunction[_tt.NameType, _tt.SourceType, None]
+
+
+class UniqueCopyParams(_t.TypedDict, _t.Generic[_tt.NameType, _tt.SourceType, _tt.IdType], total=False):
+    """Arguments of :meth:`.Translator.copy` that do not overlap with :class:`AllTranslateParams`."""
 
     fetcher: FetcherTypes[_tt.NameType, _tt.SourceType, _tt.IdType]
-    fmt: _ot.FormatType
     mapper: _Mapper[_tt.NameType, _tt.SourceType, None]
     default_fmt: _ot.FormatType
-    default_fmt_placeholders: _MakeType[_tt.SourceType, str, _t.Any]
+    default_fmt_placeholders: _MakeType[_tt.SourceType, str, _t.Any] | None
     enable_uuid_heuristics: bool
     transformers: dict[_tt.SourceType, _Transformer[_tt.IdType]] | None
+
+
+class CopyParams(UniqueCopyParams[_tt.NameType, _tt.SourceType, _tt.IdType], total=False):
+    """All arguments of :meth:`.Translator.copy`."""
+
+    fmt: _ot.FormatType
 
 
 class TranslateParams(_t.TypedDict, _t.Generic[_tt.NameType, _tt.SourceType, _tt.IdType], total=False):
@@ -56,15 +67,63 @@ class TranslateParams(_t.TypedDict, _t.Generic[_tt.NameType, _tt.SourceType, _tt
 
     .. note::
 
-       Does not include `translatable`.
+       Does not include `translatable` or `inplace`.
 
-    Usage example: ``**kwargs: typing.Unpack[TranslateParams]``.
+
+    **Motivation**
+
+    Allowing these to be passed as keyword arguments causes issues with typing, especially method overloading. For
+    example:
+
+    .. code-block::
+
+       def func(**kwargs: Unpack[AllTranslateParams]):
+          translatable = kwargs["translatable"]
+          if isinstance(translatable, list) and kwargs.get(inplace, False):
+              raise CustomException("we don't do that here")
+
+          else:
+              # Do whatever
+
+    using :class:`AllTranslateParams` is typically not as safe as:
+
+    .. code-block::
+
+       @overload
+       def func(...): ...
+
+       @overload
+       def func(translatable: list, inplace: Literal[True], **kwargs: Unpack[TranslateParams]) -> Never:
+          ...
+
+       def func(translatable, inplace, **kwargs: Unpack[TranslateParams]):
+           "Implementation as above"
+
+    since ``func(translatable=[], inplace=True)`` does not behave like
+    ``Translator.translate([], inplace=True)`` would. Functions that transparently wrap
+    :meth:`.Translator.translate` should probably use :py:func:`functools.wraps` instead.
     """
 
     names: _tt.NameTypes[_tt.NameType] | _tt.NameToSource[_tt.NameType, _tt.SourceType] | None
     ignore_names: _tt.Names[_tt.NameType] | None
-    inplace: bool
-    override_function: _UserOverrideFunction[_tt.NameType, _tt.SourceType, None]
+    override_function: _UserOverrideFunction[_tt.NameType, _tt.SourceType, None] | None
     maximal_untranslated_fraction: float
     reverse: bool
+    fmt: _ot.FormatType | None
+
+
+class AllTranslateParams(TranslateParams[_tt.NameType, _tt.SourceType, _tt.IdType], total=False):
+    """All arguments of :meth:`.Translator.translate`."""
+
+    translatable: _t.Required[_tt.Translatable[_tt.NameType, _tt.IdType]]
+    inplace: bool
+
+
+class FetchParams(_t.TypedDict, _t.Generic[_tt.NameType, _tt.SourceType, _tt.IdType], total=False):
+    """All arguments of :meth:`.Translator.fetch` and :meth:`.Translator.go_offline`."""
+
+    translatable: _tt.Translatable[_tt.NameType, _tt.IdType] | None
+    names: _tt.NameTypes[_tt.NameType] | _tt.NameToSource[_tt.NameType, _tt.SourceType] | None
+    ignore_names: _tt.Names[_tt.NameType] | None
+    override_function: _UserOverrideFunction[_tt.NameType, _tt.SourceType, None] | None
     fmt: _ot.FormatType | None

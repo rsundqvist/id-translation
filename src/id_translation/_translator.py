@@ -145,7 +145,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         fmt: FormatType = "{id}:{name}",
         mapper: Mapper[NameType, SourceType, None] = None,
         default_fmt: FormatType = DEFAULT_FORMAT,
-        default_fmt_placeholders: MakeType[SourceType, str, Any] = None,
+        default_fmt_placeholders: MakeType[SourceType, str, Any] | None = None,
         enable_uuid_heuristics: bool = False,
         transformers: dict[SourceType, Transformer[IdType]] | None = None,
     ) -> None:
@@ -606,6 +606,34 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                 fmt: FormatType | None = None,
             ) -> NoReturn: ...
 
+        @overload
+        def translate(
+            self,
+            translatable: Translatable[NameType, IdType],
+            names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
+            *,
+            ignore_names: Names[NameType] | None = None,
+            inplace: Literal[False] = False,
+            override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
+            maximal_untranslated_fraction: float = 1.0,
+            reverse: Literal[False] = False,
+            fmt: FormatType | None = None,
+        ) -> Translatable[NameType, str]: ...
+
+        @overload
+        def translate(
+            self,
+            translatable: Translatable[NameType, str],
+            names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
+            *,
+            ignore_names: Names[NameType] | None = None,
+            inplace: Literal[False] = False,
+            override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
+            maximal_untranslated_fraction: float = 1.0,
+            reverse: Literal[True] = True,
+            fmt: FormatType | None = None,
+        ) -> Translatable[NameType, IdType]: ...
+
     def translate(
         self,
         translatable: Translatable[NameType, IdType],
@@ -739,7 +767,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
     def map(
         self,
         translatable: Translatable[NameType, IdType],
-        names: NameTypes[NameType] = None,
+        names: NameTypes[NameType] | None = None,
         *,
         ignore_names: Names[NameType] | None = None,
         override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
@@ -777,7 +805,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
     def map_scores(
         self,
         translatable: Translatable[NameType, IdType],
-        names: NameTypes[NameType] = None,
+        names: NameTypes[NameType] | None = None,
         *,
         ignore_names: Names[NameType] | None = None,
         override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
@@ -940,7 +968,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
     def go_offline(
         self,
-        translatable: Translatable[NameType, IdType] = None,
+        translatable: Translatable[NameType, IdType] | None = None,
         names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
         *,
         ignore_names: Names[NameType] | None = None,
@@ -1010,7 +1038,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
     def fetch(
         self,
-        translatable: Translatable[NameType, IdType] = None,
+        translatable: Translatable[NameType, IdType] | None = None,
         names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
         *,
         ignore_names: Names[NameType] | None = None,
@@ -1025,13 +1053,6 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         The returned :class:`.TranslationMap` may be converted to native types with :meth:`.TranslationMap.to_dicts`.
 
         Args:
-            translatable: A data structure to translate. Fetch all available data if ``None``.
-            names: Explicit names to translate. Derive from `translatable` if ``None``. Alternatively, you may pass a
-                ``dict`` on the form ``{name_in_translatable: source_to_use}``.
-            ignore_names: Names **not** to translate, or a predicate ``(NameType) -> bool``.
-            maximal_untranslated_fraction: The maximum fraction of IDs for which translation may fail before an error is
-                raised. 1=disabled. Ignored in `reverse` mode.
-
             translatable: A data structure to translate.
             names: Explicit names to translate. Derive from `translatable` if ``None``. Alternatively, you may pass a
                 ``dict`` on the form ``{name_in_translatable: source_to_use}``.
@@ -1102,7 +1123,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
     def _user_fetch(
         self,
-        translatable: Translatable[NameType, IdType] = None,
+        translatable: Translatable[NameType, IdType] | None = None,
         names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
         *,
         ignore_names: Names[NameType] | None = None,
@@ -1114,10 +1135,14 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
         if translatable is None:
             translation_map = self._to_translation_map(self._fetch(None), fmt=fmt)
-            if names is not None:
-                names = as_list(names)
+
+            if names is None:
+                pass  # Callers must perform mapping unless name=source.
+            elif isinstance(names, dict):
+                translation_map.name_to_source = names
+            else:
                 translation_map.name_to_source = self.mapper.apply(
-                    names,
+                    as_list(names),
                     translation_map.sources,
                     override_function=override_function,
                 ).flatten()

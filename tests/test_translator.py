@@ -2,7 +2,7 @@ import logging
 from contextlib import contextmanager
 from dataclasses import dataclass
 from itertools import combinations_with_replacement
-from typing import Any
+from typing import Any, assert_type
 
 import numpy as np
 import pandas as pd
@@ -67,11 +67,12 @@ def test_dummy_translation_doesnt_crash(with_id, with_override, store):
     if store:
         t.go_offline(data, names=names)
 
-    ans = t.translate(  # type: ignore[call-overload]
+    ans = t.translate(
         data,
         names=names,
         override_function=override_function if with_override else None,
     )
+    assert_type(ans, Any)  # no numpy.typing.mypy_plugin
     assert ans is not None
     assert ans.shape == (3, 10)
 
@@ -397,15 +398,35 @@ def test_reverse(hex_fetcher):
             "1:0x1, positive=True",
         ]
     }
+    assert_type(translated, dict[str, list[str]])
     assert translated == t.translate({"positive_numbers": [-1, 0, 1]}, inplace=False)
 
-    actual = t.translate(translated, reverse=True)  # type: ignore[arg-type]
+    actual = t.translate(translated, reverse=True)
+    assert_type(actual, dict[str, list[int]])  # type: ignore[assert-type]  # Overloads are incomplete for reverse=True
     assert {"positive_numbers": [None, 0, 1]} == actual, "Original format"
 
     translated = {"positive_numbers": ["-0x1", "0x0", "0x1"]}
     tc = t.copy(fmt="{hex}")
-    actual = tc.translate(translated, reverse=True)  # type: ignore[arg-type]
+    assert_type(translated, dict[str, list[str]])
+    actual = tc.translate(translated, reverse=True)
+    assert_type(actual, dict[str, list[int]])  # type: ignore[assert-type]  # Overloads are incomplete for reverse=True
+    assert isinstance(actual, dict)  # this will only narrow it down to any of the possible value types
+    positive_numbers = actual["positive_numbers"]
+    assert isinstance(positive_numbers, list)
+    assert_type(positive_numbers, list[int])  # type: ignore[assert-type]  # getting there..
+    element = positive_numbers[0]
+    assert_type(element, int | Any)
     assert {"positive_numbers": [None, 0, 1]} == actual, "New format"
+
+
+def test_reverse_primitive(hex_fetcher):
+    fmt = "{id}:{hex}[, positive={positive}]"
+    t = UnitTestTranslator(hex_fetcher, fmt=fmt).go_offline()
+
+    translated = "1:0x1, positive=True"
+    actual = t.translate(translated, reverse=True, names="positive_numbers")
+    assert_type(actual, int)  # type: ignore[assert-type]  # Can't make this work without overlapping overloads
+    assert actual == 1
 
 
 def test_simple_function_overrides(translator):

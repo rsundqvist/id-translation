@@ -63,8 +63,8 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):
             tuple[str | FilterFunction[ValueType, CandidateType, ContextType], dict[str, Any]]
         ] = (),
         min_score: float = 0.90,
-        overrides: InheritedKeysDict[ContextType, ValueType, CandidateType]
-        | dict[ValueType, CandidateType]
+        overrides: dict[ValueType, CandidateType]
+        | InheritedKeysDict[ContextType, ValueType, CandidateType]
         | None = None,
         unmapped_values_action: ActionLevel.ParseType = ActionLevel.IGNORE,
         unknown_user_override_action: ActionLevel.ParseType = ActionLevel.RAISE,

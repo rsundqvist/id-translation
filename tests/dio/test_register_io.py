@@ -1,3 +1,5 @@
+from typing import assert_type
+
 import pytest
 from id_translation import Translator
 from id_translation.dio import DataStructureIO, register_io, resolve_io
@@ -8,7 +10,11 @@ def test_register_io():
     assert resolve_io(1) is not DummyIO
 
     translator: Translator[str, str, int] = Translator(Data.data)
-    actual = translator.translate(Data.test_object)  # type: ignore[call-overload]
+    actual = translator.translate(Data.test_object)
+
+    # No way to use an Any-bound without breaking overloads (yet)?.
+    # The "real" static type is any of the Translatable union types
+    assert_type(actual, object)  # type: ignore[assert-type]
 
     assert actual == Data.expected
 

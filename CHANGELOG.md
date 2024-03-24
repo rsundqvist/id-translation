@@ -7,12 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Added several new `TypedDict` types to `translator_typing`.
+- Added `Translator.translate` overloads. Catch-all overload for `reverse=True`.
+
 ### Changed
 - Methods `Translator.fetch()` and `go_offline()` now expose arguments (such as 
   `maximal_untranslated_fraction`) that were previously limited to `translate()`.
 
 ### Fixed
 - Return copy in `TranslationMap.name_to_source`
+- Handle `dict` names properly in `Translator.fetch()` and `go_offline()`.
 
 ## [0.8.0] - 2024-03-23
 
