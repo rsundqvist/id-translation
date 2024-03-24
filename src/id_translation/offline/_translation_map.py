@@ -180,7 +180,7 @@ class TranslationMap(
     @property
     def name_to_source(self) -> NameToSource[NameType, SourceType]:
         """Return name-to-source mapping."""
-        return self._name_to_source
+        return dict(self._name_to_source)
 
     @name_to_source.setter
     def name_to_source(self, value: NameToSource[NameType, SourceType]) -> None:
