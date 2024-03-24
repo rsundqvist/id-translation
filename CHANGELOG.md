@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Added several new `TypedDict` types to `translator_typing`.
 - Added `Translator.translate` overloads. Catch-all overload for `reverse=True`.
+- Added new utility `utils.translation_helper.TranslationHelper`.
 
 ### Changed
 - Methods `Translator.fetch()` and `go_offline()` now expose arguments (such as 

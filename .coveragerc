@@ -14,6 +14,7 @@ fail_under = 90
 
 exclude_lines =
     @overload
+    @_t.overload
     pragma: no cover
     def __repr__
     if self.debug

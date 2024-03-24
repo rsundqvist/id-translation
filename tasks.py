@@ -30,9 +30,9 @@ PYTHON_TARGETS = [
 PYTHON_TARGETS_STR = " ".join([str(p) for p in PYTHON_TARGETS])
 
 
-def _run(c: Context, command: str) -> Result:
+def _run(c: Context, command: str, env: dict[str, str] | None = None) -> Result:
     print(f"Command: {command}")
-    return c.run(command, pty=platform.system() != "Windows")
+    return c.run(command, pty=platform.system() != "Windows", env=env)
 
 
 @task
@@ -164,7 +164,7 @@ def coverage(c: Context, fmt: str = "report", open_browser: bool = False) -> Non
 def docs(c: Context, open_browser: bool = False) -> None:
     """Build documentation."""
     build_docs = f"sphinx-build -T -E -W --keep-going -a {DOCS_DIR} {DOCS_BUILD_DIR}"
-    _run(c, build_docs)
+    _run(c, build_docs, env={"SPHINX_BUILD": "true"})
     if open_browser:
         index = DOCS_BUILD_DIR / "index.html"
         webbrowser.open(index.absolute().as_uri())
