@@ -74,8 +74,6 @@ if TYPE_CHECKING:
 
     ID_TRANSLATION_PANDAS_IS_TYPED: bool = False
 
-DEFAULT_FORMAT = Format("<Failed: id={id!r}>")
-
 
 class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
     """End-user interface for all translation tasks.
@@ -142,9 +140,9 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
     def __init__(
         self,
         fetcher: FetcherTypes[NameType, SourceType, IdType] | None = None,
-        fmt: FormatType = "{id}:{name}",
+        fmt: FormatType = Format.DEFAULT,
         mapper: Mapper[NameType, SourceType, None] = None,
-        default_fmt: FormatType = DEFAULT_FORMAT,
+        default_fmt: FormatType = Format.DEFAULT_FAILED,
         default_fmt_placeholders: MakeType[SourceType, str, Any] | None = None,
         enable_uuid_heuristics: bool = False,
         transformers: dict[SourceType, Transformer[IdType]] | None = None,
@@ -153,9 +151,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
         self._fmt = fmt if isinstance(fmt, Format) else Format(fmt)
         self._default_fmt_placeholders: InheritedKeysDict[SourceType, str, Any] | None
-        self._default_fmt_placeholders, self._default_fmt = _handle_default(
-            self._fmt, default_fmt, default_fmt_placeholders
-        )
+        self._default_fmt_placeholders, self._default_fmt = _handle_default(default_fmt, default_fmt_placeholders)
         self._enable_uuid_heuristics = enable_uuid_heuristics
 
         self._cached_tmap: TranslationMap[NameType, SourceType, IdType] = TranslationMap({})
@@ -1260,10 +1256,9 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
 
 def _handle_default(
-    fmt: Format,
     default_fmt: FormatType,
     default_fmt_placeholders: MakeType[SourceType, str, Any] | None,
-) -> tuple[InheritedKeysDict[SourceType, str, Any] | None, Format | None]:  # pragma: no cover
+) -> tuple[InheritedKeysDict[SourceType, str, Any], Format]:
     default_fmt = Format.parse(default_fmt)
 
     if not default_fmt_placeholders:
@@ -1274,4 +1269,4 @@ def _handle_default(
     else:
         default_placeholders = InheritedKeysDict.make(default_fmt_placeholders)
 
-    return default_placeholders, fmt if default_fmt is DEFAULT_FORMAT else default_fmt
+    return default_placeholders, default_fmt
