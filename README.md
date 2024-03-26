@@ -27,7 +27,7 @@ for multiple different SQL dialects and schema naming paradigms. The included TO
 support functions make it easy to create and share working configurations with anyone who needs them.
 
 # Cookiecutter template project
-The fastest way to get started with `id-translation` is the 🍪[id-translation-project] cookiecutter template. It is
+The fastest way to get started with `id-translation` is the 🍪[id-translation-project] Cookiecutter template. It is
 designed to allow power users to quickly specify shared configurations that "just work" for other users; see the example
 below.
 
@@ -46,23 +46,29 @@ Your generated project might look like, or continue to the next section for a br
 [id-translation-project]: https://github.com/rsundqvist/id-translation-project/
 
 # Highlighted Features
-- Support for ``int`` and ``string`` IDs, including ``UUID``-like types.
-- Translation of [pandas types][pandas-translation], including `pandas.Index` types.
-- Intuitive [Format strings][format], with support for optional elements.
-- Powerful automated [Name-to-source][n2s-mapping] and [Format placeholder][pm-mapping] mapping.
-- Prebuilt fetchers for [SQL][sql-fetcher] and [file-system][pandas-fetcher] sources.
-- Configure using [TOML][translator-config], support for [persistent] instances stored on disk.
+- Intuitive [Format strings] (modern `'{id}:{name}'` syntax), including support for
+  [Format Specification Mini-Language] features and extensions for optional keys.
+- Fetchers for [SQL] and local or remote [file-system] sources.
+- Powerful [Name-to-source] and [Placeholder-to-column] mapping and name extraction.
+- Configurable using [TOML] - see the 🍪[id-translation-project] Cookiecutter template.
+- Highly configurable interface: [Translator.translate()].
+
+[Format strings]: https://id-translation.readthedocs.io/en/stable/_autosummary/id_translation.offline.html#id_translation.offline.Format
+[Format Specification Mini-Language]: https://docs.python.org/3/library/string.html#formatspec
+[SQL]: https://id-translation.readthedocs.io/en/stable/_autosummary/id_translation.fetching.html#id_translation.fetching.SqlFetcher
+[file-system]: https://id-translation.readthedocs.io/en/stable/_autosummary/id_translation.fetching.html#id_translation.fetching.PandasFetcher
+[Name-to-source]: https://id-translation.readthedocs.io/en/stable/documentation/translation-primer.html#name-to-source-mapping
+[Placeholder-to-column]: https://id-translation.readthedocs.io/en/stable/documentation/translation-primer.html#placeholder-mapping
+[TOML]: https://id-translation.readthedocs.io/en/stable/documentation/translator-config.html
+[cached instances]: https://id-translation.readthedocs.io/en/stable/_autosummary/id_translation.Translator.load_persistent_instance.html
+[Translator.translate()]: https://id-translation.readthedocs.io/en/stable/_autosummary/id_translation.Translator.translate.html
+
+## Supported types
+- Supported ID types: `int`, `string`, and `UUID`.
+- Supports translation of build-in collections: `list`, `dict`, `set`, `tuple`.
+- Supports translation of [pandas types][pandas-translation], including `pandas.MultiIndex` types.
 
 [pandas-translation]: https://id-translation.readthedocs.io/en/stable/documentation/examples/notebooks/cookbook/pandas-index.html
-[translate]: https://id-translation.readthedocs.io/en/stable/_autosummary/id_translation.Translator.translate.html
-[format]: https://id-translation.readthedocs.io/en/stable/_autosummary/id_translation.offline.html#id_translation.offline.Format
-[n2s-mapping]: https://id-translation.readthedocs.io/en/stable/documentation/translation-primer.html#name-to-source-mapping
-[pm-mapping]: https://id-translation.readthedocs.io/en/stable/documentation/translation-primer.html#placeholder-mapping
-[persistent]: https://id-translation.readthedocs.io/en/stable/_autosummary/id_translation.Translator.load_persistent_instance.html
-[sql-fetcher]: https://id-translation.readthedocs.io/en/stable/_autosummary/id_translation.fetching.html#id_translation.fetching.SqlFetcher
-[pandas-fetcher]: https://id-translation.readthedocs.io/en/stable/_autosummary/id_translation.fetching.html#id_translation.fetching.PandasFetcher
-[translator-config]: https://id-translation.readthedocs.io/en/stable/documentation/translator-config.html
-
 
 # Installation
 The package is published through the [Python Package Index (PyPI)]. Source code
