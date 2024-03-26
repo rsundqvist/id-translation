@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Return copy in `TranslationMap.name_to_source`
 - Handle `dict` names properly in `Translator.fetch()` and `go_offline()`.
+- Fixed a `maximal_untranslated_fraction`-related performance issue.
 
 ## [0.8.0] - 2024-03-23
 

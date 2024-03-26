@@ -2,7 +2,6 @@ import logging
 import warnings
 from collections import defaultdict
 from collections.abc import Sequence
-from copy import deepcopy
 from time import perf_counter
 from typing import TYPE_CHECKING, Any, get_args
 
@@ -11,7 +10,6 @@ from rics.misc import tname
 from rics.performance import format_seconds
 
 from .. import _uuid_utils
-from ..dio._dict import DictIO
 from ..exceptions import TooManyFailedTranslationsError
 from ..mapping.types import UserOverrideFunction
 from ..offline import Format, TranslationMap
@@ -197,9 +195,9 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
         return None if inplace else result
 
     def _should_verify(self) -> bool:
-        return LOGGER.isEnabledFor(logging.DEBUG) or self.maximal_untranslated_fraction < 1.0
+        return self.maximal_untranslated_fraction < 1.0 or LOGGER.isEnabledFor(logging.DEBUG)
 
-    def verify(self, translation_map: TranslationMap[NameType, SourceType, IdType]) -> None:
+    def verify(self, tmap: TranslationMap[NameType, SourceType, IdType]) -> None:
         """Verify translations.
 
         Performs translation with pre-defined formats, counting the number of IDs which are (and aren't) known to the
@@ -209,38 +207,27 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
             return
 
         name_to_ids = self._name_to_ids_in_order()
-        name_to_mask = deepcopy(name_to_ids)
+        translations = tmap.to_translations()
 
-        fmt, default_fmt = translation_map.fmt, translation_map.default_fmt
-        try:
-            translation_map.fmt = Format("")
-            translation_map.default_fmt = None
-            DictIO.insert(
-                name_to_mask,
-                names=self.io_names,
-                tmap=translation_map,
-                copy=False,
-            )
-        finally:
-            translation_map.fmt, translation_map.default_fmt = fmt, default_fmt
+        for name, ids in name_to_ids.items():
+            source = tmap.name_to_source[name]
+            known = dict(translations[source])
+            if self.reverse != tmap.reverse_mode:
+                known = set(known.values())  # type: ignore[assignment]
 
-        for name, mask in name_to_mask.items():
-            n_untranslated, n_total = sum(t is None for t in mask), len(mask)
+            is_missing = [idx not in known for idx in ids]
+            n_untranslated = sum(is_missing)
             if n_untranslated == 0:
                 continue
+            n_total = len(ids)
             f_untranslated = n_untranslated / n_total
 
-            sample_ids = self._get_untranslated_ids(name_to_ids[name], mask=mask)
+            sample_ids = self._get_untranslated_ids(name_to_ids[name], is_missing_mask=is_missing)
 
-            extra = {
-                "name_of_ids": name,
-                "source": translation_map.name_to_source[name],
-                "sample_ids": cast_unsafe(sample_ids),
-            }
-
+            extra = {"name_of_ids": name, "source": source, "sample_ids": cast_unsafe(sample_ids)}
             message = (
                 f"Failed to translate {n_untranslated}/{n_total} ({f_untranslated:.1%}{{reason}}) of IDs "
-                f"for {name=} using source={translation_map.name_to_source[name]!r}. Sample IDs: {sample_ids}."
+                f"for {name=} using source={source !r}. Sample IDs: {sample_ids}."
             )
 
             if f_untranslated > self.maximal_untranslated_fraction:
@@ -268,22 +255,17 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
         return name_to_ids
 
     @staticmethod
-    def _get_untranslated_ids(
-        ids: Sequence[IdType],
-        *,
-        mask: Sequence[str | None],
-    ) -> list[IdType]:
+    def _get_untranslated_ids(ids: Sequence[IdType], *, is_missing_mask: Sequence[bool]) -> list[IdType]:
         seen = set()
         retval = []
 
-        for i, idx in enumerate(ids):
-            if idx in seen:
+        for idx, is_missing in zip(ids, is_missing_mask, strict=True):
+            if not is_missing or idx in seen:
                 continue
 
-            if mask[i] is None:
-                seen.add(idx)
-                retval.append(idx)
-                if len(retval) == NUM_SAMPLE_IDS:
-                    break
+            seen.add(idx)
+            retval.append(idx)
+            if len(retval) == NUM_SAMPLE_IDS:
+                break
 
         return retval

@@ -388,35 +388,18 @@ def test_untranslated_reporting(caplog):
 
 
 def test_reverse(hex_fetcher):
-    fmt = "{id}:{hex}[, positive={positive}]"
-    t = UnitTestTranslator(hex_fetcher, fmt=fmt).go_offline()
+    translator = UnitTestTranslator(hex_fetcher, fmt="{id}:{hex}[, positive={positive}]").go_offline()
 
-    translated = {
-        "positive_numbers": [
-            "<Failed: id=-1>",
-            "0:0x0, positive=True",
-            "1:0x1, positive=True",
-        ]
-    }
+    translated = {"positive_numbers": ["<Failed: id=-1>", "0:0x0, positive=True", "1:0x1, positive=True"]}
     assert_type(translated, dict[str, list[str]])
-    assert translated == t.translate({"positive_numbers": [-1, 0, 1]}, inplace=False)
+    assert translated == translator.translate({"positive_numbers": [-1, 0, 1]}, inplace=False)
 
-    actual = t.translate(translated, reverse=True)
+    actual = translator.translate(translated, reverse=True)
     assert_type(actual, dict[str, list[int]])  # type: ignore[assert-type]  # Overloads are incomplete for reverse=True
-    assert {"positive_numbers": [None, 0, 1]} == actual, "Original format"
+    assert actual == {"positive_numbers": [None, 0, 1]}, "Original format"
 
-    translated = {"positive_numbers": ["-0x1", "0x0", "0x1"]}
-    tc = t.copy(fmt="{hex}")
-    assert_type(translated, dict[str, list[str]])
-    actual = tc.translate(translated, reverse=True)
-    assert_type(actual, dict[str, list[int]])  # type: ignore[assert-type]  # Overloads are incomplete for reverse=True
-    assert isinstance(actual, dict)  # this will only narrow it down to any of the possible value types
-    positive_numbers = actual["positive_numbers"]
-    assert isinstance(positive_numbers, list)
-    assert_type(positive_numbers, list[int])  # type: ignore[assert-type]  # getting there..
-    element = positive_numbers[0]
-    assert_type(element, int | Any)
-    assert {"positive_numbers": [None, 0, 1]} == actual, "New format"
+    with pytest.raises(TooManyFailedTranslationsError, match=r"Sample IDs: \['<Failed: id=-1>'\]"):
+        translator.translate(translated, reverse=True, maximal_untranslated_fraction=0)
 
 
 def test_reverse_primitive(hex_fetcher):
