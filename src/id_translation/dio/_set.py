@@ -23,9 +23,9 @@ class SetIO(DataStructureIO):
     @staticmethod
     def insert(
         translatable: set[IdType], names: list[NameType], tmap: TranslationMap[NameType, SourceType, IdType], copy: bool
-    ) -> set[str | None] | None:
+    ) -> set[str] | None:
         magic_dict = tmap[names[0]]
-        translated = {magic_dict.get(e) for e in translatable}
+        translated = {magic_dict[e] for e in translatable}
 
         if copy:
             return translated

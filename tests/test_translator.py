@@ -396,7 +396,7 @@ def test_reverse(hex_fetcher):
 
     actual = translator.translate(translated, reverse=True)
     assert_type(actual, dict[str, list[int]])  # type: ignore[assert-type]  # Overloads are incomplete for reverse=True
-    assert actual == {"positive_numbers": [None, 0, 1]}, "Original format"
+    assert actual == {"positive_numbers": ["<Failed: id='<Failed: id=-1>'>", 0, 1]}, "Original format"
 
     with pytest.raises(TooManyFailedTranslationsError, match=r"Sample IDs: \['<Failed: id=-1>'\]"):
         translator.translate(translated, reverse=True, maximal_untranslated_fraction=0)

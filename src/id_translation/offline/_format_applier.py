@@ -36,8 +36,9 @@ class FormatApplier(Generic[NameType, SourceType, IdType]):
     def __call__(
         self,
         fmt: Format,
-        placeholders: PlaceholdersTuple = None,
-        default_fmt: Format = None,
+        *,
+        default_fmt: Format,
+        placeholders: PlaceholdersTuple | None = None,
         default_fmt_placeholders: dict[str, Any] | None = None,
         enable_uuid_heuristics: bool = True,
     ) -> MagicDict[IdType]:
@@ -60,22 +61,17 @@ class FormatApplier(Generic[NameType, SourceType, IdType]):
         fstring = fmt.fstring(placeholders, positional=True)
         real_translations = self._apply(fstring, placeholders)
 
-        if default_fmt is not None or default_fmt_placeholders is not None:
-            if default_fmt is None:
-                default_fmt = fmt
-            if default_fmt_placeholders is None:
-                default_fmt_placeholders = {}
+        if default_fmt_placeholders is None:
+            default_fmt_placeholders = {}
 
-            partial = default_fmt.partial(default_fmt_placeholders)
-            try:
-                default_fstring = partial.fstring(positional=True)
-            except KeyError as e:
-                raise ValueError(
-                    f"All required placeholders except {{{ID}}} must be provided for {default_fmt=}:"
-                    f" {default_fmt.required_placeholders}."
-                ) from e
-        else:
-            default_fstring = None
+        partial = default_fmt.partial(default_fmt_placeholders)
+        try:
+            default_fstring = partial.fstring(positional=True)
+        except KeyError as e:
+            raise ValueError(
+                f"All required placeholders except {{{ID}}} must be provided for {default_fmt=}:"
+                f" {default_fmt.required_placeholders}."
+            ) from e
 
         return MagicDict(real_translations, default_fstring, enable_uuid_heuristics, self._transformer)
 

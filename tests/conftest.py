@@ -11,12 +11,19 @@ from id_translation.fetching import AbstractFetcher
 from id_translation.fetching.exceptions import UnknownIdError
 from id_translation.fetching.types import FetchInstruction
 from id_translation.mapping import Mapper
-from id_translation.offline import TranslationMap
+from id_translation.offline import MagicDict, TranslationMap
 from id_translation.offline.types import PlaceholderTranslations
 
 ROOT: Path = Path(__file__).parent
 
 Mapper.__init__ = partialmethod(Mapper.__init__, verbose_logging=True)  # type: ignore[assignment]
+
+
+def dont_call_get(*_, **__):
+    raise AssertionError("MagicDict.get is inefficient.")
+
+
+MagicDict.get = dont_call_get  # type: ignore[method-assign]
 
 
 class CheckSerializeToJson(logging.Handler):
