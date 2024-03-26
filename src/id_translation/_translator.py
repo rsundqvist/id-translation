@@ -183,7 +183,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             tmap = fetcher.copy()
             tmap.fmt = self._fmt
             tmap.default_fmt = self._default_fmt
-            tmap.default_fmt_placeholders = self._default_fmt_placeholders  # type: ignore
+            tmap.default_fmt_placeholders = self._default_fmt_placeholders
             self._cached_tmap = tmap
         else:
             raise TypeError(type(fetcher))  # pragma: no cover
