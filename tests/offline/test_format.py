@@ -33,8 +33,9 @@ def test_format(fmt, translations, expected):
 
 
 def test_missing_required(fmt):
-    with pytest.raises(KeyError):
-        fmt.fstring(("does", "not", "exist"))
+    with pytest.raises(KeyError) as e:
+        fmt(name="Foo")
+    assert str(e.value.args[0]) == "Required key(s) {'id'} missing from placeholders={'name': 'Foo'}."
 
 
 @pytest.mark.parametrize(
