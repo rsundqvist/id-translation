@@ -10,8 +10,6 @@ Rules of thumb
 * Non-inplace (copy-translation, default) always `tries` to return a collection of the same type, with all
   :attr:`IdTypes` converted to :py:class:`str`.
 * In-place translation always returns ``None``, or raises :class:`~.dio.exceptions.NotInplaceTranslatableError`.
-* When ``default_fmt=None``, IDs may be replaced by ``None`` as well (contrary to type hints).
-* Translating with ``maximal_untranslated_fraction=0`` guarantees that IDs are never replaced with ``None``.
 
 Overloads err on the overly-permissive side. Static type checkers (only MyPy is tested) may incorrectly allow things
 like ``translator.translate("a-string-id")`` for ``int``-only ``Translator`` instances.
@@ -21,7 +19,6 @@ Limitations
 Python does not support generics-of-generics, which is the primary domain in which the ``Translator.translate``-method
 operates. See https://github.com/python/typing/issues/548 for details on this subject.
 
-* Reverse-mode translation (``reverse=True``) is not type-hinted.
 * Numpy is supported, but not typed.
 * Pandas typing must be enabled using the ``ID_TRANSLATION_PANDAS_IS_TYPED``-flag.
 

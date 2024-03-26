@@ -94,7 +94,7 @@ def _translate_pandas_vector(
         if is_numeric_dtype(pvt):
             # We don't need to cast float to int here, since hash(1.0) == hash(1). The cast in extract() is required
             # because some database drivers may complain, especially if they receive floats (especially NaN).
-            mapping = {idx: magic_dict.get(idx) for idx in pvt.unique()}
+            mapping = {idx: magic_dict[idx] for idx in pvt.unique()}
             return pvt.map(mapping)
         else:
             mapping = {}
@@ -103,7 +103,7 @@ def _translate_pandas_vector(
                 if idx in mapping:
                     value = mapping[idx]
                 else:
-                    value = magic_dict.get(idx)
+                    value = magic_dict[idx]
                     mapping[idx] = value
                 data[i] = value
 

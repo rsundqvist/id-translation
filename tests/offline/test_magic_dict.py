@@ -4,58 +4,48 @@ import pytest
 from id_translation.offline import MagicDict
 from id_translation.transform.types import Transformer, TransformerStop
 
-FSTRING = "My name is {} and my number is {}."
-PLACEHOLDERS = ("name", "id")
 
-REAL_TRANSLATIONS = {
-    1991: "My name is Richard and my number is 1991.",
-    1999: "My name is Sofia and my number is 1999.",
-}
+def test_get(monkeypatch):
+    real = {1991: "1991:Richard", 1999: "1999:Sofia"}
+    subject = MagicDict(real)
 
+    with pytest.raises(AssertionError, match="MagicDict.get is inefficient."):
+        subject.get(1)
 
-@pytest.mark.parametrize(
-    "default_value, expected",
-    [
-        ("{}", "-1"),
-        ("", ""),
-        ("longer string", "longer string"),
-        ("{} not known", "-1 not known"),
-        ("no {} in real", "no -1 in real"),
-    ],
-)
-def test_with_default(default_value, expected):
-    subject = MagicDict(REAL_TRANSLATIONS, default_value)
+    monkeypatch.setattr(subject, "get", lambda k, _=None: subject[k])
 
+    # __eq__
+    assert subject == real
+    assert dict(subject) == real
+
+    # __contains__
     assert -1 in subject
+    assert -1 not in dict(subject)
     assert -321321 in subject
-    # Get
-    assert subject.get(1991, "get-default") == "My name is Richard and my number is 1991."
-    assert subject.get(1999, "get-default") == "My name is Sofia and my number is 1999."
-    assert subject.get(-1, "get-default") == expected
-    # Getitem
-    assert subject[1991] == "My name is Richard and my number is 1991."
-    assert subject[1999] == "My name is Sofia and my number is 1999."
-    assert subject[-1] == expected
+    assert -321321 not in dict(subject)
 
+    assert 1991 in subject
+    assert 1991 in dict(subject)
+    assert 1999 in subject
+    assert 1999 in dict(subject)
 
-def test_no_default():
-    subject = MagicDict(REAL_TRANSLATIONS)
+    # __getitem__
+    assert subject[1991] == real[1991]
+    assert subject[1999] == real[1999]
+    assert subject[-1] == "<Failed: id=-1>"
 
-    assert -1 not in subject
-    assert -321321 not in subject
-    # Get
-    assert subject.get(1991, "get-default") == "My name is Richard and my number is 1991."
-    assert subject.get(1999, "get-default") == "My name is Sofia and my number is 1999."
-    assert subject.get(-1, "get-default") == "get-default"
-    # Getitem
-    assert subject[1991] == "My name is Richard and my number is 1991."
-    assert subject[1999] == "My name is Sofia and my number is 1999."
-    with pytest.raises(KeyError):
-        subject[-1]
+    # Get = __getitem__
+    assert subject.get(1991, "") == subject[1991]
+    assert subject.get(1999, "") == subject[1999]
+    assert subject.get(-1, "") == subject[-1]
+
+    assert subject.get(1991) == subject[1991]
+    assert subject.get(1999) == subject[1999]
+    assert subject.get(-1) == subject[-1]
 
 
 def test_bad_uuids():
-    with pytest.raises(TypeError):
+    with pytest.raises(TypeError, match="Duplicate UUIDs found."):
         MagicDict(
             {
                 "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee": "",
@@ -68,14 +58,8 @@ def test_bad_uuids():
 @pytest.mark.parametrize("kind", [str.upper, str.lower, UUID])
 def test_uuid_contains_and_delete(kind):
     uuid = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
-    md = MagicDict(
-        {kind(uuid): ""},
-        enable_uuid_heuristics=True,
-        default_value=None,
-    )
+    md = MagicDict({kind(uuid): ""}, enable_uuid_heuristics=True)
     assert uuid in md
-    del md[uuid]
-    assert uuid not in md
 
 
 def test_transformer():
@@ -84,21 +68,19 @@ def test_transformer():
     # Should not call missing key yet
     assert transformer.call_counts == {"update_translations": 1, "try_add_missing_key": 0}
 
-    assert subject.get(2) == "TWO"
+    assert subject[2] == "TWO"
     assert transformer.call_counts["try_add_missing_key"] == 1
     assert subject[2] == "TWO"
     assert transformer.call_counts["try_add_missing_key"] == 1
 
-    assert subject.get(3) == "THREE"
+    assert subject[3] == "THREE"
     assert transformer.call_counts["try_add_missing_key"] == 2
     assert subject[3] == "THREE"
     assert transformer.call_counts["try_add_missing_key"] == 2
 
-    assert subject.get(4) is None
-    assert subject.get(5) is None
-    assert subject.get(6) is None
-    with pytest.raises(KeyError):
-        subject.__getitem__(7)
+    assert subject[4] == "<Failed: id=4>"
+    assert subject[5] == "<Failed: id=5>"
+    assert subject[6] == "<Failed: id=6>"
 
     assert transformer.call_counts == {"update_translations": 1, "try_add_missing_key": DummyTransformer.max_try}
     with pytest.raises(TransformerStop):

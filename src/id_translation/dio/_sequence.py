@@ -50,17 +50,16 @@ class SequenceIO(DataStructureIO):
             raise NotInplaceTranslatableError(translatable) from e
 
 
-def translate_sequence(
-    s: T, names: list[NameType], tmap: TranslationMap[NameType, SourceType, IdType]
-) -> list[str | None]:
+def translate_sequence(s: T, names: list[NameType], tmap: TranslationMap[NameType, SourceType, IdType]) -> list[str]:
     """Return a translated copy of the sequence `s`."""
     if len(names) == 1:
-        return list(map(tmap[names[0]].get, s))
+        magic_dict = tmap[names[0]]
+        return [magic_dict[i] for i in s]
 
     return [
         translate_sequence(element, [name], tmap)  # type: ignore
         if SequenceIO.handles_type(element)
-        else tmap[name].get(element)
+        else tmap[name][element]
         for name, element in zip(names, s)
     ]
 

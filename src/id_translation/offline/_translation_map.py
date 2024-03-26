@@ -1,6 +1,6 @@
 from collections.abc import Iterator, Mapping, Sequence
 from copy import copy
-from typing import TYPE_CHECKING, Any, Generic, Union
+from typing import TYPE_CHECKING, Any, Generic, Self, Union
 
 from rics.collections.dicts import InheritedKeysDict, reverse_dict
 from rics.misc import tname
@@ -32,24 +32,22 @@ class TranslationMap(
         enable_uuid_heuristics: Enabling may improve matching when :py:class:`~uuid.UUID`-like IDs are in use.
         transformers: A dict ``{source: transformer}`` of initialized :class:`.Transformer` instances.
 
-    Notes:
-        Type checking of `fmt` and `default_fmt_placeholders` attributes may fail due to
-        `mypy#3004 <https://github.com/python/mypy/issues/3004>`_
     """
 
     def __init__(
         self,
         source_translations: SourcePlaceholderTranslations[SourceType],
-        name_to_source: NameToSource[NameType, SourceType] = None,
-        fmt: FormatType = None,
-        default_fmt: FormatType = None,
-        default_fmt_placeholders: InheritedKeysDict[SourceType, str, Any] = None,
+        *,
+        fmt: FormatType = Format.DEFAULT,
+        default_fmt: FormatType = Format.DEFAULT_FAILED,
+        name_to_source: NameToSource[NameType, SourceType] | None = None,
+        default_fmt_placeholders: InheritedKeysDict[SourceType, str, Any] | None = None,
         enable_uuid_heuristics: bool = True,
         transformers: dict[SourceType, Transformer[IdType]] | None = None,
     ) -> None:
-        self.default_fmt = default_fmt  # type: ignore
-        self.default_fmt_placeholders = default_fmt_placeholders  # type: ignore
-        self.fmt = fmt  # type: ignore
+        self.fmt = Format.parse(fmt)
+        self.default_fmt = Format.parse(default_fmt)
+        self.default_fmt_placeholders = default_fmt_placeholders or InheritedKeysDict.make({})
 
         transformers = transformers or {}
         self._format_appliers: dict[SourceType, FormatApplier[NameType, SourceType, IdType]] = {
@@ -105,12 +103,18 @@ class TranslationMap(
 
     @classmethod
     def from_pandas(
-        cls, frames: dict[SourceType, "pandas.DataFrame"]
-    ) -> "TranslationMap[NameType, SourceType, IdType]":
+        cls,
+        frames: dict[SourceType, "pandas.DataFrame"],
+        fmt: FormatType = Format.DEFAULT,
+        *,
+        default_fmt: FormatType = Format.DEFAULT_FAILED,
+    ) -> Self:
         """Create a new instance from a :class:`pandas.DataFrame` dict.
 
         Args:
             frames: A dict ``{source: DataFrame}``.
+            fmt: A translation format. Must be given to use as a mapping.
+            default_fmt: Alternative format specification to use instead of `fmt` for fallback translation.
 
         Returns:
             A new ``TranslationMap``.
@@ -118,10 +122,14 @@ class TranslationMap(
         source_translations = {
             source: PlaceholderTranslations.from_dataframe(source, frame) for source, frame in frames.items()
         }
-        return cls(source_translations)
+        return cls(source_translations, fmt=fmt, default_fmt=default_fmt)
 
     def apply(
-        self, name_or_source: NameType | SourceType, fmt: FormatType = None, default_fmt: FormatType = None
+        self,
+        name_or_source: NameType | SourceType,
+        fmt: FormatType | None = None,
+        *,
+        default_fmt: FormatType | None = None,
     ) -> MagicDict[IdType]:
         """Create translations for a given name or source.
 
@@ -156,8 +164,8 @@ class TranslationMap(
 
         return (
             MagicDict(
-                reverse_dict(translations),  # type: ignore
-                default_value=None,  # force failure for unknown keys
+                reverse_dict(translations, duplicate_key_action="raise"),  # type: ignore
+                default_value=default_fmt.fstring(positional=True),
                 enable_uuid_heuristics=False,
             )
             if self.reverse_mode
@@ -188,22 +196,22 @@ class TranslationMap(
         self._names_and_sources = set(value).union(self._format_appliers)
 
     @property
-    def fmt(self) -> Format | None:
+    def fmt(self) -> Format:
         """Return the translation format."""
         return self._fmt
 
     @fmt.setter
-    def fmt(self, value: FormatType | None) -> None:
-        self._fmt = None if value is None else Format.parse(value)
+    def fmt(self, value: FormatType) -> None:
+        self._fmt = Format.parse(value)
 
     @property
-    def default_fmt(self) -> Format | None:
-        """Return the format specification to use instead of `fmt` for fallback translation."""
+    def default_fmt(self) -> Format:
+        """Return the format specification to use instead of :attr:`fmt` for fallback translation."""
         return self._default_fmt
 
     @default_fmt.setter
-    def default_fmt(self, value: FormatType | None) -> None:
-        self._default_fmt = None if value is None else Format.parse(value)
+    def default_fmt(self, value: FormatType) -> None:
+        self._default_fmt = Format.parse(value)
 
     @property
     def default_fmt_placeholders(self) -> InheritedKeysDict[SourceType, str, Any]:
@@ -211,8 +219,8 @@ class TranslationMap(
         return self._default_fmt_placeholders
 
     @default_fmt_placeholders.setter
-    def default_fmt_placeholders(self, value: InheritedKeysDict[SourceType, str, Any] | None) -> None:
-        self._default_fmt_placeholders = InheritedKeysDict() if value is None else InheritedKeysDict.make(value)
+    def default_fmt_placeholders(self, value: InheritedKeysDict[SourceType, str, Any]) -> None:
+        self._default_fmt_placeholders = InheritedKeysDict.make(value) if value else InheritedKeysDict()
 
     @property
     def reverse_mode(self) -> bool:
@@ -247,7 +255,7 @@ class TranslationMap(
             if applier.transformer is not None
         }
 
-    def copy(self) -> "TranslationMap[NameType, SourceType, IdType]":
+    def copy(self) -> Self:
         """Make a copy of this ``TranslationMap``."""
         return copy(self)
 
