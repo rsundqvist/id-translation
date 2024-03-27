@@ -194,16 +194,13 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
 
         return None if inplace else result
 
-    def _should_verify(self) -> bool:
-        return self.maximal_untranslated_fraction < 1.0 or LOGGER.isEnabledFor(logging.DEBUG)
-
     def verify(self, tmap: TranslationMap[NameType, SourceType, IdType]) -> None:
         """Verify translations.
 
         Performs translation with pre-defined formats, counting the number of IDs which are (and aren't) known to the
         translation map.
         """
-        if not self._should_verify():
+        if not (self.maximal_untranslated_fraction < 1.0 or LOGGER.isEnabledFor(logging.DEBUG)):
             return
 
         name_to_ids = self._name_to_ids_in_order()
@@ -211,7 +208,7 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
 
         for name, ids in name_to_ids.items():
             source = tmap.name_to_source[name]
-            known = dict(translations[source])
+            known = translations[source].real
             if self.reverse != tmap.reverse_mode:
                 known = set(known.values())  # type: ignore[assignment]
 
@@ -227,7 +224,7 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
             extra = {"name_of_ids": name, "source": source, "sample_ids": cast_unsafe(sample_ids)}
             message = (
                 f"Failed to translate {n_untranslated}/{n_total} ({f_untranslated:.1%}{{reason}}) of IDs "
-                f"for {name=} using source={source !r}. Sample IDs: {sample_ids}."
+                f"for {name=} using source={source!r}. Sample IDs: {sample_ids}."
             )
 
             if f_untranslated > self.maximal_untranslated_fraction:
