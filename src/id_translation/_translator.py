@@ -78,6 +78,9 @@ if TYPE_CHECKING:
 class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
     """End-user interface for all translation tasks.
 
+    See :meth:`.Translator.translate` for runtime configuration options. Any argument chosen when the ``Translator`` is
+    created can be overridden with :meth:`.Translator.copy`. Use :meth:`.go_offline` to store translations in memory.
+
     Args:
         fetcher: A :class:`.Fetcher` or ready-to-use translations.
         fmt: String :class:`.Format` specification for translations.
@@ -663,10 +666,9 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             inplace: If ``True``, translate in-place and return ``None``.
             override_function: A callable ``(name, sources, ids) -> Source | None``. See :meth:`.Mapper.apply`
                 for details.
-            maximal_untranslated_fraction: The maximum fraction of IDs for which translation may fail before an error is
-                raised. 1=disabled. Ignored in `reverse` mode.
+            maximal_untranslated_fraction: The maximum fraction of IDs for which translation may fail. 1=disabled.
             reverse: If ``True``, perform translations back to IDs. Offline mode only.
-            fmt: Format to use. If ``None``, fall back to init format.
+            fmt: A :class:`format string <.Format>` such as **'{id}:{name}'** use. Default is :attr:`.Translator.fmt`.
 
         Returns:
             A translated copy of `translatable` if ``inplace=False``, otherwise ``None``.
@@ -833,7 +835,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
     @property
     def fmt(self) -> Format:
-        """Main translation :class:`.Format`."""
+        """Main translation :class:`.Format` for this ``Translator`` instance."""
         return self._fmt
 
     @property
@@ -985,9 +987,8 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             ignore_names: Names **not** to translate, or a predicate ``(NameType) -> bool``.
             override_function: A callable ``(name, sources, ids) -> Source | None``. See :meth:`.Mapper.apply`
                 for details.
-            maximal_untranslated_fraction: The maximum fraction of IDs for which translation may fail before an error is
-                raised. 1=disabled. Ignored in `reverse` mode.
-            fmt: Format to use. If ``None``, fall back to init format.
+            maximal_untranslated_fraction: The maximum fraction of IDs for which translation may fail. 1=disabled.
+            fmt: A :class:`format string <.Format>` such as **'{id}:{name}'** use. Default is :attr:`.Translator.fmt`.
             path: If given, serialize the :class:`.Translator` to disk after retrieving data.
 
         Returns:
@@ -1055,9 +1056,8 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             ignore_names: Names **not** to translate, or a predicate ``(NameType) -> bool``.
             override_function: A callable ``(name, sources, ids) -> Source | None``. See :meth:`.Mapper.apply`
                 for details.
-            maximal_untranslated_fraction: The maximum fraction of IDs for which translation may fail before an error is
-                raised. 1=disabled. Ignored in `reverse` mode.
-            fmt: Format to use. If ``None``, fall back to init format.
+            maximal_untranslated_fraction: The maximum fraction of IDs for which translation may fail. 1=disabled.
+            fmt: A :class:`format string <.Format>` such as **'{id}:{name}'** use. Default is :attr:`.Translator.fmt`.
 
         Returns:
             A :class:`.TranslationMap`.

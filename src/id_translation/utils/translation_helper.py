@@ -3,14 +3,12 @@
 Examples:
     Implementing a function with a ``translate`` arg using the helper class.
 
-    >>> from id_translation import Translator
-    >>> factory_fn = Translator[str, str, int]
+    **Initialization**
 
     Typically, you'd use something like a :meth:`id_translation.Translator.from_config` callback with suitable
     arguments. For our purposes however, dummy translations are enough.
 
-    **Initialization**
-
+    >>> from id_translation import Translator
     >>> helper = TranslationHelper[str, str, int](
     ...     Translator,
     ...     "translate",  # for error messages
@@ -21,6 +19,15 @@ Examples:
 
     The `user_params_name='translate'` argument is not printed because it's the default.
 
+    **Function definition**
+
+    Arguments provided when the helper is initialized are fixed. An exception is raised if fixed arguments overlap
+    either with `user_kwargs`, or with the defaults provided as keyword-arguments to :meth:`~.TranslationHelper.apply`.
+
+    In the example below, ``names="name"`` is a fixed argument and ``fmt="{id}:{name}"`` is a default argument. The
+    `translatable` (= ``list(range(n))``) and `inplace` arguments are always required, but cannot be defined as fixed arguments.
+    The reasons for this are mostly related to the use of :py:func:`typing.overload`.
+
     >>> def example(
     ...     n: int,
     ...     *,
@@ -28,8 +35,9 @@ Examples:
     ... ) -> list[str]:
     ...     items: list[str] = helper.apply(
     ...         list(range(n)),
-    ...         inplace=False,
-    ...         user_params=translate,
+    ...         inplace=False,  # required
+    ...         user_params=translate,  # forwarded
+    ...         fmt="{id}:{name}",  # default - user params can override
     ...     )
     ...     return items
 
@@ -37,12 +45,23 @@ Examples:
 
     **Basic usage**
 
-    When ``user_params = translate = True``, default settings are used. Translation may be disabled by passing ``False``.
+    When ``user_params = translate = True``, default settings are used.
 
     >>> example(1)
     ['0:name-of-0']
+
+    Translation may be disabled by passing ``False``, making the helper return immediately.
+
     >>> example(2, translate=False)
     [0, 1]
+
+    Note the output is of type ``list[int]``, rather than expected ``list[str]``, in this case.
+
+    .. seealso:: The :envvar:`ID_TRANSLATION_DISABLED` environment variable.
+
+    Aside from the obvious ``true|false`` behaviour, the :func:`TranslationHelper` may also act on the input type. The
+    helper can be configured what input that the user may pass; see the `fixed_params` argument of the class. Use
+    :meth:`.TranslationHelper.convert_user_params` to validate the configuration.
 
     **Argument forwarding**
 
@@ -51,12 +70,12 @@ Examples:
     >>> example(22, translate={"fmt": "{name} (binary={id:0b})"})[-1]
     'name-of-21 (binary=10101)'
 
-    Plain strings are interpreted as a temporary :class:`translation format <id_translation.offline.Format>`.
+    Plain strings are interpreted as a temporary translation :class:`~id_translation.offline.Format`.
 
     >>> example(22, translate="{name} (binary={id:0b})")[-1]
     'name-of-21 (binary=10101)'
 
-    This is equivalent to passing ``translate={"fmt": "{name} (binary={id:0b})"}`` as we did above.
+    This is equivalent to passing ``translate={"fmt": "{name} (binary={id:0b})"}``, as we did above.
 
     **Documenting user arguments**
 
@@ -105,8 +124,7 @@ class TranslationHelper(_t.Generic[_tt.NameType, _tt.SourceType, _tt.IdType]):
 
     **Typing rules**
 
-    Typing is limited compared to :meth:`.Translator.translate`, typing is limited. Rules for
-    :meth:`.TranslationHelper.apply`:
+    Compared to :meth:`.Translator.translate`, typing is limited. Rules for :meth:`.TranslationHelper.apply`:
 
         * When ``user_params=False``, output= input.
         * When ``user_params != False``, output= ``Any`` (new variable) or same (existing variable).
@@ -437,6 +455,8 @@ if _os.environ.get("SPHINX_BUILD") == "true":  # pragma: no cover
     ) -> list[str]:
         """Create and translate the first `n` integers.
 
+        Docstrings for `translate` and ``TypeError`` were produced by :meth:`~.TranslationHelper.make_docstrings`.
+
         Args:
             n: Number of integers to create.
             translate: {translate}
@@ -451,6 +471,7 @@ if _os.environ.get("SPHINX_BUILD") == "true":  # pragma: no cover
             list(range(n)),
             inplace=False,
             user_params=translate,
+            fmt="{id}:{name}",
         )
         return items
 
