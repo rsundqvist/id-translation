@@ -8,19 +8,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Added new utility `utils.translation_helper.TranslationHelper`.
 - Added several new `TypedDict` types to `translator_typing`.
 - Added `Translator.translate` overloads. Catch-all overload for `reverse=True`.
-- Added new utility `utils.translation_helper.TranslationHelper`.
+- Added many new in-line examples to class, function and module docstrings. Updated and corrected or clarified several 
+  docstrings which were poorly worded or outdated. 
 
 ### Changed
 - Methods `Translator.fetch()` and `go_offline()` now expose arguments (such as 
   `maximal_untranslated_fraction`) that were previously limited to `translate()`.
+- Improve when a `maximal_untranslated_fraction` is in use.
+- The `Format` class is now callable for convenience (keyword only).
 
 ### Fixed
-- Return copy in `TranslationMap.name_to_source`
+- Return copy in `TranslationMap.name_to_source` - consistent with similar properties.
 - Handle `dict` names properly in `Translator.fetch()` and `go_offline()`.
-- Fixed a `maximal_untranslated_fraction`-related performance issue.
 - Untranslated IDs should now never be `None` - ensure a valid `Format` is always available.
+- Raise `ValueError` when using positional placeholders in `Format`. This used to be a silent error.
 
 ## [0.8.0] - 2024-03-23
 
