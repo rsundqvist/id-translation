@@ -158,8 +158,8 @@ class Format:
         Returns:
             A partially formatted fstring.
         """
-        parts, _ = parse_format_string.Element.parse_block(self._fmt, defaults=defaults)
-        return Format("".join(parts))
+        new_fmt, _placeholders = parse_format_string.Element.parse_block(self._fmt, defaults=defaults)
+        return Format(new_fmt)
 
     @staticmethod
     def parse(fmt: FormatType) -> "Format":

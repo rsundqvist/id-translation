@@ -186,20 +186,6 @@ def test_improper_brackets(fmt, i, msg):
         get_elements(fmt)
 
 
-def test_foo():
-    from id_translation.offline import Format
-
-    x = Format(" [aaaa] {x}").fstring()
-    print(x)
-
-    fmt_ = (
-        "required: {required}"
-        " | [1/1, {optional_provided}]"
-        " | [1/2: {optional_provided} {optional_not_provided}]"
-        " | [2/3: {optional_provided} {optional_not_provided} {optional_provided}]"
-        " | []"
-    )
-    fmt = Format(fmt_)
-    print(fmt)
-    print(fmt.fstring(fmt.placeholders))
-    print(fmt_)
+def test_positional_fmt():
+    with pytest.raises(ValueError, match="anonymous fields are not permitted"):
+        get_elements("{}:{}")

@@ -4,11 +4,21 @@ import collections.abc as _abc
 from dataclasses import dataclass as _dataclass
 from string import Formatter as _Formatter
 from typing import Any as _Any
+from typing import NamedTuple as _NamedTuple
 
 OPTIONAL_BLOCK_START_DELIMITER = "["
 _START = OPTIONAL_BLOCK_START_DELIMITER
 OPTIONAL_BLOCK_END_DELIMITER = "]"
 _END = OPTIONAL_BLOCK_END_DELIMITER
+
+
+class ParseBlockResult(_NamedTuple):
+    """Output type of :meth:`.Element.parse_block`."""
+
+    parsed_block: str
+    """Processed parts of the block."""
+    placeholders: list[str]
+    """Names of the :attr:`.Format.placeholders` in `parsed_block`, in the order in which they appear."""
 
 
 class MalformedOptionalBlockError(ValueError):
@@ -83,34 +93,73 @@ class Element:
         """
         block = fmt
         fmt = block.replace("[[", "[").replace("]]", "]")
-        # block = block.replace("{{", "{").replace("}}", "}")
-        parts, placeholders = cls.parse_block(fmt)
 
-        return Element(fmt, placeholders, not (placeholders and in_optional_block), "".join(parts))
+        positional_part, placeholders = cls.parse_block(fmt)
+        is_optional = placeholders and in_optional_block
+
+        return Element(fmt, placeholders, required=not is_optional, positional_part=positional_part)
 
     @classmethod
-    def parse_block(cls, block: str, defaults: _abc.Mapping[str, _Any] | None = None) -> tuple[list[str], list[str]]:
+    def parse_block(cls, block: str, defaults: _abc.Mapping[str, _Any] | None = None) -> ParseBlockResult:
         """Parse an entire block with optional defaults for placeholders found.
 
-        Using `defaults`:
-            Keys in `defaults` will replace placeholders in the block. That is, the returned placeholders are guaranteed
-            not to contain any keys in the `defaults`. Passing defaults will retain placeholder names in the returned
-            `parts`.
+        .. hint::
 
-        If `defaults` are not given, placeholder values are strip from returned `parts`.
+           With `defaults`, the value of the :attr:`ParseBlockResult.parsed_block` is more or less what you'd expect if
+           the built-in :py:meth:`str.format_map`-method allowed missing keys.
+
+        Anonymous fields are not permitted.
+
+        ..
+           >>> from uuid import UUID
+
+        Output with ``defaults == None``:
+            When `defaults` are ``None``, placeholder names are stripped from the
+            :attr:`~.ParseBlockResult.parsed_block`.
+
+            >>> block, placeholders = Element.parse_block("{id!s:.8}:{name!r}")
+            >>> print(f"{block=} has {placeholders=}")
+            block='{!s:.8}:{!r}' has placeholders=['id', 'name']
+
+            Field names in `block` are returned as :attr:`.ParseBlockResult.placeholders`, in the order in which they
+            appeared in the input `block`. The field names of :attr:`~.ParseBlockResult.parsed_block` will be
+            anonymous.
+
+            >>> block.format(UUID(int=10**38), "Morran Borran")
+            "4b3b4ca8:'Morran Borran'"
+
+        Output with ``defaults != None``:
+            When `defaults` are given, all placeholders in the `block` which are present in the `defaults` are replaced
+            with ``defaults[field_name]`` in the :attr:`~.ParseBlockResult.parsed_block`.
+
+            >>> block, placeholders = Element.parse_block(
+            ...     "{id!s:.8}:{name!r}",
+            ...     defaults={"name": "Morran Borran"},
+            ... )
+            >>> print(f"{block=} has {placeholders=}")
+            block="{id!s:.8}:'Morran Borran'" has placeholders=['id']
+
+            Field names without defaults will be present both in :attr:`~.ParseBlockResult.placeholders`, and as named
+            fields in the :attr:`~.ParseBlockResult.parsed_block`.
+
+            >>> block.format(id=UUID(int=10**38))
+            "4b3b4ca8:'Morran Borran'"
 
         Args:
             block: A block to parse.
             defaults: A dict ``{placeholder: value}``.
 
         Returns:
-            A tuple of two lists ``([positional_parts...], [placeholders...])``.
+            A :class:`.ParseBlockResult` tuple.
+
+        Raises:
+            ValueError: If `block` contains anonymous fields.
         """
         if defaults is None:
             defaults = {}
-            positional = True
+            keep_placeholder_names = False
         else:
-            positional = False
+            keep_placeholder_names = True
 
         parts = []
         placeholders = []
@@ -123,6 +172,13 @@ class Element:
 
         for literal_text, field_name, format_spec, conversion in formatter.parse(block):
             parts.append(literal_text.replace("{", "{{").replace("}", "}}"))
+
+            if field_name == "":
+                msg = f"Bad {block=}; anonymous fields are not permitted."
+                msg += "\n- Hint: Replace '{}' with '{field_name}' to give this field a name"
+                msg += "\n- Hint: Replace '{}' with '{{}}' to render literal curly braces"
+                raise ValueError(msg)
+
             if field_name:
                 placeholder, _, attribute = field_name.partition(".")
                 formatting_parts = _get_formatting_parts(
@@ -138,14 +194,14 @@ class Element:
                     parts.append("{")
 
                     placeholders.append(placeholder)
-                    if not positional:
+                    if keep_placeholder_names:
                         placeholders_index.append(len(parts))
                         parts.append(placeholder)
 
                     parts.extend(formatting_parts)
                     parts.append("}")
 
-        return parts, placeholders
+        return ParseBlockResult("".join(parts), placeholders=placeholders)
 
 
 def _get_delimiter_index(part: str, *, start: bool) -> int | None:
