@@ -7,7 +7,3 @@ overrides = [{ id = 0, override = "just water" }]
 
 [transform.guests.'tests.transform.test_factory.SayHi']
 random_seed = 2019
-
-[fetching.MemoryFetcher.data]
-drinking_preferences_bitmask = { id = [1, 2], name = ["likes coffee", "likes tea"] }
-guests = { id = [1991, 1999, 2021], name = ["Richard", "Sofia", "Morris"] }

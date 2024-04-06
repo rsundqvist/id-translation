@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, Generic, Self, Union
 from rics.collections.dicts import InheritedKeysDict, reverse_dict
 from rics.misc import tname
 
-from ..transform.types import Transformer
+from ..transform.types import Transformer, Transformers
 from ..types import HasSources, IdType, NameToSource, NameType, SourceType
 from ._format import Format
 from ._format_applier import FormatApplier
@@ -43,7 +43,7 @@ class TranslationMap(
         name_to_source: NameToSource[NameType, SourceType] | None = None,
         default_fmt_placeholders: InheritedKeysDict[SourceType, str, Any] | None = None,
         enable_uuid_heuristics: bool = True,
-        transformers: dict[SourceType, Transformer[IdType]] | None = None,
+        transformers: Transformers[SourceType, IdType] | None = None,
     ) -> None:
         self.fmt = Format.parse(fmt)
         self.default_fmt = Format.parse(default_fmt)
