@@ -27,6 +27,7 @@ from . import exceptions, fetching
 from .mapping import HeuristicScore as _HeuristicScore
 from .mapping import Mapper as _Mapper
 from .transform.types import Transformer as _Transformer
+from .transform.types import Transformers
 from .types import IdType, NameType, SourceType
 from .utils import ConfigMetadata as _ConfigMetadata
 from .utils import load_toml_file as _load_toml_file
@@ -152,11 +153,12 @@ def default_transformer_factory(clazz: str, config: dict[str, _Any]) -> _Transfo
 
     from . import transform as default_module
 
-    cls = get_by_full_name(clazz, default_module=default_module)
-    transformer = cls(**config)
-    if not isinstance(transformer, _Transformer):
-        raise TypeError(f"{clazz=} is not Transformer-like")
-    return transformer
+    cls = get_by_full_name(
+        clazz,
+        subclass_of=_Transformer,  # type: ignore[type-abstract]  # https://github.com/python/mypy/issues/4717
+        default_module=default_module,
+    )
+    return cls(**config)
 
 
 class TranslatorFactory(_Generic[NameType, SourceType, IdType]):
@@ -195,7 +197,7 @@ class TranslatorFactory(_Generic[NameType, SourceType, IdType]):
         with _rethrow_with_file(self.file):
             config: dict[str, _Any] = self.load_toml_file(self.file)
 
-        fetcher: fetching.Fetcher[SourceType, IdType] = self._handle_fetching(
+        fetcher, fetcher_transformers = self._handle_fetching(
             config.pop("fetching", {}), self.extra_fetchers, _cache_keys_from_config_metadata(config_metadata)
         )
 
@@ -205,7 +207,11 @@ class TranslatorFactory(_Generic[NameType, SourceType, IdType]):
             mapper = self._make_mapper("translator", translator_config)
             _make_default_translations(translator_config, config.pop("unknown_ids", {}))
 
-            translator_config["transformers"] = self._handler_transformers(config.pop("transform", {}))
+            translator_transformers = self._handler_transformers(config.pop("transform", {}))
+            if keys := set(fetcher_transformers).intersection(translator_transformers):
+                msg = f"Transformers for {len(keys)} sources also defined on the fetcher level: {keys}."
+                raise ValueError(msg)
+            translator_config["transformers"] = translator_transformers | fetcher_transformers
 
             ans = self.clazz(
                 fetcher,
@@ -227,19 +233,26 @@ class TranslatorFactory(_Generic[NameType, SourceType, IdType]):
         config: dict[str, _Any],
         extra_fetchers: list[str],
         default_cache_keys: list[list[str]],
-    ) -> fetching.Fetcher[SourceType, IdType]:
+    ) -> tuple[fetching.Fetcher[SourceType, IdType], Transformers[SourceType, IdType]]:
         multi_fetcher_kwargs = config.pop("MultiFetcher", {})
 
         fetchers: list[fetching.Fetcher[SourceType, IdType]] = []
+        transformers: Transformers[SourceType, IdType] = {}
 
         if config:
             with _rethrow_with_file(self.file):
                 fetchers.append(self._make_fetcher(default_cache_keys[0], **config))  # Add primary fetcher
 
-        for i, file_fetcher_file in enumerate(extra_fetchers, start=1):
-            with _rethrow_with_file(file_fetcher_file):
-                fetcher_config = self.load_toml_file(file_fetcher_file)
+        for i, fetcher_file in enumerate(extra_fetchers, start=1):
+            with _rethrow_with_file(fetcher_file):
+                fetcher_config = self.load_toml_file(fetcher_file)
                 fetcher = self._make_fetcher(default_cache_keys[i], **fetcher_config["fetching"])
+                new_transformers = self._handler_transformers(fetcher_config.get("transform", {}))
+
+                if keys := set(new_transformers).intersection(transformers):
+                    msg = f"Transformers for {len(keys)} sources were already defined in another fetcher file: {keys}."
+                    raise ValueError(msg)
+                transformers.update(new_transformers)
             fetchers.append(fetcher)
 
         if not fetchers:
@@ -248,7 +261,18 @@ class TranslatorFactory(_Generic[NameType, SourceType, IdType]):
                 " or as an auxiliary configuration.",
             )
 
-        return fetchers[0] if len(fetchers) == 1 else fetching.MultiFetcher(*fetchers, **multi_fetcher_kwargs)
+        retval: fetching.Fetcher[SourceType, IdType]
+        if len(fetchers) == 1:
+            # if multi_fetcher_kwargs:
+            #     warnings.warn(
+            #         f"MultiFetcher arguments {multi_fetcher_kwargs} are ignored; only one fetcher defined.",
+            #         category=UserWarning,
+            #         stacklevel=4,
+            #     )
+            retval = fetchers[0]
+        else:
+            retval = fetching.MultiFetcher(*fetchers, **multi_fetcher_kwargs)
+        return retval, transformers
 
     @classmethod
     def _make_mapper(cls, parent_section: str, config: dict[str, _Any]) -> _Mapper[_Any, _Any, _Any] | None:
@@ -280,18 +304,16 @@ class TranslatorFactory(_Generic[NameType, SourceType, IdType]):
         return TranslatorFactory.FETCHER_FACTORY(clazz, kwargs)
 
     @classmethod
-    def _handler_transformers(
-        cls, per_source: dict[SourceType, dict[str, _Any]]
-    ) -> dict[SourceType, _Transformer[IdType]]:
+    def _handler_transformers(cls, per_source: dict[SourceType, dict[str, _Any]]) -> Transformers[SourceType, IdType]:
         transformers = {}
 
         for source, config in per_source.items():
             if len(config) != 1:
                 raise exceptions.ConfigurationError(
-                    "Transformation config must be specified as [transform.<source>.[<transformer-class>] sections."
+                    "Transformation config must be specified as [transform.<source>.<transformer-class>] sections."
                 )
-            for clazz, kwargs in config.items():
-                transformers[source] = cls.TRANSFORMER_FACTORY(clazz, kwargs)
+            clazz, kwargs = next(iter(config.items()))
+            transformers[source] = cls.TRANSFORMER_FACTORY(clazz, kwargs)
         return transformers
 
 

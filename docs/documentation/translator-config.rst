@@ -88,8 +88,15 @@ Section: Transformations
 You may specify one :class:`.Transformer` per source. Subsection keys are passed directly to the ``init``-method of the
 chosen transformer type. For available transformers, see the :mod:`API documentation <.transform>`.
 
+.. note::
+
+   You may add ``[transform.'<source>']``-sections either in the main configuration file, or in an auxiliary fetcher
+   configuration. It is a :class:`~id_translation.exceptions.ConfigurationError` to specify transformations for the same
+   `source` more than once.
+
+
 For example, to configure a :class:`.BitmaskTransformer`, add a section on the form
-``[transform.'<source>'.'<transformer-type>']`` to your main configuration file:
+``[transform.'<source>'.BitmaskTransformer]`` to an appropriate configuration file:
 
 .. code-block:: toml
 
@@ -109,11 +116,10 @@ This will create a transform that formats bitmasks such as ``0b101`` in the foll
 
 .. hint::
 
-   Custom transformers may be initialized by using sections with fully qualified type names in single quotation marks.
-   For example, a ``[transform.'<source>'.'my.library.SuperTransformer']``-section would import and initialize a
-   ``SuperTransformer`` from the ``my.library`` module.
+   Custom transformers may be initialized by using sections with fully qualified type names.
 
-   Under the hood, this will call :func:`~rics.misc.get_by_full_name` using ``name="my.library.SuperTransformer"``.
+For example, a ``[transform.'<source>'.'my.library.SuperTransformer']``-section would import and initialize a
+``SuperTransformer`` from the ``my.library`` module.
 
 .. _translator-config-fetching:
 

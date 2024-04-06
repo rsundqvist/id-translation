@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Consume `[transform]`-sections in auxiliary configuration files (#231).
+
 ## [0.9.0] - 2024-03-28
 
 ### Added

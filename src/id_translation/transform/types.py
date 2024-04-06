@@ -3,6 +3,7 @@
 import typing as _t
 
 from ..types import IdType as _IdType
+from ..types import SourceType as _SourceType
 
 
 @_t.runtime_checkable
@@ -62,3 +63,7 @@ class TransformerStop(Exception):  # noqa: N818
     Transformers may raise this exception at any point, after which the method of that instance will not be called again
     by the caller which caught the exception.
     """
+
+
+Transformers = dict[_SourceType, Transformer[_IdType]]
+"""A dict ``{source: transformer}`` of initialized :class:`.Transformer` instances."""

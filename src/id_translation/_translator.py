@@ -39,7 +39,7 @@ from .offline.types import (
     PlaceholderTranslations,
     SourcePlaceholderTranslations,
 )
-from .transform.types import Transformer
+from .transform.types import Transformers
 from .translator_typing import CopyParams, FetcherTypes
 from .types import (
     ID,
@@ -115,7 +115,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         ...         "name": ["Tarzan", "Morris", "Simba"],
         ...         "is_nice": [False, True, True],
         ...     },
-        ...     "people": {"id": [1999, 1991, 1904], "name": ["Sofia", "Richard", "Fred"]},
+        ...     "people": {1999: "Sofia", 1991: "Richard", 1904: "Fred"},
         ... }
         >>> translator = Translator(translation_data, fmt="{id}:{name}[, nice={is_nice}]")
 
@@ -148,7 +148,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         default_fmt: FormatType = Format.DEFAULT_FAILED,
         default_fmt_placeholders: MakeType[SourceType, str, Any] | None = None,
         enable_uuid_heuristics: bool = False,
-        transformers: dict[SourceType, Transformer[IdType]] | None = None,
+        transformers: Transformers[SourceType, IdType] | None = None,
     ) -> None:
         self._transformers = {} if transformers is None else transformers
 
@@ -1183,7 +1183,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         return translation_map
 
     @property
-    def transformers(self) -> dict[SourceType, Transformer[IdType]]:
+    def transformers(self) -> Transformers[SourceType, IdType]:
         """Get a dict ``{source: transformer}`` of :class:`.Transformer` instances used by this ``Translator``."""
         return self._transformers
 
