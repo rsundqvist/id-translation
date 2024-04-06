@@ -455,14 +455,12 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
             self._mapper = original_mapper
 
     @abstractmethod
-    def fetch_translations(
-        self, instruction: FetchInstruction[SourceType, IdType]
-    ) -> PlaceholderTranslations[SourceType]:
+    def fetch_translations(self, instr: FetchInstruction[SourceType, IdType]) -> PlaceholderTranslations[SourceType]:
         """Retrieve placeholder translations from the source.
 
         Args:
-            instruction: A single instruction for IDs to fetch. If IDs is ``None``, the fetcher should retrieve data for
-                as many IDs as possible.
+            instr: A single :class:`.FetchInstruction` for IDs to fetch. If IDs is ``None``, the fetcher should
+                retrieve data for as many IDs as possible.
 
         Returns:
             Placeholder translation elements.

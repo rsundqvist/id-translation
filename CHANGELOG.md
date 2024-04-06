@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Consume `[transform]`-sections in auxiliary configuration files (#231).
 
+### Fixed
+- Verify top-level sections in auxiliary configuration files.
+
 ## [0.9.0] - 2024-03-28
 
 ### Added

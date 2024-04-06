@@ -96,14 +96,14 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
     Examples:
         Basic usage. For a more complete use case, see the :ref:`dvdrental` example.
 
-        Assume that we have data for people and animals as in the table below::
+        Assume that we have data for people and animals as in the tables below::
 
-            people:                       animals:
-                 id | name    | gender       id | name   | is_nice
-              ------+---------+--------     ----+--------+---------
-               1991 | Richard | Male          0 | Tarzan | false
-               1999 | Sofia   | Female        1 | Morris | true
-               1904 | Fred    | Male          2 | Simba  | true
+            people:            animals:
+                 id | name        id | name   | is_nice
+              ------+---------   ----+--------+---------
+               1991 | Richard      0 | Tarzan | false
+               1999 | Sofia        1 | Morris | true
+               1904 | Fred         2 | Simba  | true
 
         In most real cases we'd fetch this table from somewhere. In this case, however, there's so little data that we
         can simply enumerate the components needed for translation ourselves.
@@ -118,6 +118,9 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         ...     "people": {1999: "Sofia", 1991: "Richard", 1904: "Fred"},
         ... }
         >>> translator = Translator(translation_data, fmt="{id}:{name}[, nice={is_nice}]")
+
+        Since `people` only has columns `id` and `name`, we can use the simplified ``{id: name}`` data format. We're
+        using the full format for `animals` since we have an additional `is_nice` column in this table.
 
         We didn't define a :class:`.Mapper`, so the names must match exactly.
 

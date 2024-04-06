@@ -7,6 +7,7 @@ from id_translation.fetching import AbstractFetcher, MemoryFetcher, MultiFetcher
 from id_translation.fetching.exceptions import FetcherWarning
 from id_translation.fetching.types import IdsToFetch
 from id_translation.offline.types import PlaceholderTranslations, SourcePlaceholderTranslations
+from id_translation.types import IdTypes
 
 from ..conftest import ROOT
 
@@ -118,12 +119,11 @@ def test_ranks(multi_fetcher, fetchers):
 
 
 def test_from_config():
-    main_config = ROOT.joinpath("config.imdb.toml")
-    extra_children = [
-        ROOT.joinpath("config.toml"),
-        ROOT.joinpath("config.toml"),
-    ]
-    Translator.from_config(main_config, extra_children)
+    translator = Translator[str, str, IdTypes].from_config(
+        ROOT / "config.imdb.toml",
+        extra_fetchers=[ROOT / "transform/fetcher-only.toml"],
+    )
+    assert sorted(translator.sources) == ["drinking_preferences_bitmask", "guests", "name_basics", "title_basics"]
 
 
 class TestOptionalFetchers:

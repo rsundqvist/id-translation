@@ -202,7 +202,7 @@ class TranslatorFactory(_Generic[NameType, SourceType, IdType]):
         )
 
         with _rethrow_with_file(self.file):
-            _check_allowed_keys(self.TOP_LEVEL_KEYS, config, "<root>")
+            _check_allowed_keys(self.TOP_LEVEL_KEYS, actual=config, toml_path="<root>")
             translator_config = config.pop("translator", {})
             mapper = self._make_mapper("translator", translator_config)
             _make_default_translations(translator_config, config.pop("unknown_ids", {}))
@@ -246,6 +246,7 @@ class TranslatorFactory(_Generic[NameType, SourceType, IdType]):
         for i, fetcher_file in enumerate(extra_fetchers, start=1):
             with _rethrow_with_file(fetcher_file):
                 fetcher_config = self.load_toml_file(fetcher_file)
+                _check_allowed_keys(["fetching", "transform"], actual=fetcher_config, toml_path="<root>")
                 fetcher = self._make_fetcher(default_cache_keys[i], **fetcher_config["fetching"])
                 new_transformers = self._handler_transformers(fetcher_config.get("transform", {}))
 
@@ -321,7 +322,7 @@ def _make_default_translations(
     out: dict[str, _Any],
     config: dict[str, _Any],
 ) -> None:
-    _check_allowed_keys(["fmt", "overrides"], config, toml_path="translator.unknown_ids")
+    _check_allowed_keys(["fmt", "overrides"], actual=config, toml_path="translator.unknown_ids")
 
     if "fmt" in config:
         out["default_fmt"] = config.pop("fmt")
@@ -330,7 +331,7 @@ def _make_default_translations(
         out["default_fmt_placeholders"] = dicts.InheritedKeysDict(specific, default=shared)
 
 
-def _check_allowed_keys(allowed: _Iterable[str], actual: _Iterable[str], toml_path: str) -> None:
+def _check_allowed_keys(allowed: _Iterable[str], *, actual: _Iterable[str], toml_path: str) -> None:
     bad_keys = set(actual).difference(allowed)
     if bad_keys:
         raise ValueError(f"Forbidden keys {sorted(bad_keys)} in [{toml_path}]-section.")

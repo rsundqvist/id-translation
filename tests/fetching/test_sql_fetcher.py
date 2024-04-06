@@ -50,7 +50,6 @@ def test_select_where(ids_to_fetch, expected, query_match, sql_fetcher, monkeypa
 
     def select_where(*args, **kwargs):
         actual = original(*args, **kwargs)
-        print(repr(str(actual)))
         assert query_match in str(actual)
         return actual
 
