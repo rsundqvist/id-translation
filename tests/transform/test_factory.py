@@ -14,11 +14,6 @@ def test_factory():
     actual = {"guests": [1991, 1999, 2021], "drinking_preferences_bitmask": [2, 3, 0]}
     translator.translate(actual, inplace=True)
 
-    import pandas as pd
-
-    print()
-    print(pd.DataFrame(actual))
-
     assert actual == {
         "guests": ["Oh, it's you again Richard.", "Oh, it's you again Sofia.", "What's up, Morris?"],
         "drinking_preferences_bitmask": ["likes tea", "likes coffee AND likes tea", "just water"],

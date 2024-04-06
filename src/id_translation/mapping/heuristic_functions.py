@@ -327,7 +327,7 @@ class NounTransformer:
     :attr:`PLURAL_TO_SINGULAR_SUFFIXES`) to singular form.
 
     .. note::
-       For more complex use cases, consider defining using a language-processing framework such as
+       For more complex use cases, consider using a language-processing framework such as
        `inflect (PyPI) <https://pypi.org/project/inflect/>`_ instead.
 
     Pass ``plural_to_singular=<fully-qualified-name>`` to use your implementation in any function that accepts a
@@ -342,7 +342,7 @@ class NounTransformer:
            return p.singular_noun(plural)
 
 
-       smurf_columns(..., plural_to_singular="__main__.heuristics.my_transform")
+       smurf_columns(..., plural_to_singular="__main__.my_transform")
 
     Examples:
         >>> nt = NounTransformer(custom={"geese": "goose"})

@@ -92,7 +92,7 @@ class PandasFetcher(AbstractFetcher[str, IdType]):
         .. _AbstractFileSystem.glob(): https://filesystem-spec.readthedocs.io/en/latest/api.html?highlight=glob#fsspec.spec.AbstractFileSystem.glob
 
         Returns:
-            A dict ``{source, path}``.
+            A dict ``{source: path}``.
         """
         pattern = self.format_source("*")
 
@@ -102,12 +102,13 @@ class PandasFetcher(AbstractFetcher[str, IdType]):
             self.logger.debug(f"Falling back to 'pathlib.Path': {e!r}")
             source_paths = self._find_sources_pathlib(pattern)
 
-        if not source_paths:  # pragma: no cover
-            self.logger.warning(f"Bad path pattern: '{pattern}' did not match any files.", extra={"task_id": task_id})
-
-        self.logger.debug(f"Source paths resolved: {source_paths}", extra={"task_id": task_id})
-
-        return source_paths
+        extra = {"task_id": task_id, "pattern": pattern}
+        if source_paths:
+            self.logger.debug(f"Path {pattern=} matched {len(source_paths)} files: {source_paths}", extra=extra)
+            return source_paths
+        else:
+            self.logger.warning(f"Path {pattern=} did not match any files.", extra=extra)
+            return {}
 
     def _find_sources_fsspec(self, pattern: str) -> dict[str, str]:
         from fsspec.core import url_to_fs  # type: ignore
