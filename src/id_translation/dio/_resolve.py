@@ -63,22 +63,36 @@ def _initialize(
 
         pretty_arg = tname(arg, prefix_classname=True)
         pretty_class = f"{_pretty_io_name(io_class)}({format_kwargs(kwargs)})" if with_kwargs else ""
-        LOGGER.debug(f"Using {pretty_class} for translatable of type='{pretty_arg}'.")
+        index = RESOLUTION_ORDER.index(io_class)
+        LOGGER.debug(f"Using rank-{index} implementation {pretty_class} for translatable of type='{pretty_arg}'.")
     return io
+
+
+def get_resolution_order(*, real: bool = False) -> list[type[AnyDataStructureIO]]:
+    """Returns known :class:`.DataStructureIO` implementations.
+
+    Args:
+        real: If ``True``, return the actual list instead of a copy.
+
+    Returns:
+        A list of IO implementations.
+    """
+    return RESOLUTION_ORDER if real else list(RESOLUTION_ORDER)
 
 
 def register_io(io: type[AnyDataStructureIO]) -> None:
     """Register a new IO implementation.
 
-    This will simply add `io` to the head of the internal list of IOs. The IO framework expects ``DataStructureIO``
-    instances to be static and stateless, as they will be used by all ``Translator`` instances across the lifetime of
-    the Python interpreter.
+    Classes are polled through :meth:`.DataStructureIO.handles_type` in reverse insertion order (new implementations are
+    polled first). Re-registering an implementation again will move it to the first position in the search order.
 
     Args:
         io: A :class:`.DataStructureIO` type.
     """
-    RESOLUTION_ORDER.insert(0, io)
+    if io in RESOLUTION_ORDER:
+        RESOLUTION_ORDER.remove(io)
 
+    RESOLUTION_ORDER.insert(0, io)
     if LOGGER.isEnabledFor(logging.DEBUG):
         LOGGER.debug(f"Registered custom IO implementation: '{_pretty_io_name(io)}'.")
 

@@ -12,6 +12,35 @@ class DataStructureIO(Generic[TranslatableT, NameType, SourceType, IdType]):
     """Insertion and extraction of IDs and translations."""
 
     @classmethod
+    def register(cls) -> None:
+        """Register this implementation for all :class:`.Translator` instances.
+
+        See :func:`.dio.register_io` for details.
+        """
+        from ._resolve import register_io
+
+        return register_io(cls)
+
+    @classmethod
+    def get_rank(cls) -> int:
+        """Return the rank of this implementation.
+
+        See :func:`.dio.get_resolution_order` for details.
+
+        Returns:
+            Implementation rank.
+
+        Raises:
+            ValueError: If the implementation is not registered.
+        """
+        from ._resolve import get_resolution_order
+
+        try:
+            return get_resolution_order(real=True).index(cls)
+        except ValueError:
+            raise ValueError(f"not registered: {cls.__name__}") from None
+
+    @classmethod
     @abstractmethod
     def handles_type(cls, arg: Any) -> bool:
         """Return ``True`` if the implementation handles data for the type of `arg`."""
