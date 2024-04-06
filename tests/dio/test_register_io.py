@@ -1,4 +1,4 @@
-from typing import assert_type
+from typing import Any, assert_type
 
 import pytest
 from id_translation import Translator
@@ -6,7 +6,7 @@ from id_translation.dio import DataStructureIO, register_io, resolve_io
 
 
 def test_register_io():
-    assert resolve_io(Data.test_object) is DummyIO
+    assert resolve_io(Data.test_object).__class__ is DummyIO
     assert resolve_io(1) is not DummyIO
 
     translator: Translator[str, str, int] = Translator(Data.data)
@@ -36,7 +36,7 @@ class Data:
     expected = f"{test_object_id}:{test_object_name}"
 
 
-class DummyIO(DataStructureIO):
+class DummyIO(DataStructureIO[Any, str, str, int]):
     @staticmethod
     def handles_type(arg, *_args, **_kwargs):
         return arg is Data.test_object

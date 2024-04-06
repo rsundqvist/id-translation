@@ -8,23 +8,27 @@ from . import DataStructureIO
 from .exceptions import NotInplaceTranslatableError
 
 
-class SingleValueIO(DataStructureIO):
+class SingleValueIO(DataStructureIO[IdType, NameType, SourceType, IdType]):
     """Implementation for non-iterables. And strings."""
 
-    @staticmethod
-    def handles_type(arg: Any) -> bool:
+    @classmethod
+    def handles_type(cls, arg: Any) -> bool:
         return isinstance(arg, (int, str, UUID))
 
-    @staticmethod
-    def extract(translatable: IdType, names: list[NameType]) -> dict[NameType, Sequence[IdType]]:
+    @classmethod
+    def extract(cls, translatable: IdType, names: list[NameType]) -> dict[NameType, Sequence[IdType]]:
         if len(names) != 1:  # pragma: no cover
-            raise ValueError("Length of names must be one.")
+            raise ValueError(f"Length of {names=} must be one.")
 
         return {names[0]: (translatable,)}
 
-    @staticmethod
+    @classmethod
     def insert(
-        translatable: IdType, names: list[NameType], tmap: TranslationMap[NameType, SourceType, IdType], copy: bool
+        cls,
+        translatable: IdType,
+        names: list[NameType],
+        tmap: TranslationMap[NameType, SourceType, IdType],
+        copy: bool,
     ) -> str:
         if not copy:  # pragma: no cover
             raise NotInplaceTranslatableError(translatable)

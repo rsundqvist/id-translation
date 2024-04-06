@@ -114,6 +114,9 @@ NameTypes: _type.TypeAlias = NameType | _type.Iterable[NameType]
 Names: _type.TypeAlias = NameTypes[NameType] | NamesPredicate[NameType]
 """Acceptable name types."""
 
+TranslatableT = _type.TypeVar("TranslatableT", bound=Translatable[_type.Any, _type.Any])  # TODO: Higher-Kinded TypeVars
+"""Simplified ``Translatable`` type."""
+
 
 class HasSources(_abc.ABC, _type.Generic[SourceType]):
     """Indicates that `sources` and `placeholders` are available."""

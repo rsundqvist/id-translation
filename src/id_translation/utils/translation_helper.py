@@ -99,6 +99,7 @@ from id_translation import Translator as _Translator
 from id_translation import translator_typing as _trt
 from id_translation import types as _tt
 from id_translation.offline import types as _ot
+from id_translation.types import TranslatableT
 
 MaximalUntranslatedFractionTypes = int | float
 UserParams = (
@@ -112,9 +113,6 @@ FactoryFn = _t.Callable[[], _Translator[_tt.NameType, _tt.SourceType, _tt.IdType
 FactoryTypes = (
     FactoryFn[_tt.NameType, _tt.SourceType, _tt.IdType] | _Translator[_tt.NameType, _tt.SourceType, _tt.IdType]
 )
-
-TranslatableT = _t.TypeVar("TranslatableT", bound=_tt.Translatable[_t.Any, _t.Any])  # TODO: Higher-Kinded TypeVars
-"""Simplified ``Translatable`` type."""
 
 ALWAYS_RESERVED = ("inplace", "translatable")
 

@@ -15,7 +15,7 @@ from .transform.types import Transformer as _Transformer
 SimpleDictFetcherTypes = dict[_tt.SourceType, dict[_tt.IdType, str]]
 """Data for translating using only the default `id` and `name` placeholders.
 
-Must be on the form ``{source: {id: name}``.
+Must be on the form ``{source: {id: name}}``.
 """
 
 SourceToPlaceholderTranslationsMakeTypes = _t.Mapping[_tt.SourceType, _ot.MakeTypes[_tt.SourceType]]
@@ -93,8 +93,10 @@ class TranslateParams(_t.TypedDict, _t.Generic[_tt.NameType, _tt.SourceType, _tt
        def func(...): ...
 
        @overload
-       def func(translatable: list, inplace: Literal[True], **kwargs: Unpack[TranslateParams]) -> Never:
-          ...
+       def func(
+           translatable: list, inplace: Literal[True],
+           **kwargs: Unpack[TranslateParams]
+       ) -> Never: ...
 
        def func(translatable, inplace, **kwargs: Unpack[TranslateParams]):
            "Implementation as above"

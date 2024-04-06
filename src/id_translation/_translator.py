@@ -160,7 +160,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         self._default_fmt_placeholders, self._default_fmt = _handle_default(default_fmt, default_fmt_placeholders)
         self._enable_uuid_heuristics = enable_uuid_heuristics
 
-        self._cached_tmap: TranslationMap[NameType, SourceType, IdType] = TranslationMap({})
+        self._cached_tmap: TranslationMap[NameType, SourceType, IdType] = self._to_translation_map({})
         self._fetcher: Fetcher[SourceType, IdType]
         if fetcher is None:
             from .testing import TestFetcher, TestMapper
@@ -1176,7 +1176,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         """Get an updated translation map."""
         name_to_source = task.name_to_source
         if not name_to_source:
-            return TranslationMap({})  # Nothing to translate.
+            return self._to_translation_map({})  # Nothing to translate.
 
         translation_map = self._execute_fetch(task) if (force_fetch or not self.cache) else self.cache
 
