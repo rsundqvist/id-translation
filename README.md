@@ -22,8 +22,8 @@ Country IDs translated using the standard `id:name`-format. Click [here][ecdc] f
 [ecdc]: https://www.ecdc.europa.eu/en/publications-data/download-todays-data-geographic-distribution-covid-19-cases-worldwide
 
 ## What is it?
-A package suite for translating integer IDs typically found in databases. Translation is highly configurable and tested
-for multiple different SQL dialects and schema naming paradigms. The included TOML configuration format as well as the
+A package suite for translating IDs typically found in databases. Translation is highly configurable and tested for 
+multiple different SQL dialects and schema naming paradigms. The included TOML configuration format as well as the
 support functions make it easy to create and share working configurations with anyone who needs them.
 
 # Cookiecutter template project
@@ -64,8 +64,8 @@ Your generated project might look like, or continue to the next section for a br
 [Translator.translate()]: https://id-translation.readthedocs.io/en/stable/_autosummary/id_translation.Translator.translate.html
 
 ## Supported types
-- Supported ID types: `int`, `string`, and `UUID`.
-- Supports translation of build-in collections: `list`, `dict`, `set`, `tuple`.
+- Supported ID types: `int`, `string`, and `UUID`. Optional heuristics for UUID-like strings.
+- Supports translation of built-in collections: `list`, `dict`, `set`, `tuple`.
 - Supports translation of [pandas types][pandas-translation], including `pandas.MultiIndex` types.
 - Optional and [user-extensible] integration of data types, such as [polars.DataFrame] and [dask.DataFrame].
 
