@@ -11,7 +11,7 @@ build:
       # Installing doesn't work; the wrong target is used even with 'virtualenvs.create false'. There is a GitHub issue
       # which may be a better solution in the future: https://github.com/python-poetry/poetry/issues/1937
       - curl -sSL https://install.python-poetry.org | POETRY_VERSION=1.8.2 python -
-      - $HOME/.local/bin/poetry export --only=docs --without-hashes --output=requirements-from-poetry.txt
+      - $HOME/.local/bin/poetry export --only=docs,manual-extras --without-hashes --output=requirements-from-poetry.txt
       - cat requirements-from-poetry.txt
 
     pre_build:

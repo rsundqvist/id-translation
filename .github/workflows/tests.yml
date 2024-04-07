@@ -18,6 +18,7 @@ on:
 
 env:
   POETRY_VERSION: 1.8.2
+  POLARS_SKIP_CPU_CHECK: true
 
 jobs:
   linting:

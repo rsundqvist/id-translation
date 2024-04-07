@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pandas as pd
 import pytest
-from id_translation.dio import resolve_io
+from id_translation.dio import DataStructureIO, resolve_io
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -19,7 +19,8 @@ def test_extract_single_explicit_name(ttype):
     except TypeError:
         data = ttype(VALUES)
 
-    actual: dict[str, Sequence[int]] = resolve_io(data).extract(data, names=["a"])
+    io: DataStructureIO[dict[str, Sequence[int]], str, str, int] = resolve_io(data)
+    actual: dict[str, Sequence[int]] = io.extract(data, names=["a"])
     assert len(actual) == 1
     assert sorted(actual["a"]) == sorted(VALUES)
 
@@ -27,5 +28,6 @@ def test_extract_single_explicit_name(ttype):
 @pytest.mark.parametrize("ttype", [list, tuple, pd.Index, pd.Series, np.array])
 def test_sequence_extract_multiple_names(ttype):
     data = ttype(VALUES)
-    actual: dict[str, Sequence[int]] = resolve_io(data).extract(data, names=NAMES)
+    io: DataStructureIO[Sequence[int], str, str, int] = resolve_io(data)
+    actual: dict[str, Sequence[int]] = io.extract(data, names=NAMES)
     assert actual == {n: [v] for n, v in zip(NAMES, VALUES)}

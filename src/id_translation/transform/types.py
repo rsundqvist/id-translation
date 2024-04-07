@@ -21,6 +21,10 @@ class Transformer(_t.Protocol[_IdType]):
 
         Called just before IDs are fetched from the source.
 
+        .. note::
+
+           Not called when the :class:`.Translator` is working offline.
+
         Args:
             ids: A collection of IDs from the `source`.
         """

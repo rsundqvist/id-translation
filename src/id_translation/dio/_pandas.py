@@ -16,15 +16,15 @@ T = TypeVar("T", pd.DataFrame, pd.Series, pd.Index, pd.MultiIndex)
 PandasVectorT = TypeVar("PandasVectorT", pd.Series, pd.Index)
 
 
-class PandasIO(DataStructureIO):
+class PandasIO(DataStructureIO[T, NameType, SourceType, IdType]):
     """Implementation for Pandas data types."""
 
-    @staticmethod
-    def handles_type(arg: Any) -> bool:
+    @classmethod
+    def handles_type(cls, arg: Any) -> bool:
         return isinstance(arg, (pd.DataFrame, pd.Series, pd.Index))
 
-    @staticmethod
-    def names(translatable: T) -> list[NameType] | None:
+    @classmethod
+    def names(cls, translatable: T) -> list[NameType] | None:
         if isinstance(translatable, pd.DataFrame):
             return list(translatable.columns)
 
@@ -34,8 +34,8 @@ class PandasIO(DataStructureIO):
 
         return None if translatable.name is None else [translatable.name]
 
-    @staticmethod
-    def extract(translatable: T, names: list[NameType]) -> dict[NameType, Sequence[IdType]]:
+    @classmethod
+    def extract(cls, translatable: T, names: list[NameType]) -> dict[NameType, Sequence[IdType]]:
         if isinstance(translatable, pd.DataFrame):
             ans = defaultdict(list)
             for i, name in enumerate(translatable.columns):
@@ -55,9 +55,13 @@ class PandasIO(DataStructureIO):
 
         raise TypeError(f"This should not happen: {type(translatable)=}")  # pragma: no cover
 
-    @staticmethod
+    @classmethod
     def insert(
-        translatable: T, names: list[NameType], tmap: TranslationMap[NameType, SourceType, IdType], copy: bool
+        cls,
+        translatable: T,
+        names: list[NameType],
+        tmap: TranslationMap[NameType, SourceType, IdType],
+        copy: bool,
     ) -> T | None:
         if not copy:
             if isinstance(translatable, pd.DataFrame):

@@ -6,23 +6,27 @@ from ..types import IdType, NameType, SourceType
 from ._data_structure_io import DataStructureIO
 
 
-class SetIO(DataStructureIO):
+class SetIO(DataStructureIO[set[IdType], NameType, SourceType, IdType]):
     """Implementation for dicts."""
 
-    @staticmethod
-    def handles_type(arg: Any) -> bool:
+    @classmethod
+    def handles_type(cls, arg: Any) -> bool:
         return isinstance(arg, set)
 
-    @staticmethod
-    def extract(translatable: set[IdType], names: list[NameType]) -> dict[NameType, Sequence[IdType]]:
+    @classmethod
+    def extract(cls, translatable: set[IdType], names: list[NameType]) -> dict[NameType, Sequence[IdType]]:
         if len(names) != 1:  # pragma: no cover
             raise ValueError("Length of names must be one.")
 
         return {names[0]: list(translatable)}
 
-    @staticmethod
+    @classmethod
     def insert(
-        translatable: set[IdType], names: list[NameType], tmap: TranslationMap[NameType, SourceType, IdType], copy: bool
+        cls,
+        translatable: set[IdType],
+        names: list[NameType],
+        tmap: TranslationMap[NameType, SourceType, IdType],
+        copy: bool,
     ) -> set[str] | None:
         magic_dict = tmap[names[0]]
         translated = {magic_dict[e] for e in translatable}

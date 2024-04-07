@@ -638,7 +638,7 @@ def test_fetch(translator):
     tmap = translator.fetch(translatable, names=name_to_source)
     assert translator.online
 
-    actual = resolve_io(translatable).insert(translatable, list(translatable), tmap, True)
+    actual = resolve_io(translatable).insert(translatable, list(translatable), tmap, True)  # type: ignore[arg-type]
     assert actual == translator.translate(translatable, names=name_to_source)
 
 

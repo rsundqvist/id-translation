@@ -6,7 +6,7 @@ from rics.misc import get_public_module, tname
 if TYPE_CHECKING:
     from .._translator import Translator
 
-from ..dio import resolve_io
+from ..dio import DataStructureIO, resolve_io
 from ..types import IdType, NameType, SourceType, Translatable
 
 
@@ -22,12 +22,18 @@ class BaseTask(Generic[NameType, SourceType, IdType]):
 
         self.translatable = translatable
 
-        self.io = resolve_io(translatable)
+        self._io: DataStructureIO[Translatable[NameType, IdType], NameType, SourceType, IdType]
+        self._io = resolve_io(translatable)
         self._start = perf_counter()
         self._task_id = generate_task_id(self._start)
 
         if caller.online:
             caller.fetcher.initialize_sources(self.task_id)
+
+    @property
+    def io(self) -> DataStructureIO[Translatable[NameType, IdType], NameType, SourceType, IdType]:
+        """Initialized :class:`DataStructureIO` instance."""
+        return self._io
 
     @property
     def type_name(self) -> str:

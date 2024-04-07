@@ -12,15 +12,15 @@ from .exceptions import NotInplaceTranslatableError
 T = TypeVar("T", list, np.ndarray, tuple)  # type: ignore[type-arg]  # TODO: Higher-Kinded TypeVars
 
 
-class SequenceIO(DataStructureIO):
+class SequenceIO(DataStructureIO[T, NameType, SourceType, IdType]):
     """Implementation for numpy arrays, Python lists and tuples."""
 
-    @staticmethod
-    def handles_type(arg: Any) -> bool:
+    @classmethod
+    def handles_type(cls, arg: Any) -> bool:
         return isinstance(arg, (list, np.ndarray, tuple))
 
-    @staticmethod
-    def extract(translatable: T, names: list[NameType]) -> dict[NameType, Sequence[IdType]]:
+    @classmethod
+    def extract(cls, translatable: T, names: list[NameType]) -> dict[NameType, Sequence[IdType]]:
         verify_names(len(translatable), names)
         return (
             {names[0]: as_list(translatable)}
@@ -28,9 +28,13 @@ class SequenceIO(DataStructureIO):
             else {n: as_list(r) for n, r in zip(names, translatable)}
         )
 
-    @staticmethod
+    @classmethod
     def insert(
-        translatable: T, names: list[NameType], tmap: TranslationMap[NameType, SourceType, IdType], copy: bool
+        cls,
+        translatable: T,
+        names: list[NameType],
+        tmap: TranslationMap[NameType, SourceType, IdType],
+        copy: bool,
     ) -> T | None:
         verify_names(len(translatable), names)
         t = translate_sequence(translatable, names, tmap)
@@ -56,7 +60,7 @@ def translate_sequence(s: T, names: list[NameType], tmap: TranslationMap[NameTyp
         magic_dict = tmap[names[0]]
         return [magic_dict[i] for i in s]
 
-    return [
+    return [  # TODO resolve_io med cache
         translate_sequence(element, [name], tmap)  # type: ignore
         if SequenceIO.handles_type(element)
         else tmap[name][element]
