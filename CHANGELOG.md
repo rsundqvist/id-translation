@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Added integration for [polars.DataFrame](https://docs.pola.rs/py-polars/html/reference/dataframe/index.html).
+
 ### Changed
 - Consume `[transform]`-sections in auxiliary configuration files (#231).
 - Added typehints to `dio.DataStructureIO` and other `id_translation.dio` classes and functions.

@@ -38,6 +38,10 @@ pandas = ">=2.0.3"
 sqlalchemy = ">=2.0.5"  # 2.0.5 (YANKED) is the minimum version where UUID tests pass for Microsoft SQL server.
 rics = ">=4.0.1"
 
+[tool.poetry.group.manual-extras.dependencies]
+# Extras that must be available for docs + tests go here. Doc/test-only deps go in their respective groups.
+polars = { version = "^0.20.16" }
+
 [tool.poetry.group.docs]
 [tool.poetry.group.docs.dependencies]
 # duplicate object warnings for sphinx>=4
@@ -157,6 +161,7 @@ allowed-confusables = ["ℹ"]  # ℹ️INFO in docstrings
 # can't realiably know this unless they import the code.
 "src/id_translation/offline/_translation_map.py" = ["D102"]
 "src/id_translation/testing.py" = ["D102"]
+"src/id_translation/dio/integration/*" = ["D102"]
 
 
 [tool.ruff.lint.pydocstyle]
