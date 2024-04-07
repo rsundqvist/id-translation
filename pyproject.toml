@@ -41,6 +41,7 @@ rics = ">=4.0.1"
 [tool.poetry.group.manual-extras.dependencies]
 # Extras that must be available for docs + tests go here. Doc/test-only deps go in their respective groups.
 polars = { version = "^0.20.16" }
+dask = { version = ">=2024.4.1", extras = ["dataframe"] }
 
 [tool.poetry.group.docs]
 [tool.poetry.group.docs.dependencies]

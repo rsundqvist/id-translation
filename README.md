@@ -67,11 +67,12 @@ Your generated project might look like, or continue to the next section for a br
 - Supported ID types: `int`, `string`, and `UUID`.
 - Supports translation of build-in collections: `list`, `dict`, `set`, `tuple`.
 - Supports translation of [pandas types][pandas-translation], including `pandas.MultiIndex` types.
-- Optional and [user-extensible] integration of data types such as the [polars.DataFrame].
+- Optional and [user-extensible] integration of data types, such as [polars.DataFrame] and [dask.DataFrame].
 
 [pandas-translation]: https://id-translation.readthedocs.io/en/stable/documentation/examples/notebooks/cookbook/pandas-index.html
 [user-extensible]: https://id-translation.readthedocs.io/en/stable/_autosummary/id_translation.dio.html#id_translation.dio.register_io
-[polars.DataFrame]: https://id-translation.readthedocs.io/en/stable/id_translation.dio.integration.polars.html
+[polars.DataFrame]: https://id-translation.readthedocs.io/en/stable/_autosummary/id_translation.dio.integration.polars.html
+[dask.DataFrame]: https://id-translation.readthedocs.io/en/stable/_autosummary/id_translation.dio.integration.dask.html
 
 # Installation
 The package is published through the [Python Package Index (PyPI)]. Source code
