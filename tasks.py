@@ -103,6 +103,7 @@ def flake8(c: Context, check: bool = False) -> None:
 def spelling(c: Context) -> None:
     """Run spell check."""
     _run(c, f"poetry run codespell {PYTHON_TARGETS_STR}")
+    _run(c, f"poetry run codespell {DOCS_DIR} --skip *.html*,*.js,*.map,*.css")
 
 
 @task
