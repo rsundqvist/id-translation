@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.0] - 2024-04-08
+
 ### Added
 - Added integration for [polars.DataFrame](https://docs.pola.rs/py-polars/html/reference/dataframe/index.html).
 - Added integration for [dask.DataFrame](https://docs.dask.org/en/stable/dataframe.html) and Series.
@@ -262,7 +264,8 @@ cookiecutter template.
 - Switch to relative imports.
 - Fix some intersphinx issues.
 
-[Unreleased]: https://github.com/rsundqvist/id-translation/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/rsundqvist/id-translation/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/rsundqvist/id-translator/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/rsundqvist/id-translator/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/rsundqvist/id-translator/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/rsundqvist/id-translator/compare/v0.7.0...v0.7.1
