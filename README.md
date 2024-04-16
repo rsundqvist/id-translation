@@ -1,4 +1,4 @@
-# ID Translation
+# ID Translation <!-- omit in toc -->
 **_Convert IDs to human-readable labels._**
 
 -----------------
@@ -9,9 +9,6 @@
 [![Codecov](https://codecov.io/gh/rsundqvist/id-translation/branch/master/graph/badge.svg)](https://codecov.io/gh/rsundqvist/id-translation)
 [![Read the Docs](https://readthedocs.org/projects/id-translation/badge/)](https://id-translation.readthedocs.io/)
 [![PyPI - License](https://img.shields.io/pypi/l/id-translation.svg)](https://pypi.python.org/pypi/id-translation)
-[![Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-[![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://github.com/pre-commit/pre-commit)
-
 
 <div align="center">
   <img src="https://github.com/rsundqvist/id-translation/raw/master/docs/_images/covid-europe-mplcyberpunk-theme.png"><br>

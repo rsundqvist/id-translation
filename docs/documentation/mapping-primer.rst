@@ -176,22 +176,31 @@ The mapping procedure may emit a large amount of records in verbose mode.
 
 Override-only mapping
 ---------------------
-Score-based mapping is a convenient solution, especially for name-to-source mapping since the names (such as DataFrame
-columns) that should be translated have a tendency to change. For fetching however, scoring may add an unnecessary
-element of uncertainty. Database columns also don't change as often, so specifying these manually often isn't as
-time-consuming.
+Score-based mapping is a convenient solution, especially for name-to-source mapping since the names (e.g.
+:attr:`pandas.DataFrame.columns`) that should be translated have a tendency to change.
+
+.. note::
+
+   Identity mappings always kept (no need for ``id = "id"`` overrides). To block these matches, you may create a dummy
+   override such as ``id = "_"`` for affected sources.
+
+Names in sources (e.g. SQL table column names), on the other hand, tend to change a lot less. Scoring may then add an
+unnecessary element of uncertainty. To ensure that mapping is done "manually", you may use the included
+:func:`.score_functions.disabled`-function to disable the scoring logic.
 
 .. literalinclude:: override-only-fetching.toml
    :language: toml
-   :caption: A conservative mapping configuration for an ``SqlFetcher``.
+   :caption: A conservative override-only mapping configuration for an ``SqlFetcher``.
    :linenos:
 
-Disabling the scoring logic is easy; just set ``score_function='disabled'`` in your mapping configuration. This is the
-only user-configurable argument accepted by the :func:`~id_translation.mapping.score_functions.disabled`-function.
-Setting non-strict mode will automatically reject new mappings by filtering them. In strict mode, a
-:class:`~id_translation.mapping.exceptions.ScoringDisabledError` is raised instead.
+In strict mode (the default), a :class:`~id_translation.mapping.exceptions.ScoringDisabledError` is raised if there are
+any names left to map once all :ref:`overrides and filtering` and :ref:`short-circuiting <Score computations>` logic
+has been applied.
 
-Identity mappings will still be made made automatically (no need for ``id = "id"`` overrides). To block these matches,
-you may create a dummy override such as ``id = "_"``. All other matches must be made using a combination of overrides,
-:mod:`filter functions <id_translation.mapping.filter_functions>` and
-:func:`short-circuiting <id_translation.mapping.heuristic_functions.short_circuit>`.
+.. seealso::
+
+  * The :func:`~.heuristic_functions.short_circuit` and :func:`~.heuristic_functions.smurf_columns` short-circuiting functions.
+  * The :mod:`.filter_functions` module.
+
+In non-strict mode (``strict=False``), any name left to map once the scoring phase begins will be
+**silently discarded** by returning :math:`-\infty` for all value/candidate-pairs.

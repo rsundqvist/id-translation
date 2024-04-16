@@ -236,8 +236,8 @@ html_context = {
             img="https://cdn-icons-png.flaticon.com/512/6486/6486493.png",
         ),
         dict(
-            title="RiCS",
-            text="Documentation for the backing library.",
+            title="RiCS <img src= https://img.shields.io/pypi/v/rics.svg >",
+            text=f"Backing library. Original home of the <i>{project}</i> package.",
             url=rics_docs,
             img="https://rics.readthedocs.io/en/stable/_static/logo-text.png",
         ),

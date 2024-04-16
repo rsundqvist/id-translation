@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Rewrite the [Override-only mapping](https://id-translation.readthedocs.io/en/stable/documentation/mapping-primer.html#override-only-mapping)
+  subsection in the mapping primer. Improve clarity and fix some confusing sentences.
+
 ## [0.10.0] - 2024-04-08
 
 ### Added
