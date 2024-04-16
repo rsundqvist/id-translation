@@ -193,10 +193,10 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
             query = str(select.compile(self.engine, compile_kwargs={"literal_binds": True}))
             if len(query) > query_length_limit:
                 query = query[:query_length_limit]
-            self.logger.debug(f"Full SELECT query using engine: {self.engine}\n{query}", extra=logger_extra)
+            self.logger.debug(f"Full SELECT-query using {self.engine}:\n{query}", extra=logger_extra)
         except Exception as e:
             self.logger.debug(
-                f"Failed to render full SELECT query using engine: {self.engine}\n{select}",
+                f"Failed to render full SELECT-query using {self.engine}:\n{select}",
                 exc_info=e,
                 extra=logger_extra,
             )

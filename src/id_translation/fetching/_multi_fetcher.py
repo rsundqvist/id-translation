@@ -4,7 +4,7 @@ import logging
 import warnings
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from time import perf_counter
-from typing import TYPE_CHECKING, final
+from typing import TYPE_CHECKING, Never, final
 
 from rics.action_level import ActionLevel, ActionLevelHelper
 from rics.collections.dicts import reverse_dict
@@ -160,7 +160,11 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
                     continue
 
             else:
-                fetcher.initialize_sources(task_id, force=True)
+                try:
+                    fetcher.initialize_sources(task_id, force=True)
+                except Exception as e:
+                    self._raise_with_notes(e, fetcher)
+
                 placeholders = fetcher.placeholders
 
                 if len(placeholders) == 0 and LOGGER.isEnabledFor(logging.WARNING):
@@ -237,13 +241,16 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
             if LOGGER.isEnabledFor(logging.DEBUG):
                 LOGGER.debug(f"Begin FETCH job for {len(tasks[fid])} sources using {self._fmt_fetcher(fetcher)}.")
 
-            result = fetcher.fetch(
-                tasks[fid],
-                placeholders,
-                required=required,
-                task_id=task_id,
-                enable_uuid_heuristics=enable_uuid_heuristics,
-            )
+            try:
+                result = fetcher.fetch(
+                    tasks[fid],
+                    placeholders,
+                    required=required,
+                    task_id=task_id,
+                    enable_uuid_heuristics=enable_uuid_heuristics,
+                )
+            except Exception as e:
+                self._raise_with_notes(e, fetcher)
             return fid, result
 
         with ThreadPoolExecutor(max_workers=self.max_workers, thread_name_prefix=tname(self)) as executor:
@@ -439,3 +446,17 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
             fetcher.close()
             del self._id_to_rank[fetcher_id]
             del self._id_to_fetcher[fetcher_id]
+
+    def _raise_with_notes(self, e: BaseException, fetcher: Fetcher[SourceType, IdType]) -> Never:
+        note = f"Context (added by {type(self).__name__}):"
+
+        # Add config file. Mirrors logic used in the abstract fetcher.
+        cache_keys = getattr(fetcher, "_cache_keys", None)
+        if isinstance(cache_keys, list) and len(cache_keys) != 0:
+            first_key = cache_keys[0]
+            if isinstance(first_key, str) and first_key.endswith("toml"):
+                note += f"\n -  file= '{first_key}'"
+
+        note += f"\n - child= {self._fmt_fetcher(fetcher)}"
+        e.add_note(note)
+        raise
