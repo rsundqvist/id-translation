@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.1] - 2024-04-17
+
 ### Fixed
 - Rewrite the [Override-only mapping](https://id-translation.readthedocs.io/en/stable/documentation/mapping-primer.html#override-only-mapping)
   subsection in the mapping primer. Improve clarity and fix some confusing sentences.
@@ -269,7 +271,8 @@ cookiecutter template.
 - Switch to relative imports.
 - Fix some intersphinx issues.
 
-[Unreleased]: https://github.com/rsundqvist/id-translation/compare/v0.10.0...HEAD
+[Unreleased]: https://github.com/rsundqvist/id-translation/compare/v0.10.1...HEAD
+[0.10.1]: https://github.com/rsundqvist/id-translator/compare/v0.10.0...v0.10.1
 [0.10.0]: https://github.com/rsundqvist/id-translator/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/rsundqvist/id-translator/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/rsundqvist/id-translator/compare/v0.7.1...v0.8.0
