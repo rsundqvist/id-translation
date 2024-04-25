@@ -1,0 +1,3 @@
+# Exclude folder from GitHub languages stats
+# https://github.com/github-linguist/linguist
+notebooks/** -linguist-detectable
