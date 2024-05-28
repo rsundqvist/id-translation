@@ -9,8 +9,8 @@ from typing import TYPE_CHECKING, Never, final
 from rics.action_level import ActionLevel, ActionLevelHelper
 from rics.collections.dicts import reverse_dict
 from rics.misc import tname
-from rics.performance import format_seconds
 
+from .._compat import fmt_sec
 from .._tasks import generate_task_id
 from ..offline.types import SourcePlaceholderTranslations
 from ..settings import logging as settings
@@ -261,7 +261,7 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
             execution_time = perf_counter() - start
             LOGGER.log(
                 log_level.exit,
-                f"Completed FETCH jobs for {n_sources_and_fetchers} in {format_seconds(execution_time)}.",
+                f"Completed FETCH jobs for {n_sources_and_fetchers} in {fmt_sec(execution_time)}.",
                 extra=dict(
                     task_id=task_id,
                     event_key=event_key,
@@ -334,7 +334,7 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
             LOGGER.log(
                 log_level.exit,
                 f"Completed FETCH_ALL jobs for {len(ans)} sources using "
-                f"{len(self.children)} fetchers in {format_seconds(execution_time)}.",
+                f"{len(self.children)} fetchers in {fmt_sec(execution_time)}.",
                 extra=dict(
                     event_key=event_key,
                     event_stage="EXIT",

@@ -20,10 +20,10 @@ from typing import (
 )
 
 from rics import misc
-from rics._internal_support.types import PathLikeType
 from rics.collections import dicts
 
 from . import exceptions, fetching
+from ._compat import PathLikeType
 from .mapping import HeuristicScore as _HeuristicScore
 from .mapping import Mapper as _Mapper
 from .transform.types import Transformer as _Transformer
@@ -34,6 +34,7 @@ from .utils import load_toml_file as _load_toml_file
 
 if TYPE_CHECKING:
     from ._translator import Translator
+
 
 FetcherFactory = _Callable[[str, dict[str, _Any]], fetching.AbstractFetcher[_Any, _Any]]
 """A callable which creates new ``AbstractFetcher`` instances from a dict config.

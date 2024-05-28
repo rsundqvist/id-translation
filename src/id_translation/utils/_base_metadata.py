@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from rics.performance import format_seconds
+from id_translation._compat import fmt_sec
 
 
 def _initialize_versions() -> dict[str, str]:
@@ -111,7 +111,7 @@ class BaseMetadata(ABC):
             return False, f"cached instance is not equivalent: {reason_not_equivalent}"
 
         expires_at = (stored_config.created + max_age).replace(microsecond=0)
-        offset = format_seconds(round(abs(datetime.now() - expires_at).total_seconds()))
+        offset = fmt_sec(round(abs(datetime.now() - expires_at).total_seconds()))
 
         if expires_at <= stored_config.created:
             return False, f"expired at {expires_at.isoformat()} ({offset} ago)"

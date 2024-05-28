@@ -9,7 +9,8 @@ import pandas as pd
 from rics.action_level import ActionLevel
 from rics.collections.dicts import InheritedKeysDict
 from rics.misc import get_by_full_name, tname
-from rics.performance import format_perf_counter
+
+from id_translation._compat import fmt_perf
 
 from . import exceptions
 from . import filter_functions as mf
@@ -151,7 +152,7 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):
             )
 
             verbose_logger.debug(
-                f"Mapping with {cardinality=} completed for {values}x{candidates} in {format_perf_counter(start)}."
+                f"Mapping with {cardinality=} completed for {values}x{candidates} in {fmt_perf(start)}."
                 f"{matches}\nMatched {len(dm.left)}/{len(values)} values with {len(dm.right)} different candidates."
             )
 
@@ -252,7 +253,7 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):
         if verbose_logger.isEnabledFor(logging.DEBUG):
             verbose_logger.debug(
                 f"Computed {len(scores.index)}x{len(scores.columns)} "
-                f"match scores in {format_perf_counter(start)}:\n{scores.to_string()}"
+                f"match scores in {fmt_perf(start)}:\n{scores.to_string()}"
             )
         return scores
 

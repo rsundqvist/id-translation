@@ -19,11 +19,11 @@ from typing import (
 )
 
 import pandas
-from rics._internal_support.types import PathLikeType
 from rics.collections.dicts import InheritedKeysDict, MakeType
 from rics.collections.misc import as_list
 from rics.misc import get_public_module, tname
-from rics.performance import format_perf_counter
+
+from id_translation._compat import PathLikeType, fmt_perf
 
 from ._tasks import MappingTask, TranslationTask, generate_task_id
 from .exceptions import ConnectionStatusError, TranslationDisabledWarning
@@ -1021,7 +1021,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         del self._fetcher
         self._cached_tmap = translation_map
 
-        LOGGER.info(f"Created {translation_map} in {format_perf_counter(start)}.")
+        LOGGER.info(f"Created {translation_map} in {fmt_perf(start)}.")
         if path:
             import pickle
 
