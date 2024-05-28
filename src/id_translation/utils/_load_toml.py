@@ -2,8 +2,9 @@ from pathlib import Path
 from typing import Any
 
 import tomllib
-from rics._internal_support.types import PathLikeType
 from rics.misc import interpolate_environment_variables
+
+from id_translation._compat import PathLikeType
 
 
 def load_toml_file(

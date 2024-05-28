@@ -9,8 +9,9 @@ from uuid import UUID
 
 import sqlalchemy
 from rics.misc import format_kwargs, tname
-from rics.performance import format_perf_counter
 from sqlalchemy import BINARY, CHAR, TypeDecorator
+
+from id_translation._compat import fmt_perf
 
 from .. import _uuid_utils
 from ..offline.types import PlaceholderTranslations
@@ -362,7 +363,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
 
         logger = self.logger.getChild("sql").getChild("discovery")
         if logger.isEnabledFor(logging.DEBUG):
-            logger.debug(f"{self._estr}: Metadata created in {format_perf_counter(start)}.")
+            logger.debug(f"{self._estr}: Metadata created in {fmt_perf(start)}.")
 
         table_names = {t.name for t in metadata.tables.values()}
         tables: Collection[str]

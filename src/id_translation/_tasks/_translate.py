@@ -7,9 +7,9 @@ from typing import TYPE_CHECKING, Any, get_args
 
 from numpy import isnan, unique
 from rics.misc import tname
-from rics.performance import format_seconds
 
 from .. import _uuid_utils
+from .._compat import fmt_sec
 from ..exceptions import TooManyFailedTranslationsError
 from ..mapping.types import UserOverrideFunction
 from ..offline import Format, TranslationMap
@@ -159,7 +159,7 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
             level=self.key_event_level.exit,
             msg=(
                 f"Finished translation of {len(n2s)} names in {self.type_name}-type data in "
-                f"{format_seconds(execution_time)}, using name-to-source mapping: {n2s}."
+                f"{fmt_sec(execution_time)}, using name-to-source mapping: {n2s}."
             ),
             extra=dict(
                 task_id=self.task_id,

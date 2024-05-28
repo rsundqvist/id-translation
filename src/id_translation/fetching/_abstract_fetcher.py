@@ -12,8 +12,8 @@ import pandas as pd
 from rics.action_level import ActionLevel
 from rics.collections.dicts import InheritedKeysDict, reverse_dict
 from rics.misc import tname
-from rics.performance import format_seconds
 
+from .._compat import fmt_sec
 from .._tasks import generate_task_id
 from ..exceptions import ConnectionStatusError
 from ..mapping import HeuristicScore, Mapper
@@ -518,7 +518,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
             self.logger.log(
                 log_level.enter,
                 f"Finished fetching placeholders={translations.placeholders} for {len(translations.records)} IDs "
-                f"from source '{translations.source}' in {format_seconds(execution_time)}, using {self}.",
+                f"from source '{translations.source}' in {fmt_sec(execution_time)}, using {self}.",
                 extra=dict(
                     event_key=event_key,
                     event_stage="EXIT",

@@ -3,9 +3,9 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
-from rics._internal_support.types import PathLikeType
 from rics.misc import get_by_full_name, tname
 
+from .._compat import PathLikeType
 from ..offline.types import PlaceholderTranslations
 from ..types import IdType
 from ._abstract_fetcher import AbstractFetcher
