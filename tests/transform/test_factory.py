@@ -12,7 +12,7 @@ def test_factory():
     translator = Translator[str, str, int].from_config(ROOT / "main.toml", extra_fetchers=[ROOT / "fetcher-only.toml"])
 
     actual = {"guests": [1991, 1999, 2021], "drinking_preferences_bitmask": [2, 3, 0]}
-    translator.translate(actual, inplace=True)
+    translator.translate(actual, copy=False)
 
     assert actual == {
         "guests": ["Oh, it's you again Richard.", "Oh, it's you again Sofia.", "What's up, Morris?"],

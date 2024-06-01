@@ -23,7 +23,7 @@ from rics.collections.dicts import InheritedKeysDict, MakeType
 from rics.collections.misc import as_list
 from rics.misc import get_public_module, tname
 
-from id_translation._compat import PathLikeType, fmt_perf
+from id_translation._compat import PathLikeType, deprecated_params, fmt_perf
 
 from ._tasks import MappingTask, TranslationTask, generate_task_id
 from .exceptions import ConnectionStatusError, TranslationDisabledWarning
@@ -273,7 +273,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
             *,
             # https://github.com/python/mypy/issues/7333#issuecomment-788255229
-            inplace: Literal[True],
+            copy: Literal[False],
             ignore_names: Names[NameType] | None = None,
             override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
             maximal_untranslated_fraction: float = 1.0,
@@ -289,7 +289,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
             *,
             # https://github.com/python/mypy/issues/7333#issuecomment-788255229
-            inplace: Literal[True],
+            copy: Literal[False],
             ignore_names: Names[NameType] | None = None,
             override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
             maximal_untranslated_fraction: float = 1.0,
@@ -304,7 +304,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             translatable: IdTypes,
             names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
             *,
-            inplace: Literal[False] = False,
+            copy: Literal[True] = True,
             ignore_names: Names[NameType] | None = None,
             override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
             maximal_untranslated_fraction: float = 1.0,
@@ -319,7 +319,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             translatable: list[IdType],
             names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
             *,
-            inplace: Literal[False] = False,
+            copy: Literal[True] = True,
             ignore_names: Names[NameType] | None = None,
             override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
             maximal_untranslated_fraction: float = 1.0,
@@ -336,7 +336,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         #     translatable: List[List[IdType]],
         #     names: Union[NameTypes[NameType], NameToSource[NameType, SourceType]] = None,
         #     *,
-        #     inplace: Literal[False] = False,
+        #     copy: Literal[True] = True,
         #     ignore_names: Names[NameType] | None = None,
         #     override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
         #     maximal_untranslated_fraction: float = 1.0,
@@ -352,7 +352,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             translatable: set[IdType],
             names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
             *,
-            inplace: Literal[False] = False,
+            copy: Literal[True] = True,
             ignore_names: Names[NameType] | None = None,
             override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
             maximal_untranslated_fraction: float = 1.0,
@@ -370,7 +370,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             translatable: DictToId[NameType, int] | DictToId[NameType, str] | DictToId[NameType, UUID],
             names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
             *,
-            inplace: Literal[False] = False,
+            copy: Literal[True] = True,
             ignore_names: Names[NameType] | None = None,
             override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
             maximal_untranslated_fraction: float = 1.0,
@@ -385,7 +385,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             translatable: DictToSet[NameType, IdType],
             names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
             *,
-            inplace: Literal[False] = False,
+            copy: Literal[True] = True,
             ignore_names: Names[NameType] | None = None,
             override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
             maximal_untranslated_fraction: float = 1.0,
@@ -400,7 +400,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             translatable: DictToList[NameType, IdType],
             names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
             *,
-            inplace: Literal[False] = False,
+            copy: Literal[True] = True,
             ignore_names: Names[NameType] | None = None,
             override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
             maximal_untranslated_fraction: float = 1.0,
@@ -415,7 +415,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             translatable: DictToOneTuple[NameType, IdType],
             names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
             *,
-            inplace: Literal[False] = False,
+            copy: Literal[True] = True,
             ignore_names: Names[NameType] | None = None,
             override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
             maximal_untranslated_fraction: float = 1.0,
@@ -430,7 +430,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             translatable: DictToTwoTuple[NameType, IdType],
             names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
             *,
-            inplace: Literal[False] = False,
+            copy: Literal[True] = True,
             ignore_names: Names[NameType] | None = None,
             override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
             maximal_untranslated_fraction: float = 1.0,
@@ -445,7 +445,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             translatable: DictToThreeTuple[NameType, IdType],
             names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
             *,
-            inplace: Literal[False] = False,
+            copy: Literal[True] = True,
             ignore_names: Names[NameType] | None = None,
             override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
             maximal_untranslated_fraction: float = 1.0,
@@ -460,7 +460,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             translatable: DictToVarTuple[NameType, IdType],
             names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
             *,
-            inplace: Literal[False] = False,
+            copy: Literal[True] = True,
             ignore_names: Names[NameType] | None = None,
             override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
             maximal_untranslated_fraction: float = 1.0,
@@ -475,7 +475,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             translatable: tuple[IdType],
             names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
             *,
-            inplace: Literal[False] = False,
+            copy: Literal[True] = True,
             ignore_names: Names[NameType] | None = None,
             override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
             maximal_untranslated_fraction: float = 1.0,
@@ -490,7 +490,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             translatable: tuple[IdType, IdType],
             names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
             *,
-            inplace: Literal[False] = False,
+            copy: Literal[True] = True,
             ignore_names: Names[NameType] | None = None,
             override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
             maximal_untranslated_fraction: float = 1.0,
@@ -505,7 +505,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             translatable: tuple[IdType, IdType, IdType],
             names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
             *,
-            inplace: Literal[False] = False,
+            copy: Literal[True] = True,
             ignore_names: Names[NameType] | None = None,
             override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
             maximal_untranslated_fraction: float = 1.0,
@@ -520,7 +520,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             translatable: tuple[IdType, ...],
             names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
             *,
-            inplace: Literal[False] = False,
+            copy: Literal[True] = True,
             ignore_names: Names[NameType] | None = None,
             override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
             maximal_untranslated_fraction: float = 1.0,
@@ -538,7 +538,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                 translatable: "pandas.DataFrame",
                 names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
                 *,
-                inplace: Literal[False] = False,
+                copy: Literal[True] = True,
                 ignore_names: Names[NameType] | None = None,
                 override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
                 maximal_untranslated_fraction: float = 1.0,
@@ -553,7 +553,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                 translatable: "pandas.Series[Any]",
                 names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
                 *,
-                inplace: Literal[False] = False,
+                copy: Literal[True] = True,
                 ignore_names: Names[NameType] | None = None,
                 override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
                 maximal_untranslated_fraction: float = 1.0,
@@ -568,7 +568,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                 translatable: "pandas.Index[Any]",
                 names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
                 *,
-                inplace: Literal[False] = False,
+                copy: Literal[True] = True,
                 ignore_names: Names[NameType] | None = None,
                 override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
                 maximal_untranslated_fraction: float = 1.0,
@@ -583,7 +583,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                 translatable: Union["pandas.DataFrame", "pandas.Series[Any]"],
                 names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
                 *,
-                inplace: Literal[True],
+                copy: Literal[False],
                 ignore_names: Names[NameType] | None = None,
                 override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
                 maximal_untranslated_fraction: float = 1.0,
@@ -599,7 +599,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                 names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
                 *,
                 # https://github.com/python/mypy/issues/7333#issuecomment-788255229
-                inplace: Literal[True],
+                copy: Literal[False],
                 ignore_names: Names[NameType] | None = None,
                 override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
                 maximal_untranslated_fraction: float = 1.0,
@@ -615,10 +615,10 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
             *,
             ignore_names: Names[NameType] | None = None,
-            inplace: Literal[False] = False,
+            copy: Literal[True] = True,
             override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
             maximal_untranslated_fraction: float = 1.0,
-            reverse: Literal[False] = False,
+            reverse: Literal[True] = True,
             fmt: FormatType | None = None,
         ) -> Translatable[NameType, str]: ...
 
@@ -629,20 +629,21 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
             *,
             ignore_names: Names[NameType] | None = None,
-            inplace: Literal[False] = False,
+            copy: Literal[True] = True,
             override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
             maximal_untranslated_fraction: float = 1.0,
             reverse: Literal[True] = True,
             fmt: FormatType | None = None,
         ) -> Translatable[NameType, IdType]: ...
 
+    @deprecated_params
     def translate(
         self,
         translatable: Translatable[NameType, IdType],
         names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
         *,
         ignore_names: Names[NameType] | None = None,
-        inplace: bool = False,
+        copy: bool = True,
         override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
         maximal_untranslated_fraction: float = 1.0,
         reverse: bool = False,
@@ -666,7 +667,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             names: Explicit names to translate. Derive from `translatable` if ``None``. Alternatively, you may pass a
                 ``dict`` on the form ``{name_in_translatable: source_to_use}``.
             ignore_names: Names **not** to translate, or a predicate ``(NameType) -> bool``.
-            inplace: If ``True``, translate in-place and return ``None``.
+            copy: If ``False``, translate in-place and return ``None``.
             override_function: A callable ``(name, sources, ids) -> Source | None``. See :meth:`.Mapper.apply`
                 for details.
             maximal_untranslated_fraction: The maximum fraction of IDs for which translation may fail. 1=disabled.
@@ -674,7 +675,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             fmt: A :class:`format string <.Format>` such as **'{id}:{name}'** use. Default is :attr:`.Translator.fmt`.
 
         Returns:
-            A translated copy of `translatable` if ``inplace=False``, otherwise ``None``.
+            A translated copy of `translatable` if ``copy=True``, otherwise ``None``.
 
         Examples:
             Manual `name-to-source <../documentation/translation-primer.html#name-to-source-mapping>`__ mapping with a
@@ -706,7 +707,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             LOGGER.warning(message)
             warnings.warn(message, category=TranslationDisabledWarning, stacklevel=2)
             # Return unchanged; this is technically against the API spec.
-            return None if inplace else translatable
+            return translatable if copy else None
 
         if self.online and reverse:  # pragma: no cover
             raise ConnectionStatusError("Reverse translation cannot be performed online.")
@@ -718,7 +719,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             names,
             ignore_names=ignore_names,
             override_function=override_function,
-            inplace=inplace,
+            copy=copy,
             maximal_untranslated_fraction=maximal_untranslated_fraction,
             reverse=reverse,
             enable_uuid_heuristics=self._enable_uuid_heuristics,
@@ -730,7 +731,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             # Return unchanged; this is technically against the API spec. If the user has required translation to
             # success through configuration, exceptions will be raised elsewhere. I don't know how to express this using
             # the Python type system.
-            return None if inplace else translatable
+            return translatable if copy else None
 
         task.verify(translation_map)
 
@@ -748,7 +749,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
     def translated_names(
         self,
-        with_source: bool | Literal[True] | Literal[False] = False,  # https://github.com/python/mypy/issues/14764
+        with_source: bool | Literal[True] | Literal[True] = True,  # https://github.com/python/mypy/issues/14764
     ) -> NameToSource[NameType, SourceType] | list[NameType]:
         """Return the names that were translated by the most recent :meth:`.translate`-call.
 

@@ -67,7 +67,7 @@ class TranslateParams(_t.TypedDict, _t.Generic[_tt.NameType, _tt.SourceType, _tt
 
     .. note::
 
-       Does not include `translatable` or `inplace`.
+       Does not include `translatable` or `copy`.
 
 
     **Motivation**
@@ -79,7 +79,7 @@ class TranslateParams(_t.TypedDict, _t.Generic[_tt.NameType, _tt.SourceType, _tt
 
        def func(**kwargs: Unpack[AllTranslateParams]):
           translatable = kwargs["translatable"]
-          if isinstance(translatable, list) and kwargs.get(inplace, False):
+          if isinstance(translatable, list) and kwargs.get(copy, True):
               raise CustomException("we don't do that here")
 
           else:
@@ -94,15 +94,15 @@ class TranslateParams(_t.TypedDict, _t.Generic[_tt.NameType, _tt.SourceType, _tt
 
        @overload
        def func(
-           translatable: list, inplace: Literal[True],
+           translatable: list, copy: Literal[False],
            **kwargs: Unpack[TranslateParams]
        ) -> Never: ...
 
-       def func(translatable, inplace, **kwargs: Unpack[TranslateParams]):
+       def func(translatable, copy, **kwargs: Unpack[TranslateParams]):
            "Implementation as above"
 
-    since ``func(translatable=[], inplace=True)`` does not behave like
-    ``Translator.translate([], inplace=True)`` would. Functions that transparently wrap
+    since ``func(translatable=[], copy=False)`` does not behave like
+    ``Translator.translate([], copy=False)`` would. Functions that transparently wrap
     :meth:`.Translator.translate` should probably use :py:func:`functools.wraps` instead.
     """
 
@@ -118,7 +118,7 @@ class AllTranslateParams(TranslateParams[_tt.NameType, _tt.SourceType, _tt.IdTyp
     """All arguments of :meth:`.Translator.translate`."""
 
     translatable: _t.Required[_tt.Translatable[_tt.NameType, _tt.IdType]]
-    inplace: bool
+    copy: bool
 
 
 class FetchParams(_t.TypedDict, _t.Generic[_tt.NameType, _tt.SourceType, _tt.IdType], total=False):

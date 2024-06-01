@@ -25,8 +25,8 @@ Examples:
     either with `user_kwargs`, or with the defaults provided as keyword-arguments to :meth:`~.TranslationHelper.apply`.
 
     In the example below, ``names="name"`` is a fixed argument and ``fmt="{id}:{name}"`` is a default argument. The
-    `translatable` (= ``list(range(n))``) and `inplace` arguments are always required, but cannot be defined as fixed arguments.
-    The reasons for this are mostly related to the use of :py:func:`typing.overload`.
+    `translatable` (= ``list(range(n))``) and `copy` arguments are always required, but cannot be defined as fixed
+    arguments. The reasons for this are mostly related to the use of :py:func:`typing.overload`.
 
     >>> def example(
     ...     n: int,
@@ -35,7 +35,7 @@ Examples:
     ... ) -> list[str]:
     ...     items: list[str] = helper.apply(
     ...         list(range(n)),
-    ...         inplace=False,  # required
+    ...         copy=True,  # required
     ...         user_params=translate,  # forwarded
     ...         fmt="{id}:{name}",  # default - user params can override
     ...     )
@@ -114,7 +114,7 @@ FactoryTypes = (
     FactoryFn[_tt.NameType, _tt.SourceType, _tt.IdType] | _Translator[_tt.NameType, _tt.SourceType, _tt.IdType]
 )
 
-ALWAYS_RESERVED = ("inplace", "translatable")
+ALWAYS_RESERVED = ("copy", "translatable")
 
 
 class TranslationHelper(_t.Generic[_tt.NameType, _tt.SourceType, _tt.IdType]):
@@ -126,7 +126,7 @@ class TranslationHelper(_t.Generic[_tt.NameType, _tt.SourceType, _tt.IdType]):
 
         * When ``user_params=False``, output= input.
         * When ``user_params != False``, output= ``Any`` (new variable) or same (existing variable).
-        * When ``inplace=True``, output= ``None``.
+        * When ``copy=False``, output= ``None``.
 
     Note that ``user_params=False`` always takes precedence, as the translation process is aborted without any
     ``Translator`` involvement.
@@ -169,7 +169,7 @@ class TranslationHelper(_t.Generic[_tt.NameType, _tt.SourceType, _tt.IdType]):
         translatable: TranslatableT,
         *,
         user_params: UserParams[_tt.NameType, _tt.SourceType, _tt.IdType],
-        inplace: _t.Literal[True],
+        copy: _t.Literal[False],
         **default_params: _t.Unpack[_trt.TranslateParams[_tt.NameType, _tt.SourceType, _tt.IdType]],
     ) -> None: ...
 
@@ -178,7 +178,7 @@ class TranslationHelper(_t.Generic[_tt.NameType, _tt.SourceType, _tt.IdType]):
         self,
         translatable: TranslatableT,
         *,
-        inplace: _t.Literal[False] = False,
+        copy: _t.Literal[True] = True,
         user_params: _t.Literal[False],
         **default_params: _t.Unpack[_trt.TranslateParams[_tt.NameType, _tt.SourceType, _tt.IdType]],
     ) -> TranslatableT: ...
@@ -188,7 +188,7 @@ class TranslationHelper(_t.Generic[_tt.NameType, _tt.SourceType, _tt.IdType]):
         self,
         translatable: TranslatableT,
         *,
-        inplace: _t.Literal[False] = False,
+        copy: _t.Literal[True] = True,
         user_params: UserParams[_tt.NameType, _tt.SourceType, _tt.IdType],
         **default_params: _t.Unpack[_trt.TranslateParams[_tt.NameType, _tt.SourceType, _tt.IdType]],
     ) -> _t.Any: ...
@@ -197,7 +197,7 @@ class TranslationHelper(_t.Generic[_tt.NameType, _tt.SourceType, _tt.IdType]):
         self,
         translatable: TranslatableT,
         *,
-        inplace: bool = False,
+        copy: bool = True,
         user_params: UserParams[_tt.NameType, _tt.SourceType, _tt.IdType],
         **default_params: _t.Unpack[_trt.TranslateParams[_tt.NameType, _tt.SourceType, _tt.IdType]],
     ) -> _t.Any | None:
@@ -207,36 +207,36 @@ class TranslationHelper(_t.Generic[_tt.NameType, _tt.SourceType, _tt.IdType]):
 
         Args:
             translatable: A data structure to translate.
-            inplace: If ``True``, translate in-place and return ``None``.
+            copy: If ``False``, translate in-place and return ``None``.
             user_params: {user_params}
             **default_params: Default arguments for the ``translate`` method. May be overridden by `user_params`. If the
                 user passes any reserved or fixed keys, a :class:`TypeError` is raised.
 
         Returns:
             The original `translatable` if `user_params` is ``False``. Otherwise, return a translated copy or
-            ``None`` based on the `inplace`-setting (see :meth:`.Translator.translate`).
+            ``None`` based on the `copy`-setting (see :meth:`.Translator.translate`).
 
         Raises:
             TypeError: If reserved or fixed keys are passed in the `user_params`.
         """
-        return self._apply(translatable, inplace=inplace, user_params=user_params, default_params=default_params)
+        return self._apply(translatable, copy=copy, user_params=user_params, default_params=default_params)
 
     def _apply(
         self,
         translatable: TranslatableT,
         *,
-        inplace: bool,
+        copy: bool,
         user_params: UserParams[_tt.NameType, _tt.SourceType, _tt.IdType],
         default_params: _trt.TranslateParams[_tt.NameType, _tt.SourceType, _tt.IdType],
     ) -> _t.Any:
         try:
             params = self._process_params(user_params=user_params, default_params=default_params)
         except _AbortTranslation:
-            return None if inplace else translatable
+            return translatable if copy else None
         _t.assert_type(params, _trt.TranslateParams[_tt.NameType, _tt.SourceType, _tt.IdType])
 
         translator = self.get_translator()
-        result = translator.translate(translatable, inplace=inplace, **params)  # type: ignore[call-overload]
+        result = translator.translate(translatable, copy=copy, **params)  # type: ignore[call-overload]
 
         self._translated_names = translator.translated_names(with_source=True)
         return result
@@ -467,7 +467,7 @@ if _os.environ.get("SPHINX_BUILD") == "true":  # pragma: no cover
         """
         items: list[str] = helper.apply(
             list(range(n)),
-            inplace=False,
+            copy=True,
             user_params=translate,
             fmt="{id}:{name}",
         )

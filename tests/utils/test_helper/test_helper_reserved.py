@@ -17,9 +17,9 @@ def test_fixed_translatable():
 
 
 def test_fixed_inplace():
-    match = r"Found protected keys={'inplace'} in fixed_params={'inplace': None}."
+    match = r"Found protected keys={'copy'} in fixed_params={'copy': None}."
     with pytest.raises(TypeError, match=match):
-        Helper(Translator, inplace=None)  # type: ignore[call-arg]
+        Helper(Translator, copy=None)  # type: ignore[call-arg]
 
 
 def test_all():

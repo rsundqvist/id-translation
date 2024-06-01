@@ -62,4 +62,4 @@ def test_series(translator, df):
 def test_inplace(translator, df, series):
     translatable = df[df.columns[0]] if series else df
     with pytest.raises(NotInplaceTranslatableError):
-        translator.translate(translatable, inplace=True)
+        translator.translate(translatable, copy=False)

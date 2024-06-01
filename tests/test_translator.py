@@ -135,7 +135,7 @@ def _translate(translator):
     [
         (object(), UntranslatableTypeError, {"names": 1}),
         ((1, 2), MissingNamesError, {}),
-        ((1, 2), NotInplaceTranslatableError, {"inplace": True, "names": "positive_numbers"}),
+        ((1, 2), NotInplaceTranslatableError, {"copy": False, "names": "positive_numbers"}),
     ],
 )
 def test_bad_translatable(translator, data, clazz, kwargs):
@@ -370,7 +370,7 @@ def test_untranslated_reporting(caplog):
     translator.translate(
         {"none": [-1, -100], "partial": [-1, 1, 2], "all": [0, 1]},
         override_function=lambda *_: "source",
-        inplace=True,
+        copy=False,
     )
 
     for r in caplog.records:
@@ -392,7 +392,7 @@ def test_reverse(hex_fetcher):
 
     translated = {"positive_numbers": ["<Failed: id=-1>", "0:0x0, positive=True", "1:0x1, positive=True"]}
     assert_type(translated, dict[str, list[str]])
-    assert translated == translator.translate({"positive_numbers": [-1, 0, 1]}, inplace=False)
+    assert translated == translator.translate({"positive_numbers": [-1, 0, 1]}, copy=True)
 
     actual = translator.translate(translated, reverse=True)
     assert_type(actual, dict[str, list[int]])  # type: ignore[assert-type]  # Overloads are incomplete for reverse=True
