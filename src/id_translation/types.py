@@ -97,7 +97,7 @@ and will do its best to return a data structure of the same type (albeit with el
 
    Dict values are always copied for translation.
 
-   Setting ``inplace=True`` merely controls whether the original dict is modified.
+   Setting ``copy=False`` merely controls whether the original dict is modified.
 """
 
 

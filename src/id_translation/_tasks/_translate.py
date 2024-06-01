@@ -38,7 +38,7 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
         *,
         ignore_names: Names[NameType] = None,
         override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
-        inplace: bool = False,
+        copy: bool = True,
         maximal_untranslated_fraction: float = 1.0,
         reverse: bool = False,
         enable_uuid_heuristics: bool = False,
@@ -55,7 +55,7 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
             raise ValueError(f"Argument {maximal_untranslated_fraction=} is not a valid fraction")
 
         self.fmt = fmt
-        self.inplace = inplace
+        self.copy = copy
         self.maximal_untranslated_fraction = maximal_untranslated_fraction
         self.reverse = reverse
         self.parent: Translatable[NameType, IdType] | None = None
@@ -141,7 +141,7 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
                 translatable_type=self.full_type_name,
                 names=names,
                 ignore_names=tname(ignore_names, prefix_classname=True) if callable(ignore_names) else ignore_names,
-                inplace=self.inplace,
+                copy=self.copy,
                 reverse=self.reverse,
             ),
         )
@@ -151,7 +151,7 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
         if not LOGGER.isEnabledFor(self.key_event_level.exit):
             return
 
-        inplace = self.inplace
+        copy = self.copy
         n2s = self.name_to_source
         execution_time = perf_counter() - self._start
 
@@ -169,7 +169,7 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
                 execution_time=execution_time,
                 # Task-specific
                 translatable_type=self.full_type_name,
-                inplace=inplace,
+                copy=copy,
                 reverse=self.reverse,
                 name_to_source=n2s,
             ),
@@ -179,7 +179,7 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
         self, translation_map: TranslationMap[NameType, SourceType, IdType]
     ) -> Translatable[NameType, str] | None:
         """Insert translated IDs into the `translatable`, based on data retrieved by the fetcher."""
-        inplace = self.inplace
+        copy = self.copy
 
         translation_map.reverse_mode = self.reverse
         try:
@@ -187,12 +187,12 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
                 self.translatable,
                 names=self.io_names,
                 tmap=translation_map,
-                copy=not inplace,
+                copy=copy,
             )
         finally:
             translation_map.reverse_mode = False
 
-        return None if inplace else result
+        return result if copy else None
 
     def verify(self, tmap: TranslationMap[NameType, SourceType, IdType]) -> None:
         """Verify translations.

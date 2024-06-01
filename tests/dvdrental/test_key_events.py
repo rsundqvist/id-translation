@@ -87,7 +87,7 @@ def get_key_event_details(dialect, caplog):
 
     # Called for every function. Would be nice if this could be per parameter.
     translator: Translator[str, str, int] = Translator.from_config(*setup_for_dialect(dialect))
-    translator.translate(get_df(dialect), inplace=True)
+    translator.translate(get_df(dialect), copy=False)
 
     ret = []
     for i, r in enumerate(caplog.records):

@@ -11,13 +11,13 @@ def type_list() -> None:
 
     li = [1]
     assert_type(t.translate(li), expected)
-    assert_type(t.translate(li, inplace=False), expected)
-    assert_type(t.translate(li, inplace=True), None)
+    assert_type(t.translate(li, copy=True), expected)
+    assert_type(t.translate(li, copy=False), None)
 
     ls = ["1"]
     assert_type(t.translate(ls), expected)
-    assert_type(t.translate(ls, inplace=False), expected)
-    assert_type(t.translate(ls, inplace=True), None)
+    assert_type(t.translate(ls, copy=True), expected)
+    assert_type(t.translate(ls, copy=False), None)
 
 
 # This doesn't seem to work; nested generic type issue?
@@ -27,13 +27,13 @@ def type_list() -> None:
 #
 #     lli = [[1]]
 #     assert_type(t.translate(lli), expected)
-#     assert_type(t.translate(lli, inplace=False), expected)
-#     assert_type(t.translate(lli, inplace=True), None)
+#     assert_type(t.translate(lli, copy=True), expected)
+#     assert_type(t.translate(lli, copy=False), None)
 #
 #     lls = ["1"]
 #     assert_type(t.translate(lls), expected)
-#     assert_type(t.translate(lls, inplace=False), expected)
-#     assert_type(t.translate(lls, inplace=True), None)
+#     assert_type(t.translate(lls, copy=True), expected)
+#     assert_type(t.translate(lls, copy=False), None)
 
 
 def type_set() -> None:
@@ -41,10 +41,10 @@ def type_set() -> None:
 
     si = {1}
     assert_type(t.translate(si), expected)
-    assert_type(t.translate(si, inplace=False), expected)
-    assert_type(t.translate(si, inplace=True), None)
+    assert_type(t.translate(si, copy=True), expected)
+    assert_type(t.translate(si, copy=False), None)
 
     ss = {"1"}
     assert_type(t.translate(ss), expected)
-    assert_type(t.translate(ss, inplace=False), expected)
-    assert_type(t.translate(ss, inplace=True), None)
+    assert_type(t.translate(ss, copy=True), expected)
+    assert_type(t.translate(ss, copy=False), None)

@@ -43,11 +43,15 @@ def df(data: dict[str, dict[IdTypes, str]]) -> pl.DataFrame:
     )
 
 
-@pytest.mark.parametrize("inplace", [False, True])
-def test_dataframe(translator, df, inplace):
-    actual: None | pl.DataFrame = translator.translate(df, inplace=inplace)
-    assert (actual is None) == inplace
-    assert (df if inplace else actual).to_dict(as_series=False) == EXPECTED
+@pytest.mark.parametrize("copy", [True, False])
+def test_dataframe(translator, df, copy):
+    actual: None | pl.DataFrame = translator.translate(df, copy=copy)
+    if copy:
+        assert actual is not None
+        assert actual.to_dict(as_series=False) == EXPECTED
+    else:
+        assert actual is None
+        assert df.to_dict(as_series=False) == EXPECTED
 
 
 def test_series(translator, df):

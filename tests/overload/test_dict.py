@@ -12,18 +12,18 @@ def type_dict_primitive() -> None:
 
     di = {1: 1}
     assert_type(t.translate(di), expected)
-    assert_type(t.translate(di, inplace=False), expected)
-    assert_type(t.translate(di, inplace=True), None)
+    assert_type(t.translate(di, copy=True), expected)
+    assert_type(t.translate(di, copy=False), None)
 
     ds = {1: "1"}
     assert_type(t.translate(ds), expected)
-    assert_type(t.translate(ds, inplace=False), expected)
-    assert_type(t.translate(ds, inplace=True), None)
+    assert_type(t.translate(ds, copy=True), expected)
+    assert_type(t.translate(ds, copy=False), None)
 
     du = {1: UUID(int=0)}
     assert_type(t.translate(du), expected)
-    assert_type(t.translate(du, inplace=False), expected)
-    assert_type(t.translate(du, inplace=True), None)
+    assert_type(t.translate(du, copy=True), expected)
+    assert_type(t.translate(du, copy=False), None)
 
 
 def type_dict_set() -> None:
@@ -31,13 +31,13 @@ def type_dict_set() -> None:
 
     dsi = {1: {1}}
     assert_type(t.translate(dsi), expected)
-    assert_type(t.translate(dsi, inplace=False), expected)
-    assert_type(t.translate(dsi, inplace=True), None)
+    assert_type(t.translate(dsi, copy=True), expected)
+    assert_type(t.translate(dsi, copy=False), None)
 
     dss = {1: {"1"}}
     assert_type(t.translate(dss), expected)
-    assert_type(t.translate(dss, inplace=False), expected)
-    assert_type(t.translate(dss, inplace=True), None)
+    assert_type(t.translate(dss, copy=True), expected)
+    assert_type(t.translate(dss, copy=False), None)
 
 
 def type_dict_list() -> None:
@@ -45,13 +45,13 @@ def type_dict_list() -> None:
 
     dli = {1: [1]}
     assert_type(t.translate(dli), expected)
-    assert_type(t.translate(dli, inplace=False), expected)
-    assert_type(t.translate(dli, inplace=True), None)
+    assert_type(t.translate(dli, copy=True), expected)
+    assert_type(t.translate(dli, copy=False), None)
 
     dss = {1: ["1"]}
     assert_type(t.translate(dss), expected)
-    assert_type(t.translate(dss, inplace=False), expected)
-    assert_type(t.translate(dss, inplace=True), None)
+    assert_type(t.translate(dss, copy=True), expected)
+    assert_type(t.translate(dss, copy=False), None)
 
 
 def type_dict_one_tuple() -> None:
@@ -59,13 +59,13 @@ def type_dict_one_tuple() -> None:
 
     dti = {1: (1,)}  # Anonymous instance is cast to vararg-tuple by mypy
     assert_type(t.translate(dti), expected)
-    assert_type(t.translate(dti, inplace=False), expected)
-    assert_type(t.translate(dti, inplace=True), None)
+    assert_type(t.translate(dti, copy=True), expected)
+    assert_type(t.translate(dti, copy=False), None)
 
     dts = {1: ("1",)}  # Anonymous instance is cast to vararg-tuple by mypy
     assert_type(t.translate(dts), expected)
-    assert_type(t.translate(dts, inplace=False), expected)
-    assert_type(t.translate(dts, inplace=True), None)
+    assert_type(t.translate(dts, copy=True), expected)
+    assert_type(t.translate(dts, copy=False), None)
 
 
 def type_dict_two_tuple() -> None:
@@ -73,13 +73,13 @@ def type_dict_two_tuple() -> None:
 
     di = {1: (1, 2)}  # Anonymous instance is cast to vararg-tuple by mypy
     assert_type(t.translate(di), expected)
-    assert_type(t.translate(di, inplace=False), expected)
-    assert_type(t.translate(di, inplace=True), None)
+    assert_type(t.translate(di, copy=True), expected)
+    assert_type(t.translate(di, copy=False), None)
 
     ds = {1: ("1", "2")}  # Anonymous instance is cast to vararg-tuple by mypy
     assert_type(t.translate(ds), expected)
-    assert_type(t.translate(ds, inplace=False), expected)
-    assert_type(t.translate(ds, inplace=True), None)
+    assert_type(t.translate(ds, copy=True), expected)
+    assert_type(t.translate(ds, copy=False), None)
 
 
 def type_dict_three_tuple() -> None:
@@ -87,13 +87,13 @@ def type_dict_three_tuple() -> None:
 
     dti = {1: (1, 2, 3)}  # Anonymous instance is cast to vararg-tuple by mypy
     assert_type(t.translate(dti), expected)
-    assert_type(t.translate(dti, inplace=False), expected)
-    assert_type(t.translate(dti, inplace=True), None)
+    assert_type(t.translate(dti, copy=True), expected)
+    assert_type(t.translate(dti, copy=False), None)
 
     dts = {1: ("1", "2", "3")}  # Anonymous instance is cast to vararg-tuple by mypy
     assert_type(t.translate(dts), expected)
-    assert_type(t.translate(dts, inplace=False), expected)
-    assert_type(t.translate(dts, inplace=True), None)
+    assert_type(t.translate(dts, copy=True), expected)
+    assert_type(t.translate(dts, copy=False), None)
 
 
 def type_dict_var_tuple() -> None:
@@ -101,10 +101,10 @@ def type_dict_var_tuple() -> None:
 
     dti = {1: tuple(range(1))}
     assert_type(t.translate(dti), expected)
-    assert_type(t.translate(dti, inplace=False), expected)
-    assert_type(t.translate(dti, inplace=True), None)
+    assert_type(t.translate(dti, copy=True), expected)
+    assert_type(t.translate(dti, copy=False), None)
 
     dts = {1: tuple("1")}
     assert_type(t.translate(dts), expected)
-    assert_type(t.translate(dts, inplace=False), expected)
-    assert_type(t.translate(dts, inplace=True), None)
+    assert_type(t.translate(dts, copy=True), expected)
+    assert_type(t.translate(dts, copy=False), None)

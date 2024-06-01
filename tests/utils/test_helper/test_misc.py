@@ -12,7 +12,7 @@ def test_translated_names():
     with pytest.raises(ValueError, match="TranslationHelper"):
         helper.name_to_source()
 
-    helper.apply(1, inplace=False, user_params=True)
+    helper.apply(1, copy=True, user_params=True)
     name_to_source = helper.name_to_source()
     assert name_to_source == {"h": "h"}
     assert translator.translated_names(True) == {"h": "h"}
