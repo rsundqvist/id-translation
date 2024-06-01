@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Deprecated
+- Parameter `inplace`; use `copy` instead.
+- Parameter `maximal_untranslated_fraction`; use `max_fails` instead.
+
 ## [0.10.2] - 2024-05-28
 
 ### Fixed
