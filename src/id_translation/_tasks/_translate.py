@@ -39,7 +39,7 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
         ignore_names: Names[NameType] = None,
         override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
         copy: bool = True,
-        maximal_untranslated_fraction: float = 1.0,
+        max_fails: float = 1.0,
         reverse: bool = False,
         enable_uuid_heuristics: bool = False,
     ) -> None:
@@ -51,12 +51,12 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
             override_function=override_function,
         )
 
-        if not (0.0 <= maximal_untranslated_fraction <= 1):
-            raise ValueError(f"Argument {maximal_untranslated_fraction=} is not a valid fraction")
+        if not (0.0 <= max_fails <= 1):
+            raise ValueError(f"Argument {max_fails=} is not a valid fraction")
 
         self.fmt = fmt
         self.copy = copy
-        self.maximal_untranslated_fraction = maximal_untranslated_fraction
+        self.max_fails = max_fails
         self.reverse = reverse
         self.parent: Translatable[NameType, IdType] | None = None
 
@@ -200,7 +200,7 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
         Performs translation with pre-defined formats, counting the number of IDs which are (and aren't) known to the
         translation map.
         """
-        if not (self.maximal_untranslated_fraction < 1.0 or LOGGER.isEnabledFor(logging.DEBUG)):
+        if not (self.max_fails < 1.0 or LOGGER.isEnabledFor(logging.DEBUG)):
             return
 
         name_to_ids = self._name_to_ids_in_order()
@@ -227,10 +227,8 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
                 f"for {name=} using source={source!r}. Sample IDs: {sample_ids}."
             )
 
-            if f_untranslated > self.maximal_untranslated_fraction:
-                message = message.format(
-                    reason=f" > maximal_untranslated_fraction={self.maximal_untranslated_fraction:.1%}"
-                )
+            if f_untranslated > self.max_fails:
+                message = message.format(reason=f" > max_fails={self.max_fails:.1%}")
                 LOGGER.error(message, extra=extra)
                 raise TooManyFailedTranslationsError(message)
             else:

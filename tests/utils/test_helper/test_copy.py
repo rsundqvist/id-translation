@@ -5,7 +5,7 @@ pytestmark = pytest.mark.xfail(strict=True, reason="Not implemented.")
 
 
 def _test_no_untranslated(get_3_imdb):
-    kwargs = {"maximal_untranslated_fraction": 0, "default_fmt_placeholders": None}
+    kwargs = {"max_fails": 0, "default_fmt_placeholders": None}
     with pytest.raises(TooManyFailedTranslationsError):
         get_3_imdb(translate=kwargs)
 

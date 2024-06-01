@@ -348,13 +348,13 @@ def test_no_names(translator):
 def test_untranslated_fraction_single_name():
     translator = UnitTestTranslator({"source": {"id": [0], "name": ["zero"]}}, default_fmt="{id} not translated")
 
-    translator.translate([0, 1], names="source", maximal_untranslated_fraction=0.5)
+    translator.translate([0, 1], names="source", max_fails=0.5)
 
     with pytest.raises(TooManyFailedTranslationsError, match="translate 1/3"):
-        translator.translate([0, 0, 1], names="source", maximal_untranslated_fraction=0.0)
+        translator.translate([0, 0, 1], names="source", max_fails=0.0)
 
     with pytest.raises(TooManyFailedTranslationsError, match="translate 1/1"):
-        translator.translate(1, names="source", maximal_untranslated_fraction=0.0)
+        translator.translate(1, names="source", max_fails=0.0)
 
 
 def test_untranslated_fraction_multiple_names(translator, hex_fetcher):
@@ -362,7 +362,7 @@ def test_untranslated_fraction_multiple_names(translator, hex_fetcher):
     translatable = {"negative_numbers": [1, 1], "positive_numbers": [0, 1, 2]}
 
     with pytest.raises(TooManyFailedTranslationsError, match="translate 2/2"):
-        translator.translate(translatable, maximal_untranslated_fraction=0.0)
+        translator.translate(translatable, max_fails=0.0)
 
 
 def test_untranslated_reporting(caplog):
@@ -399,7 +399,7 @@ def test_reverse(hex_fetcher):
     assert actual == {"positive_numbers": ["<Failed: id='<Failed: id=-1>'>", 0, 1]}, "Original format"
 
     with pytest.raises(TooManyFailedTranslationsError, match=r"Sample IDs: \['<Failed: id=-1>'\]"):
-        translator.translate(translated, reverse=True, maximal_untranslated_fraction=0)
+        translator.translate(translated, reverse=True, max_fails=0)
 
 
 def test_reverse_primitive(hex_fetcher):
@@ -644,7 +644,7 @@ def test_fetch(translator):
 
 def test_fetch_args(translator):
     with pytest.raises(TooManyFailedTranslationsError):
-        translator.fetch({"positive_numbers": [-1]}, maximal_untranslated_fraction=0)
+        translator.fetch({"positive_numbers": [-1]}, max_fails=0)
 
     assert translator.fetch({"positive_numbers": [-1]}).to_dicts() == {
         "positive_numbers": {"hex": [], "id": [], "positive": []}
@@ -663,10 +663,10 @@ def test_go_offline_args(translator):
     assert id(translator.fetch) != original_fetcher_id
 
     with pytest.raises(TooManyFailedTranslationsError):
-        translator.go_offline({"positive_numbers": [-1]}, maximal_untranslated_fraction=0)
+        translator.go_offline({"positive_numbers": [-1]}, max_fails=0)
     assert translator.online
 
-    translator.go_offline({"positive_numbers": [1]}, maximal_untranslated_fraction=0)
+    translator.go_offline({"positive_numbers": [1]}, max_fails=0)
     assert not translator.online
     assert translator.cache.to_dicts() == {"positive_numbers": {"hex": ["0x1"], "id": [1], "positive": [True]}}
 
@@ -692,7 +692,7 @@ def test_fetcher_clone_type_error():
 
 
 def test_empty(translator):
-    actual = translator.translate({"p": [], "n": [-1]}, maximal_untranslated_fraction=1.0)
+    actual = translator.translate({"p": [], "n": [-1]}, max_fails=1.0)
     assert actual == {"p": [], "n": ["-1:-0x1, positive=False"]}
     assert translator.translated_names(with_source=True) == {"n": "negative_numbers", "p": "positive_numbers"}
 

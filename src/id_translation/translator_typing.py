@@ -109,7 +109,7 @@ class TranslateParams(_t.TypedDict, _t.Generic[_tt.NameType, _tt.SourceType, _tt
     names: _tt.NameTypes[_tt.NameType] | _tt.NameToSource[_tt.NameType, _tt.SourceType] | None
     ignore_names: _tt.Names[_tt.NameType] | None
     override_function: _UserOverrideFunction[_tt.NameType, _tt.SourceType, None] | None
-    maximal_untranslated_fraction: float
+    max_fails: float
     reverse: bool
     fmt: _ot.FormatType | None
 
