@@ -23,7 +23,7 @@ def test_dvd_rental(dialect, with_schema):
         Path(__file__).with_name("translated.csv"), index_col=0, parse_dates=["rental_date", "return_date"]
     )
     actual = get_df(dialect).loc[expected.index]
-    assert translator.translate(actual, inplace=True) is None
+    assert translator.translate(actual, copy=False) is None
     pd.testing.assert_frame_equal(actual, expected)
 
 

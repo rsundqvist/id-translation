@@ -81,7 +81,7 @@ def main():
     df = pd.DataFrame.from_records(records, columns=expected.columns).loc[expected.index]
 
     with enable_verbose_debug_messages():
-        translator.translate(df, inplace=True)
+        translator.translate(df, copy=False)
 
     pd.testing.assert_frame_equal(df, expected)
 

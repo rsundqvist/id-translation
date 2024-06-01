@@ -59,5 +59,5 @@ print(translator)
 
 print(translator.map(df))
 
-translator.translate(df, inplace=True)
+translator.translate(df, copy=False)
 print(df.loc[sample.index])

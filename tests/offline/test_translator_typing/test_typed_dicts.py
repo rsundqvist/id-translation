@@ -61,11 +61,11 @@ def test_fetch():
         assert translator.fetch(**kwargs).to_dicts() == EXPECTED_TRANSLATION_MAP_TO_DICTS
 
     with pytest.raises(TypeError):
-        call(inplace=False)  # type: ignore[call-arg]
+        call(copy=True)  # type: ignore[call-arg]
     with pytest.raises(TypeError):
         call(reverse=False)  # type: ignore[call-arg]
     with pytest.raises(TypeError):
-        call(inplace=True)  # type: ignore[call-arg]
+        call(copy=False)  # type: ignore[call-arg]
     with pytest.raises(TypeError):
         call(reverse=True)  # type: ignore[call-arg]
 
@@ -86,11 +86,11 @@ def test_go_offline():
         assert not translator.online
 
     with pytest.raises(TypeError):
-        call(inplace=False)  # type: ignore[call-arg]
+        call(copy=True)  # type: ignore[call-arg]
     with pytest.raises(TypeError):
         call(reverse=False)  # type: ignore[call-arg]
     with pytest.raises(TypeError):
-        call(inplace=True)  # type: ignore[call-arg]
+        call(copy=False)  # type: ignore[call-arg]
     with pytest.raises(TypeError):
         call(reverse=True)  # type: ignore[call-arg]
 
@@ -103,19 +103,19 @@ def test_translate():
     params = tt.TranslateParams[str, bool, int | UUID]()
     translatable = make_translatable()
 
-    actual = TypedTranslator().translate(translatable, inplace=False, **params)
+    actual = TypedTranslator().translate(translatable, copy=True, **params)
     assert actual == expected
     assert_type(actual, dict[str, list[str]])
 
     def call(t: UnionDict, **kwargs: Unpack[tt.TranslateParams[str, bool, int | UUID]]) -> None:
-        actual = TypedTranslator().translate(t, inplace=False, **kwargs)
+        actual = TypedTranslator().translate(t, copy=True, **kwargs)
         assert actual == expected
         assert_type(actual, dict[str, list[str]])
 
     with pytest.raises(TypeError):
-        call(translatable, inplace=False)  # type: ignore[call-arg]
+        call(translatable, copy=True)  # type: ignore[call-arg]
     with pytest.raises(TypeError):
-        call(translatable, inplace=True)  # type: ignore[call-arg]
+        call(translatable, copy=False)  # type: ignore[call-arg]
     with pytest.raises(TypeError):
         call(translatable, path="")  # type: ignore[call-arg]
 
@@ -147,7 +147,7 @@ def test_translate_full():
     with pytest.raises(TypeError):
         call(translatable=translatable, path="")  # type: ignore[call-arg]
 
-    call(translatable=translatable, inplace=False)
+    call(translatable=translatable, copy=True)
     call(translatable=translatable)
 
 
@@ -162,7 +162,7 @@ def test_copy():
     copy = translator.copy(**params)
 
     with pytest.raises(TypeError):
-        translator.copy(inplace=True)  # type: ignore[call-arg]
+        translator.copy(copy=False)  # type: ignore[call-arg]
 
     assert copy.enable_uuid_heuristics is True
     assert translator.enable_uuid_heuristics is False
