@@ -19,8 +19,8 @@ def test_str():
 
 
 @pytest.mark.parametrize("value", [0.0, 0])
-def test_maximal_untranslated_fraction(value):
-    assert helper.convert_user_params(value) == {"maximal_untranslated_fraction": 0.0}
+def test_max_fails(value):
+    assert helper.convert_user_params(value) == {"max_fails": 0.0}
 
 
 def test_unknown():

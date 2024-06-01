@@ -7,7 +7,7 @@ from id_translation.utils.translation_helper import TranslationHelper
 def test_default():
     param = TranslationHelper(Translator).make_user_params_docstring()
     assert "'fmt'" in param
-    assert "'maximal_untranslated_fraction'" in param
+    assert "'max_fails'" in param
 
 
 def test_fixed_fmt():
@@ -15,8 +15,8 @@ def test_fixed_fmt():
 
     param = helper.make_user_params_docstring()
     assert "'fmt'" not in param
-    assert "'maximal_untranslated_fraction'" in param
+    assert "'max_fails'" in param
 
     error = helper.make_type_error_docstring()
     assert "'fmt'" in error
-    assert "'maximal_untranslated_fraction'" not in error
+    assert "'max_fails'" not in error

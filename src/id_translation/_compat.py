@@ -30,7 +30,7 @@ T = TypeVar("T")
 
 PARAMS = (
     ("copy", "inplace"),
-    # ("max_fails", "maximal_untranslated_fraction"),
+    ("max_fails", "maximal_untranslated_fraction"),
 )
 WARNED: set[str] = set()  # Minimize the amount of warnings - once per param is enough.
 

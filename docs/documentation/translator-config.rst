@@ -79,7 +79,7 @@ Section: Unknown IDs
 .. note::
 
    Sources that are translated using default placeholders count as successful translations when using
-   :meth:`Translator.translate(maximal_untranslated_fraction != 1) <.Translator.translate>`.
+   :meth:`Translator.translate(max_fails != 1) <.Translator.translate>`.
 
 .. _translator-config-transform:
 

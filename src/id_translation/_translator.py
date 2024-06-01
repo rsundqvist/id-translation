@@ -89,7 +89,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         default_fmt_placeholders: Shared and/or source-specific default placeholder values for unknown IDs. See
             :meth:`rics.collections.dicts.InheritedKeysDict.make` for details. Sources that are translated using default
             placeholders count as successful translations when using
-            :meth:`Translator.translate(maximal_untranslated_fraction != 1) <.Translator.translate>`.
+            :meth:`Translator.translate(max_fails != 1) <.Translator.translate>`.
         enable_uuid_heuristics: Enabling may improve matching when :py:class:`~uuid.UUID`-like IDs are in use.
         transformers: A dict ``{source: transformer}`` of initialized :class:`.Transformer` instances.
 
@@ -276,7 +276,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             copy: Literal[False],
             ignore_names: Names[NameType] | None = None,
             override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
-            maximal_untranslated_fraction: float = 1.0,
+            max_fails: float = 1.0,
             # Translation specification
             reverse: bool = False,
             fmt: FormatType | None = None,
@@ -292,7 +292,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             copy: Literal[False],
             ignore_names: Names[NameType] | None = None,
             override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
-            maximal_untranslated_fraction: float = 1.0,
+            max_fails: float = 1.0,
             # Translation specification
             reverse: bool = False,
             fmt: FormatType | None = None,
@@ -307,7 +307,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             copy: Literal[True] = True,
             ignore_names: Names[NameType] | None = None,
             override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
-            maximal_untranslated_fraction: float = 1.0,
+            max_fails: float = 1.0,
             # Translation specification
             reverse: bool = False,
             fmt: FormatType | None = None,
@@ -322,7 +322,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             copy: Literal[True] = True,
             ignore_names: Names[NameType] | None = None,
             override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
-            maximal_untranslated_fraction: float = 1.0,
+            max_fails: float = 1.0,
             # Translation specification
             reverse: bool = False,
             fmt: FormatType | None = None,
@@ -339,7 +339,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         #     copy: Literal[True] = True,
         #     ignore_names: Names[NameType] | None = None,
         #     override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
-        #     maximal_untranslated_fraction: float = 1.0,
+        #     max_fails: float = 1.0,
         #     # Translation specification
         #     reverse: bool = False,
         #     fmt: FormatType | None = None,
@@ -355,7 +355,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             copy: Literal[True] = True,
             ignore_names: Names[NameType] | None = None,
             override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
-            maximal_untranslated_fraction: float = 1.0,
+            max_fails: float = 1.0,
             # Translation specification
             reverse: bool = False,
             fmt: FormatType | None = None,
@@ -373,7 +373,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             copy: Literal[True] = True,
             ignore_names: Names[NameType] | None = None,
             override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
-            maximal_untranslated_fraction: float = 1.0,
+            max_fails: float = 1.0,
             # Translation specification
             reverse: bool = False,
             fmt: FormatType | None = None,
@@ -388,7 +388,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             copy: Literal[True] = True,
             ignore_names: Names[NameType] | None = None,
             override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
-            maximal_untranslated_fraction: float = 1.0,
+            max_fails: float = 1.0,
             # Translation specification
             reverse: bool = False,
             fmt: FormatType | None = None,
@@ -403,7 +403,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             copy: Literal[True] = True,
             ignore_names: Names[NameType] | None = None,
             override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
-            maximal_untranslated_fraction: float = 1.0,
+            max_fails: float = 1.0,
             # Translation specification
             reverse: bool = False,
             fmt: FormatType | None = None,
@@ -418,7 +418,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             copy: Literal[True] = True,
             ignore_names: Names[NameType] | None = None,
             override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
-            maximal_untranslated_fraction: float = 1.0,
+            max_fails: float = 1.0,
             # Translation specification
             reverse: bool = False,
             fmt: FormatType | None = None,
@@ -433,7 +433,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             copy: Literal[True] = True,
             ignore_names: Names[NameType] | None = None,
             override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
-            maximal_untranslated_fraction: float = 1.0,
+            max_fails: float = 1.0,
             # Translation specification
             reverse: bool = False,
             fmt: FormatType | None = None,
@@ -448,7 +448,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             copy: Literal[True] = True,
             ignore_names: Names[NameType] | None = None,
             override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
-            maximal_untranslated_fraction: float = 1.0,
+            max_fails: float = 1.0,
             # Translation specification
             reverse: bool = False,
             fmt: FormatType | None = None,
@@ -463,7 +463,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             copy: Literal[True] = True,
             ignore_names: Names[NameType] | None = None,
             override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
-            maximal_untranslated_fraction: float = 1.0,
+            max_fails: float = 1.0,
             # Translation specification
             reverse: bool = False,
             fmt: FormatType | None = None,
@@ -478,7 +478,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             copy: Literal[True] = True,
             ignore_names: Names[NameType] | None = None,
             override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
-            maximal_untranslated_fraction: float = 1.0,
+            max_fails: float = 1.0,
             # Translation specification
             reverse: bool = False,
             fmt: FormatType | None = None,
@@ -493,7 +493,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             copy: Literal[True] = True,
             ignore_names: Names[NameType] | None = None,
             override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
-            maximal_untranslated_fraction: float = 1.0,
+            max_fails: float = 1.0,
             # Translation specification
             reverse: bool = False,
             fmt: FormatType | None = None,
@@ -508,7 +508,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             copy: Literal[True] = True,
             ignore_names: Names[NameType] | None = None,
             override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
-            maximal_untranslated_fraction: float = 1.0,
+            max_fails: float = 1.0,
             # Translation specification
             reverse: bool = False,
             fmt: FormatType | None = None,
@@ -523,7 +523,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             copy: Literal[True] = True,
             ignore_names: Names[NameType] | None = None,
             override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
-            maximal_untranslated_fraction: float = 1.0,
+            max_fails: float = 1.0,
             # Translation specification
             reverse: bool = False,
             fmt: FormatType | None = None,
@@ -541,7 +541,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                 copy: Literal[True] = True,
                 ignore_names: Names[NameType] | None = None,
                 override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
-                maximal_untranslated_fraction: float = 1.0,
+                max_fails: float = 1.0,
                 # Translation specification
                 reverse: bool = False,
                 fmt: FormatType | None = None,
@@ -556,7 +556,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                 copy: Literal[True] = True,
                 ignore_names: Names[NameType] | None = None,
                 override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
-                maximal_untranslated_fraction: float = 1.0,
+                max_fails: float = 1.0,
                 # Translation specification
                 reverse: bool = False,
                 fmt: FormatType | None = None,
@@ -571,7 +571,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                 copy: Literal[True] = True,
                 ignore_names: Names[NameType] | None = None,
                 override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
-                maximal_untranslated_fraction: float = 1.0,
+                max_fails: float = 1.0,
                 # Translation specification
                 reverse: bool = False,
                 fmt: FormatType | None = None,
@@ -586,7 +586,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                 copy: Literal[False],
                 ignore_names: Names[NameType] | None = None,
                 override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
-                maximal_untranslated_fraction: float = 1.0,
+                max_fails: float = 1.0,
                 # Translation specification
                 reverse: bool = False,
                 fmt: FormatType | None = None,
@@ -602,7 +602,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                 copy: Literal[False],
                 ignore_names: Names[NameType] | None = None,
                 override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
-                maximal_untranslated_fraction: float = 1.0,
+                max_fails: float = 1.0,
                 # Translation specification
                 reverse: bool = False,
                 fmt: FormatType | None = None,
@@ -617,7 +617,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             ignore_names: Names[NameType] | None = None,
             copy: Literal[True] = True,
             override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
-            maximal_untranslated_fraction: float = 1.0,
+            max_fails: float = 1.0,
             reverse: Literal[True] = True,
             fmt: FormatType | None = None,
         ) -> Translatable[NameType, str]: ...
@@ -631,7 +631,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             ignore_names: Names[NameType] | None = None,
             copy: Literal[True] = True,
             override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
-            maximal_untranslated_fraction: float = 1.0,
+            max_fails: float = 1.0,
             reverse: Literal[True] = True,
             fmt: FormatType | None = None,
         ) -> Translatable[NameType, IdType]: ...
@@ -645,7 +645,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         ignore_names: Names[NameType] | None = None,
         copy: bool = True,
         override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
-        maximal_untranslated_fraction: float = 1.0,
+        max_fails: float = 1.0,
         reverse: bool = False,
         fmt: FormatType | None = None,
     ) -> Translatable[NameType, str] | None:
@@ -670,7 +670,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             copy: If ``False``, translate in-place and return ``None``.
             override_function: A callable ``(name, sources, ids) -> Source | None``. See :meth:`.Mapper.apply`
                 for details.
-            maximal_untranslated_fraction: The maximum fraction of IDs for which translation may fail. 1=disabled.
+            max_fails: The maximum fraction of IDs for which translation may fail. 1=disabled.
             reverse: If ``True``, perform translations back to IDs. Offline mode only.
             fmt: A :class:`format string <.Format>` such as **'{id}:{name}'** use. Default is :attr:`.Translator.fmt`.
 
@@ -696,8 +696,8 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             MissingNamesError: If `names` are not given and cannot be derived from `translatable`.
             MappingError: If any required (explicitly given) names fail to map to a source.
             MappingError: If name-to-source mapping is ambiguous.
-            ValueError: If `maximal_untranslated_fraction` is not a valid fraction.
-            TooManyFailedTranslationsError: If translation fails for more than `maximal_untranslated_fraction` of IDs.
+            ValueError: If `max_fails` is not a valid fraction.
+            TooManyFailedTranslationsError: If translation fails for more than `max_fails` of IDs.
             ConnectionStatusError: If ``reverse=True`` while the :class:`.Translator` is online.
             UserMappingError: If `override_function` returns a source which is not known, and
                 ``self.mapper.unknown_user_override_action != 'ignore'``.
@@ -720,7 +720,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             ignore_names=ignore_names,
             override_function=override_function,
             copy=copy,
-            maximal_untranslated_fraction=maximal_untranslated_fraction,
+            max_fails=max_fails,
             reverse=reverse,
             enable_uuid_heuristics=self._enable_uuid_heuristics,
         )
@@ -975,7 +975,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         *,
         ignore_names: Names[NameType] | None = None,
         override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
-        maximal_untranslated_fraction: float = 1.0,
+        max_fails: float = 1.0,
         fmt: FormatType | None = None,
         path: PathLikeType = None,
     ) -> Self:
@@ -991,7 +991,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             ignore_names: Names **not** to translate, or a predicate ``(NameType) -> bool``.
             override_function: A callable ``(name, sources, ids) -> Source | None``. See :meth:`.Mapper.apply`
                 for details.
-            maximal_untranslated_fraction: The maximum fraction of IDs for which translation may fail. 1=disabled.
+            max_fails: The maximum fraction of IDs for which translation may fail. 1=disabled.
             fmt: A :class:`format string <.Format>` such as **'{id}:{name}'** use. Default is :attr:`.Translator.fmt`.
             path: If given, serialize the :class:`.Translator` to disk after retrieving data.
 
@@ -1015,7 +1015,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             names,
             ignore_names=ignore_names,
             override_function=override_function,
-            maximal_untranslated_fraction=maximal_untranslated_fraction,
+            max_fails=max_fails,
             fmt=fmt,
         )
         self.fetcher.close()
@@ -1044,7 +1044,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         *,
         ignore_names: Names[NameType] | None = None,
         override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
-        maximal_untranslated_fraction: float = 1.0,
+        max_fails: float = 1.0,
         fmt: FormatType | None = None,
     ) -> TranslationMap[NameType, SourceType, IdType]:
         """Fetch translations.
@@ -1060,7 +1060,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             ignore_names: Names **not** to translate, or a predicate ``(NameType) -> bool``.
             override_function: A callable ``(name, sources, ids) -> Source | None``. See :meth:`.Mapper.apply`
                 for details.
-            maximal_untranslated_fraction: The maximum fraction of IDs for which translation may fail. 1=disabled.
+            max_fails: The maximum fraction of IDs for which translation may fail. 1=disabled.
             fmt: A :class:`format string <.Format>` such as **'{id}:{name}'** use. Default is :attr:`.Translator.fmt`.
 
         Returns:
@@ -1117,7 +1117,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             names,
             ignore_names=ignore_names,
             override_function=override_function,
-            maximal_untranslated_fraction=maximal_untranslated_fraction,
+            max_fails=max_fails,
             fmt=fmt,
         )
 
@@ -1128,7 +1128,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         *,
         ignore_names: Names[NameType] | None = None,
         override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
-        maximal_untranslated_fraction: float = 1.0,
+        max_fails: float = 1.0,
         fmt: FormatType | None = None,
     ) -> TranslationMap[NameType, SourceType, IdType]:
         fmt = self._fmt if fmt is None else Format.parse(fmt)
@@ -1153,7 +1153,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                 self._fmt,
                 names,
                 ignore_names=ignore_names,
-                maximal_untranslated_fraction=maximal_untranslated_fraction,
+                max_fails=max_fails,
                 enable_uuid_heuristics=self._enable_uuid_heuristics,
             )
             if not task.name_to_source:

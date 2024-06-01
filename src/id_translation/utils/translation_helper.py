@@ -291,7 +291,7 @@ class TranslationHelper(_t.Generic[_tt.NameType, _tt.SourceType, _tt.IdType]):
             return self._make(fmt=user_params)
 
         if isinstance(user_params, _t.get_args(MaximalUntranslatedFractionTypes)):
-            return self._make(maximal_untranslated_fraction=user_params)
+            return self._make(max_fails=user_params)
 
         if isinstance(user_params, dict):
             params = self._make(**user_params)
@@ -358,7 +358,7 @@ class TranslationHelper(_t.Generic[_tt.NameType, _tt.SourceType, _tt.IdType]):
 
         types = [
             (str, "fmt", "see :class:`.Format`"),
-            (float, "maximal_untranslated_fraction", "where 0=disable check, 1=no missing IDs allowed"),
+            (float, "max_fails", "where 0=disable check, 1=no missing IDs allowed"),
         ]
 
         type_parts = []
