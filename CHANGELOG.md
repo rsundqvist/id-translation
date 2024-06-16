@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Parameter `inplace`; use `copy` instead.
 - Parameter `maximal_untranslated_fraction`; use `max_fails` instead.
 
+### Fixed
+- Fix crash when using `deepclone`d `MultiFetcher` instances.
+
 ## [0.10.2] - 2024-05-28
 
 ### Fixed
