@@ -3,6 +3,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from itertools import combinations_with_replacement
 from typing import Any, assert_type
+from uuid import UUID
 
 import numpy as np
 import pandas as pd
@@ -707,3 +708,12 @@ def test_simple_fetcher_dict():
     assert canonical.cache.to_dicts() == canonical_form_data
 
     assert simple.translate([1999, 1991], names="people") == canonical.translate([1999, 1991], names="people")
+
+
+@pytest.mark.parametrize("nan_value", [None, float("nan"), np.nan])
+@pytest.mark.parametrize("object_value", ["string", UUID(int=0)])
+def test_nan_with_objects(nan_value, object_value):
+    translator = UnitTestTranslator()
+
+    actual = translator.translate([nan_value, object_value], names="source")
+    assert actual == [f"{nan_value}:name-of-{nan_value}", f"{object_value}:name-of-{object_value}"]
