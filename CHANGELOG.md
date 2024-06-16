@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Fix crash when using `deepclone`d `MultiFetcher` instances.
+- Fix crash when object-type ID collections contain `NaN/None` values.
 
 ## [0.10.2] - 2024-05-28
 

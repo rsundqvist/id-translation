@@ -3,7 +3,7 @@ import warnings
 from collections import defaultdict
 from collections.abc import Sequence
 from time import perf_counter
-from typing import TYPE_CHECKING, Any, get_args
+from typing import TYPE_CHECKING, Any, Iterable, get_args
 
 from numpy import isnan, unique
 from rics.misc import tname
@@ -89,20 +89,26 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
             if len(ids) == 0:
                 continue
 
+            all_ids = source_to_ids[name_to_source[name]]
+
+            was_coerced: bool = False
             if isinstance(ids[0], float):
-                float_names.append(name)
                 # Float IDs aren't officially supported, but is common when using Pandas since int types cannot be NaN.
                 # This is sometimes a problem for the built-in set (see https://github.com/numpy/numpy/issues/9358), and
                 # for several database drivers.
-                arr = unique(ids)
-                keep_mask = ~isnan(arr)
-                num_coerced += keep_mask.sum()  # Somewhat inaccurate; includes repeat IDs from other names
-                source_to_ids[name_to_source[name]].update(arr[keep_mask].astype(int, copy=False))
-            else:
-                if self.enable_uuid_heuristics:
-                    ids = _uuid_utils.try_cast_many(ids)  # noqa: PLW2901
 
-                source_to_ids[name_to_source[name]].update(ids)
+                try:
+                    ids, n_new = self._coerce_float_to_int(ids)  # noqa: PLW2901
+                    num_coerced += n_new  # Somewhat inaccurate; includes repeat IDs from other names
+                    float_names.append(name)
+                    was_coerced = True
+                except TypeError:
+                    pass
+
+            if not was_coerced and self.enable_uuid_heuristics:
+                ids = _uuid_utils.try_cast_many(ids)  # noqa: PLW2901
+
+            all_ids.update(ids)
 
         if num_coerced > 100:  # pragma: no cover  # noqa: PLR2004
             types = f"({', '.join(t.__name__ for t in get_args(IdTypes))})"
@@ -113,6 +119,14 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
                 stacklevel=3,
             )
         return source_to_ids
+
+    @classmethod
+    def _coerce_float_to_int(cls, ids: Sequence[float]) -> tuple[Iterable[int], int]:
+        arr = unique(ids)
+        keep_mask = ~isnan(arr, casting="no")
+        arr = arr[keep_mask]
+        arr = arr.astype(int, copy=False)
+        return arr, keep_mask.sum()
 
     def log_key_event_enter(self) -> None:
         """Emits the ``TRANSLATOR:TRANSLATE.ENTER`` message."""
