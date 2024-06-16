@@ -107,3 +107,20 @@ def imdb_translator() -> Translator[str, str, str]:
 def translation_map() -> TranslationMap[str, str, str]:
     imdb_translator: Translator[str, str, str] = Translator.from_config(ROOT.joinpath("config.imdb.toml"))
     return imdb_translator.go_offline(names=["firstTitle", "nconst"]).cache
+
+
+class NotCloneableFetcher(AbstractFetcher[str, int]):
+    def __init__(self):
+        import id_translation
+
+        super().__init__()
+
+        self._cant_deepcopy_this = id_translation
+
+    def _initialize_sources(self, task_id: int) -> dict[str, list[str]]:
+        self.logger.debug(f"_initialize_sources: {task_id=}")
+        return {"source": ["id", "name"]}
+
+    def fetch_translations(self, instr: FetchInstruction[str, int]) -> PlaceholderTranslations[str]:
+        self.logger.debug(f"fetch_translations: {instr=}")
+        return PlaceholderTranslations.make(instr.source, {1: "name"})
