@@ -16,7 +16,7 @@ from id_translation.mapping import Mapper
 from id_translation.mapping.exceptions import MappingError, MappingWarning, UserMappingError
 from id_translation.utils import _config_utils
 
-from .conftest import ROOT
+from .conftest import ROOT, NotCloneableFetcher
 
 LOGGER = logging.getLogger("UnitTestTranslator")
 
@@ -678,10 +678,15 @@ def test_map_scores(translator):
     assert actual == [[inf, -inf], [inf, -inf], [0.0, 0.0]]
 
 
-def test_fetcher_clone_type_error():
-    from id_translation.fetching import SqlFetcher
+def test_not_cloneable_fetcher_raises_on_deepcopy():
+    from copy import deepcopy
 
-    translator = UnitTestTranslator(fetcher=SqlFetcher("sqlite:///"))
+    with pytest.raises(TypeError, match="pickle 'module'"):
+        deepcopy(NotCloneableFetcher())
+
+
+def test_fetcher_not_cloneable():
+    translator = UnitTestTranslator(fetcher=NotCloneableFetcher())
     fetcher_id = id(translator.fetcher)
 
     with pytest.warns(UserWarning, match="reuse"):

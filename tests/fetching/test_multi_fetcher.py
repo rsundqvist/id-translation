@@ -10,7 +10,7 @@ from id_translation.fetching.types import IdsToFetch
 from id_translation.offline.types import PlaceholderTranslations, SourcePlaceholderTranslations
 from id_translation.types import IdTypes
 
-from ..conftest import ROOT
+from ..conftest import ROOT, NotCloneableFetcher
 
 
 @pytest.fixture(scope="module")
@@ -232,14 +232,17 @@ class TestNoSources:
 
 
 @pytest.mark.filterwarnings("ignore:Discarded:id_translation.fetching.exceptions.DuplicateSourceWarning")
-def test_copy(multi_fetcher):
-    copied = deepcopy(multi_fetcher)
-    assert multi_fetcher.fetch_all() == copied.fetch_all()
-    assert multi_fetcher.placeholders == copied.placeholders
+def test_copy(fetchers):
+    not_cloneable = NotCloneableFetcher()
+    original = MultiFetcher(not_cloneable, *fetchers, duplicate_source_discovered_action="ignore")
+
+    copied = deepcopy(original)
+    assert original.fetch_all() == copied.fetch_all()
+    assert original.placeholders == copied.placeholders
 
     copied_children = {copied._id_to_rank[id(c)]: id(c) for c in copied.children}
-    original_children = {multi_fetcher._id_to_rank[id(c)]: id(c) for c in multi_fetcher.children}
+    original_children = {original._id_to_rank[id(c)]: id(c) for c in original.children}
 
     assert sorted(copied_children) == sorted(original_children), "keys should match"
-    assert copied_children.pop(3) == original_children.pop(3), "SqlFetcher cannot be cloned - IDs should be same"
-    assert copied_children != original_children, "MemoryFetcher can be cloned - IDs should be different"
+    assert copied_children.pop(0) == original_children.pop(0), "NotCloneableFetcher - IDs should be same"
+    assert copied_children != original_children, "IDs should be different"

@@ -1,3 +1,5 @@
+from copy import deepcopy
+
 import pytest
 import sqlalchemy
 from id_translation.fetching import SqlFetcher as RealSqlFetcher
@@ -130,3 +132,19 @@ def test_bad_override(column, connection_string):
     with pytest.raises(exceptions.UnknownPlaceholderError, match=repr(column)):
         fetcher.fetch([IdsToFetch("humans", {-1})], ("id", "name"), ("id", "name"))
     fetcher.close()
+
+
+def test_deepcopy(connection_string):
+    fetcher = SqlFetcher(
+        connection_string,
+        engine_kwargs={"hide_parameters": True, "execution_options": {"sqlite_raw_colnames": True}},
+    )
+    with pytest.raises(TypeError, match="cannot pickle"):
+        deepcopy(fetcher.engine)
+    cloned = deepcopy(fetcher)
+
+    assert id(fetcher.engine) != id(cloned.engine)
+    assert fetcher.engine.get_execution_options() == cloned.engine.get_execution_options()
+    assert fetcher.engine.hide_parameters == cloned.engine.hide_parameters
+
+    assert fetcher.fetch_all() == cloned.fetch_all()

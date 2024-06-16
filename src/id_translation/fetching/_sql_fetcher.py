@@ -1,9 +1,10 @@
 import logging
 import warnings
 from collections.abc import Collection, Iterable
+from copy import deepcopy
 from dataclasses import dataclass
 from time import perf_counter
-from typing import Any, Generic, Literal, TypeAlias
+from typing import Any, Generic, Literal, Self, TypeAlias
 from urllib.parse import quote_plus
 from uuid import UUID
 
@@ -85,7 +86,8 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
     ) -> None:
         super().__init__(**kwargs)
 
-        self._engine = self.create_engine(connection_string, password, engine_kwargs or {})
+        self._engine_kwargs = engine_kwargs or {}
+        self._engine = self.create_engine(connection_string, password, self._engine_kwargs)
         self._estr = str(self.engine)
         self._schema = schema
         self._reflect_views = include_views
@@ -445,6 +447,33 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         metadata = sqlalchemy.MetaData(schema=self._schema)
         metadata.reflect(self.engine, only=self._whitelist, views=self._reflect_views)
         return metadata
+
+    def __deepcopy__(self, memo: dict[int, Any] = {}) -> Self:  # noqa: B006
+        cls = self.__class__
+        result = cls.__new__(cls)
+
+        for k, v in self.__dict__.items():
+            setattr(
+                result,
+                k,
+                self._copy_engine(memo, v, self._engine_kwargs)
+                if isinstance(v, sqlalchemy.Engine)
+                else deepcopy(v, memo),
+            )
+
+        memo[id(self)] = result
+        return result
+
+    @staticmethod
+    def _copy_engine(memo: dict[int, Any], engine: sqlalchemy.Engine, kwargs: dict[str, Any]) -> sqlalchemy.Engine:
+        engine_id = id(engine)
+
+        if engine_id in memo:
+            return memo[engine_id]  # type: ignore[no-any-return]
+
+        result = sqlalchemy.create_engine(engine.url, **kwargs)
+        memo[engine_id] = result
+        return result
 
 
 SqlFetcher.TableSummary = TableSummary  # Reexport
