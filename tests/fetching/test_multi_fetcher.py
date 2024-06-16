@@ -1,4 +1,5 @@
 from collections.abc import Collection
+from copy import deepcopy
 
 import pandas as pd
 import pytest
@@ -228,3 +229,17 @@ class TestNoSources:
         assert len(caplog.records) == 1
         assert caplog.records[0].levelname == level
         assert caplog.messages[0].startswith("Discard")
+
+
+@pytest.mark.filterwarnings("ignore:Discarded:id_translation.fetching.exceptions.DuplicateSourceWarning")
+def test_copy(multi_fetcher):
+    copied = deepcopy(multi_fetcher)
+    assert multi_fetcher.fetch_all() == copied.fetch_all()
+    assert multi_fetcher.placeholders == copied.placeholders
+
+    copied_children = {copied._id_to_rank[id(c)]: id(c) for c in copied.children}
+    original_children = {multi_fetcher._id_to_rank[id(c)]: id(c) for c in multi_fetcher.children}
+
+    assert sorted(copied_children) == sorted(original_children), "keys should match"
+    assert copied_children.pop(3) == original_children.pop(3), "SqlFetcher cannot be cloned - IDs should be same"
+    assert copied_children != original_children, "MemoryFetcher can be cloned - IDs should be different"

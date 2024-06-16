@@ -3,8 +3,9 @@ from __future__ import annotations
 import logging
 import warnings
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
+from copy import deepcopy
 from time import perf_counter
-from typing import TYPE_CHECKING, Never, final
+from typing import TYPE_CHECKING, Any, Never, Self, final
 
 from rics.action_level import ActionLevel, ActionLevelHelper
 from rics.collections.dicts import reverse_dict
@@ -460,3 +461,42 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         note += f"\n - child= {self._fmt_fetcher(fetcher)}"
         e.add_note(note)
         raise
+
+    def __deepcopy__(self, memo: dict[int, Any] = {}) -> Self:  # noqa: B006
+        cls = self.__class__
+        result = cls.__new__(cls)
+
+        members = self.__dict__
+
+        old_id_to_rank = members["_id_to_rank"]
+        old_id_to_fetcher = members["_id_to_fetcher"]
+
+        new_id_to_rank = {}
+        new_id_to_fetcher = {}
+
+        for old_id, old_fetcher in old_id_to_fetcher.items():
+            try:
+                new_fetcher = deepcopy(old_fetcher, memo)
+            except TypeError as e:
+                new_fetcher = old_fetcher
+
+                # This hides the Translator.copy(fetcher=Translator.fetcher) warning emitted in the caller!
+                fetcher_cls = type(old_fetcher).__name__
+                msg = f"deepcopy() failed ({type(e).__name__}: {e}). Reusing {self._fmt_fetcher(old_fetcher)}"
+                LOGGER.debug(msg, exc_info=True, extra={"fetcher_class": fetcher_cls})
+
+            new_id = id(new_fetcher)
+            new_id_to_rank[new_id] = old_id_to_rank[old_id]
+            new_id_to_fetcher[new_id] = new_fetcher
+
+        result._id_to_rank = new_id_to_rank
+        result._id_to_fetcher = new_id_to_fetcher
+
+        for k, v in members.items():
+            if k in ("_id_to_rank", "_id_to_fetcher"):
+                continue
+
+            setattr(result, k, deepcopy(v, memo))
+
+        memo[id(self)] = result
+        return result
