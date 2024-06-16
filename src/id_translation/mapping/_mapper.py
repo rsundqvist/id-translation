@@ -2,7 +2,7 @@ import logging
 import warnings
 from collections.abc import Iterable
 from time import perf_counter
-from typing import Any, Generic
+from typing import Any, Generic, Self
 
 import numpy as np
 import pandas as pd
@@ -440,7 +440,7 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):
         score = self._score
         return f"{tname(self)}({score=} >= {self._min_score}, {len(self._filters)} filters)"
 
-    def copy(self, **overrides: Any) -> "Mapper[ValueType, CandidateType, ContextType]":
+    def copy(self, **overrides: Any) -> Self:
         """Make a copy of this ``Mapper``.
 
         Args:
@@ -469,7 +469,8 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):
         if "overrides" not in kwargs:
             kwargs["overrides"] = self._overrides.copy()
 
-        return Mapper(**kwargs)
+        cls = type(self)
+        return cls(**kwargs)
 
     def __eq__(self, other: Any) -> bool:
         if not isinstance(other, Mapper):
