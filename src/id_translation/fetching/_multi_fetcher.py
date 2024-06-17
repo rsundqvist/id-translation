@@ -466,15 +466,20 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         cls = self.__class__
         result = cls.__new__(cls)
 
+        dicts = self._copy_dicts(memo)
+        for k, v in self.__dict__.items():
+            setattr(result, k, dicts[k] if k in dicts else deepcopy(v, memo))
+
+        memo[id(self)] = result
+        return result
+
+    def _copy_dicts(self, memo: dict[int, Any]) -> dict[str, dict[str, Any] | dict[int, Any]]:
+        new_id_to_fetcher: dict[int, Fetcher[SourceType, IdType]] = {}
+        old_id_to_new_id: dict[int, int] = {}
+
         members = self.__dict__
 
-        old_id_to_rank = members["_id_to_rank"]
-        old_id_to_fetcher = members["_id_to_fetcher"]
-
-        new_id_to_rank = {}
-        new_id_to_fetcher = {}
-
-        for old_id, old_fetcher in old_id_to_fetcher.items():
+        for old_id, old_fetcher in members["_id_to_fetcher"].items():
             try:
                 new_fetcher = deepcopy(old_fetcher, memo)
             except TypeError as e:
@@ -486,17 +491,11 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
                 LOGGER.debug(msg, exc_info=True, extra={"fetcher_class": fetcher_cls})
 
             new_id = id(new_fetcher)
-            new_id_to_rank[new_id] = old_id_to_rank[old_id]
             new_id_to_fetcher[new_id] = new_fetcher
+            old_id_to_new_id[old_id] = new_id
 
-        result._id_to_rank = new_id_to_rank
-        result._id_to_fetcher = new_id_to_fetcher
-
-        for k, v in members.items():
-            if k in ("_id_to_rank", "_id_to_fetcher"):
-                continue
-
-            setattr(result, k, deepcopy(v, memo))
-
-        memo[id(self)] = result
-        return result
+        return {
+            "_id_to_fetcher": new_id_to_fetcher,
+            "_id_to_rank": {old_id_to_new_id[old_id]: rank for old_id, rank in members["_id_to_rank"].items()},
+            "_source_to_id": {source: old_id_to_new_id[old_id] for source, old_id in members["_source_to_id"].items()},
+        }
