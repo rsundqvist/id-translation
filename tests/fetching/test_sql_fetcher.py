@@ -139,6 +139,12 @@ def test_deepcopy(connection_string):
         connection_string,
         engine_kwargs={"hide_parameters": True, "execution_options": {"sqlite_raw_colnames": True}},
     )
+
+    fetcher.initialize_sources()
+    original_fetch_all = fetcher.fetch_all()
+    ids_to_fetch = [IdsToFetch("animals", {1})]
+    original_fetch = fetcher.fetch(ids_to_fetch)
+
     with pytest.raises(TypeError, match="cannot pickle"):
         deepcopy(fetcher.engine)
     cloned = deepcopy(fetcher)
@@ -147,4 +153,5 @@ def test_deepcopy(connection_string):
     assert fetcher.engine.get_execution_options() == cloned.engine.get_execution_options()
     assert fetcher.engine.hide_parameters == cloned.engine.hide_parameters
 
-    assert fetcher.fetch_all() == cloned.fetch_all()
+    assert original_fetch_all == cloned.fetch_all()
+    assert original_fetch == cloned.fetch(ids_to_fetch)
