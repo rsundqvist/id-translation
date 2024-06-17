@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Fix crash when using `deepclone`d `MultiFetcher` instances (again).
+
 ## [0.11.0] - 2024-06-16
 
 ### Added

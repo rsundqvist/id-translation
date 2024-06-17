@@ -233,11 +233,16 @@ class TestNoSources:
 
 @pytest.mark.filterwarnings("ignore:Discarded:id_translation.fetching.exceptions.DuplicateSourceWarning")
 def test_copy(fetchers):
+    ids_to_fetch = [IdsToFetch("animals", {1})]
+
     not_cloneable = NotCloneableFetcher()
-    original = MultiFetcher(not_cloneable, *fetchers, duplicate_source_discovered_action="ignore")
+    original = MultiFetcher(not_cloneable, *fetchers, duplicate_source_discovered_action="ignore", max_workers=2)
+    original.initialize_sources()
+    original_fetch_all = original.fetch_all()
+    original_fetch = original.fetch(ids_to_fetch)
 
     copied = deepcopy(original)
-    assert original.fetch_all() == copied.fetch_all()
+    assert original_fetch_all == copied.fetch_all()
     assert original.placeholders == copied.placeholders
 
     copied_children = {copied._id_to_rank[id(c)]: id(c) for c in copied.children}
@@ -246,3 +251,5 @@ def test_copy(fetchers):
     assert sorted(copied_children) == sorted(original_children), "keys should match"
     assert copied_children.pop(0) == original_children.pop(0), "NotCloneableFetcher - IDs should be same"
     assert copied_children != original_children, "IDs should be different"
+
+    assert original_fetch == copied.fetch(ids_to_fetch)
