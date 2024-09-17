@@ -73,8 +73,8 @@ def test_dummy_translation_doesnt_crash(with_id, with_override, store):
         names=names,
         override_function=override_function if with_override else None,
     )
-    assert_type(ans, Any)  # no numpy.typing.mypy_plugin
     assert ans is not None
+    assert isinstance(ans, np.ndarray)
     assert ans.shape == (3, 10)
 
 
@@ -499,7 +499,7 @@ def test_repeated_names(translator, ids, names, expected_untranslated):
     df.columns = names
     actual = translator.translate(df)
     for i in expected_untranslated:
-        assert actual.iloc[0, i] == f"<Failed: id={ids[i]}>"
+        assert actual.iloc[0, i] == f"<Failed: id=np.int64({ids[i]})>"
 
 
 def test_temporary_translate_fmt(translator, monkeypatch):

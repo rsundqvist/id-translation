@@ -410,7 +410,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         ) -> DictToList[NameType, str]: ...
 
         @overload
-        def translate(  # type: ignore[overload-overlap]  # Overlaps with DictToVarTuple
+        def translate(  # Overlaps with DictToVarTuple
             self,
             translatable: DictToOneTuple[NameType, IdType],
             names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
@@ -425,7 +425,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         ) -> DictToOneTuple[NameType, str]: ...
 
         @overload
-        def translate(  # type: ignore[overload-overlap]  # Overlaps with DictToVarTuple
+        def translate(  # Overlaps with DictToVarTuple
             self,
             translatable: DictToTwoTuple[NameType, IdType],
             names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
@@ -440,7 +440,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         ) -> DictToTwoTuple[NameType, str]: ...
 
         @overload
-        def translate(  # type: ignore[overload-overlap]  # Overlaps with DictToVarTuple
+        def translate(  # Overlaps with DictToVarTuple
             self,
             translatable: DictToThreeTuple[NameType, IdType],
             names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,

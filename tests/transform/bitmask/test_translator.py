@@ -20,9 +20,9 @@ def test_default(online, data):
     translator = make_translator(online, transformer)
     actual = translator.translate(data, names="vehicles").to_dict()
     assert actual == {
-        -2: "<Failed: id=-2>",
-        -1: "<Failed: id=-1>",
-        0: "<Failed: id=0>",
+        -2: "<Failed: id=np.int64(-2)>",
+        -1: "<Failed: id=np.int64(-1)>",
+        0: "<Failed: id=np.int64(0)>",
         1: "1:Cars",
         2: "2:Quad bikes",
         3: "1:Cars & 2:Quad bikes",
@@ -38,7 +38,7 @@ def test_default(online, data):
         13: "1:Cars & 4:Skateboards & 8:Bicycles",
         14: "2:Quad bikes & 4:Skateboards & 8:Bicycles",
         15: "1:Cars & 2:Quad bikes & 4:Skateboards & 8:Bicycles",
-        16: "<Failed: id=16>",
+        16: "<Failed: id=np.int64(16)>",
     }
 
 
@@ -46,7 +46,7 @@ def test_overrides(online, data):
     translator = make_translator(online, BitmaskTransformer(overrides=OVERRIDES))
     actual = translator.translate(data, names="vehicles").to_dict()
     assert actual == {
-        -2: "<Failed: id=-2>",
+        -2: "<Failed: id=np.int64(-2)>",
         -1: "Foot-traffic only",
         0: "Private property/no entry 🛑",
         1: "Automobiles",
@@ -64,7 +64,7 @@ def test_overrides(online, data):
         13: "Automobiles & 4:Skateboards & 8:Bicycles",
         14: "2:Quad bikes & 4:Skateboards & 8:Bicycles",
         15: "Automobiles & 2:Quad bikes & 4:Skateboards & 8:Bicycles",
-        16: "<Failed: id=16>",
+        16: "<Failed: id=np.int64(16)>",
     }
 
 
@@ -72,9 +72,9 @@ def test_force(online, data):
     translator = make_translator(online, BitmaskTransformer(force_decomposition=True))
     actual = translator.translate(data, names="vehicles").to_dict()
     assert actual == {
-        -2: "<Failed: id=-2>",
-        -1: "<Failed: id=-1>",
-        0: "<Failed: id=0>",
+        -2: "<Failed: id=np.int64(-2)>",
+        -1: "<Failed: id=np.int64(-1)>",
+        0: "<Failed: id=np.int64(0)>",
         1: "1:Cars",
         2: "2:Quad bikes",
         3: "1:Cars & 2:Quad bikes",
@@ -90,7 +90,7 @@ def test_force(online, data):
         13: "1:Cars & 4:Skateboards & 8:Bicycles",
         14: "2:Quad bikes & 4:Skateboards & 8:Bicycles",
         15: "1:Cars & 2:Quad bikes & 4:Skateboards & 8:Bicycles",
-        16: "<Failed: id=16>",
+        16: "<Failed: id=np.int64(16)>",
     }
 
 
@@ -98,7 +98,7 @@ def test_overrides_take_precedence_over_forced_decomposition(online, data):
     translator = make_translator(online, BitmaskTransformer(overrides=OVERRIDES, force_decomposition=True))
     actual = translator.translate(data, names="vehicles").to_dict()
     assert actual == {
-        -2: "<Failed: id=-2>",
+        -2: "<Failed: id=np.int64(-2)>",
         -1: "Foot-traffic only",
         0: "Private property/no entry 🛑",
         1: "Automobiles",
@@ -116,7 +116,7 @@ def test_overrides_take_precedence_over_forced_decomposition(online, data):
         13: "Automobiles & 4:Skateboards & 8:Bicycles",
         14: "2:Quad bikes & 4:Skateboards & 8:Bicycles",
         15: "Automobiles & 2:Quad bikes & 4:Skateboards & 8:Bicycles",
-        16: "<Failed: id=16>",
+        16: "<Failed: id=np.int64(16)>",
     }
 
 

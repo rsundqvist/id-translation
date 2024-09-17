@@ -124,7 +124,7 @@ class Cardinality(Enum):
         return arg if isinstance(arg, Cardinality) else _from_generous_string(arg, strict)
 
 
-Cardinality.ParseType = Union[str, Cardinality]  # type: ignore[assignment]
+Cardinality.ParseType = Union[str, Cardinality]
 
 
 def _parsing_failure_message(arg: str, strict: bool) -> str:

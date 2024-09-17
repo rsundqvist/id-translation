@@ -1,6 +1,6 @@
 import logging
 import warnings
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Generic
 
 from rics.collections.misc import as_list
 
@@ -126,7 +126,7 @@ def _handle_input_names(
     return as_list(names), override_function
 
 
-class _UserDefinedNameToSourceMapping:
+class _UserDefinedNameToSourceMapping(Generic[NameType, SourceType]):
     def __init__(self, name_to_source: NameToSource[NameType, SourceType]) -> None:
         for name, source in name_to_source.items():
             if source is None:
