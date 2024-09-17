@@ -33,7 +33,7 @@ def data() -> dict[str, dict[IdTypes, str]]:
 
 @pytest.fixture
 def translator(data: dict[str, dict[IdTypes, str]]) -> Translator[str, str, IdTypes]:
-    return Translator[str, str, IdTypes](data, fmt="{id!s:.8}:{name}")
+    return Translator[str, str, IdTypes](data, fmt="{id!s:.8}:{name}", enable_uuid_heuristics=True)
 
 
 @pytest.fixture

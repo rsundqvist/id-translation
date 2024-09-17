@@ -1,6 +1,7 @@
 """Integration for `Polars <https://pola.rs/>`_ types."""
 
 import typing as _t
+import warnings as _w
 
 import polars as pl
 
@@ -28,16 +29,25 @@ class PolarsIO(_dio.DataStructureIO[PolarsT, str, _tt.SourceType, _tt.IdType]):
 
         return None if translatable.name is None else [translatable.name]
 
+    @staticmethod
+    def _obj_to_str(series: pl.Series) -> pl.Series:
+        if series.dtype == pl.Object:
+            with _w.catch_warnings():
+                _w.filterwarnings("ignore", category=pl.exceptions.PolarsInefficientMapWarning)
+                series = series.map_elements(str, return_dtype=pl.String)
+        return series
+
     @classmethod
     def extract(cls, translatable: PolarsT, names: list[str]) -> dict[str, _t.Sequence[_tt.IdType]]:
+        def extract(series: pl.Series) -> _t.Sequence[_tt.IdType]:
+            return cls._obj_to_str(series).unique().to_list()
+
         if isinstance(translatable, pl.Series):
             if len(names) != 1:
                 raise RuntimeError(f"{len(names)=} != 1 is not supported for polars.Series")
-            return {names[0]: translatable.to_list()}
+            return {names[0]: extract(translatable)}
         else:
-            # Unlike Pandas, polars==0.20.16 raises DuplicateError on duplicate column names.
-            name_to_ids = translatable[names].to_dict(as_series=False)
-            return name_to_ids  # type: ignore[return-value]
+            return {n: extract(translatable[n]) for n in names}
 
     @classmethod
     def insert(
@@ -55,17 +65,10 @@ class PolarsIO(_dio.DataStructureIO[PolarsT, str, _tt.SourceType, _tt.IdType]):
         def _translate_series(series: pl.Series, name: str) -> pl.Series:
             # Create the mappings before Polars can disappear into Rust, where the MagicDict logic will disappear. For
             # the base case this is fine, but things like Transformer.try_add_missing_key will break.
-
             magic_dict = tmap[name]
-
-            try:
-                mapping = {idx: magic_dict[idx] for idx in series.unique()}
-                return series.replace(mapping)
-            except pl.exceptions.InvalidOperationError:
-                # InvalidOperationError: `unique` operation not supported for dtype `object`
-
-                mapping = {idx: magic_dict[idx] for idx in set(series)}
-                return pl.Series(values=[mapping[idx] for idx in series], name=name)
+            series = cls._obj_to_str(series)
+            mapping = {idx: magic_dict[idx] for idx in series.unique()}
+            return series.replace_strict(mapping, return_dtype=pl.String)
 
         if isinstance(translatable, pl.DataFrame):
             translated_columns = {name: _translate_series(translatable[name], name) for name in names}
