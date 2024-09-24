@@ -29,6 +29,7 @@ class MemoryFetcher(AbstractFetcher[SourceType, IdType]):
         return_all: bool = True,
         **kwargs: Any,
     ) -> None:
+        kwargs.setdefault("concurrent_operation_action", "ignore")
         super().__init__(**kwargs)
         self._data: SourcePlaceholderTranslations[SourceType] = (
             {} if not data else {source: PlaceholderTranslations.make(source, pht) for source, pht in data.items()}

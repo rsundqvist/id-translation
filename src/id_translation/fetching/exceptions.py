@@ -23,8 +23,12 @@ class ForbiddenOperationError(FetcherError):
 class ConcurrentOperationError(FetcherError):
     """Exception indicating that an operation is already in progress."""
 
-    def __init__(self, operation: str, active_operation: str) -> None:  # pragma: no cover
-        super().__init__(f"Operation '{operation}' cannot begin while a '{active_operation}'-operation is in progress.")
+    def __init__(self, operation: str, active_operation: str, *, param_info: str) -> None:  # pragma: no cover
+        msg = (
+            f"Operation '{operation}' cannot begin while a '{active_operation}'-operation is in progress."
+            f"\nHint: Set {param_info} to allow concurrent operations."
+        )
+        super().__init__(msg)
         self.operation = operation
         self.active_operation = active_operation
 

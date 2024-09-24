@@ -64,6 +64,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
 
     def __init__(
         self,
+        *,
         mapper: Mapper[str, str, SourceType] = None,
         allow_fetch_all: bool = True,
         fetch_all_unmapped_values_action: ActionLevel.ParseType = None,
@@ -71,6 +72,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         fetch_all_cache_max_age: str | pd.Timedelta | timedelta = None,
         cache_keys: Sequence[str] | None = None,
         optional: bool = False,
+        concurrent_operation_action: ActionLevel.ParseType = "raise",
     ) -> None:
         self._mapper: Mapper[str, str, SourceType] = mapper or Mapper(**self.default_mapper_kwargs())
         if self._mapper.unmapped_values_action is ActionLevel.RAISE:
@@ -95,6 +97,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
                 forbidden=ActionLevel.RAISE if selective_fetch_all else None,
             )
         )
+        self._concurrent_operation_action = ActionLevel.verify(concurrent_operation_action, forbidden=ActionLevel.WARN)
         self._selective_fetch_all: bool = selective_fetch_all
 
         if fetch_all_cache_max_age and not cache_keys:  # pragma: no cover
@@ -305,8 +308,17 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
 
     @contextmanager
     def _start_operation(self, operation):  # type: ignore  # noqa
+        concurrent_operation_action = self._concurrent_operation_action
+        if concurrent_operation_action is ActionLevel.IGNORE:
+            yield
+            return
+
         if self._active_operation:  # pragma: no cover
-            raise exceptions.ConcurrentOperationError(operation, self._active_operation)
+            raise exceptions.ConcurrentOperationError(
+                operation,
+                self._active_operation,
+                param_info="concurrent_operation_action='ignore'",
+            )
 
         self._active_operation = operation
         try:
