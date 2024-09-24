@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## Changes
+- Improve `PandasIO` performance (~4x faster for large datasets).
+- Typing updates (notably numpy `2.0`).
+- Added `concurrent_operation_action=raise|ignore` to `AbstractFether`. Default
+  is `ignore` for `MemoryFetcher`.
+
 ## [0.11.1] - 2024-06-17
 
 ### Fixed
