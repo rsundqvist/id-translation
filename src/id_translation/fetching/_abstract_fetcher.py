@@ -52,6 +52,8 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
             of the `cache_keys` is added to the :attr:`logger` name for the fetcher.
         optional: If ``True``, this fetcher may be discarded if source/placeholder-enumeration fails in multi-fetcher
             mode.
+        concurrent_operation_action: Action to take if fetch(-all) operations are executed concurrently. Should be
+            set to ``'ignore'`` for thread-safe fetchers.
 
     Raises:
         rics.action_level.BadActionLevelError: If `selective_fetch_all` is ``True`` and

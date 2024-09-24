@@ -162,6 +162,11 @@ a :class:`~id_translation.fetching.MemoryFetcher` would be created by adding a `
      - :py:class:`bool`
      - If ``True``, discard on :attr:`~id_translation.fetching.Fetcher.sources`-resolution crash.
      - Multi-fetcher mode only.
+   * - | concurrent_operation
+       | _action
+     - `raise | ignore`
+     - Action to take if fetch(-all) operations are executed concurrently.
+     - Should be set to ``'ignore'`` for thread-safe fetchers
 
 The keys listed above are for the :class:`~id_translation.fetching.AbstractFetcher` class, which all fetchers created by
 TOML configuration must inherit. Additional parameters vary based on the chosen implementation. See the
