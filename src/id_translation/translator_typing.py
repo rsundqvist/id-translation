@@ -18,7 +18,7 @@ SimpleDictFetcherTypes = dict[_tt.SourceType, dict[_tt.IdType, str]]
 Must be on the form ``{source: {id: name}}``.
 """
 
-SourceToPlaceholderTranslationsMakeTypes = _t.Mapping[_tt.SourceType, _ot.MakeTypes[_tt.SourceType]]
+SourceToPlaceholderTranslationsMakeTypes = _t.Mapping[_tt.SourceType, _ot.MakeTypes[_tt.SourceType, _tt.IdType]]
 """Data for translating using arbitrary placeholders; see :meth:`.PlaceholderTranslations.make`"""
 
 NativeFetcherTypes = (
@@ -31,7 +31,7 @@ NativeFetcherTypes = (
 FetcherTypes = (
     NativeFetcherTypes[_tt.NameType, _tt.SourceType, _tt.IdType]
     | SimpleDictFetcherTypes[_tt.SourceType, _tt.IdType]
-    | SourceToPlaceholderTranslationsMakeTypes[_tt.SourceType]
+    | SourceToPlaceholderTranslationsMakeTypes[_tt.SourceType, _tt.IdType]
 )
 """All valid input types for creating a ``Translator``."""
 

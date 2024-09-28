@@ -17,7 +17,7 @@ FormatType = _t.Union[str, "Format"]
 PlaceholdersTuple = tuple[str, ...]
 TranslatedIds = dict[_tt.IdType, str]  # {id: translation}
 
-DictMakeTypes = dict[str, _Sequence[_t.Any]] | dict[_tt.IdTypes, str]
+DictMakeTypes = dict[str, _Sequence[_t.Any]] | dict[_tt.IdType, str]
 
 
 @_dataclasses.dataclass
@@ -34,7 +34,7 @@ class PlaceholderTranslations(_t.Generic[_tt.SourceType]):
     """Position if the the ID placeholder in `placeholders`."""
 
     @classmethod
-    def make(cls, source: _tt.SourceType, data: "MakeTypes[_tt.SourceType]") -> _t.Self:
+    def make(cls, source: _tt.SourceType, data: "MakeTypes[_tt.SourceType, _tt.IdTypes]") -> _t.Self:
         """Try to make in instance from arbitrary input data.
 
         Args:
@@ -82,22 +82,22 @@ class PlaceholderTranslations(_t.Generic[_tt.SourceType]):
         )
 
     @classmethod
-    def from_dict(cls, source: _tt.SourceType, data: DictMakeTypes) -> _t.Self:
+    def from_dict(cls, source: _tt.SourceType, data: DictMakeTypes[_tt.IdType]) -> _t.Self:
         """Create instance from a dict."""
         import pandas as pd
 
         if cls._is_simple_form(data):
             # Users may pass dicts on the form {source: {id: name}}, where our data={id: name}.
-            _t.assert_type(data, dict[_tt.IdTypes, str])
+            _t.assert_type(data, dict[_tt.IdType, str])
             data = {_tt.ID: list(data.keys()), "name": list(data.values())}  # type: ignore[assignment]
 
         return cls.from_dataframe(source, pd.DataFrame.from_dict(data))
 
     @classmethod
-    def _is_simple_form(cls, data: DictMakeTypes) -> _t.TypeGuard[dict[_tt.IdTypes, str]]:
+    def _is_simple_form(cls, data: DictMakeTypes[_tt.IdType]) -> _t.TypeGuard[dict[_tt.IdType, str]]:
         id_types = _t.get_args(_tt.IdTypes)
         return all(isinstance(key, id_types) and isinstance(value, str) for key, value in data.items())
 
 
-MakeTypes = _t.Union[PlaceholderTranslations[_tt.SourceType], "pandas.DataFrame", DictMakeTypes]
+MakeTypes = _t.Union[PlaceholderTranslations[_tt.SourceType], "pandas.DataFrame", DictMakeTypes[_tt.IdType]]
 SourcePlaceholderTranslations = dict[_tt.SourceType, PlaceholderTranslations[_tt.SourceType]]
