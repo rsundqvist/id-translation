@@ -1022,7 +1022,9 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         del self._fetcher
         self._cached_tmap = translation_map
 
-        LOGGER.info(f"Created {translation_map} in {fmt_perf(start)}.")
+        LOGGER.info(
+            f"Went offline with {len(translation_map.sources)} sources in {fmt_perf(start)}: {translation_map}."
+        )
         if path:
             import pickle
 

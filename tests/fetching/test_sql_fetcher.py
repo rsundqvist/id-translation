@@ -1,5 +1,6 @@
 from copy import deepcopy
 
+import pandas as pd
 import pytest
 import sqlalchemy
 from id_translation.fetching import SqlFetcher as RealSqlFetcher
@@ -15,13 +16,12 @@ SqlFetcher = RealSqlFetcher[int]
 
 @pytest.mark.parametrize("table_to_verify", ["animals", "humans", "big_table", "huge_table"])
 def test_fetch_all(sql_fetcher, data, table_to_verify):
-    actual = sql_fetcher.fetch_all(["id", "name", "is_nice", "gender"], required=["id"])[table_to_verify].records
-    expected = tuple(data[table_to_verify].to_records(False))
+    translations = sql_fetcher.fetch_all(["id", "name", "is_nice", "gender"], required=["id"])
 
-    actual_cast = tuple(tuple(r) for r in actual)
-    expected_cast = tuple(tuple(r) for r in expected)
+    actual = pd.DataFrame.from_dict(translations[table_to_verify].to_dict())
+    expected = data[table_to_verify][actual.columns]
 
-    assert actual_cast == expected_cast
+    pd.testing.assert_frame_equal(actual, expected)
 
 
 def test_select_where_fetch_all(sql_fetcher, monkeypatch):

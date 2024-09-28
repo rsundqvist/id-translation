@@ -186,6 +186,11 @@ class TranslationMap(
         return {applier.source: applier.placeholders for applier in self._format_appliers.values()}
 
     @property
+    def len_per_source(self) -> dict[SourceType, int]:
+        """Number of IDs per :attr:`source <sources>`."""
+        return {applier.source: len(applier) for applier in self._format_appliers.values()}
+
+    @property
     def name_to_source(self) -> NameToSource[NameType, SourceType]:
         """Return name-to-source mapping."""
         return dict(self._name_to_source)
@@ -272,7 +277,5 @@ class TranslationMap(
         return bool(self._format_appliers)
 
     def __repr__(self) -> str:
-        sources = ", ".join(
-            f"'{formatter.source}': {len(formatter)} IDs" for formatter in self._format_appliers.values()
-        )
+        sources = ", ".join(f"'{source}': {n_ids} IDs" for source, n_ids in self.len_per_source.items())
         return f"{tname(self)}({sources})"
