@@ -110,20 +110,18 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
                 self.logger.getChild("sql").warning(msg)
                 warnings.warn(msg, category=FetcherWarning, stacklevel=2)
 
-    @classmethod
     def select_where(
-        cls,
+        self,
         select: sqlalchemy.sql.Select[tuple[IdType, ...]],
         *,
-        ids: set[IdType] | None,
-        id_column: sqlalchemy.sql.ColumnElement[IdType],
-        table: sqlalchemy.Table,  # noqa: ARG003
+        ids: set[IdType] | None,  # noqa: ARG002
+        id_column: sqlalchemy.sql.ColumnElement[IdType],  # noqa: ARG002
+        table: sqlalchemy.Table,  # noqa: ARG002
     ) -> sqlalchemy.sql.Select[tuple[IdType, ...]]:
-        """Add ``WHERE`` clause(s) to an ID select statement.
+        """User method for modifying SELECT statements.
 
-        .. warning::
-
-           When overriding, keep in mind that returning the `select` statement as-is will perform an unfiltered select.
+        The default implementation returns `select` as-is. Selection based on IDs is done before this method is called.
+        Users may override this method to change what and which data is returned, e.g. by additional WHERE-clauses.
 
         Args:
             select: A ``sqlalchemy.sql.Select`` element. If returned as-is, all IDs in the table will be fetched.
@@ -134,6 +132,16 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         Returns:
             The final statement object to use.
         """
+        return select
+
+    @classmethod
+    def _select_where(
+        cls,
+        select: sqlalchemy.sql.Select[tuple[IdType, ...]],
+        *,
+        ids: set[IdType] | None,
+        id_column: sqlalchemy.sql.ColumnElement[IdType],
+    ) -> sqlalchemy.sql.Select[tuple[IdType, ...]]:
         if ids is None:
             return select
 
@@ -173,6 +181,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         columns = [id_column if name == ts.id_column.name else ts.columns[name] for name in column_names]
         select = sqlalchemy.select(*columns)
 
+        select = self._select_where(select, ids=instr.ids, id_column=id_column)
         select = self.select_where(select, ids=instr.ids, id_column=id_column, table=ts.id_column.table)
 
         self._log_query(select, logger_extra={"task_id": instr.task_id, "table": instr.source})

@@ -10,8 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changes
 - Improve `PandasIO` performance (~4x faster for large datasets).
 - Typing updates (notably numpy `2.0`).
-- Added `concurrent_operation_action=raise|ignore` to `AbstractFether`. Default
-  is `ignore` for `MemoryFetcher`.
+- Added `concurrent_operation_action=raise|ignore` to `AbstractFether`. Default is `ignore` for `MemoryFetcher`.
+- Implementations that override `SqlFetcher.select_where()` no longer have to call the supermethod to ensure that IDs
+  are filtered.
 
 ### Fixed
 - The `Translator.go_offline(translatable=None)`-method now respects given names arguments.
