@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - The `Translator.go_offline(translatable=None)`-method now respects given names arguments.
 
+### Removed
+- The `AbstractFetcher` now longer provides a caching implementation. Provides overridable methods instead.
+
 ## [0.11.1] - 2024-06-17
 
 ### Fixed

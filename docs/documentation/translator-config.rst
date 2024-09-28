@@ -149,15 +149,10 @@ a :class:`~id_translation.fetching.MemoryFetcher` would be created by adding a `
      - Sources without required keys are are not fetched.
      - | Implicit `fetch_all_unmapped`
        | `_values_action='ignore'`
-   * - | fetch_all_cache
-       | _max_age
-     - :class:`pandas.Timedelta`
-     - Specified as a string, eg `'12h'` or `'30d'`.
-     - Set to non-zero value to enable.
-   * - cache_keys
+   * - identifiers
      - :py:class:`Sequence[str] <typing.Sequence>`
-     - Hierarchical identifier for the cache.
-     - Provided automatically if not given.
+     - Hierarchical identifiers for the fetcher.
+     - Based on source file if not given.
    * - optional
      - :py:class:`bool`
      - If ``True``, discard on :attr:`~id_translation.fetching.Fetcher.sources`-resolution crash.

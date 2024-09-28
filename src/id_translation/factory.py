@@ -199,7 +199,7 @@ class TranslatorFactory(_Generic[NameType, SourceType, IdType]):
             config: dict[str, _Any] = self.load_toml_file(self.file)
 
         fetcher, fetcher_transformers = self._handle_fetching(
-            config.pop("fetching", {}), self.extra_fetchers, _cache_keys_from_config_metadata(config_metadata)
+            config.pop("fetching", {}), self.extra_fetchers, _identifier_from_config_metadata(config_metadata)
         )
 
         with _rethrow_with_file(self.file):
@@ -233,7 +233,7 @@ class TranslatorFactory(_Generic[NameType, SourceType, IdType]):
         self,
         config: dict[str, _Any],
         extra_fetchers: list[str],
-        default_cache_keys: list[list[str]],
+        default_identifiers: list[list[str]],
     ) -> tuple[fetching.Fetcher[SourceType, IdType], Transformers[SourceType, IdType]]:
         multi_fetcher_kwargs = config.pop("MultiFetcher", {})
 
@@ -242,13 +242,13 @@ class TranslatorFactory(_Generic[NameType, SourceType, IdType]):
 
         if config:
             with _rethrow_with_file(self.file):
-                fetchers.append(self._make_fetcher(default_cache_keys[0], **config))  # Add primary fetcher
+                fetchers.append(self._make_fetcher(default_identifiers[0], **config))  # Add primary fetcher
 
         for i, fetcher_file in enumerate(extra_fetchers, start=1):
             with _rethrow_with_file(fetcher_file):
                 fetcher_config = self.load_toml_file(fetcher_file)
                 _check_allowed_keys(["fetching", "transform"], actual=fetcher_config, toml_path="<root>")
-                fetcher = self._make_fetcher(default_cache_keys[i], **fetcher_config["fetching"])
+                fetcher = self._make_fetcher(default_identifiers[i], **fetcher_config["fetching"])
                 new_transformers = self._handler_transformers(fetcher_config.get("transform", {}))
 
                 if keys := set(new_transformers).intersection(transformers):
@@ -289,7 +289,7 @@ class TranslatorFactory(_Generic[NameType, SourceType, IdType]):
         return TranslatorFactory.MAPPER_FACTORY(config, for_fetcher)
 
     @classmethod
-    def _make_fetcher(cls, cache_keys: list[str], **config: _Any) -> fetching.AbstractFetcher[SourceType, IdType]:
+    def _make_fetcher(cls, identifiers: list[str], **config: _Any) -> fetching.AbstractFetcher[SourceType, IdType]:
         mapper = cls._make_mapper("fetching", config) if "mapping" in config else None
 
         if len(config) == 0:  # pragma: no cover
@@ -301,7 +301,7 @@ class TranslatorFactory(_Generic[NameType, SourceType, IdType]):
 
         clazz, kwargs = next(iter(config.items()))
 
-        kwargs["cache_keys"] = kwargs.get("cache_keys", cache_keys)
+        kwargs["identifiers"] = kwargs.get("identifiers", identifiers)
         kwargs["mapper"] = mapper
         return TranslatorFactory.FETCHER_FACTORY(clazz, kwargs)
 
@@ -344,7 +344,7 @@ def _split_overrides(overrides: _Any) -> _Any:
     return shared, specific
 
 
-def _cache_keys_from_config_metadata(config_metadata: _ConfigMetadata) -> list[list[str]]:
+def _identifier_from_config_metadata(config_metadata: _ConfigMetadata) -> list[list[str]]:
     # Use the config filename and sha hash as the default keys
     return list(map(lambda t: [t[0].name, t[1]], (config_metadata.main, *config_metadata.extra_fetchers)))
 
