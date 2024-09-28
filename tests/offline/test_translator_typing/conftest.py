@@ -16,11 +16,14 @@ class TypedTranslator(_Base[str, bool, int | UUID]):
         from id_translation.mapping import Mapper
         from id_translation.offline.types import PlaceholderTranslations
 
-        is_human: dict[str, bool] = {"places": False, "people": True}
-        mapper = Mapper[str, bool, None](overrides=is_human)
+        data = {
+            True: PlaceholderTranslations.make(True, PEOPLE),
+            False: PlaceholderTranslations.make(False, PLACES),
+        }
+        fetcher: MemoryFetcher[bool, int | UUID] = MemoryFetcher(data, return_all=False)
 
-        data = {True: PlaceholderTranslations.make(True, PEOPLE), False: PlaceholderTranslations.make(False, PLACES)}
-        fetcher = MemoryFetcher[bool, int | UUID](data, return_all=False)
+        is_human: dict[str, bool] = {"places": False, "people": True}
+        mapper: Mapper[str, bool, None] = Mapper(overrides=is_human)
 
         super().__init__(fetcher=fetcher, fmt="{id!s:.8}:{name}", mapper=mapper)
 

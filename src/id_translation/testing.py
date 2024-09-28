@@ -100,6 +100,7 @@ class TestFetcher(_Fetcher[SourceType, IdType]):
         placeholders: _Iterable[str] = (),
         *,
         required: _Iterable[str] = (),
+        sources: set[SourceType] | None = None,
         task_id: int | None = None,
         enable_uuid_heuristics: bool = False,
     ) -> _SourcePlaceholderTranslations[SourceType]:

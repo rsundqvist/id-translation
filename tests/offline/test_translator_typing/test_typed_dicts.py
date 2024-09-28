@@ -72,7 +72,7 @@ def test_fetch():
     call(translatable=make_translatable())
 
     assert TypedTranslator().fetch().name_to_source == {}
-    assert TypedTranslator().fetch(names={"humans": "people"}).name_to_source == {"humans": "people"}
+    assert TypedTranslator().fetch(names={"humans": True}).name_to_source == {"humans": True}
 
 
 def test_go_offline():

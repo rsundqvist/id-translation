@@ -83,6 +83,7 @@ class Fetcher(Generic[SourceType, IdType], HasSources[SourceType]):
         placeholders: Iterable[str] = (),
         *,
         required: Iterable[str] = (),
+        sources: set[SourceType] | None = None,
         task_id: int | None = None,
         enable_uuid_heuristics: bool = False,
     ) -> SourcePlaceholderTranslations[SourceType]:
@@ -91,6 +92,7 @@ class Fetcher(Generic[SourceType, IdType], HasSources[SourceType]):
         Args:
             placeholders: All desired placeholders in preferred order.
             required: Placeholders that must be included in the response.
+            sources: A subset of sources to fetch. Unknown sources are ignored. Set to ``None`` to fetch all sources.
             task_id: Used for logging.
             enable_uuid_heuristics: If set, apply heuristics to improve matching with :py:class:`~uuid.UUID`-like IDs.
 

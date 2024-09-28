@@ -1134,7 +1134,13 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         fmt = self._fmt if fmt is None else Format.parse(fmt)
 
         if translatable is None:
-            translation_map = self._to_translation_map(self._fetch(None), fmt=fmt)
+            if all(p is None for p in (names, ignore_names, override_function)):
+                source_translations = self._fetch(None)
+            else:
+                dummy = {source: None for source in self.sources}
+                sources = self.map(dummy, names, ignore_names=ignore_names, override_function=override_function)
+                source_translations = self._fetch(set(sources.values()))
+            translation_map = self._to_translation_map(source_translations, fmt=fmt)
 
             if names is None:
                 pass  # Callers must perform mapping unless name=source.
@@ -1206,7 +1212,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
     def _fetch(
         self,
-        ids_to_fetch: list[IdsToFetch[SourceType, IdType]] | None,
+        ids_or_sources: list[IdsToFetch[SourceType, IdType]] | set[SourceType] | None,
         fmt: Format = None,
         task_id: int | None = None,
     ) -> SourcePlaceholderTranslations[SourceType]:
@@ -1222,16 +1228,17 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         if task_id is None:
             task_id = generate_task_id()
 
-        if ids_to_fetch is None:
+        if ids_or_sources is None or isinstance(ids_or_sources, set):
             return self.fetcher.fetch_all(
                 placeholders,
                 required=required,
+                sources=ids_or_sources,
                 task_id=task_id,
                 enable_uuid_heuristics=self._enable_uuid_heuristics,
             )
         else:
             return self.fetcher.fetch(
-                ids_to_fetch,
+                ids_or_sources,
                 placeholders,
                 required=required,
                 task_id=task_id,

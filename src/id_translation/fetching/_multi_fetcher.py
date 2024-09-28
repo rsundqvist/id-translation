@@ -283,6 +283,7 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         placeholders: Iterable[str] = (),
         *,
         required: Iterable[str] = (),
+        sources: set[SourceType] | None = None,
         task_id: int | None = None,
         enable_uuid_heuristics: bool = False,
     ) -> SourcePlaceholderTranslations[SourceType]:
@@ -305,6 +306,7 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
                     event_title=f"{event_key}.ENTER",
                     placeholders=placeholders,
                     required_placeholders=required,
+                    sources=sources,
                     max_workers=self.max_workers,
                     num_fetchers=len(self.children),
                     fetch_all=True,

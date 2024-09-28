@@ -357,6 +357,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         placeholders: Iterable[str] = (),
         *,
         required: Iterable[str] = (),
+        sources: set[SourceType] | None = None,
         task_id: int | None = None,
         enable_uuid_heuristics: bool = False,
     ) -> SourcePlaceholderTranslations[SourceType]:
@@ -370,6 +371,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
             return self._fetch_all(
                 tuple(placeholders),
                 required_placeholders=set(required),
+                wanted_sources=set(self.sources) if sources is None else sources.intersection(self.sources),
                 task_id=task_id,
                 enable_uuid_heuristics=enable_uuid_heuristics,
             )
@@ -378,6 +380,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         self,
         placeholders: PlaceholdersTuple,
         required_placeholders: set[str],
+        wanted_sources: set[SourceType],
         task_id: int,
         enable_uuid_heuristics: bool,
     ) -> SourcePlaceholderTranslations[SourceType]:
@@ -386,10 +389,10 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
             # fetching to fail if explicit IDs can't be translated as specified.
             sources = [
                 source
-                for source in self.sources
+                for source in wanted_sources
                 if required_placeholders.issubset(self._wanted_to_actual(source, required_placeholders, task_id))
             ]
-            discarded = set(self.sources).difference(sources)
+            discarded = set(wanted_sources).difference(sources)
             if discarded:
                 self.logger.info(
                     f"Ignoring {len(discarded)} sources {discarded} since required "
@@ -397,7 +400,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
                     extra={"task_id": task_id},
                 )
         else:
-            sources = self.sources
+            sources = [*wanted_sources]
 
         ans = {}
         all_from_cache = True

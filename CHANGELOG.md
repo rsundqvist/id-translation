@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `concurrent_operation_action=raise|ignore` to `AbstractFether`. Default
   is `ignore` for `MemoryFetcher`.
 
+### Fixed
+- The `Translator.go_offline(translatable=None)`-method now respects given names arguments.
+
 ## [0.11.1] - 2024-06-17
 
 ### Fixed
