@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Filter children by sources in `MultiFetcher.fetch_all()`.
+
 ## [0.12.0] - 2024-09-28
 
 ### Added
