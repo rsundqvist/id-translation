@@ -277,5 +277,7 @@ class TranslationMap(
         return bool(self._format_appliers)
 
     def __repr__(self) -> str:
-        sources = ", ".join(f"'{source}': {n_ids} IDs" for source, n_ids in self.len_per_source.items())
+        len_per_source = self.len_per_source
+        order = sorted(len_per_source, key=len_per_source.__getitem__, reverse=True)
+        sources = ", ".join(f"'{source}': {len_per_source[source]} IDs" for source in order)
         return f"{tname(self)}({sources})"
