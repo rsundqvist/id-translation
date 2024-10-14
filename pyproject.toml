@@ -49,7 +49,7 @@ dask = { version = ">=2024.4.1", extras = ["dataframe"] }
 # description: https://github.com/astropy/astropy/issues/11723
 # https://github.com/astropy/astropy/pull/12270
 sphinx = "^7.2.6"
-sphinx-gallery = "^0.15.0"
+sphinx-gallery = ">=0.15,<0.19"
 pydata-sphinx-theme = "^0.15.2"
 myst-parser = "^2.0.0"
 nbsphinx = "^0.9.3"
