@@ -1,6 +1,7 @@
 from typing import NoReturn, assert_type
 
 import pandas as pd
+
 from id_translation import Translator
 
 t: Translator[str, str, int | str] = Translator()

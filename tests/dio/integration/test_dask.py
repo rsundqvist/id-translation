@@ -2,6 +2,7 @@ from uuid import UUID
 
 import dask.dataframe as dd
 import pytest
+
 from id_translation import Translator
 from id_translation.dio.exceptions import NotInplaceTranslatableError
 from id_translation.dio.integration.dask import DaskIO

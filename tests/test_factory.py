@@ -1,6 +1,7 @@
 from typing import Any
 
 import pytest
+
 from id_translation import Translator
 from id_translation.exceptions import ConfigurationError
 from id_translation.factory import default_fetcher_factory

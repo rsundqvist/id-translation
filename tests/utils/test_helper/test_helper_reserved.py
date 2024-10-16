@@ -4,6 +4,7 @@ If they weren't needed, it would mean that there's a gap in the typing of the in
 """
 
 import pytest
+
 from id_translation import Translator
 from id_translation.utils.translation_helper import TranslationHelper
 

@@ -1,10 +1,11 @@
 from collections.abc import Iterable
 
 import pytest
+from rics.collections.dicts import InheritedKeysDict
+
 from id_translation.mapping import Cardinality, Mapper, exceptions
 from id_translation.mapping.exceptions import MappingError, ScoringDisabledError, UserMappingError, UserMappingWarning
 from id_translation.mapping.types import MatchTuple
-from rics.collections.dicts import InheritedKeysDict
 
 
 def _weird_score(value: str, candidates: Iterable[int], _context: None) -> Iterable[float]:

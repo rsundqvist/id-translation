@@ -3,6 +3,7 @@ from copy import deepcopy
 
 import pandas as pd
 import pytest
+
 from id_translation import Translator
 from id_translation.fetching import AbstractFetcher, MemoryFetcher, MultiFetcher, SqlFetcher, exceptions
 from id_translation.fetching.exceptions import FetcherWarning

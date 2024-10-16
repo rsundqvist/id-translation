@@ -2,6 +2,7 @@ from dataclasses import dataclass
 
 import pytest
 import sqlalchemy
+
 from id_translation import Translator
 
 from .conftest import DIALECTS, LINUX_ONLY, check_status, get_connection_string, setup_for_dialect

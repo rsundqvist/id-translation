@@ -1,6 +1,7 @@
 from uuid import UUID
 
 import pytest
+
 from id_translation.offline import MagicDict
 from id_translation.transform.types import Transformer, TransformerStop
 

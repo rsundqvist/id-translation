@@ -2,6 +2,7 @@ from itertools import product
 from typing import Any, ClassVar
 
 import pytest
+
 from id_translation.mapping import Cardinality, HeuristicScore, Mapper
 from id_translation.mapping.exceptions import AmbiguousScoreError
 

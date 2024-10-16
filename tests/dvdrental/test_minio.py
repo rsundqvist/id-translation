@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
+
 from id_translation import Translator
 from id_translation.utils import load_toml_file
 

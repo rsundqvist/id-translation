@@ -1,6 +1,7 @@
 import itertools
 
 import pytest
+
 from id_translation.mapping import Cardinality, DirectionalMapping
 from id_translation.mapping.exceptions import CardinalityError
 from id_translation.mapping.types import LeftToRight

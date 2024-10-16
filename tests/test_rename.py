@@ -1,6 +1,7 @@
 import re
 
 import pytest
+
 from id_translation import Translator, _compat
 
 

@@ -4,6 +4,7 @@ from typing import Any, Mapping, TypeAlias
 import numpy as np
 import pandas as pd
 import pytest
+
 from id_translation.dio import DataStructureIO, resolve_io
 from id_translation.dio.exceptions import NotInplaceTranslatableError
 from id_translation.types import IdType, SourceType

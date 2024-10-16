@@ -1,4 +1,5 @@
 import pytest
+
 from id_translation.offline import Format, FormatApplier
 from id_translation.offline.types import PlaceholderTranslations
 

@@ -8,6 +8,7 @@ from uuid import UUID
 
 import pandas as pd
 import pytest
+
 from id_translation import Translator
 
 

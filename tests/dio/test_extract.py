@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pandas as pd
 import pytest
+
 from id_translation.dio import DataStructureIO, resolve_io
 
 if TYPE_CHECKING:

@@ -1,4 +1,5 @@
 import pytest
+
 from id_translation.fetching import AbstractFetcher, MemoryFetcher, exceptions
 from id_translation.fetching.types import IdsToFetch
 from id_translation.mapping import Mapper

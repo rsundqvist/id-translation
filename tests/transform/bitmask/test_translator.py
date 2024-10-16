@@ -1,9 +1,10 @@
 import pandas as pd
 import pytest
+from rics.misc import serializable
+
 from id_translation import Translator
 from id_translation.fetching import PandasFetcher
 from id_translation.transform import BitmaskTransformer
-from rics.misc import serializable
 
 from .conftest import RESOURCES, binary_to_decimal
 

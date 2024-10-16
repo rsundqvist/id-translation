@@ -2,6 +2,7 @@ from uuid import UUID
 
 import polars as pl
 import pytest
+
 from id_translation import Translator
 from id_translation.dio.integration.polars import PolarsIO
 from id_translation.types import IdTypes

@@ -1,4 +1,5 @@
 import pytest
+
 from id_translation import Translator
 from id_translation.fetching import AbstractFetcher
 from id_translation.fetching.types import FetchInstruction

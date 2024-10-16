@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+
 from id_translation import Translator
 from id_translation.fetching import AbstractFetcher
 from id_translation.fetching.exceptions import UnknownIdError

@@ -2,8 +2,9 @@ from math import inf
 from typing import Unpack, assert_type
 from uuid import UUID
 
-import id_translation.translator_typing as tt
 import pytest
+
+import id_translation.translator_typing as tt
 
 from .conftest import TypedTranslator, UnionDict, make_translatable
 

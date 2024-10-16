@@ -1,6 +1,7 @@
 from typing import Any, assert_type
 
 import pytest
+
 from id_translation import Translator
 from id_translation.dio import DataStructureIO, register_io, resolve_io
 

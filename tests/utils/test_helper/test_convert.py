@@ -1,4 +1,5 @@
 import pytest
+
 from id_translation import Translator
 from id_translation.utils.translation_helper import TranslationHelper
 

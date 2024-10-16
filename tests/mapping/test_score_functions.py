@@ -1,8 +1,9 @@
 from pathlib import Path
 
 import pytest
-from id_translation.mapping import score_functions as sf
 from numpy.random import default_rng
+
+from id_translation.mapping import score_functions as sf
 
 WORDS = Path(__file__).parent.joinpath("words.txt").read_text().splitlines()
 
@@ -32,9 +33,9 @@ def test_stable(func, dtype):
 
 
 def make(count, dtype):
-    if dtype == int:
+    if dtype is int:
         return make_int(count)
-    if dtype == str:
+    if dtype is str:
         return make_str(count)
     raise AssertionError
 

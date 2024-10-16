@@ -1,4 +1,5 @@
 import pytest
+
 from id_translation.transform import BitmaskTransformer
 
 

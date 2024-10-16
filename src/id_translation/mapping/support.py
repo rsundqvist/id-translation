@@ -133,7 +133,7 @@ class MatchScores:
         self, cardinality: _Cardinality = None
     ) -> tuple[list["MatchScores.Record[ValueType, CandidateType]"], list["Reject[ValueType, CandidateType]"]]:
         rejections: list[MatchScores.Reject[ValueType, CandidateType]] | None = None
-        records: list["MatchScores.Record[ValueType, CandidateType]"] = self.get_above()
+        records: list[MatchScores.Record[ValueType, CandidateType]] = self.get_above()
 
         if self.logger.isEnabledFor(logging.DEBUG):
             rejections = []

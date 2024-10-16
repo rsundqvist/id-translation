@@ -5,6 +5,7 @@ from uuid import UUID
 
 import pandas as pd
 import pytest
+
 from id_translation import Translator
 from id_translation.fetching import SqlFetcher
 from id_translation.mapping import Mapper

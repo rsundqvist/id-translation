@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from typing import Literal, cast, get_args
 
 import pytest
+
 from id_translation import Translator
 
 from .conftest import DIALECTS, LINUX_ONLY, get_df, setup_for_dialect

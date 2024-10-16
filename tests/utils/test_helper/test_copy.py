@@ -1,4 +1,5 @@
 import pytest
+
 from id_translation.exceptions import TooManyFailedTranslationsError
 
 pytestmark = pytest.mark.xfail(strict=True, reason="Not implemented.")

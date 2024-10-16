@@ -1,5 +1,6 @@
 import pandas as pd
 import pytest
+
 from id_translation.offline import TranslationMap
 
 

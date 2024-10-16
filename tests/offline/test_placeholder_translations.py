@@ -2,6 +2,7 @@ import json
 
 import pandas as pd
 import pytest
+
 from id_translation.offline.types import PlaceholderTranslations
 
 from ..conftest import ROOT

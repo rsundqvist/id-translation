@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
+
 from id_translation import Translator
 
 from .conftest import DIALECTS, LINUX_ONLY, check_status, get_df, setup_for_dialect

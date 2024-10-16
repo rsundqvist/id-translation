@@ -3,6 +3,7 @@ from copy import deepcopy
 import pandas as pd
 import pytest
 import sqlalchemy
+
 from id_translation.fetching import SqlFetcher as RealSqlFetcher
 from id_translation.fetching import exceptions
 from id_translation.fetching.exceptions import FetcherWarning

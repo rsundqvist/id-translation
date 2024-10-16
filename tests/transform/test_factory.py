@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import pytest
+
 from id_translation import Translator
 from id_translation.exceptions import ConfigurationError
 from id_translation.transform.types import Transformer

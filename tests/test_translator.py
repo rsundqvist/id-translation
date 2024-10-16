@@ -8,6 +8,7 @@ from uuid import UUID
 import numpy as np
 import pandas as pd
 import pytest
+
 from id_translation import Translator as RealTranslator
 from id_translation.dio.exceptions import NotInplaceTranslatableError, UntranslatableTypeError
 from id_translation.exceptions import MissingNamesError, TooManyFailedTranslationsError, TranslationDisabledWarning

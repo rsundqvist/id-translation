@@ -1,4 +1,5 @@
 import pytest
+
 from id_translation.mapping import Cardinality
 
 
