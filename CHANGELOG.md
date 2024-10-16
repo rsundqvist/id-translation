@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Fix typehint in `Translator.translated_names()`.
+- Fix `file` note in exceptions raised by `MultiFetcher` children.
 
 ## [0.12.1] - 2024-09-28
 

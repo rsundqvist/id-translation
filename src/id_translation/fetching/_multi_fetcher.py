@@ -16,7 +16,7 @@ from .._tasks import generate_task_id
 from ..offline.types import SourcePlaceholderTranslations
 from ..settings import logging as settings
 from ..types import IdType, SourceType
-from . import Fetcher, exceptions
+from . import AbstractFetcher, Fetcher, exceptions
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
@@ -455,15 +455,15 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         note = f"Context (added by {type(self).__name__}):"
 
         # Add config file. Mirrors logic used in the abstract fetcher.
-        cache_keys = getattr(fetcher, "_cache_keys", None)
-        if isinstance(cache_keys, list) and len(cache_keys) != 0:
-            first_key = cache_keys[0]
-            if isinstance(first_key, str) and first_key.endswith("toml"):
-                note += f"\n -  file= '{first_key}'"
+        if isinstance(fetcher, AbstractFetcher):
+            for idx in fetcher.identifiers:
+                if idx.endswith("toml"):
+                    note += f"\n -  file= '{idx}'"
+                    break
 
         note += f"\n - child= {self._fmt_fetcher(fetcher)}"
         e.add_note(note)
-        raise
+        raise e
 
     def __deepcopy__(self, memo: dict[int, Any] = {}) -> Self:  # noqa: B006
         cls = self.__class__
