@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.2] - 2024-10-16
+
 ### Fixed
 - Fix typehint in `Translator.translated_names()`.
 - Fix `file` note in exceptions raised by `MultiFetcher` children.
@@ -321,7 +323,8 @@ cookiecutter template.
 - Switch to relative imports.
 - Fix some intersphinx issues.
 
-[Unreleased]: https://github.com/rsundqvist/id-translation/compare/v0.12.1...HEAD
+[Unreleased]: https://github.com/rsundqvist/id-translation/compare/v0.12.2...HEAD
+[0.12.2]: https://github.com/rsundqvist/id-translator/compare/v0.12.1...v0.12.2
 [0.12.1]: https://github.com/rsundqvist/id-translator/compare/v0.12.0...v0.12.1
 [0.12.0]: https://github.com/rsundqvist/id-translator/compare/v0.11.1...v0.12.0
 [0.11.1]: https://github.com/rsundqvist/id-translator/compare/v0.11.0...v0.11.1
