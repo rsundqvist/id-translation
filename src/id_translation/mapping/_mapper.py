@@ -240,6 +240,7 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):
             if not filtered_candidates:
                 continue
 
+            scores_for_value: Iterable[float]
             if value in filtered_candidates:
                 scores_for_value = [(np.inf if value == c else -np.inf) for c in filtered_candidates]  # Identity match
             else:

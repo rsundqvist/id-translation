@@ -747,10 +747,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
     @overload
     def translated_names(self, with_source: Literal[False] = False) -> list[NameType]: ...
 
-    def translated_names(
-        self,
-        with_source: bool | Literal[True] | Literal[True] = True,  # https://github.com/python/mypy/issues/14764
-    ) -> NameToSource[NameType, SourceType] | list[NameType]:
+    def translated_names(self, with_source: bool = True) -> NameToSource[NameType, SourceType] | list[NameType]:
         """Return the names that were translated by the most recent :meth:`.translate`-call.
 
         Args:
