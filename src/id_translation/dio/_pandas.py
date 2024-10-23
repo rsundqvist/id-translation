@@ -26,11 +26,15 @@ class PandasIO(DataStructureIO[T, NameType, SourceType, IdType]):
     @classmethod
     def names(cls, translatable: T) -> list[NameType] | None:
         if isinstance(translatable, pd.DataFrame):
-            return list(translatable.columns)
+            columns = translatable.columns
+            if isinstance(columns, pd.MultiIndex):
+                return list(columns.get_level_values(-1))
+            else:
+                return list(columns)
 
         if isinstance(translatable, pd.MultiIndex):
-            names = translatable.names
-            return list(names) if any(names) else None
+            names = [n for n in translatable.names if n is not None]
+            return names or None
 
         return None if translatable.name is None else [translatable.name]
 
