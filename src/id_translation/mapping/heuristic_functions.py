@@ -313,8 +313,7 @@ def _strip_id_suffix(string: str) -> str:
         if len(string) > sz and string.endswith(suffix):
             string = string[:-sz]
 
-    if string.endswith("_"):
-        string = string[:-1]
+    string = string.removesuffix("_")
 
     return string
 

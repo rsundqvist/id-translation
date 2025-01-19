@@ -17,7 +17,7 @@ on:
     branches:
 
 env:
-  POETRY_VERSION: 1.8.2
+  POETRY_VERSION: 2.0.1
   POLARS_SKIP_CPU_CHECK: true
 
 jobs:

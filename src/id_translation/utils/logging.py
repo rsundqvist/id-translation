@@ -14,7 +14,7 @@ def cast_unsafe(obj: _t.Any) -> _t.Any:
     return obj
 
 
-FORMATTERS: _t.Dict[_t.Type[_t.Any], _t.Any] = {
+FORMATTERS: dict[type[_t.Any], _t.Any] = {
     _UUID: str,
     _np.integer: int,
     _np.floating: float,

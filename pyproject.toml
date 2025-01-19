@@ -30,6 +30,8 @@ classifiers = [
 
 [tool.poetry.scripts]
 
+[tool.poetry.requires-plugins]
+poetry-plugin-export = ">=1.8"
 
 [tool.poetry.dependencies]
 python = "<4,>=3.11"
@@ -40,52 +42,52 @@ rics = ">=4.0.1"
 
 [tool.poetry.group.manual-extras.dependencies]
 # Extras that must be available for docs + tests go here. Doc/test-only deps go in their respective groups.
-polars = { version = "^1.7.1" }
-dask = { version = ">=2024.4.1", extras = ["dataframe"] }
+polars = { version = "^1.21.0" }
+dask = { version = "^2025.1.0", extras = ["dataframe"] }
 
 [tool.poetry.group.docs]
 [tool.poetry.group.docs.dependencies]
 # duplicate object warnings for sphinx>=4
 # description: https://github.com/astropy/astropy/issues/11723
 # https://github.com/astropy/astropy/pull/12270
-sphinx = "^7.2.6"
-sphinx-gallery = "^0.15.0"
-pydata-sphinx-theme = "^0.15.2"
-myst-parser = "^2.0.0"
-nbsphinx = "^0.9.3"
-ipython = "^8.22.2"
-sphinxcontrib-programoutput = "^0.17.0"
+sphinx = "^8.1.3"
+sphinx-gallery = "^0.18.0"
+pydata-sphinx-theme = "^0.16.1"
+myst-parser = "^4.0.0"
+nbsphinx = "^0.9.6"
+ipython = "^8.31.0"
+sphinxcontrib-programoutput = "^0.18.0"
 
 [tool.poetry.group.notebooks]
 optional = true
 [tool.poetry.group.notebooks.dependencies]
-jupyterlab = ">=3,<5"
+jupyterlab = ">=4,<5"
 ipywidgets = "*"
 jupyterlab-execute-time = "*"
 tqdm = "*"
 
 [tool.poetry.group.test.dependencies]
-pytest = "^8.1.1"
-xdoctest = "^1.1.3"
-coverage = "^7.4.4"
-pytest-cov = ">=4.1,<6.0"
+pytest = "^8.3.4"
+xdoctest = "^1.2.0"
+coverage = "^7.6.10"
+pytest-cov = "^6.0.0"
 
 # Minio tests
-s3fs = { version = "^2024.2.0", platform = "linux" }
+s3fs = { version = "^2024.12.0", platform = "linux" }
 
 # db drivers and related dependencies
-pg8000 = "^1.30.5"
-pymssql = "^2.2.11"
-pymysql = "^1.1.0"
+pg8000 = "^1.31.2"
+pymssql = "^2.3.2"
+pymysql = "^1.1.1"
 cryptography = "*"
 
 [tool.poetry.group.devops.dependencies]
 invoke = "^2.2.0"
-mypy = "^1.12.0"
-ruff = "^0.6.9"
+mypy = "^1.14.1"
+ruff = "^0.9.3"
 
-safety = "^3.0.1"
-codespell = "^2.2.6"
+safety = "^3.2.14"
+codespell = "^2.3.0"
 bump2version = "^1.0.1"
 
 [tool.ruff]
@@ -131,8 +133,6 @@ select = [
     "TRY",
 ]
 ignore = [
-    "ANN101", # Missing type annotation for `self` in method
-    "ANN102", # Missing type annotation for `cls` in method
     "D105", # Missing docstring in magic method
     "D107", # Missing docstring in `__init__`
     "ANN401",
@@ -150,6 +150,7 @@ allowed-confusables = ["ℹ"]  # ℹ️INFO in docstrings
 "tests/*" = [
     "D",
     "S101", # Allow 'assert' keyword
+    "S608", # SQL injection.
     "ANN",
     "S311",  # Standard pseudo-random generators are not suitable for cryptographic purposes
     "PLR2004", # Allow magic values

@@ -195,7 +195,7 @@ class DirectionalMapping(Generic[HL, HR]):
 
         if verify and actual > expected:
             raise CardinalityError(
-                f"Cannot cast explicit given type {expected} to actual type {actual} " f"for ({left=} | {right=})",
+                f"Cannot cast explicit given type {expected} to actual type {actual} for ({left=} | {right=})",
             )
 
         return expected

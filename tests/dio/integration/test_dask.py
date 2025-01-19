@@ -43,7 +43,7 @@ def df(data: dict[str, dict[IdTypes, str]]) -> dd.DataFrame:
     import pandas as pd
 
     pandas = pd.DataFrame({source: [*id_to_name, UNKNOWN[source]] for source, id_to_name in data.items()})
-    return dd.from_pandas(pandas, npartitions=2)
+    return dd.from_pandas(pandas, npartitions=2)  # type: ignore[no-any-return]
 
 
 def test_dataframe(translator, df):

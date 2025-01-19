@@ -16,7 +16,7 @@ class Transformer(_t.Protocol[_IdType]):
     method multiple times.
     """
 
-    def update_ids(self, ids: _t.Set[_IdType]) -> None:
+    def update_ids(self, ids: set[_IdType]) -> None:
         """Transform a source-to-ids mapping dict.
 
         Called just before IDs are fetched from the source.
@@ -29,7 +29,7 @@ class Transformer(_t.Protocol[_IdType]):
             ids: A collection of IDs from the `source`.
         """
 
-    def update_translations(self, translations: _t.Dict[_IdType, str]) -> None:
+    def update_translations(self, translations: dict[_IdType, str]) -> None:
         """Transform a translations.
 
         Called by the :class:`.MagicDict` during initialization.

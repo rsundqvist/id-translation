@@ -3,7 +3,7 @@ from ._map import MappingTask
 from ._translate import TranslationTask
 
 __all__ = [
-    "generate_task_id",
     "MappingTask",
     "TranslationTask",
+    "generate_task_id",
 ]

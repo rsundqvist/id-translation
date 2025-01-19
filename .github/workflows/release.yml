@@ -5,6 +5,9 @@ on:
     tags:
       - 'v*'
 
+env:
+  POETRY_VERSION: 2.0.1
+
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -19,7 +22,7 @@ jobs:
       - name: Install system deps
         shell: bash
         run: |
-          pip install poetry
+          pip install poetry==$POETRY_VERSION
 
       - name: Build package
         run: |

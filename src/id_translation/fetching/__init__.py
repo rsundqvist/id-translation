@@ -24,8 +24,8 @@ from ._pandas_fetcher import PandasFetcher
 from ._sql_fetcher import SqlFetcher
 
 __all__ = [
-    "Fetcher",
     "AbstractFetcher",
+    "Fetcher",
     "MemoryFetcher",
     "MultiFetcher",
     "PandasFetcher",

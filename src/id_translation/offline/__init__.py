@@ -8,6 +8,6 @@ from ._translation_map import TranslationMap
 __all__ = [
     "Format",
     "FormatApplier",
-    "TranslationMap",
     "MagicDict",
+    "TranslationMap",
 ]

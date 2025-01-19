@@ -1,9 +1,9 @@
 import logging
 import warnings
 from collections import defaultdict
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from time import perf_counter
-from typing import TYPE_CHECKING, Any, Iterable, get_args
+from typing import TYPE_CHECKING, Any, get_args
 
 from numpy import isnan, unique
 from rics.misc import tname

@@ -12,8 +12,8 @@ from ._mapper import Mapper
 
 __all__ = [
     "Cardinality",
-    "HeuristicScore",
     "DirectionalMapping",
+    "HeuristicScore",
     "Mapper",
 ]
 

@@ -1,5 +1,5 @@
-from collections.abc import Collection
-from typing import Any, Mapping, TypeAlias
+from collections.abc import Collection, Mapping
+from typing import Any, TypeAlias
 
 import numpy as np
 import pandas as pd
