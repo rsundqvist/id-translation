@@ -1,22 +1,24 @@
-FROM postgres:latest AS source
+ARG BASE_IMAGE=postgres:17-alpine
 
-RUN apt-get update && apt-get install wget --yes
+FROM debian:latest AS download
+    RUN apt-get update && apt-get install wget --yes
 
-# pagila changes the dates and a bunch of other things; can't check equality
-#RUN git clone https://github.com/devrimgunduz/pagila.git
+    RUN wget --quiet https://raw.githubusercontent.com/jOOQ/sakila/main/postgres-sakila-db/postgres-sakila-schema.sql
+    RUN wget --quiet https://raw.githubusercontent.com/jOOQ/sakila/main/postgres-sakila-db/postgres-sakila-insert-data.sql
 
-RUN wget --quiet https://raw.githubusercontent.com/jOOQ/sakila/main/postgres-sakila-db/postgres-sakila-schema.sql
-RUN wget --quiet https://raw.githubusercontent.com/jOOQ/sakila/main/postgres-sakila-db/postgres-sakila-insert-data.sql
-RUN mv ./postgres-sakila-schema.sql  /docker-entrypoint-initdb.d/0_schema.sql
-RUN mv ./postgres-sakila-insert-data.sql /docker-entrypoint-initdb.d/1_data.sql
-COPY uuid.sql /docker-entrypoint-initdb.d/uuid.sql
+    RUN mkdir /sql-sources/
+    RUN mv postgres-sakila-schema.sql /sql-sources/0_schema.sql
+    RUN mv postgres-sakila-insert-data.sql /sql-sources/1_data.sql
+    COPY uuid.sql /sql-sources/uuid.sql
 
-RUN ["sed", "-i", "s/exec \"$@\"/echo \"skipping...\"/", "/usr/local/bin/docker-entrypoint.sh"]
+FROM $BASE_IMAGE AS source
+    ENV POSTGRES_PASSWORD="Sofia123!"
+    ENV POSTGRES_DB="sakila"
 
-ENV POSTGRES_DB="sakila"
-ENV POSTGRES_PASSWORD="Sofia123!"
+    COPY --from=download /sql-sources/ /docker-entrypoint-initdb.d/
+    RUN ["sed", "-i", "s/exec \"$@\"/echo \"skipping...\"/", "/usr/local/bin/docker-entrypoint.sh"]
 
-RUN ["/usr/local/bin/docker-entrypoint.sh", "postgres"]
+    RUN ["/usr/local/bin/docker-entrypoint.sh", "postgres"]
 
-FROM postgres:latest
-COPY --from=source $PGDATA $PGDATA
+FROM $BASE_IMAGE
+    COPY --from=source $PGDATA $PGDATA
