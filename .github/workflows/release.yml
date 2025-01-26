@@ -14,15 +14,15 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Set up Python 3.12
+      - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
-          python-version: 3.12
+          python-version: 3.11
 
       - name: Install system deps
         shell: bash
         run: |
-          pip install poetry==$POETRY_VERSION
+          pip install poetry==$POETRY_VERSION poetry-plugin-export
 
       - name: Build package
         run: |

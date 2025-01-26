@@ -41,8 +41,8 @@ def clean_build(c: Context) -> None:
     _run(c, "rm -fr build/")
     _run(c, "rm -fr dist/")
     _run(c, "rm -fr .eggs/")
-    _run(c, "find . -name '*.egg-info' -exec rm -fr {} +")
-    _run(c, "find . -name '*.egg' -exec rm -f {} +")
+    _run(c, "find . -maxdepth 3 -name '*.egg-info' -exec rm -fr {} +")
+    _run(c, "find . -maxdepth 3 -name '*.egg' -exec rm -f {} +")
 
 
 @task

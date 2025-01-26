@@ -57,7 +57,7 @@ Relying on GitHub actions for new CI/CD features is quite slow. An alternative i
 docs). For example, running
 
 ```shell
-act -j tests
+act -j tests --matrix python-version:3.12
 ```
 
 will execute the [tests](https://github.com/rsundqvist/id-translation/blob/master/.github/workflows/tests.yml) workflow.

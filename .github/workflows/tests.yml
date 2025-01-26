@@ -34,7 +34,7 @@ jobs:
 
       - name: Linting
         run: |
-          pip install poetry==$POETRY_VERSION
+          pip install poetry==$POETRY_VERSION poetry-plugin-export
           poetry install --only=main,devops
           poetry run inv lint
 
@@ -68,7 +68,7 @@ jobs:
         shell: bash
         run: |
           pip install nox
-          pip install poetry==$POETRY_VERSION
+          pip install poetry==$POETRY_VERSION poetry-plugin-export
 
       - name: Run mypy with nox
         shell: bash
@@ -97,16 +97,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python 3.12
+      - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
-          python-version: 3.12
+          python-version: 3.11
 
       - name: Install system deps
         shell: bash
         run: |
           pip install nox
-          pip install poetry==$POETRY_VERSION
+          pip install poetry==$POETRY_VERSION poetry-plugin-export
 
       - name: Download coverage data
         uses: actions/download-artifact@v4
