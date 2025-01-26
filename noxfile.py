@@ -9,7 +9,7 @@ import nox
 from nox.sessions import Session
 
 nox.options.sessions = ["tests", "mypy"]
-python_versions = ["3.11", "3.12"]
+python_versions = ["3.11", "3.12", "3.13"]
 
 
 def install_with_constraints(session: Session, *args: str, **kwargs: Any) -> None:
