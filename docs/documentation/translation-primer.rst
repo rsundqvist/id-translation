@@ -236,7 +236,7 @@ Putting it all together
    translator = Translator(fetcher, fmt=translation_format, mapper=mapper)
    translated_bite_report = translator.translate(bite_report)
 
-Unless ``copy=False`` is passed :meth:`~Translator.translate`, always returns a copy.
+Unless ``copy=False`` is passed, :meth:`~Translator.translate` always returns a copy.
 
 Translated data
 ---------------

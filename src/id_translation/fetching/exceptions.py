@@ -1,6 +1,6 @@
 """Errors and warnings related to fetching."""
 
-from collections.abc import Iterable
+from collections.abc import Iterable as _Iterable
 from typing import Any as _Any
 
 
@@ -56,8 +56,8 @@ class UnknownSourceError(FetcherError):
 
     def __init__(
         self,
-        unknown_sources: Iterable[_Any],
-        sources: Iterable[_Any],
+        unknown_sources: _Iterable[_Any],
+        sources: _Iterable[_Any],
         msg: str = "Sources {unknown_sources} not recognized. Known sources: {sources}.",
     ) -> None:
         self.sources = set(sources)

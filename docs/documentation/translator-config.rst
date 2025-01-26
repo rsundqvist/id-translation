@@ -155,7 +155,7 @@ a :class:`~id_translation.fetching.MemoryFetcher` would be created by adding a `
      - Based on source file if not given.
    * - optional
      - :py:class:`bool`
-     - If ``True``, discard on :attr:`~id_translation.fetching.Fetcher.sources`-resolution crash.
+     - If ``True``, discard on :attr:`~id_translation.types.HasSources.sources`-resolution crash.
      - Multi-fetcher mode only.
    * - | concurrent_operation
        | _action
@@ -168,9 +168,9 @@ TOML configuration must inherit. Additional parameters vary based on the chosen 
 :mod:`id_translation.fetching` module for choices.
 
 The ``AbstractFetcher`` uses a  a :class:`~id_translation.mapping.Mapper` to bind actual
-:attr:`placeholder <id_translation.fetching.Fetcher.placeholders>` names in
-:attr:`~id_translation.fetching.Fetcher.sources` to desired
-:attr:`placeholder names <id_translation.offline.Format.placeholders>` requested by the calling Translator instance.
+:attr:`placeholder <id_translation.types.HasSources.placeholders>` names in
+:attr:`~id_translation.types.HasSources.sources` to desired
+:attr:`placeholder names <id_translation.offline.Format.placeholders>` requested by the calling ``Translator`` instance.
 See: :ref:`Subsection: Mapping` for details. For all mapping operations performed by the ``AbstractFetcher``, context =
 :attr:`source <id_translation.types.SourceType>`.
 
@@ -188,7 +188,7 @@ Multiple fetchers
 Complex applications may require multiple fetchers. These may be specified in auxiliary config files, one fetcher per
 file. Only the ``fetching`` key will be considered in these files. If multiple fetchers are defined, a
 :class:`~id_translation.fetching.MultiFetcher` is created. Fetchers defined this way are **hierarchical**. The input
-order determines rank, affecting Name-to-:attr:`source <id_translation.fetching.Fetcher.sources>` mapping. For
+order determines rank, affecting Name-to-:attr:`source <id_translation.types.HasSources.sources>` mapping. For
 example, for a ``Translator`` created by running
 
 >>> from id_translation import Translator

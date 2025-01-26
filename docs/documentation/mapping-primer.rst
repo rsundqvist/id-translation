@@ -36,7 +36,7 @@ and runtime overrides takes precedence over static overrides.
 1. Runtime overrides (type: :attr:`~id_translation.mapping.types.UserOverrideFunction`); set ``score=∞`` for the chosen
    candidate, and ``score=-∞`` for others.
 
-2. Static overrides (type: ``dict`` or :attr:`~rics.collections.dicts.InheritedKeysDict`); set ``score=∞`` for the
+2. Static overrides (type: ``dict`` or :class:`~rics.collections.dicts.InheritedKeysDict`); set ``score=∞`` for the
    chosen candidate, and ``score=-∞`` for others.
 
 3. Filtering (type: :attr:`~id_translation.mapping.types.FilterFunction`); set ``score=-∞`` for undesirable matches only.
