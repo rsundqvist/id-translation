@@ -69,6 +69,7 @@ def monkeypatch_autosummary_toc() -> None:
 def callback(_app, _env, node, _contnode):  # noqa
     reftarget = node.get("reftarget")
 
+    # This doesn't actually do anything now, since autodoc_typehints = "none" (see above).
     if reftarget in ("NameType", "SourceType", "IdType"):
         # TODO When are they gonna fix this sh*t? Did they already..?
         #   Special hack for factory.py, which is a public module. And for some
