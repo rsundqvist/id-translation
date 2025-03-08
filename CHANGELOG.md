@@ -7,10 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Expose and document internal meta configuration objects (`id_translation.utils.Metaconf`).
+
 ### Fixed
 - Improve `names` extraction with `pandas.MultiIndex` types:
   * Use only the last level values if `DataFrame.columns` is a `MultiIndex`.
   * Ignore `None` values in `MultiIndex.names`.
+- Fix crash when variable substitution (e.g. `${VAR}`) was used for non-string values in fetcher configs.
 
 ## [0.12.2] - 2024-10-16
 

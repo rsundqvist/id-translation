@@ -1,48 +1,34 @@
 import json
 import sys
 from abc import ABC, abstractmethod
-from datetime import datetime, timedelta
+from collections.abc import Iterable
+from datetime import datetime, timedelta, timezone
+from importlib.metadata import version as get_version
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal, Self
 
 from id_translation._compat import fmt_sec
-
-
-def _initialize_versions() -> dict[str, str]:
-    from pandas import __version__ as pandas_version
-    from rics import __version__ as rics
-    from sqlalchemy import __version__ as sqlalchemy
-
-    from .. import __version__ as id_translation
-
-    ans = dict(
-        rics=rics,
-        id_translation=id_translation,
-        sqlalchemy=sqlalchemy,
-        pandas=pandas_version,
-    )
-
-    if sys.version_info < (3, 11):  # pragma: no cover
-        import tomli
-
-        ans["tomli"] = tomli.__version__
-    return ans
+from id_translation.translator_typing import CacheMissReasonType
 
 
 class BaseMetadata(ABC):
     """Base implementation for Metadata types.
 
     Args:
-        versions: Top-level dependency versions.
+        versions: Versions, e.g. ``{'python': '3.11.11'`, 'your-package': '1.0.0'}``.
         created: The time at which the metadata was originally created.
     """
 
-    def __init__(self, versions: dict[str, str] | None = None, created: datetime | None = None) -> None:
-        self.versions = versions or _initialize_versions()
-        self.created = created or datetime.now()
+    def __init__(
+        self,
+        versions: dict[str, str] | None = None,
+        created: datetime | None = None,
+    ) -> None:
+        self.versions = self.get_package_versions([]) if versions is None else versions
+        self.created = created or datetime.now(timezone.utc)
 
     @abstractmethod
-    def _serialize(self, to_json: dict[str, Any]) -> dict[str, Any]:
+    def _to_dict(self, to_json: dict[str, Any]) -> dict[str, Any]:
         """Turn `to_json` into JSON-serializable types."""
 
     @classmethod
@@ -51,30 +37,42 @@ class BaseMetadata(ABC):
         """Turn `from_json` into desired types."""
 
     @abstractmethod
-    def _is_equivalent(self, other: "BaseMetadata") -> str:
+    def _is_equivalent(self, other: Self) -> str:
         """Implementation-specific equivalence check."""
 
-    def is_equivalent(self, other: "BaseMetadata") -> str:
-        """Equivalency status."""
+    def is_equivalent(self, other: Self) -> str:
+        """Compute equivalency with `other`.
+
+        Args:
+            other: Another metadata instance.
+
+        Returns:
+            A string `reason_not_equivalent` or an empty string.
+        """
         if not isinstance(other, self.__class__):
             return f"Expected class={self.__class__.__name__} but got {other.__class__}"
 
         for package, version in self.versions.items():
             other_version = other.versions.get(package)
             if other_version != version:
-                return f"Expected {package}=={version!r} (your environment) but got {package}=={other_version!r}"
+                return f"Expected {package}={version!r} (your environment) but got {package}={other_version!r}"
 
         return self._is_equivalent(other)
 
-    def to_json(self) -> str:
-        """Get a JSON representation of this ``BaseMetadata``."""
+    def to_dict(self) -> dict[str, Any]:
+        """Get a dict representation of this ``BaseMetadata``."""
         raw = self.__dict__.copy()
         kwargs = dict(
             versions=raw.pop("versions"),
             created=raw.pop("created").isoformat(),
         )
-        kwargs.update(self._serialize(raw))
+        kwargs.update(self._to_dict(raw))
         assert not raw, f"Not serialized: {raw}."  # noqa:  S101
+        return kwargs
+
+    def to_json(self) -> str:
+        """Get a dict representation of this ``BaseMetadata``."""
+        kwargs = self.to_dict()
         return json.dumps(kwargs, indent=4)
 
     @classmethod
@@ -91,29 +89,43 @@ class BaseMetadata(ABC):
         assert not raw, f"Not deserialized: {raw}."  # noqa:  S101
         return cls(**kwargs)
 
-    def use_cached(self, metadata_path: Path, max_age: timedelta) -> tuple[bool, str]:
+    def use_cached(
+        self, metadata_path: Path, max_age: timedelta
+    ) -> tuple[Literal[True], str, None] | tuple[Literal[False], str, CacheMissReasonType]:
         """Check status of stored metadata config based a desired configuration ``self``.
 
         Args:
             metadata_path: Path of stored metadata.
-            max_age: Maximum age of stored metadata.
+            max_age: Maximum age of stored metadata. Pass zero to force recreation. Smaller than zero = never expire.
 
         Returns:
-            A tuple ``(use_cached, reason)``.
+            A tuple ``(True, expires_at, None)`` or ``(False, reason, cache_miss_reason_type)``.
         """
         if not metadata_path.exists():
-            return False, "no cache metadata found"
+            return False, "no cache metadata found", "metadata-missing"
 
         stored_config = self.from_json(metadata_path.read_text())
 
         reason_not_equivalent = self.is_equivalent(stored_config)
         if reason_not_equivalent:
-            return False, f"cached instance is not equivalent: {reason_not_equivalent}"
+            return False, f"cached instance is not equivalent: {reason_not_equivalent}", "metadata-changed"
 
-        expires_at = (stored_config.created + max_age).replace(microsecond=0)
-        offset = fmt_sec(round(abs(datetime.now() - expires_at).total_seconds()))
+        expires_at = (stored_config.created + abs(max_age)).replace(microsecond=0)
+        offset = fmt_sec(round(abs(datetime.now(timezone.utc) - expires_at).total_seconds()))
 
-        if expires_at <= stored_config.created:
-            return False, f"expired at {expires_at.isoformat()} ({offset} ago)"
+        if max_age < timedelta(0):
+            return True, "does not expire", None
+        elif expires_at <= stored_config.created:
+            return False, f"expired at {expires_at.isoformat()} ({offset} ago)", "too-old"
         else:
-            return True, f"expires at {expires_at.isoformat()} (in {offset})"
+            return True, f"expires at {expires_at.isoformat()} (in {offset})", None
+
+    @classmethod
+    def get_package_versions(cls, extra_packages: Iterable[str]) -> dict[str, str]:
+        """Extract package versions using ``importlib.metadata``."""
+        packages = ["rics", "id-translation", "sqlalchemy", "pandas"]
+        if sys.version_info < (3, 11):  # pragma: no cover
+            packages.append("tomli")
+        packages.extend(extra_packages)
+
+        return {package: get_version(package) for package in packages}

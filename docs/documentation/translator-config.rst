@@ -15,23 +15,23 @@ This document describes the TOML format used by the
 Meta configuration
 ------------------
 The ``metaconf.toml``-file must be placed next to the main TOML configuration file, and determines how other files are
-processed by the the factory.
+processed by the factory. See :class:`~id_translation.utils.Metaconf` for internal representation.
 
-.. list-table:: Sections: ``[env]``
+.. list-table:: The ``metaconf.toml`` file format.
    :header-rows: 1
-   :widths: 15 60 25
+   :widths: 20 20 60
 
    * - Top-level section
+     - Type
      - Description
-     - Details
    * - ``[env]``
-     - | Control environment-variable interpolation; ``${VAR}`` or
-       | ``${VAR:default}``. Default is ``true`` for :meth:`~.Translator.from_config`.
-     - :func:`~id_translation.utils.load_toml_file`.
+     - :class:`~id_translation.utils.EnvConf`
+     - Control environment-variable interpolation; ``${VAR}`` or ``${VAR:default}``.
+   * - ``[equivalence]``
+     - :class:`~id_translation.utils.EquivalenceConf`
+     - Determines how equivalence between configuration files is determined.
 
-.. note::
-
-   The ``metaconf.toml``-file is `always` read as-is, without any processing.
+The ``metaconf.toml``-file is read as-is, without any preprocessing.
 
 Sections
 --------

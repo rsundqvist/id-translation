@@ -146,7 +146,21 @@ def test_bad_translatable(translator, data, clazz, kwargs):
 
 
 def test_from_config():
-    UnitTestTranslator.from_config(ROOT.joinpath("config.toml"))
+    translator = UnitTestTranslator.from_config(ROOT.joinpath("config.toml"))
+
+    actual = translator.config_metadata
+
+    assert actual.main[0].name == "config.toml"
+    assert actual.main[1] == "27dfe5760a68e26664df42e089dc3ef9544353436d60925b23d8ff532cf037bc"
+    assert actual.extra_fetchers == ()
+
+    assert sorted(actual.to_dict()) == ["class", "created", "extra_fetchers", "main", "metaconf", "versions"]
+    assert actual.clazz == "tests.test_translator.UnitTestTranslator"
+    assert sorted(actual.versions) == ["id-translation", "pandas", "python", "rics", "sqlalchemy"]
+    assert actual.metaconf.equivalence.extra_packages == []
+
+    reason_not_equivalent = actual.is_equivalent(actual)
+    assert reason_not_equivalent == ""
 
 
 def test_store_and_restore(hex_fetcher, tmp_path):

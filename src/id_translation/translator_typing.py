@@ -129,3 +129,7 @@ class FetchParams(_t.TypedDict, _t.Generic[_tt.NameType, _tt.SourceType, _tt.IdT
     ignore_names: _tt.Names[_tt.NameType] | None
     override_function: _UserOverrideFunction[_tt.NameType, _tt.SourceType, None] | None
     fmt: _ot.FormatType | None
+
+
+CacheMissReasonType = _t.Literal["metadata-missing", "metadata-changed", "too-old"]
+"""High-level reason why a cached ``Translator`` was rejected."""

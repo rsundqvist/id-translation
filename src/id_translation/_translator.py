@@ -923,7 +923,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             extra_fetcher_paths,
             clazz=cls,
         )
-        use_cached, reason = metadata.use_cached(metadata_path, pandas.Timedelta(max_age).to_pytimedelta())
+        use_cached, reason, reason_type = metadata.use_cached(metadata_path, pandas.Timedelta(max_age).to_pytimedelta())
         if use_cached:
             LOGGER.info(f"Reuse existing Translator; {reason}. Cache dir: '{cache_dir}'.")
             return cls.restore(cache_path)
