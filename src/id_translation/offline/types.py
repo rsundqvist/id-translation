@@ -31,7 +31,7 @@ class PlaceholderTranslations(_t.Generic[_tt.SourceType]):
     records: _Sequence[_Sequence[_t.Any]]
     """Matrix of shape `N x M` where `N` is the number of IDs returned and `M` is the length of `placeholders`."""
     id_pos: int = -1
-    """Position if the the ID placeholder in `placeholders`."""
+    """Position if the ID placeholder in `placeholders`."""
 
     @classmethod
     def make(cls, source: _tt.SourceType, data: "MakeTypes[_tt.SourceType, _tt.IdTypes]") -> _t.Self:
