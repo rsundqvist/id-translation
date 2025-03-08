@@ -7,6 +7,10 @@ class ConfigurationError(TypeError):
     """Raised in case of bad configuration."""
 
 
+class ConfigurationChangedError(Exception):
+    """See :meth:`.Translator.load_persistent_instance`."""
+
+
 class ConnectionStatusError(ConnectionError):
     """Raised when trying to perform operations in a bad online/offline state."""
 

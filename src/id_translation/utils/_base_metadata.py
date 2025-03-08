@@ -5,10 +5,14 @@ from collections.abc import Iterable
 from datetime import datetime, timedelta, timezone
 from importlib.metadata import version as get_version
 from pathlib import Path
-from typing import Any, Literal, Self
+from typing import Any, Literal, Self, TypeAlias
+
+import pandas
 
 from id_translation._compat import fmt_sec
 from id_translation.translator_typing import CacheMissReasonType
+
+MaxAge: TypeAlias = str | pandas.Timedelta | timedelta | None
 
 
 class BaseMetadata(ABC):
@@ -90,7 +94,9 @@ class BaseMetadata(ABC):
         return cls(**kwargs)
 
     def use_cached(
-        self, metadata_path: Path, max_age: timedelta
+        self,
+        metadata_path: Path,
+        max_age: MaxAge,
     ) -> tuple[Literal[True], str, None] | tuple[Literal[False], str, CacheMissReasonType]:
         """Check status of stored metadata config based a desired configuration ``self``.
 
@@ -99,7 +105,7 @@ class BaseMetadata(ABC):
             max_age: Maximum age of stored metadata. Pass zero to force recreation. Smaller than zero = never expire.
 
         Returns:
-            A tuple ``(True, expires_at, None)`` or ``(False, reason, cache_miss_reason_type)``.
+            A tuple ``(True, expires_at, None)`` or ``(False, reason, reason_type)``.
         """
         if not metadata_path.exists():
             return False, "no cache metadata found", "metadata-missing"
@@ -110,12 +116,15 @@ class BaseMetadata(ABC):
         if reason_not_equivalent:
             return False, f"cached instance is not equivalent: {reason_not_equivalent}", "metadata-changed"
 
+        if max_age is None:
+            return True, "does not expire", None
+
+        max_age = pandas.Timedelta(max_age)
+
         expires_at = (stored_config.created + abs(max_age)).replace(microsecond=0)
         offset = fmt_sec(round(abs(datetime.now(timezone.utc) - expires_at).total_seconds()))
 
-        if max_age < timedelta(0):
-            return True, "does not expire", None
-        elif expires_at <= stored_config.created:
+        if expires_at <= stored_config.created:
             return False, f"expired at {expires_at.isoformat()} ({offset} ago)", "too-old"
         else:
             return True, f"expires at {expires_at.isoformat()} (in {offset})", None

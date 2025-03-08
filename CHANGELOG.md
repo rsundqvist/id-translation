@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Parameter `load_persistent_instance(on_config_changed='recreate' | 'raise')`.
+
 ### Changed
 - Expose and document internal meta configuration objects (`id_translation.utils.Metaconf`).
 

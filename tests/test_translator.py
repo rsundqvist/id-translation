@@ -11,7 +11,12 @@ import pytest
 
 from id_translation import Translator as RealTranslator
 from id_translation.dio.exceptions import NotInplaceTranslatableError, UntranslatableTypeError
-from id_translation.exceptions import MissingNamesError, TooManyFailedTranslationsError, TranslationDisabledWarning
+from id_translation.exceptions import (
+    ConfigurationChangedError,
+    MissingNamesError,
+    TooManyFailedTranslationsError,
+    TranslationDisabledWarning,
+)
 from id_translation.fetching.exceptions import UnknownSourceError
 from id_translation.mapping import Mapper
 from id_translation.mapping.exceptions import MappingError, MappingWarning, UserMappingError
@@ -147,6 +152,7 @@ def test_bad_translatable(translator, data, clazz, kwargs):
 
 def test_from_config():
     translator = UnitTestTranslator.from_config(ROOT.joinpath("config.toml"))
+    assert type(translator) is UnitTestTranslator
 
     actual = translator.config_metadata
 
@@ -469,22 +475,42 @@ def test_load_persistent_instance(tmp_path):
     args = (translatable, "category_id")
 
     translator = UnitTestTranslator.load_persistent_instance(tmp_path, config_path)
-    assert isinstance(translator, UnitTestTranslator)
+    assert type(translator) is UnitTestTranslator
     now = translator.now
     assert translator.translate(*args) == expected
 
     translator = UnitTestTranslator.load_persistent_instance(tmp_path, config_path)
-    assert isinstance(translator, UnitTestTranslator)
+    assert type(translator) is UnitTestTranslator
     assert translator.now == now
     assert translator.translate(*args) == expected
 
-    translator = UnitTestTranslator.load_persistent_instance(tmp_path, config_path, max_age="-1d")
-    assert isinstance(translator, UnitTestTranslator)
+    translator = UnitTestTranslator.load_persistent_instance(tmp_path, config_path, max_age="0d")
+    assert type(translator) is UnitTestTranslator
     assert translator.now > now
     assert translator.translate(*args) == expected
 
+    now = translator.now
+    translator = UnitTestTranslator.load_persistent_instance(tmp_path, config_path, max_age=None)
+    assert type(translator) is UnitTestTranslator
+    assert translator.now == now
+    assert translator.translate(*args) == expected
+
     real_translator: RealTranslator[str, str, int] = RealTranslator.load_persistent_instance(tmp_path, config_path)
-    assert isinstance(real_translator, RealTranslator)
+    assert type(real_translator) is RealTranslator
+    assert real_translator.translate(*args) == expected
+
+    metadata_path = tmp_path / "metadata.json"
+    metadata = ConfigMetadataForTest.from_json(metadata_path.read_text())
+    metadata.versions["python"] = "-1"
+    metadata_path.write_text(metadata.to_json())
+    with pytest.raises(
+        ConfigurationChangedError,
+        match=r"cached instance is not equivalent: Expected python='3\.\d+\.\d+' \(your environment\) but got python='-1'",
+    ):
+        RealTranslator.load_persistent_instance(tmp_path, config_path, on_config_changed="raise")
+
+    real_translator = RealTranslator.load_persistent_instance(tmp_path, config_path)
+    assert type(real_translator) is RealTranslator
     assert real_translator.translate(*args) == expected
     assert not isinstance(real_translator, UnitTestTranslator)
 
@@ -707,7 +733,7 @@ def test_fetcher_not_cloneable():
     with pytest.warns(UserWarning, match="reuse"):
         copy = translator.copy()
 
-    assert isinstance(translator, UnitTestTranslator)
+    assert type(translator) is UnitTestTranslator
     assert id(copy) != id(translator)
     assert id(copy.fetcher) == fetcher_id
 
