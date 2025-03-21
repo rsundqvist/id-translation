@@ -172,10 +172,10 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):
             self.logger.warning(msg)
             msg += (
                 "\nHint: Set "
-                f"unmapped_values_action='{ActionLevel.IGNORE.value}' to hide this warning, or"
-                f"unmapped_values_action='{ActionLevel.RAISE.value}' to raise an UnmappedValuesError."
+                f"unmapped_values_action='{ActionLevel.IGNORE.value}' to hide this warning, or "
+                f"unmapped_values_action='{ActionLevel.RAISE.value}' to raise an {UnmappedValuesError.__name__}."
             )
-            warnings.warn(msg, UnmappedValuesWarning, stacklevel=2)
+            warnings.warn(msg, UnmappedValuesWarning, stacklevel=3)
         else:
             self._get_verbose_logger().debug(msg)
 
