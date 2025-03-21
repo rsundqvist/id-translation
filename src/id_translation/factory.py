@@ -30,6 +30,7 @@ from .transform.types import Transformer as _Transformer
 from .transform.types import Transformers
 from .types import IdType, NameType, SourceType
 from .utils import ConfigMetadata as _ConfigMetadata
+from .utils import Metaconf as _Metaconf
 from .utils import load_toml_file as _load_toml_file
 
 if TYPE_CHECKING:
@@ -186,15 +187,13 @@ class TranslatorFactory(_Generic[NameType, SourceType, IdType]):
         self.file = str(file)
         self.extra_fetchers = list(map(str, fetchers))
         self.clazz: type[Translator[NameType, SourceType, IdType]] = clazz or Translator[NameType, SourceType, IdType]
-        self._metaconf = _read_metaconf(self.file)
+
+        metaconf_path = str(_Path(self.file).with_name("metaconf.toml"))
+        self._metaconf = _Metaconf.from_path_or_default(metaconf_path)
 
     def create(self) -> "Translator[NameType, SourceType, IdType]":
         """Create a ``Translator`` from a TOML file."""
-        config_metadata = _ConfigMetadata.from_toml_paths(
-            self.file,
-            self.extra_fetchers,
-            self.clazz,
-        )
+        config_metadata = _ConfigMetadata.from_toml_paths(self.file, self.extra_fetchers, self.clazz)
         with _rethrow_with_file(self.file):
             config: dict[str, _Any] = self.load_toml_file(self.file)
 
@@ -225,9 +224,12 @@ class TranslatorFactory(_Generic[NameType, SourceType, IdType]):
 
     def load_toml_file(self, path: str) -> dict[str, _Any]:
         """Read a TOML file from `path`."""
-        config = dict(allow_interpolation=True)
-        config.update(self._metaconf.get("env", {}))
-        return _load_toml_file(path, **config)
+        return _load_toml_file(
+            path,
+            allow_interpolation=self._metaconf.env.allow_interpolation,
+            allow_nested=self._metaconf.env.allow_nested,
+            allow_blank=self._metaconf.env.allow_blank,
+        )
 
     def _handle_fetching(
         self,
@@ -347,16 +349,6 @@ def _split_overrides(overrides: _Any) -> _Any:
 def _identifier_from_config_metadata(config_metadata: _ConfigMetadata) -> list[list[str]]:
     # Use the config filename and sha hash as the default keys
     return list(map(lambda t: [t[0].name, t[1]], (config_metadata.main, *config_metadata.extra_fetchers)))
-
-
-def _read_metaconf(file: str) -> dict[str, _Any]:
-    path = _Path(file).with_name("metaconf.toml")
-    if path.exists():
-        metaconf = _load_toml_file(path)
-    else:
-        return {}
-
-    return metaconf
 
 
 @_contextmanager
