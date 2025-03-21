@@ -2,7 +2,6 @@ import logging
 import warnings
 from collections.abc import Iterable
 from copy import deepcopy
-from datetime import timedelta
 from os import getenv
 from pathlib import Path
 from time import perf_counter
@@ -18,7 +17,6 @@ from typing import (
     overload,
 )
 
-import pandas
 from rics.collections.dicts import InheritedKeysDict, MakeType
 from rics.collections.misc import as_list
 from rics.misc import get_public_module, tname
@@ -26,7 +24,7 @@ from rics.misc import get_public_module, tname
 from id_translation._compat import PathLikeType, deprecated_params, fmt_perf
 
 from ._tasks import MappingTask, TranslationTask, generate_task_id
-from .exceptions import ConnectionStatusError, TranslationDisabledWarning
+from .exceptions import ConfigurationChangedError, ConnectionStatusError, TranslationDisabledWarning
 from .factory import TranslatorFactory
 from .fetching import Fetcher
 from .fetching.types import IdsToFetch
@@ -63,6 +61,7 @@ from .types import (
     Translatable,
 )
 from .utils import ConfigMetadata
+from .utils._base_metadata import MaxAge
 
 LOGGER = logging.getLogger(__package__).getChild("Translator")
 
@@ -71,6 +70,8 @@ ID_TRANSLATION_DISABLED: Literal["ID_TRANSLATION_DISABLED"] = "ID_TRANSLATION_DI
 
 if TYPE_CHECKING:
     from uuid import UUID
+
+    import pandas
 
     ID_TRANSLATION_PANDAS_IS_TYPED: bool = False
 
@@ -880,7 +881,8 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         cache_dir: PathLikeType,
         config_path: PathLikeType,
         extra_fetchers: Iterable[PathLikeType] = (),
-        max_age: str | pandas.Timedelta | timedelta = "12h",
+        max_age: MaxAge = "12h",
+        on_config_changed: Literal["raise", "recreate"] = "recreate",
     ) -> Self:
         """Load or create a persistent :attr:`~.Fetcher.fetch_all`-instance.
 
@@ -890,8 +892,8 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         * There is no `'metadata'` file, or
         * the original :class:`.Translator` is too old (see `max_age`), or
         * the current configuration -- as defined by ``(config_path, extra_fetchers, clazz)`` -- has changed in such a
-          way that it is no longer equivalent configuration used to create the original :class:`.Translator`. For details, see
-          :class:`~.utils.ConfigMetadata`.
+          way that it is no longer equivalent configuration used to create the original :class:`.Translator`. For
+          details, see :class:`~.utils.ConfigMetadata`.
 
         .. warning:: This method is **not** thread safe.
 
@@ -900,11 +902,16 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             config_path: Path to the main TOML configuration file.
             extra_fetchers: Paths to fetching configuration TOML files. If multiple fetchers are defined, they are
                 ranked by input order. If a fetcher defined in the main configuration, it will be prioritized (rank=0).
-            max_age: The maximum age of the cached :class:`.Translator` before it must be recreated. Pass ``max_age='0d'`` to
-                force recreation.
+            max_age: The maximum age of the cached :class:`.Translator` before it must be recreated. Pass zero to force
+                recreation, or ``None`` to ignore.
+            on_config_changed: One of ``raise|recreate``. If ``'raise'``, crash instead of creating a new instance
+                if the configuration (as determined by `config_path` and `extra_fetchers`) has changed.
 
         Returns:
             A new or cached :class:`.Translator` instance with a :attr:`config_metadata` attribute.
+
+        Raises:
+            ConfigurationChangedError: If the configuration has changed and ``on_config_mismatch='raise'``.
 
         See Also:
              The :meth:`from_config` method, which will read the `config_path`.
@@ -913,8 +920,8 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         cache_dir = Path(str(cache_dir)).expanduser().absolute()
         cache_dir.mkdir(parents=True, exist_ok=True)
 
-        metadata_path = cache_dir.joinpath("metadata.json")
-        cache_path = cache_dir.joinpath("translator.pkl")
+        metadata_path = cache_dir / "metadata.json"
+        cache_path = cache_dir / "translator.pkl"
 
         extra_fetcher_paths: list[str] = list(map(str, extra_fetchers))
 
@@ -923,10 +930,13 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             extra_fetcher_paths,
             clazz=cls,
         )
-        use_cached, reason, reason_type = metadata.use_cached(metadata_path, pandas.Timedelta(max_age).to_pytimedelta())
+        use_cached, reason, reason_type = metadata.use_cached(metadata_path, max_age)
         if use_cached:
             LOGGER.info(f"Reuse existing Translator; {reason}. Cache dir: '{cache_dir}'.")
             return cls.restore(cache_path)
+
+        if reason_type == "metadata-changed" and on_config_changed.lower() == "raise":
+            raise ConfigurationChangedError(reason)
 
         LOGGER.info(f"Create new Translator; {reason}. Cache dir: '{cache_dir}'.")
         translator = cls.from_config(path, extra_fetcher_paths)
@@ -956,7 +966,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         with full_path.open("rb") as f:
             ans = pickle.load(f)  # noqa: S301
 
-        if not isinstance(ans, cls):  # pragma: no cover
+        if type(ans) is not cls:  # pragma: no cover
             raise TypeError(f"Serialized object at at '{full_path}' is a {type(ans)}, not {cls}.")
 
         if LOGGER.isEnabledFor(logging.DEBUG):
