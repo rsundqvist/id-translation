@@ -2,6 +2,9 @@
 
 import typing as _t
 
+if _t.TYPE_CHECKING:
+    from ._cardinality import Cardinality
+
 HL = _t.TypeVar("HL", bound=_t.Hashable)
 """_t.Hashable type on the left side of a directional relationship."""
 HR = _t.TypeVar("HR", bound=_t.Hashable)
@@ -19,6 +22,8 @@ MatchTuple = tuple[CandidateType, ...]
 """A tuple of candidates matched to a value."""
 ContextType = _t.TypeVar("ContextType", bound=_t.Hashable)
 """Type of context in which mapping is being performed."""
+
+CardinalityType = _t.Union[str, "Cardinality"]
 
 UserOverrideFunction = _t.Callable[
     [ValueType, set[CandidateType], ContextType | None],

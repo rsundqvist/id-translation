@@ -1,5 +1,7 @@
 from enum import Enum
-from typing import Self, Union
+from typing import Self
+
+from id_translation.mapping.types import CardinalityType
 
 
 class Cardinality(Enum):
@@ -20,11 +22,6 @@ class Cardinality(Enum):
         >>> Cardinality.ManyToOne < Cardinality.OneToOne
         False
     """
-
-    _ignore_ = ["ParseType"]  # noqa:  RUF012
-
-    ParseType = Union[str, "Cardinality"]  # Type checking
-    """Types that may be interpreted as a ``Cardinality``."""
 
     OneToOne = "1:1"
     """One-to-one relationship."""
@@ -108,7 +105,7 @@ class Cardinality(Enum):
         return _from_counts(left_count, right_count)
 
     @classmethod
-    def parse(cls, arg: ParseType, strict: bool = False) -> "Cardinality":
+    def parse(cls, arg: CardinalityType, strict: bool = False) -> "Cardinality":
         """Convert to cardinality.
 
         Args:

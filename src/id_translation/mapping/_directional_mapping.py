@@ -5,7 +5,7 @@ from rics.misc import tname
 
 from ._cardinality import Cardinality
 from .exceptions import CardinalityError
-from .types import HL, HR, LeftToRight, RightToLeft
+from .types import HL, HR, CardinalityType, LeftToRight, RightToLeft
 
 HAnySide = TypeVar("HAnySide", bound=Hashable)
 MatchTupleAnySide = TypeVar("MatchTupleAnySide", bound=Hashable)  # TODO: Higher-Kinded TypeVars
@@ -28,7 +28,7 @@ class DirectionalMapping(Generic[HL, HR]):
 
     def __init__(
         self,
-        cardinality: Cardinality.ParseType = None,
+        cardinality: CardinalityType | None = None,
         left_to_right: Mapping[HL, Iterable[HR]] | None = None,
         right_to_left: Mapping[HR, Iterable[HL]] | None = None,
         _verify: bool = True,
@@ -173,7 +173,7 @@ class DirectionalMapping(Generic[HL, HR]):
     @classmethod
     def _handle_cardinality(
         cls,
-        expected: Cardinality.ParseType | None,
+        expected: CardinalityType | None,
         left: LeftToRight[HL, HR],
         right: RightToLeft[HR, HL],
         verify: bool,

@@ -24,7 +24,15 @@ from .exceptions import (
     UserMappingError,
     UserMappingWarning,
 )
-from .types import CandidateType, ContextType, FilterFunction, ScoreFunction, UserOverrideFunction, ValueType
+from .types import (
+    CandidateType,
+    CardinalityType,
+    ContextType,
+    FilterFunction,
+    ScoreFunction,
+    UserOverrideFunction,
+    ValueType,
+)
 
 with warnings.catch_warnings():
     warnings.simplefilter("ignore", category=UserWarning)
@@ -69,7 +77,7 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):
         | None = None,
         unmapped_values_action: ActionLevel.ParseType = ActionLevel.IGNORE,
         unknown_user_override_action: ActionLevel.ParseType = ActionLevel.RAISE,
-        cardinality: Cardinality.ParseType | None = Cardinality.ManyToOne,
+        cardinality: CardinalityType | None = Cardinality.ManyToOne,
         verbose_logging: bool = False,
     ) -> None:
         if min_score <= 0 or np.isinf(min_score):

@@ -3,11 +3,10 @@
 import dataclasses as _dataclasses
 import typing as _t
 from collections.abc import Sequence as _Sequence
-from typing import TYPE_CHECKING
 
 from .. import types as _tt
 
-if TYPE_CHECKING:
+if _t.TYPE_CHECKING:
     import pandas
 
     from ._format import Format
