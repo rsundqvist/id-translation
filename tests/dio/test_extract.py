@@ -31,4 +31,4 @@ def test_sequence_extract_multiple_names(ttype):
     data = ttype(VALUES)
     io: DataStructureIO[Sequence[int], str, str, int] = resolve_io(data)
     actual: dict[str, Sequence[int]] = io.extract(data, names=NAMES)
-    assert actual == {n: [v] for n, v in zip(NAMES, VALUES)}
+    assert actual == {n: [v] for n, v in zip(NAMES, VALUES, strict=True)}

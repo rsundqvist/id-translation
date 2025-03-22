@@ -49,7 +49,7 @@ def _get_expected(fmt, ids, table, engine):
     def func(sid):
         with engine.connect() as conn:
             cursor_result = conn.execute(sqlalchemy.text(query.format(id=sid)))
-            kwargs = {key: value for key, value in zip(cursor_result.keys(), cursor_result.fetchone())}
+            kwargs = {key: value for key, value in zip(cursor_result.keys(), cursor_result.fetchone(), strict=True)}
 
         kwargs["address"] = Address(kwargs.pop("address.address"), district=kwargs.pop("address.district"))
         return fmt.format(**kwargs)

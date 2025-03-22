@@ -139,7 +139,7 @@ class HeuristicScore(Generic[ValueType, CandidateType, ContextType]):
         if heuristic_functions.VERBOSE and LOGGER.isEnabledFor(logging.DEBUG):
             changes = [
                 f"{cand!r}: {score:.2f} -> {heuristic_score:.2f} ({heuristic_score - score:+.2f})"
-                for cand, score, heuristic_score in zip(candidates, base_score, best)
+                for cand, score, heuristic_score in zip(candidates, base_score, best, strict=True)
             ]
             LOGGER.debug(f"Heuristics scores for {value=}: [{', '.join(changes)}]")
 
@@ -163,7 +163,7 @@ def _resolve_heuristic(
         for m in filter_functions, heuristic_functions:
             try:
                 return get_by_full_name(func_or_name, m)  # type: ignore[no-any-return]
-            except AttributeError:  # noqa: PERF203
+            except AttributeError:
                 pass
 
         raise NameError(func_or_name)

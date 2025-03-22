@@ -158,14 +158,14 @@ def test_get_elements(fmt, expected):
     if actual == expected:
         return
 
-    for i, (a, e) in enumerate(zip(actual, expected)):
+    for i, (a, e) in enumerate(zip(actual, expected, strict=True)):
         assert a.placeholders == e.placeholders, i
         assert a.required == e.required, i
 
     assert "".join(a.part for a in actual) == "".join(e.part for e in expected)
     assert "".join(a.positional_part for a in actual) == "".join(e.positional_part for e in expected)
 
-    for i, (a, e) in enumerate(zip(actual, expected)):
+    for i, (a, e) in enumerate(zip(actual, expected, strict=True)):
         assert a.placeholders == e.placeholders, i
         assert a.required == e.required, i
 

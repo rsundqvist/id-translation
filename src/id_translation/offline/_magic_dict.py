@@ -180,7 +180,7 @@ class MagicDict(MutableMapping[IdType, str]):
             try:
                 default_value.format(sample)
                 return default_value  # Formatting OK
-            except KeyError as e:  # noqa: PERF203
+            except KeyError as e:
                 raise ValueError(f"Bad {default_value=}") from e
             except Exception:  # noqa: S110
                 pass  # Attribute error, value error, etc. Happens naturally when the sample type is wrong.
@@ -197,7 +197,7 @@ def _try_stringify_many(real_translations: TranslatedIds[IdType]) -> tuple[Trans
     if not isinstance(new_keys[0], UUID):
         return real_translations, False  # Keys are not UUID-like.
 
-    uuid_translations = {uuid: real_translations[idx] for uuid, idx in zip(new_keys, original_ids)}
+    uuid_translations = {uuid: real_translations[idx] for uuid, idx in zip(new_keys, original_ids, strict=True)}
     if len(real_translations) != len(uuid_translations):
         raise TypeError("Duplicate UUIDs found. Verify translation sources or set enable_uuid_heuristics=False.")
 

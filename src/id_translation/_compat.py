@@ -1,9 +1,10 @@
 """Vendored functions."""
 
+from collections.abc import Callable
 from functools import wraps
 from os import PathLike
 from pathlib import Path
-from typing import Callable, ParamSpec, TypeAlias, TypeVar
+from typing import ParamSpec, TypeAlias, TypeVar
 from warnings import warn
 
 from rics.misc import tname

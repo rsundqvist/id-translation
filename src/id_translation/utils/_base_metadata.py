@@ -1,8 +1,7 @@
 import json
-import sys
 from abc import ABC, abstractmethod
 from collections.abc import Iterable
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from importlib.metadata import version as get_version
 from pathlib import Path
 from typing import Any, Literal, Self, TypeAlias
@@ -29,7 +28,7 @@ class BaseMetadata(ABC):
         created: datetime | None = None,
     ) -> None:
         self.versions = self.get_package_versions([]) if versions is None else versions
-        self.created = created or datetime.now(timezone.utc)
+        self.created = created or datetime.now(UTC)
 
     @abstractmethod
     def _to_dict(self, to_json: dict[str, Any]) -> dict[str, Any]:
@@ -122,7 +121,7 @@ class BaseMetadata(ABC):
         max_age = pandas.Timedelta(max_age)
 
         expires_at = (stored_config.created + abs(max_age)).replace(microsecond=0)
-        offset = fmt_sec(round(abs(datetime.now(timezone.utc) - expires_at).total_seconds()))
+        offset = fmt_sec(round(abs(datetime.now(UTC) - expires_at).total_seconds()))
 
         if expires_at <= stored_config.created:
             return False, f"expired at {expires_at.isoformat()} ({offset} ago)", "too-old"
@@ -132,9 +131,6 @@ class BaseMetadata(ABC):
     @classmethod
     def get_package_versions(cls, extra_packages: Iterable[str]) -> dict[str, str]:
         """Extract package versions using ``importlib.metadata``."""
-        packages = ["rics", "id-translation", "sqlalchemy", "pandas"]
-        if sys.version_info < (3, 11):  # pragma: no cover
-            packages.append("tomli")
-        packages.extend(extra_packages)
-
+        assert not isinstance(extra_packages, str)  # noqa: S101
+        packages = ["rics", "id-translation", "sqlalchemy", "pandas", *extra_packages]
         return {package: get_version(package) for package in packages}

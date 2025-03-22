@@ -11,7 +11,7 @@ def test_copy(translation_map):
     assert c.default_fmt == translation_map.default_fmt
     assert c.default_fmt_placeholders == translation_map.default_fmt_placeholders
     assert len(c) == len(translation_map)
-    assert all(left == right for left, right in zip(c, translation_map))
+    assert all(left == right for left, right in zip(c, translation_map, strict=True))
 
 
 def test_props(translation_map):

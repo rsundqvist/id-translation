@@ -25,7 +25,7 @@ class SequenceIO(DataStructureIO[T, NameType, SourceType, IdType]):
         return (
             {names[0]: as_list(translatable)}
             if len(names) == 1
-            else {n: as_list(r) for n, r in zip(names, translatable)}
+            else {n: as_list(r) for n, r in zip(names, translatable, strict=True)}
         )
 
     @classmethod
@@ -64,7 +64,7 @@ def translate_sequence(s: T, names: list[NameType], tmap: TranslationMap[NameTyp
         translate_sequence(element, [name], tmap)  # type: ignore
         if SequenceIO.handles_type(element)
         else tmap[name][element]
-        for name, element in zip(names, s)
+        for name, element in zip(names, s, strict=True)
     ]
 
 

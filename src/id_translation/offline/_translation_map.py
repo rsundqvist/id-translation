@@ -1,6 +1,6 @@
 from collections.abc import Iterator, Mapping, Sequence
 from copy import copy
-from typing import TYPE_CHECKING, Any, Generic, Self, Union
+from typing import TYPE_CHECKING, Any, Generic, Self
 
 from rics.collections.dicts import InheritedKeysDict, reverse_dict
 from rics.misc import tname
@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 class TranslationMap(
     Generic[NameType, SourceType, IdType],
     HasSources[SourceType],
-    Mapping[Union[NameType, SourceType], MagicDict[IdType]],
+    Mapping[NameType | SourceType, MagicDict[IdType]],
 ):
     """Storage class for fetched translations.
 

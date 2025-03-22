@@ -1,7 +1,6 @@
 """Types used for mapping."""
 
 import typing as _t
-from typing import Optional
 
 HL = _t.TypeVar("HL", bound=_t.Hashable)
 """_t.Hashable type on the left side of a directional relationship."""
@@ -22,8 +21,8 @@ ContextType = _t.TypeVar("ContextType", bound=_t.Hashable)
 """Type of context in which mapping is being performed."""
 
 UserOverrideFunction = _t.Callable[
-    [ValueType, set[CandidateType], Optional[ContextType]],
-    Optional[CandidateType],
+    [ValueType, set[CandidateType], ContextType | None],
+    CandidateType | None,
 ]
 """Signature for a user-defined override function.
 
@@ -37,7 +36,7 @@ Returns:
 """
 
 ScoreFunction = _t.Callable[
-    [ValueType, _t.Iterable[CandidateType], Optional[ContextType]],
+    [ValueType, _t.Iterable[CandidateType], ContextType | None],
     _t.Iterable[float],
 ]
 """Signature for a likeness score function.
@@ -55,7 +54,7 @@ Yields:
 """
 
 AliasFunction = _t.Callable[
-    [ValueType, _t.Iterable[CandidateType], Optional[ContextType]],
+    [ValueType, _t.Iterable[CandidateType], ContextType | None],
     tuple[ValueType, _t.Iterable[CandidateType]],
 ]
 """Signature for an alias function for heuristic scoring.
@@ -73,7 +72,7 @@ Returns:
 """
 
 FilterFunction = _t.Callable[
-    [ValueType, _t.Iterable[CandidateType], Optional[ContextType]],
+    [ValueType, _t.Iterable[CandidateType], ContextType | None],
     set[CandidateType],
 ]
 """Signature for a filter function.
@@ -90,8 +89,7 @@ Returns:
     A subset of candidates to keep.
 """
 
-HeuristicsTypes = _t.Union[
-    AliasFunction[ValueType, CandidateType, ContextType],
-    FilterFunction[ValueType, CandidateType, ContextType],
-]
+HeuristicsTypes: _t.TypeAlias = (
+    AliasFunction[ValueType, CandidateType, ContextType] | FilterFunction[ValueType, CandidateType, ContextType]
+)
 """Types that may be interpreted as a score function heuristic."""

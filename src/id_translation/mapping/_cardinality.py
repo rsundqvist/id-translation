@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Union
+from typing import Self, Union
 
 
 class Cardinality(Enum):
@@ -84,11 +84,11 @@ class Cardinality(Enum):
         """
         return self in {Cardinality.OneToOne, Cardinality.ManyToMany}
 
-    def __ge__(self, other: "Cardinality") -> bool:
+    def __ge__(self, other: Self) -> bool:
         """Equivalent to :meth:`set.issuperset`."""
         return _is_superset(self, other)
 
-    def __lt__(self, other: "Cardinality") -> bool:
+    def __lt__(self, other: Self) -> bool:
         return not self >= other
 
     @classmethod
@@ -122,9 +122,6 @@ class Cardinality(Enum):
             ValueError: If the argument could not be converted.
         """
         return arg if isinstance(arg, Cardinality) else _from_generous_string(arg, strict)
-
-
-Cardinality.ParseType = Union[str, Cardinality]
 
 
 def _parsing_failure_message(arg: str, strict: bool) -> str:

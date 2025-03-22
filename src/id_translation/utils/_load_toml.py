@@ -1,7 +1,7 @@
+import tomllib
 from pathlib import Path
 from typing import Any
 
-import tomllib
 from rics.misc import interpolate_environment_variables
 
 from id_translation._compat import PathLikeType

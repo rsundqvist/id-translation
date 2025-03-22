@@ -12,7 +12,6 @@ from typing import (
     Literal,
     NoReturn,
     Self,
-    Union,
     Unpack,
     overload,
 )
@@ -581,7 +580,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             @overload
             def translate(
                 self,
-                translatable: Union["pandas.DataFrame", "pandas.Series[Any]"],
+                translatable: "pandas.DataFrame" | "pandas.Series[Any]",
                 names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
                 *,
                 copy: Literal[False],

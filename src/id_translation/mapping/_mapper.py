@@ -248,7 +248,7 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):
                     verbose_logger.debug(f"Compute match scores for {value=}.")
                 scores_for_value = self._score(value, filtered_candidates, context, **self._score_kwargs, **kwargs)
 
-            for score, candidate in zip(scores_for_value, filtered_candidates):
+            for score, candidate in zip(scores_for_value, filtered_candidates, strict=True):
                 scores.loc[value, candidate] = score
 
         if verbose_logger.isEnabledFor(logging.DEBUG):

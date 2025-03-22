@@ -103,7 +103,7 @@ def get_key_event_details(dialect, caplog):
         ret.append(
             KeyEventDetails(
                 task_id=r.task_id,
-                key=cast(tuple[str, str], tuple(r.event_key.split("."))),
+                key=cast("tuple[str, str]", tuple(r.event_key.split("."))),
                 is_enter=r.event_stage == "ENTER",
                 kind=KeyEventDetails.get_kind(r.event_key),
                 index=i,
