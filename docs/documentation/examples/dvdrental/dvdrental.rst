@@ -3,7 +3,7 @@
 ==========================
 Sakila DVD Rental Database
 ==========================
-This example translates a query against the `DVD Rental Sample Database`_. Click :download:`here <resources/dvdrental.zip>`
+This example translates a query against the `DVD Rental Sample Database`_. Click :download:`here <dvdrental.zip>`
 to download.
 
 Start the database
@@ -16,24 +16,24 @@ Using Docker, start the database by running:
 
 For details about this image, see https://hub.docker.com/r/rsundqvist/sakila-preload.
 
-.. literalinclude:: resources/dvdrental.py
+.. literalinclude:: dvdrental.py
    :start-at: # Credentials
    :lines: 1-3
 
 Query
 -----
-.. literalinclude:: resources/query.sql
+.. literalinclude:: query.sql
    :language: sql
    :linenos:
 
 The query above will tell us who rented what and when, what store they rented from and from whom.
 
-.. literalinclude:: resources/dvdrental.py
+.. literalinclude:: dvdrental.py
    :start-at: # Download data to translate
    :end-at: print
 
 .. csv-table:: Randomly sampled rows from the query. The first column is the record index in the query.
-   :file: resources/expected.csv
+   :file: expected.csv
    :header-rows: 1
 
 Configuration files
@@ -41,15 +41,15 @@ Configuration files
 The database has a few quirks, which are managed by configuration. See the :ref:`translator-config` page to learn
 more about config files.
 
-.. literalinclude::  resources/translation.toml
+.. literalinclude::  translation.toml
    :caption: Translation configuration, mapping, and definition of the categories.
 
-.. literalinclude:: resources/sql-fetcher.toml
+.. literalinclude:: sql-fetcher.toml
    :caption: Configuration for fetching SQL data.
 
 To create a ``Translator``, pass the configuration files to :meth:`.Translator.from_config`.
 
-.. literalinclude:: resources/dvdrental.py
+.. literalinclude:: dvdrental.py
    :start-at: # Create a Translator
    :end-at: print
 
@@ -68,7 +68,7 @@ Translating
 -----------
 Date columns should not be translated, so let's make sure.
 
-.. literalinclude:: resources/dvdrental.py
+.. literalinclude:: dvdrental.py
    :start-at: translator.map
    :lines: 1
 
@@ -86,12 +86,12 @@ Result
 ------
 All that's left now is to translate the data.
 
-.. literalinclude:: resources/dvdrental.py
+.. literalinclude:: dvdrental.py
    :start-at: translator.translate
    :end-at: print
 
 .. csv-table:: Translated data.
-   :file: resources/translated.csv
+   :file: translated.csv
    :header-rows: 1
 
 .. _DVD Rental Sample Database:

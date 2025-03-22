@@ -141,7 +141,6 @@ extensions = [
     "nbsphinx",
     "sphinx.ext.mathjax",
     "myst_parser",
-    "sphinxcontrib.programoutput",
 ]
 autosummary_ignore_module_all = True
 autosummary_imported_members = True
@@ -296,7 +295,7 @@ shutil.copytree("../notebooks/demo/", "documentation/examples/notebooks", dirs_e
 # -- Randoms stuff -------------------------------------------------------------
 split_changelog("changelog", "../CHANGELOG.md")
 
-root = "documentation/examples/resources"
+root = "documentation/examples/dvdrental"
 with ZipFile(f"{root}/dvdrental.zip", "w") as archive:
     archive.write(f"{root}/dvdrental.py", "dvdrental/dvdrental.py")
     archive.write(f"{root}/query.sql", "dvdrental/query.sql")
