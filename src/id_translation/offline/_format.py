@@ -1,10 +1,10 @@
 from collections.abc import Iterable, Mapping
-from typing import Any
+from typing import Any, Self
 
 from rics.misc import tname
 
 from . import parse_format_string
-from .types import FormatType, PlaceholdersTuple
+from .types import PlaceholdersTuple
 
 
 class Format:
@@ -148,7 +148,7 @@ class Format:
 
         return "".join(e.positional_part if positional else e.part for e in filter(predicate, self._elements))
 
-    def partial(self, defaults: Mapping[str, Any]) -> "Format":
+    def partial(self, defaults: Mapping[str, Any]) -> Self:
         """Get a partially formatted :meth:`fstring`.
 
         Args:
@@ -159,19 +159,20 @@ class Format:
             A partially formatted fstring.
         """
         new_fmt, _placeholders = parse_format_string.Element.parse_block(self._fmt, defaults=defaults)
-        return Format(new_fmt)
+        cls = type(self)
+        return cls(new_fmt)
 
-    @staticmethod
-    def parse(fmt: FormatType) -> "Format":
+    @classmethod
+    def parse(cls, fmt: str | Self) -> Self:
         """Parse a format.
 
         Args:
-            fmt: Input to parse.
+            fmt: A ``str`` or ``Format`` instance.
 
         Returns:
             A ``Format`` instance.
         """
-        return fmt if isinstance(fmt, Format) else Format(fmt)
+        return cls(fmt) if isinstance(fmt, str) else fmt
 
     @property
     def placeholders(self) -> PlaceholdersTuple:

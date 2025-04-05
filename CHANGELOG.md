@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Expose and document internal meta configuration objects (`id_translation.utils.Metaconf`).
 - Move `Cardinality.ParseType` to `mapping.types.CardinalityType` (similar to `offline.types.FormatType`).
+- Use proper typing in `Format.parse(cls)`.
 
 ### Fixed
 - Improve `names` extraction with `pandas.MultiIndex` types:
