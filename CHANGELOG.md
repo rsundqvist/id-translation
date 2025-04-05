@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * Use only the last level values if `DataFrame.columns` is a `MultiIndex`.
   * Ignore `None` values in `MultiIndex.names`.
 - Fix crash when variable substitution (e.g. `${VAR}`) was used for non-string values in fetcher configs.
+- The `AbstractFetcher` now uses the proper log level for the `FETCH_TRANSLATIONS.EXIT` event.
 
 ### Removed
 - The `factory` submodule is gone. Functionality now lives in `id_translation.toml`.
