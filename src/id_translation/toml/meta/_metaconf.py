@@ -3,7 +3,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Self
 
-from id_translation.toml._load_toml import load_toml_file
+from .._load_toml import load_toml_file
 
 LOGGER = logging.getLogger(__package__).getChild("Translator").getChild("config")
 

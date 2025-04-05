@@ -4,7 +4,7 @@ from typing import Any
 
 from rics.misc import interpolate_environment_variables
 
-from id_translation._compat import PathLikeType
+from .._compat import PathLikeType
 
 
 def load_toml_file(

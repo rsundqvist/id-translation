@@ -6,13 +6,14 @@ from typing import TYPE_CHECKING, Any, Generic, TypeAlias
 
 from rics.collections.dicts import InheritedKeysDict
 
-from .._compat import PathLikeType
-from ..exceptions import ConfigurationError
-from ..fetching import AbstractFetcher, CacheAccess, Fetcher, MultiFetcher
-from ..mapping import Mapper
-from ..transform.types import Transformer, Transformers
-from ..types import IdType, NameType, SourceType
-from . import _component_factories as cf
+from id_translation._compat import PathLikeType
+from id_translation.exceptions import ConfigurationError
+from id_translation.fetching import AbstractFetcher, CacheAccess, Fetcher, MultiFetcher
+from id_translation.mapping import Mapper
+from id_translation.transform.types import Transformer, Transformers
+from id_translation.types import IdType, NameType, SourceType
+
+from . import factories as cf
 from ._load_toml import load_toml_file
 from .meta import ConfigMetadata, Metaconf
 
@@ -24,7 +25,7 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
     """Create a :class:`.Translator` from TOML inputs."""
 
     FetcherFactory: TypeAlias = Callable[[str, dict[str, Any]], AbstractFetcher[Any, Any]]
-    """Signature for  :attr:`FETCHER_FACTORY`."""
+    """Signature for :attr:`FETCHER_FACTORY`."""
 
     FETCHER_FACTORY: FetcherFactory = staticmethod(cf.default_fetcher_factory)
     """A callable ``(clazz, config) -> AbstractFetcher``.
@@ -46,8 +47,8 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
         :ref:`translator-config-fetching`
     """
 
-    MapperFactory = Callable[[dict[str, Any], bool], Mapper[Any, Any, Any] | None]
-    """Signature for  :attr:`MAPPER_FACTORY`."""
+    MapperFactory: TypeAlias = Callable[[dict[str, Any], bool], Mapper[Any, Any, Any] | None]
+    """Signature for :attr:`MAPPER_FACTORY`."""
 
     MAPPER_FACTORY: MapperFactory = cf.default_mapper_factory
     """A callable ``(config, for_fetcher) -> Mapper | None``.
@@ -71,7 +72,7 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
     """
 
     TransformerFactory: TypeAlias = Callable[[str, dict[str, Any]], Transformer[Any]]
-    """Signature for  :attr:`TRANSFORMER_FACTORY`."""
+    """Signature for :attr:`TRANSFORMER_FACTORY`."""
 
     TRANSFORMER_FACTORY: TransformerFactory = cf.default_transformer_factory
     """A callable ``(clazz, config) -> Transformer``.
@@ -93,7 +94,7 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
     """
 
     CacheAccessFactory: TypeAlias = Callable[[str, dict[str, Any]], CacheAccess[Any, Any]]
-    """Signature for  :attr:`CACHE_ACCESS_FACTORY`."""
+    """Signature for :attr:`CACHE_ACCESS_FACTORY`."""
 
     CACHE_ACCESS_FACTORY: CacheAccessFactory = cf.default_cache_access_factory
     """A callable ``(clazz, config) -> CacheAccess``.
