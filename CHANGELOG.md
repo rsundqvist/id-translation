@@ -20,6 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * Ignore `None` values in `MultiIndex.names`.
 - Fix crash when variable substitution (e.g. `${VAR}`) was used for non-string values in fetcher configs.
 
+### Removed
+- The `factory` submodule is gone. Functionality now lives in `id_translation.toml`.
+
 ## [0.12.2] - 2024-10-16
 
 ### Fixed

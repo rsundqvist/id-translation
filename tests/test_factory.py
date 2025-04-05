@@ -4,8 +4,8 @@ import pytest
 
 from id_translation import Translator
 from id_translation.exceptions import ConfigurationError
-from id_translation.factory import default_fetcher_factory
 from id_translation.fetching import AbstractFetcher, MemoryFetcher
+from id_translation.toml._component_factories import default_fetcher_factory
 from id_translation.types import IdType, SourceType
 
 from .conftest import ROOT

@@ -15,7 +15,7 @@ This document describes the TOML format used by the
 Meta configuration
 ------------------
 The ``metaconf.toml``-file must be placed next to the main TOML configuration file, and determines how other files are
-processed by the factory. See :class:`~id_translation.utils.Metaconf` for internal representation.
+processed by the factory. See :class:`~id_translation.toml.meta.Metaconf` for internal representation.
 
 .. list-table:: The ``metaconf.toml`` file format.
    :header-rows: 1
@@ -25,10 +25,10 @@ processed by the factory. See :class:`~id_translation.utils.Metaconf` for intern
      - Type
      - Description
    * - ``[env]``
-     - :class:`~id_translation.utils.EnvConf`
+     - :class:`~id_translation.toml.meta.EnvConf`
      - Control environment-variable interpolation; ``${VAR}`` or ``${VAR:default}``.
    * - ``[equivalence]``
-     - :class:`~id_translation.utils.EquivalenceConf`
+     - :class:`~id_translation.toml.meta.EquivalenceConf`
      - Determines how equivalence between configuration files is determined.
 
 The ``metaconf.toml``-file is read as-is, without any preprocessing.
@@ -381,3 +381,12 @@ identical contents. We would like to use a format ``'[{title}. ]{name}'`` to out
 to force the fetcher to inform the ``Translator`` that the `title` placeholder (column) does not exist for the
 `title_basics` source (we used `'_'` since TOML `does not have <https://github.com/toml-lang/toml/issues/30>`__ a
 ``null``-type).
+
+Custom TOML initialization
+--------------------------
+All TOML configuration is interpreted by the :class:`.TranslatorFactory` class. To customize how different components
+are created, overwrite the all-caps factory properties of this class. For example, you may overwrite the
+:attr:`.TranslatorFactory.FETCHER_FACTORY` attribute with your own implementation to customize how fetcher instances are
+created.
+
+If your use case is not covered, consider opening an issue in the repository: https://github.com/rsundqvist/id-translation/issues

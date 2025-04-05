@@ -24,7 +24,6 @@ from id_translation._compat import PathLikeType, deprecated_params, fmt_perf
 
 from ._tasks import MappingTask, TranslationTask, generate_task_id
 from .exceptions import ConfigurationChangedError, ConnectionStatusError, TranslationDisabledWarning
-from .factory import TranslatorFactory
 from .fetching import Fetcher
 from .fetching.types import IdsToFetch
 from .mapping import Mapper
@@ -36,6 +35,7 @@ from .offline.types import (
     PlaceholderTranslations,
     SourcePlaceholderTranslations,
 )
+from .toml import TranslatorFactory, meta
 from .transform.types import Transformers
 from .translator_typing import CopyParams, FetcherTypes
 from .types import (
@@ -59,8 +59,6 @@ from .types import (
     SourceType,
     Translatable,
 )
-from .utils import ConfigMetadata
-from .utils._base_metadata import MaxAge
 
 LOGGER = logging.getLogger(__package__).getChild("Translator")
 
@@ -197,7 +195,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         self._mapper: Mapper[NameType, SourceType, None] = mapper or Mapper()
         self._mapper.logger = logging.getLogger(__package__).getChild("mapping").getChild("name-to-source")
 
-        self._config_metadata: ConfigMetadata | None = None
+        self._config_metadata: meta.ConfigMetadata | None = None
         self._translated_names: NameToSource[NameType, SourceType] | None = None
 
     @classmethod
@@ -219,7 +217,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         return TranslatorFactory(path, extra_fetchers, cls).create()  # type: ignore[return-value]
 
     @property
-    def config_metadata(self) -> ConfigMetadata:
+    def config_metadata(self) -> meta.ConfigMetadata:
         """Return :func:`~Translator.from_config` initialization :class:`metadata <.ConfigMetadata>`."""
         if self._config_metadata is None:
             raise ValueError("Not created using Translator.from_config()")  # pragma: no cover
@@ -880,7 +878,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         cache_dir: PathLikeType,
         config_path: PathLikeType,
         extra_fetchers: Iterable[PathLikeType] = (),
-        max_age: MaxAge = "12h",
+        max_age: meta.BaseMetadata.MaxAge = "12h",
         on_config_changed: Literal["raise", "recreate"] = "recreate",
     ) -> Self:
         """Load or create a persistent :attr:`~.Fetcher.fetch_all`-instance.
@@ -892,7 +890,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         * the original :class:`.Translator` is too old (see `max_age`), or
         * the current configuration -- as defined by ``(config_path, extra_fetchers, clazz)`` -- has changed in such a
           way that it is no longer equivalent configuration used to create the original :class:`.Translator`. For
-          details, see :class:`~.utils.ConfigMetadata`.
+          details, see :class:`~.toml.meta.ConfigMetadata`.
 
         .. warning:: This method is **not** thread safe.
 
@@ -924,7 +922,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
         extra_fetcher_paths: list[str] = list(map(str, extra_fetchers))
 
-        metadata = ConfigMetadata.from_toml_paths(
+        metadata = meta.ConfigMetadata.from_toml_paths(
             str(path),
             extra_fetcher_paths,
             clazz=cls,

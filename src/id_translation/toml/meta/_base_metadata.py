@@ -11,8 +11,6 @@ import pandas
 from id_translation._compat import fmt_sec
 from id_translation.translator_typing import CacheMissReasonType
 
-MaxAge: TypeAlias = str | pandas.Timedelta | timedelta | None
-
 
 class BaseMetadata(ABC):
     """Base implementation for Metadata types.
@@ -21,6 +19,8 @@ class BaseMetadata(ABC):
         versions: Versions, e.g. ``{'python': '3.11.11'`, 'your-package': '1.0.0'}``.
         created: The time at which the metadata was originally created.
     """
+
+    MaxAge: TypeAlias = str | pandas.Timedelta | timedelta | None
 
     def __init__(
         self,

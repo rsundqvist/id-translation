@@ -20,7 +20,7 @@ from id_translation.exceptions import (
 from id_translation.fetching.exceptions import UnknownSourceError
 from id_translation.mapping import Mapper
 from id_translation.mapping.exceptions import MappingError, MappingWarning, UserMappingError
-from id_translation.utils import _config_utils
+from id_translation.toml.meta import _config_metadata
 
 from .conftest import ROOT, NotCloneableFetcher
 
@@ -47,7 +47,7 @@ class UnitTestTranslator(RealTranslator[str, str, int]):
 
 
 @dataclass
-class ConfigMetadataForTest(_config_utils.ConfigMetadata):
+class ConfigMetadataForTest(_config_metadata.ConfigMetadata):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
 
@@ -56,7 +56,7 @@ class ConfigMetadataForTest(_config_utils.ConfigMetadata):
 
 
 # __post_init__ doesn't play nice with monkey patching
-_config_utils.ConfigMetadata = ConfigMetadataForTest  # type: ignore
+_config_metadata.ConfigMetadata = ConfigMetadataForTest  # type: ignore
 
 
 @pytest.mark.parametrize("with_id, with_override, store", combinations_with_replacement([False, True], 3))
