@@ -67,7 +67,7 @@ def clean_docs(c: Context) -> None:
     """Clean up files from documentation builds."""
     _run(c, f"rm -fr {DOCS_BUILD_DIR}")
 
-    dirs = "_autosummary", "changelog", "auto_examples", "gen_modules", "documentation/examples/notebooks"
+    dirs = "api", "changelog", "auto_examples", "gen_modules", "documentation/examples/notebooks"
     more_dirs = " ".join(map(str, map(DOCS_DIR.joinpath, dirs)))
     _run(c, f"rm -fr {more_dirs}")
 

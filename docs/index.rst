@@ -12,7 +12,7 @@ which wraps this method.
 .. toctree::
    :hidden:
 
-   API reference <_autosummary/id_translation>
+   API reference <api/id_translation>
    documentation/index
    development
    License <LICENSE>
@@ -38,7 +38,7 @@ The `fmt` argument is optional, but ``copy=False`` is not since the default is `
    1    2:Simba, nice=True    1999:Sofia
 
 This is a simplified version of an :ref:`example <translator-docstring-example>` from the :class:`.Translator` class
-documentation. See the :doc:`API reference <_autosummary/id_translation>` for more.
+documentation. See the :doc:`API reference <api/id_translation>` for more.
 
 Shortcuts
 ---------

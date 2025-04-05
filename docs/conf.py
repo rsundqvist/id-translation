@@ -33,9 +33,9 @@ for tm in type_modules:
     import_module(tm)
 
 
-if not os.path.exists("_autosummary"):
-    os.mkdir("_autosummary")
-shutil.copyfile("translator.rst", "_autosummary/translator.rst")
+if not os.path.exists("api"):
+    os.mkdir("api")
+shutil.copyfile("translator.rst", "api/translator.rst")
 
 
 def monkeypatch_autosummary_toc() -> None:
@@ -220,7 +220,7 @@ html_context = {
         dict(
             title="Translator.translate",
             text="Main entry point for translation tasks.",
-            url="_autosummary/id_translation.Translator.translate.html",
+            url="api/id_translation.Translator.translate.html",
             img="_static/translation.png",
         ),
         dict(
@@ -232,7 +232,7 @@ html_context = {
         dict(
             title="Fetching",
             text="API documentation for SQL and file-system fetching.",
-            url="_autosummary/id_translation.fetching.html",
+            url="api/id_translation.fetching.html",
             img="https://cdn-icons-png.flaticon.com/512/6486/6486493.png",
         ),
         dict(
