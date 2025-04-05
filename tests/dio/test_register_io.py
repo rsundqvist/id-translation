@@ -26,7 +26,7 @@ def register_tmp_io():
 
     register_io(DummyIO)
     yield
-    _resolve.RESOLUTION_ORDER.remove(DummyIO)
+    _resolve._RESOLUTION_ORDER.remove(DummyIO)
 
 
 class Data:

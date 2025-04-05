@@ -22,3 +22,4 @@ __all__ = [
 __version__ = "0.12.2.dev1"
 
 _logging.getLogger(__name__).addHandler(_logging.NullHandler())
+del _logging

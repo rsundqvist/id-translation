@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Parameter `load_persistent_instance(on_config_changed='recreate' | 'raise')`.
 - Method `PlaceholderTranslations.to_dataframe()`.
+- Automatically load `DataStructureIO` integrations registered using the `'id_translation.dio.integration'` entrypoint group.
 
 ### Changed
 - Expose and document internal meta configuration objects (`id_translation.utils.Metaconf`).

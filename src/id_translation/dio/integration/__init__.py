@@ -1,4 +1,4 @@
 """Integration modules.
 
-Dependencies must be installed separately.
+Integrations in this module are automatically registered if the necessary dependencies are installed.
 """

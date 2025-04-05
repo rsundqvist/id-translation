@@ -8,6 +8,7 @@ from id_translation.dio.exceptions import NotInplaceTranslatableError
 from id_translation.dio.integration.dask import DaskIO
 from id_translation.types import IdTypes
 
+assert DaskIO.is_registered(), "entrypoint loader failed"
 DaskIO.register()
 assert DaskIO.get_rank() == 0
 

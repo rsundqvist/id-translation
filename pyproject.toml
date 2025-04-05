@@ -42,6 +42,11 @@ documentation = "https://id-translation.readthedocs.io"
 [project.scripts]
 # No scripts.
 
+[project.entry-points."id_translation.dio"]
+# Names are not used.
+dask_io = "id_translation.dio.integration.dask:DaskIO"
+polars_io = "id_translation.dio.integration.polars:PolarsIO"
+
 [tool.poetry.requires-plugins]
 poetry-plugin-export = ">=1.8"
 

@@ -22,6 +22,16 @@ class DataStructureIO(Generic[TranslatableT, NameType, SourceType, IdType]):
         return register_io(cls)
 
     @classmethod
+    def is_registered(cls) -> bool:
+        """Returns registration status for this implementation.
+
+        See :func:`.dio.is_registered` for details.
+        """
+        from ._resolve import is_registered
+
+        return is_registered(cls)
+
+    @classmethod
     def get_rank(cls) -> int:
         """Return the rank of this implementation.
 

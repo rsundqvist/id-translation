@@ -67,7 +67,7 @@ Your generated project might look like, or continue to the next section for a br
 - Optional and [user-extensible] integration of data types, such as [polars] and [dask].
 
 [pandas-translation]: https://id-translation.readthedocs.io/en/stable/documentation/examples/notebooks/cookbook/pandas-index.html
-[user-extensible]: https://id-translation.readthedocs.io/en/stable/api/id_translation.dio.html#id_translation.dio.register_io
+[user-extensible]: https://id-translation.readthedocs.io/en/stable/api/id_translation.dio.html#user-defined-integrations
 [polars]: https://id-translation.readthedocs.io/en/stable/api/id_translation.dio.integration.polars.html
 [dask]: https://id-translation.readthedocs.io/en/stable/api/id_translation.dio.integration.dask.html
 
