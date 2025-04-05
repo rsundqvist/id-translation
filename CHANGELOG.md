@@ -8,15 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Parameter `load_persistent_instance(on_config_changed='recreate' | 'raise')`.
+- Parameter `Translator.load_persistent_instance(on_config_changed=recreate|raise)`.
 - Method `PlaceholderTranslations.to_dataframe()`.
-- Automatically load `DataStructureIO` integrations registered using the `'id_translation.dio.integration'` entrypoint group.
+- Automatically load `DataStructureIO` integrations registered using the `'id_translation.dio'` entrypoint group.
 
 ### Changed
 - Expose and document internal meta configuration objects (`id_translation.utils.Metaconf`).
 - Move `Cardinality.ParseType` to `mapping.types.CardinalityType` (similar to `offline.types.FormatType`).
 - Use proper typing in `Format.parse(cls)`.
-- Refactor `AbstractFetcher` caching implementation. Add ABC `id_translation.fetching.types.CacheAccess`.
+- Refactor `AbstractFetcher` caching implementation. Add ABC `id_translation.fetching.CacheAccess`.
 
 ### Fixed
 - Improve `names` extraction with `pandas.MultiIndex` types:
