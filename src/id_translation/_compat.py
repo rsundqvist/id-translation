@@ -9,7 +9,7 @@ from warnings import warn
 
 from rics.misc import tname
 
-# TODO(0.11.0): any_path_to_path(p, postprocessor=...)
+# TODO(2.0.0): any_path_to_path(p, postprocessor=...)
 PathLikeType: TypeAlias = str | PathLike[str] | Path
 
 
@@ -21,7 +21,7 @@ try:
 except ImportError:
     from rics import performance
 
-    # TODO(0.11.0): Drop this.
+    # TODO(2.0.0): Drop this.
     fmt_perf = performance.format_perf_counter
     fmt_sec = performance.format_seconds
 
@@ -50,7 +50,10 @@ def deprecated_params(__func: Callable[P, T], /) -> Callable[P, T]:
                     WARNED.add(old)
 
                     name = tname(__func, prefix_classname=True)
-                    msg = f"{name}(): The `{old}` parameter is deprecated; use `{new}` instead."
+                    msg = (
+                        f"{name}(): The `{old}` parameter is deprecated; use `{new}` instead."
+                        f" This alias will be removed in `id-translation==2.0.0`."
+                    )
                     warn(message=msg, category=DeprecationWarning, stacklevel=2)
 
                 value = kwargs.pop(old)

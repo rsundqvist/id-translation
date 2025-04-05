@@ -21,7 +21,7 @@ class MagicDict(MutableMapping[IdType, str]):
     Args:
         real_translations: A dict holding :attr:`real` translations.
         default_value: A string with exactly one or zero placeholders.
-        enable_uuid_heuristics: Enabling may improve matching when :py:class:`~uuid.UUID`-like IDs are in use.
+        enable_uuid_heuristics: Improves matching when :py:class:`~uuid.UUID`-like IDs are in use.
         transformer: Initialized :class:`.Transformer` instance.
 
             .. note:
@@ -73,8 +73,7 @@ class MagicDict(MutableMapping[IdType, str]):
         >>> magic
         {UUID('550e8400-e29b-41d4-a716-446655440000'): 'Found!'}
 
-        When ``enable_uuid_heuristics=True`` is set, the ``MagicDict`` will attempt to cast "promising" keys to
-        :class:`uuid.UUID`.
+        When ``enable_uuid_heuristics=True``, the ``MagicDict`` will attempt to cast keys to :class:`uuid.UUID`.
 
         >>> from uuid import UUID
         >>> magic[string_uuid], magic[UUID(string_uuid)]

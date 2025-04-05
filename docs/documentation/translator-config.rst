@@ -15,7 +15,7 @@ This document describes the TOML format used by the
 Meta configuration
 ------------------
 The ``metaconf.toml``-file must be placed next to the main TOML configuration file, and determines how other files are
-processed by the factory. See :class:`~id_translation.utils.Metaconf` for internal representation.
+processed by the factory. See :class:`~id_translation.toml.meta.Metaconf` for internal representation.
 
 .. list-table:: The ``metaconf.toml`` file format.
    :header-rows: 1
@@ -25,10 +25,10 @@ processed by the factory. See :class:`~id_translation.utils.Metaconf` for intern
      - Type
      - Description
    * - ``[env]``
-     - :class:`~id_translation.utils.EnvConf`
+     - :class:`~id_translation.toml.meta.EnvConf`
      - Control environment-variable interpolation; ``${VAR}`` or ``${VAR:default}``.
    * - ``[equivalence]``
-     - :class:`~id_translation.utils.EquivalenceConf`
+     - :class:`~id_translation.toml.meta.EquivalenceConf`
      - Determines how equivalence between configuration files is determined.
 
 The ``metaconf.toml``-file is read as-is, without any preprocessing.
@@ -52,7 +52,7 @@ Section: Translator
      - Specify how translated IDs are displayed.
    * - enable_uuid_heuristics
      - :py:class:`bool`
-     - Enabling may improve matching when :py:class:`~uuid.UUID`-like IDs are in use.
+     - Improves matching when :py:class:`~uuid.UUID`-like IDs are in use.
 
 * Parameters for :attr:`Name <id_translation.types.NameType>`-to-:attr:`source <id_translation.types.SourceType>`
   mapping are specified in a ``[translator.mapping]``-subsection. See: :ref:`Subsection: Mapping` for details (context =
@@ -86,7 +86,7 @@ Section: Unknown IDs
 Section: Transformations
 ------------------------
 You may specify one :class:`.Transformer` per source. Subsection keys are passed directly to the ``init``-method of the
-chosen transformer type. For available transformers, see the :mod:`API documentation <.transform>`.
+chosen transformer type. For available transformers, see :mod:`id_translation.transform`.
 
 .. note::
 
@@ -232,15 +232,15 @@ For more information about the mapping procedure, please refer to the :ref:`mapp
    * - score_function
      - :attr:`~id_translation.mapping.types.ScoreFunction`
      - Compute value/candidate-likeness
-     - See: :mod:`id_translation.mapping.score_functions`
+     - See built-in :mod:`~id_translation.mapping.score_functions`.
    * - unmapped_values_action
      - `raise | warn | ignore`
      - Handle unmatched values.
-     - See: :class:`rics.action_level.ActionLevel`
+     - :class:`~rics.action_level.ActionLevel`
    * - cardinality
      - `OneToOne | ManyToOne`
      - Determine how many candidates to map a single value to.
-     - See: :class:`id_translation.mapping.Cardinality`
+     - :class:`~id_translation.mapping.Cardinality`
 
 * Score functions which take additional keyword arguments should be specified in a child section, eg
   ``[*.mapping.<score-function-name>]``. See: :mod:`id_translation.mapping.score_functions` for options.
@@ -266,7 +266,7 @@ matches, for example SQL tables which should not be used or a ``DataFrame`` colu
    * - function
      - :py:class:`str`
      - Function name.
-     - See: :mod:`id_translation.mapping.filter_functions`
+     - See built-in :mod:`~id_translation.mapping.filter_functions`.
 
 .. note::
 
@@ -280,7 +280,7 @@ As an example, the next snippet ensures that only names ending with an ``'_id'``
     [[translator.mapping.filter_functions]]
     function = "filter_names"
     regex = ".*_id$"
-    remove = false  # This is the default (like the built-in filter).
+    remove = false  # This is the default (like the See built-in filter).
 
 Score function
 ~~~~~~~~~~~~~~
@@ -308,7 +308,7 @@ class.
    * - function
      - :py:class:`str`
      - Function name.
-     - See: :mod:`id_translation.mapping.heuristic_functions`
+     - See built-in :mod:`~id_translation.mapping.heuristic_functions`.
    * - mutate
      - :py:class:`bool`
      - Keep changes made by `function`.
@@ -381,3 +381,12 @@ identical contents. We would like to use a format ``'[{title}. ]{name}'`` to out
 to force the fetcher to inform the ``Translator`` that the `title` placeholder (column) does not exist for the
 `title_basics` source (we used `'_'` since TOML `does not have <https://github.com/toml-lang/toml/issues/30>`__ a
 ``null``-type).
+
+Custom TOML initialization
+--------------------------
+All TOML configuration is interpreted by the :class:`.TranslatorFactory` class. To customize how different components
+are created, overwrite the all-caps factory properties of this class. For example, you may overwrite the
+:attr:`.TranslatorFactory.FETCHER_FACTORY` attribute with your own implementation to customize how fetcher instances are
+created.
+
+If your use case is not covered, consider opening an issue in the repository: https://github.com/rsundqvist/id-translation/issues

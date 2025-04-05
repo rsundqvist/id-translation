@@ -61,7 +61,7 @@ class Fetcher(Generic[SourceType, IdType], HasSources[SourceType]):
             placeholders: All desired placeholders in preferred order.
             required: Placeholders that must be included in the response.
             task_id: Used for logging.
-            enable_uuid_heuristics: If set, apply heuristics to improve matching with :py:class:`~uuid.UUID`-like IDs.
+            enable_uuid_heuristics: Improves matching when :py:class:`~uuid.UUID`-like IDs are in use.
 
         Returns:
             A mapping ``{source: PlaceholderTranslations}`` of translation elements.
@@ -94,7 +94,7 @@ class Fetcher(Generic[SourceType, IdType], HasSources[SourceType]):
             required: Placeholders that must be included in the response.
             sources: A subset of sources to fetch. Unknown sources are ignored. Set to ``None`` to fetch all sources.
             task_id: Used for logging.
-            enable_uuid_heuristics: If set, apply heuristics to improve matching with :py:class:`~uuid.UUID`-like IDs.
+            enable_uuid_heuristics: Improves matching when :py:class:`~uuid.UUID`-like IDs are in use.
 
         Returns:
             A mapping ``{source: PlaceholderTranslations}`` of translation elements.

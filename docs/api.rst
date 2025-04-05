@@ -1,7 +1,7 @@
 :orphan:
 
 .. autosummary::
-   :toctree: _autosummary
+   :toctree: api
    :recursive:
 
    id_translation

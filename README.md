@@ -36,7 +36,7 @@ print(
 )
 ```
 
-Check out this [demo project](https://github.com/rsundqvist/id-translation-project/tree/master/demo/bci-id-translation)
+Check out the [demo project](https://github.com/rsundqvist/id-translation-project/tree/master/demo/bci-id-translation)
 (and its 📚[generated documentation](https://rsundqvist.github.io/id-translation-project/)) to get a preview of what 
 Your generated project might look like, or continue to the next section for a brief feature overview.
 
@@ -50,15 +50,15 @@ Your generated project might look like, or continue to the next section for a br
 - Powerful [Name-to-source] and [Placeholder-to-column] mapping and name extraction.
 - Configurable using [TOML] - see the 🍪[id-translation-project] Cookiecutter template.
 
-[Format strings]: https://id-translation.readthedocs.io/en/stable/_autosummary/id_translation.offline.html#id_translation.offline.Format
+[Format strings]: https://id-translation.readthedocs.io/en/stable/api/id_translation.offline.html#id_translation.offline.Format
 [Format Specification Mini-Language]: https://docs.python.org/3/library/string.html#formatspec
-[SQL]: https://id-translation.readthedocs.io/en/stable/_autosummary/id_translation.fetching.html#id_translation.fetching.SqlFetcher
-[file-system]: https://id-translation.readthedocs.io/en/stable/_autosummary/id_translation.fetching.html#id_translation.fetching.PandasFetcher
+[SQL]: https://id-translation.readthedocs.io/en/stable/api/id_translation.fetching.html#id_translation.fetching.SqlFetcher
+[file-system]: https://id-translation.readthedocs.io/en/stable/api/id_translation.fetching.html#id_translation.fetching.PandasFetcher
 [Name-to-source]: https://id-translation.readthedocs.io/en/stable/documentation/translation-primer.html#name-to-source-mapping
 [Placeholder-to-column]: https://id-translation.readthedocs.io/en/stable/documentation/translation-primer.html#placeholder-mapping
 [TOML]: https://id-translation.readthedocs.io/en/stable/documentation/translator-config.html
-[cached instances]: https://id-translation.readthedocs.io/en/stable/_autosummary/id_translation.Translator.load_persistent_instance.html
-[Translator.translate()]: https://id-translation.readthedocs.io/en/stable/_autosummary/id_translation.Translator.translate.html
+[cached instances]: https://id-translation.readthedocs.io/en/stable/api/id_translation.Translator.load_persistent_instance.html
+[Translator.translate()]: https://id-translation.readthedocs.io/en/stable/api/id_translation.Translator.translate.html
 
 ## Supported types
 - Supported ID types: `int`, `string`, and `UUID`. Optional heuristics for UUID-like strings.
@@ -67,9 +67,9 @@ Your generated project might look like, or continue to the next section for a br
 - Optional and [user-extensible] integration of data types, such as [polars] and [dask].
 
 [pandas-translation]: https://id-translation.readthedocs.io/en/stable/documentation/examples/notebooks/cookbook/pandas-index.html
-[user-extensible]: https://id-translation.readthedocs.io/en/stable/_autosummary/id_translation.dio.html#id_translation.dio.register_io
-[polars]: https://id-translation.readthedocs.io/en/stable/_autosummary/id_translation.dio.integration.polars.html
-[dask]: https://id-translation.readthedocs.io/en/stable/_autosummary/id_translation.dio.integration.dask.html
+[user-extensible]: https://id-translation.readthedocs.io/en/stable/api/id_translation.dio.html#id_translation.dio.register_io
+[polars]: https://id-translation.readthedocs.io/en/stable/api/id_translation.dio.integration.polars.html
+[dask]: https://id-translation.readthedocs.io/en/stable/api/id_translation.dio.integration.dask.html
 
 # Installation
 The package is published through the [Python Package Index (PyPI)]. Source code

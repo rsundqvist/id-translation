@@ -6,7 +6,7 @@ import pandas as pd
 import pytest
 
 from id_translation import Translator
-from id_translation.utils import load_toml_file
+from id_translation.toml import load_toml_file
 
 from .conftest import LINUX_ONLY
 

@@ -32,7 +32,7 @@ class FetchInstruction(_Generic[SourceType, IdType]):
     task_id: int
     """Used for logging purposes."""
     enable_uuid_heuristics: bool
-    """If set, apply heuristics to improve matching with :py:class:`~uuid.UUID`-like IDs.
+    """Improves matching when :py:class:`~uuid.UUID`-like IDs are in use.
 
     Implementations which have no UUID heuristics may silently ignore this flag.
     """

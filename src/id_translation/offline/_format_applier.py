@@ -14,18 +14,58 @@ if TYPE_CHECKING:
 
 
 class FormatApplier(Generic[NameType, SourceType, IdType]):
-    """Application of ``Format`` specifications.
+    """Application of :class:`.Format` specifications.
+
+    This class converts raw translation data into ready-to-use dicts on the form ``{id: translation}``, where the
+    translation is always a plain string.
 
     Args:
-        translations: Matrix of ID translation components returned by fetchers.
+        translations: A :class:`~.PlaceholderTranslations` object returned by fetchers.
         transformer: Initialized :class:`.Transformer` instance.
 
     Raises:
         ValueError: If `default` is given and any placeholder names are missing.
+
+    Examples:
+        Basic usage.
+
+        >>> data = {1999: "Sofia", 1991: "Richard", 1904: "Fred"}
+        >>> translations = PlaceholderTranslations.from_dict("my-source", data)
+        >>> applier = FormatApplier(translations)
+
+        We used the simplified ``{id: name}`` to create the translation object above. Let's create the formats to use:
+
+        >>> fmt = Format.parse("{id}:{name}")
+        >>> default_fmt = Format.parse("<Failed: id={id!r}>")
+
+        Using ``FormatApplier.__call__`` delegates to :meth:`apply`.
+
+        >>> applier(fmt, default_fmt=default_fmt)
+        {1999: '1999:Sofia', 1991: '1991:Richard', 1904: '1904:Fred'}
+
+        The output may look like a regular ``dict``, but is actually a :class:`.MagicDict`.
+
+        >>> magic_dict = applier(fmt, default_fmt=default_fmt)
+        >>> type(magic_dict)
+        <class 'id_translation.offline._magic_dict.MagicDict'>
+
+        .. warning::
+            The :class:`.MagicDict` is does **not** behave like a regular dict.
+
+        You can, for instance, use ``__getitem__`` on unknown keys:
+
+        >>> magic_dict = applier(fmt, default_fmt=default_fmt)
+        >>> magic_dict[-1]
+        '<Failed: id=-1>'
+
+        See the :class:`.MagicDict` class documentation for more information.
     """
 
     def __init__(
-        self, translations: PlaceholderTranslations[SourceType], *, transformer: Transformer[IdType] = None
+        self,
+        translations: PlaceholderTranslations[SourceType],
+        *,
+        transformer: Transformer[IdType] = None,
     ) -> None:
         self._translations = translations
         self._source = translations.source
@@ -33,7 +73,7 @@ class FormatApplier(Generic[NameType, SourceType, IdType]):
         self._n_ids = len(translations.records)
         self._transformer = transformer
 
-    def __call__(
+    def apply(
         self,
         fmt: Format,
         *,
@@ -44,16 +84,27 @@ class FormatApplier(Generic[NameType, SourceType, IdType]):
     ) -> MagicDict[IdType]:
         """Translate IDs.
 
+        .. note::
+
+           This method does not accept strings. Use :meth:`.Format.parse` to convert raw formats.
+
         Args:
-            fmt: Translation format to use.
-            placeholders: Placeholders to include in the formatted output. Use as many as possible if ``None``.
+            fmt: Translation :class:`.Format` to use.
+            placeholders: Tuple of placeholder names to include in the formatted output. If ``None``, use the
+                intersection of :attr:`.placeholders` and :attr:`fmt.placeholders <.Format.placeholders>`.
             default_fmt: Alternative format for default translation.
-            default_fmt_placeholders: Default placeholders.
-            enable_uuid_heuristics: Enabling may improve matching when :py:class:`~uuid.UUID`-like IDs are in use.
+            default_fmt_placeholders: Default placeholders, e.g. ``{'name': 'default name'}``.
+            enable_uuid_heuristics: Improves matching when :py:class:`~uuid.UUID`-like IDs are in use.
 
         Returns:
-            A dict ``{idx: translated_id}``.
+            A dict ``{id: translation}``.
+
+        Notes:
+            This method is an alias of ``__call__``.
         """
+        assert isinstance(fmt, Format), f"invalid {fmt=}"  # noqa: S101
+        assert isinstance(default_fmt, Format), f"invalid {default_fmt=}"  # noqa: S101
+
         if placeholders is None:
             # Use as many placeholders as possible.
             placeholders = tuple(filter(self._placeholder_names.__contains__, fmt.placeholders))
@@ -75,6 +126,8 @@ class FormatApplier(Generic[NameType, SourceType, IdType]):
 
         return MagicDict(real_translations, default_fstring, enable_uuid_heuristics, self._transformer)
 
+    __call__ = apply
+
     def to_dict(self) -> dict[str, Sequence[Any]]:
         """Get the underlying data used for translations as a dict.
 
@@ -91,20 +144,18 @@ class FormatApplier(Generic[NameType, SourceType, IdType]):
 
     @property
     def records(self) -> Sequence[Sequence[Any]]:
-        """Records used by this instance."""
+        """Records used by this instance; see :attr:`.PlaceholderTranslations.records`."""
         return self._translations.records
 
     def _apply(self, fstring: str, placeholders: PlaceholdersTuple) -> TranslatedIds[IdType]:
         """Apply fstring to all IDs.
-
-        The abstract class delegates ``__apply__``-invocations to this method after some input validation.
 
         Args:
             fstring: A format string.
             placeholders: Keys needed for the fstring, in the order in which they appear.
 
         Returns:
-            A dict ``{idx: translated_id}``.
+            A dict ``{id: translation}``.
         """
         id_pos, records = self._translations.id_pos, self._translations.records
 
@@ -121,7 +172,7 @@ class FormatApplier(Generic[NameType, SourceType, IdType]):
 
     @property
     def placeholders(self) -> list[str]:
-        """Return placeholder names in sorted order."""
+        """List of placeholder names; see :attr:`.PlaceholderTranslations.placeholders`."""
         return list(self._translations.placeholders)
 
     @property

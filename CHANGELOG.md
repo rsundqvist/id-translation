@@ -9,16 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Parameter `load_persistent_instance(on_config_changed='recreate' | 'raise')`.
+- Method `PlaceholderTranslations.to_dataframe()`.
 
 ### Changed
 - Expose and document internal meta configuration objects (`id_translation.utils.Metaconf`).
 - Move `Cardinality.ParseType` to `mapping.types.CardinalityType` (similar to `offline.types.FormatType`).
+- Use proper typing in `Format.parse(cls)`.
 
 ### Fixed
 - Improve `names` extraction with `pandas.MultiIndex` types:
   * Use only the last level values if `DataFrame.columns` is a `MultiIndex`.
   * Ignore `None` values in `MultiIndex.names`.
 - Fix crash when variable substitution (e.g. `${VAR}`) was used for non-string values in fetcher configs.
+- The `AbstractFetcher` now uses the proper log level for the `FETCH_TRANSLATIONS.EXIT` event.
+
+### Removed
+- The `factory` submodule is gone. Functionality now lives in `id_translation.toml`.
 
 ## [0.12.2] - 2024-10-16
 

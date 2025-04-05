@@ -512,10 +512,11 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
             )
 
         translations = self.fetch_translations(instr)
-        if self.logger.isEnabledFor(log_level.enter):
+
+        if self.logger.isEnabledFor(log_level.exit):
             execution_time = perf_counter() - start
             self.logger.log(
-                log_level.enter,
+                log_level.exit,
                 f"Finished fetching placeholders={translations.placeholders} for {len(translations.records)} IDs "
                 f"from source '{translations.source}' in {fmt_sec(execution_time)}, using {self}.",
                 extra=dict(
