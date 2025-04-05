@@ -162,6 +162,10 @@ a :class:`~id_translation.fetching.MemoryFetcher` would be created by adding a `
      - `raise | ignore`
      - Action to take if fetch(-all) operations are executed concurrently.
      - Should be set to ``'ignore'`` for thread-safe fetchers
+   * - cache
+     - :class:`.CacheAccess` subtype
+     - User-defined caching implementation.
+     - Keyword ``type`` required. See :ref:`Caching` for details.
 
 The keys listed above are for the :class:`~id_translation.fetching.AbstractFetcher` class, which all fetchers created by
 TOML configuration must inherit. Additional parameters vary based on the chosen implementation. See the
@@ -181,6 +185,36 @@ See: :ref:`Subsection: Mapping` for details. For all mapping operations performe
    ``my.library`` module.
 
    Under the hood, this will call :func:`~rics.misc.get_by_full_name` using ``name="my.library.SuperFetcher"``.
+
+Caching
+~~~~~~~
+This library does not provide any caching implementations.
+
+Instead, users may implement the :class:`.CacheAccess` interface to define their own caching logic. The
+:class:`.AbstractFetcher` will then call :meth:`.CacheAccess.load` and :meth:`.CacheAccess.store` when appropriate.
+
+.. seealso::
+
+   Please refer to the :ref:`examples page <caching_example>` to get started creating your own caching implementations.
+
+Only the ``type`` keyword is required. All other keywords in the ``[fetching.cache]`` section will be forwarded as-is.
+This:
+
+.. code-block:: toml
+
+   [fetching.cache]
+   type = "my.library.MyCacheAccess"
+   ttl=3600  # Cache timeout in seconds
+
+Is therefore equivalent to:
+
+.. code-block:: python
+
+   from my.library import MyCacheAccess
+
+   cache_access = MyCacheAccess(ttl=3600)
+
+The `cache_access` is then passed to the constructor of your chosen :class:`.AbstractFetcher` implementation.
 
 
 Multiple fetchers

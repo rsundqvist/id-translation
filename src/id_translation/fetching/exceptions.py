@@ -71,3 +71,7 @@ class DuplicateSourceWarning(FetcherWarning):
 
 class DuplicateSourceError(FetcherError):
     """Multiple translations for the same source received."""
+
+
+class CacheAccessNotAvailableError(FetcherError):
+    """Raise when calling :attr:`.AbstractFetcher.cache_access` on an instance that is not cached."""

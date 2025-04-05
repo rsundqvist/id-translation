@@ -3,8 +3,9 @@ import warnings
 from abc import abstractmethod
 from collections.abc import Iterable, Sequence
 from contextlib import contextmanager
+from copy import deepcopy
 from time import perf_counter
-from typing import Any, Literal, final
+from typing import Any, Literal, Self, final
 
 from rics.action_level import ActionLevel
 from rics.collections.dicts import InheritedKeysDict, reverse_dict
@@ -20,17 +21,14 @@ from ..offline.types import PlaceholdersTuple, PlaceholderTranslations, SourcePl
 from ..settings import logging as settings
 from ..types import ID, IdType, SourceType
 from . import exceptions
+from ._cache_access import CacheAccess
 from ._fetcher import Fetcher
+from .exceptions import CacheAccessNotAvailableError
 from .types import FetchInstruction, IdsToFetch
 
 
 class AbstractFetcher(Fetcher[SourceType, IdType]):
     """Base class for retrieving translations from an external source.
-
-    Caching:
-        The class provides scaffolding for user-defined caching implementations. To enable caching, fetcher
-        implementations should override :attr:`cache_enabled`, :meth:`store_cache`, and :meth:`load_cache`. These
-        methods raise :class:`NotImplementedError` unless overridden.
 
     Args:
         mapper: A :class:`.Mapper` instance used to adapt placeholder names in sources to wanted names, i.e.
@@ -47,6 +45,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
             mode.
         concurrent_operation_action: Action to take if fetch(-all) operations are executed concurrently. Should be
             set to ``'ignore'`` for thread-safe fetchers.
+        cache_access: A :class:`.CacheAccess` instance. Defaults to a NOOP-implementation (i.e. always fetch new data).
 
     Raises:
         rics.action_level.BadActionLevelError: If `selective_fetch_all` is ``True`` and
@@ -66,6 +65,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         identifiers: Sequence[str] | None = None,
         optional: bool = False,
         concurrent_operation_action: ActionLevel.ParseType = "raise",
+        cache_access: CacheAccess[SourceType, IdType] | None = None,
     ) -> None:
         self._mapper: Mapper[str, str, SourceType] = mapper or Mapper(**self.default_mapper_kwargs())
         if self._mapper.unmapped_values_action is ActionLevel.RAISE:
@@ -110,6 +110,12 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         self.logger = logger
         self._mapper.logger = mapper_logger
         self._placeholders: dict[SourceType, list[str]] | None = None
+
+        if cache_access is None:
+            cache_access = _NOOP_CACHE_ACCESS
+        else:
+            cache_access.set_parent(self)
+        self._cache_access = cache_access
 
     @final
     def initialize_sources(self, task_id: int = -1, *, force: bool = False) -> None:
@@ -254,9 +260,16 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         return self._mapper
 
     @property
-    def cache_enabled(self) -> bool:
-        """Return the caching status for the fetcher."""
-        return False
+    def cache_access(self) -> CacheAccess[SourceType, IdType]:
+        """Return the :class:`.CacheAccess` for this fetcher."""
+        cache_access = self._cache_access
+
+        if cache_access is not _NOOP_CACHE_ACCESS:
+            return cache_access
+
+        link = "https://id-translation.readthedocs.io/en/stable/documentation/examples/caching/caching.html"
+        msg = f"{self} does not have `CacheAccess`.\nFor help, please refer to the {link} page."
+        raise CacheAccessNotAvailableError(msg)
 
     @property
     def online(self) -> bool:
@@ -335,7 +348,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
                     ids=itf.ids,
                     task_id=task_id,
                     enable_uuid_heuristics=enable_uuid_heuristics,
-                )[0]  # Second index indicates if data is from cache -- we don't care here
+                )
                 for itf in ids_to_fetch
             }
 
@@ -391,7 +404,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
 
         source_translations = {}
         for source in sources:
-            translations, from_cache = self._fetch_translations(
+            translations = self._fetch_translations(
                 source,
                 placeholders or (*self.placeholders[source],),
                 required_placeholders=required_placeholders,
@@ -399,9 +412,6 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
                 enable_uuid_heuristics=enable_uuid_heuristics,
             )
             source_translations[source] = translations
-
-            if not from_cache and self.cache_enabled:
-                self.store_cache(translations)
 
         return source_translations
 
@@ -457,22 +467,49 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         task_id: int,
         enable_uuid_heuristics: bool,
         ids: set[IdType] | None = None,
-    ) -> tuple[PlaceholderTranslations[SourceType], bool]:
+    ) -> PlaceholderTranslations[SourceType]:
         placeholders = (*{*placeholders},)  # Deduplicate
         reverse_mappings, instr = self._make_fetch_instruction(
-            source, placeholders, required_placeholders, ids, task_id, enable_uuid_heuristics
+            source,
+            placeholders,
+            required_placeholders=required_placeholders,
+            ids=ids,
+            task_id=task_id,
+            enable_uuid_heuristics=enable_uuid_heuristics,
         )
 
         translations: PlaceholderTranslations[SourceType] | None = None
 
-        if self.cache_enabled:
-            translations = self.load_cache(instr)
+        cache = self._cache_access
+
+        logger: logging.Logger | None
+
+        def log_cache(msg: str, event: str) -> None:
+            nonlocal logger
+            if logger is None:
+                return
+
+            pretty = f"{type(cache).__name__}[{source=}]"
+            logger.debug(msg.format(pretty), extra={"source": instr.source, "task_id": task_id, "cache_event": event})
+
+        if cache.enabled:
+            logger = self.logger
+            if not logger.isEnabledFor(logging.DEBUG):
+                logger = None
+
+            translations = cache.load(instr)
+            store_cache = translations is None
+
+            if logger:
+                value = f"{len(translations.records)} IDs" if translations else None
+                cache_event = "hit" if translations else "miss"
+                log_cache(f"{{}}.load() returned {value}.", cache_event)
+        else:
+            logger = None
+            store_cache = False
 
         if translations is None:
-            translations = self._fetch_translations2(instr)
-            from_cache = False
-        else:
-            from_cache = True
+            translations = self._call_user_impl(instr)
 
         if reverse_mappings:
             # The mapping is only in reverse from the Fetchers point-of-view; we're mapping back to "proper" values.
@@ -484,9 +521,13 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         if unmapped_required_placeholders:
             self._verify_placeholders(reverse_mappings or {}, source, unmapped_required_placeholders)
 
-        return translations, from_cache
+        if store_cache:
+            log_cache(f"Calling {{}}.store() with {len(translations.records)} IDs.", "store")
+            cache.store(instr, translations)
 
-    def _fetch_translations2(self, instr: FetchInstruction[SourceType, IdType]) -> PlaceholderTranslations[SourceType]:
+        return translations
+
+    def _call_user_impl(self, instr: FetchInstruction[SourceType, IdType]) -> PlaceholderTranslations[SourceType]:
         start = perf_counter()
 
         source = instr.source
@@ -591,43 +632,6 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         wanted_to_actual = self.map_placeholders(source, wanted_placeholders, task_id=task_id)
         return {wanted: actual for wanted, actual in wanted_to_actual.items() if actual is not None}
 
-    def load_cache(self, instr: FetchInstruction[SourceType, IdType]) -> PlaceholderTranslations[SourceType] | None:
-        """Retrieve cached translations.
-
-        Args:
-            instr: A single :class:`.FetchInstruction` for IDs to fetch. If IDs is ``None``, the fetcher should
-                retrieve data for as many IDs as possible.
-
-        Returns:
-            Placeholder translations or ``None``.
-
-        Raises:
-            NotImplementedError: Always, unless this method is overridden.
-        """
-        msg = (
-            f"Implementation {type(self).__name__} does not implement {self.load_cache.__qualname__}. "
-            f"Cannot get cached translations for {instr=}."
-        )
-        raise NotImplementedError(msg)
-
-    def store_cache(self, translations: PlaceholderTranslations[SourceType]) -> None:
-        """Store cached translations.
-
-        Args:
-            translations: Translations to store.
-
-        Returns:
-            Placeholder translations or ``None``.
-
-        Raises:
-            NotImplementedError: Always, unless this method is overridden.
-        """
-        msg = (
-            f"Implementation {type(self).__name__} does not implement {self.store_cache.__qualname__}. "
-            f"Cannot store translations for sources={translations.source!r}."
-        )
-        raise NotImplementedError(msg)
-
     @classmethod
     def default_mapper_kwargs(cls) -> dict[str, Any]:
         """Return default ``Mapper`` arguments for ``AbstractFetcher`` implementations."""
@@ -652,6 +656,16 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         sources = self.sources if self.sources else NoSources()
         return f"{tname(self)}({sources=})"
 
+    def __deepcopy__(self, memo: dict[int, Any] = {}) -> Self:  # noqa: B006
+        cls = self.__class__
+        result = cls.__new__(cls)
+        memo[id(self)] = result
+
+        for k, v in self.__dict__.items():
+            setattr(result, k, deepcopy(v, memo))
+
+        return result
+
 
 class _ExtrasAdder(logging.Filter):
     def __init__(self, **extras: Any) -> None:
@@ -662,3 +676,18 @@ class _ExtrasAdder(logging.Filter):
         for name, value in self.extras.items():
             setattr(record, name, value)
         return True
+
+
+class NoopCacheAccess(CacheAccess[Any, Any]):
+    @property
+    def enabled(self) -> bool:
+        return False
+
+    def _raise(self, *_: Any, **__: Any) -> None:
+        raise NotImplementedError
+
+    store = _raise
+    load = _raise
+
+
+_NOOP_CACHE_ACCESS = NoopCacheAccess()

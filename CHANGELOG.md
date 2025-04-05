@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Expose and document internal meta configuration objects (`id_translation.utils.Metaconf`).
 - Move `Cardinality.ParseType` to `mapping.types.CardinalityType` (similar to `offline.types.FormatType`).
 - Use proper typing in `Format.parse(cls)`.
+- Refactor `AbstractFetcher` caching implementation. Add ABC `id_translation.fetching.types.CacheAccess`.
 
 ### Fixed
 - Improve `names` extraction with `pandas.MultiIndex` types:
@@ -22,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * Ignore `None` values in `MultiIndex.names`.
 - Fix crash when variable substitution (e.g. `${VAR}`) was used for non-string values in fetcher configs.
 - The `AbstractFetcher` now uses the proper log level for the `FETCH_TRANSLATIONS.EXIT` event.
+- Fix some ``__deepcopy__`` implementations for objects with reference cycles.
 
 ### Removed
 - The `factory` submodule is gone. Functionality now lives in `id_translation.toml`.

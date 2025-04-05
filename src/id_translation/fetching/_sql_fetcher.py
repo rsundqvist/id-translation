@@ -460,6 +460,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
     def __deepcopy__(self, memo: dict[int, Any] = {}) -> Self:  # noqa: B006
         cls = self.__class__
         result = cls.__new__(cls)
+        memo[id(self)] = result
 
         for k, v in self.__dict__.items():
             setattr(
@@ -470,7 +471,6 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
                 else deepcopy(v, memo),
             )
 
-        memo[id(self)] = result
         return result
 
     @staticmethod

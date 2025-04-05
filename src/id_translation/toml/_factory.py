@@ -8,7 +8,7 @@ from rics.collections.dicts import InheritedKeysDict
 
 from .._compat import PathLikeType
 from ..exceptions import ConfigurationError
-from ..fetching import AbstractFetcher, Fetcher, MultiFetcher
+from ..fetching import AbstractFetcher, CacheAccess, Fetcher, MultiFetcher
 from ..mapping import Mapper
 from ..transform.types import Transformer, Transformers
 from ..types import IdType, NameType, SourceType
@@ -49,7 +49,7 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
     MapperFactory = Callable[[dict[str, Any], bool], Mapper[Any, Any, Any] | None]
     """Signature for  :attr:`MAPPER_FACTORY`."""
 
-    MAPPER_FACTORY: MapperFactory = staticmethod(cf.default_mapper_factory)
+    MAPPER_FACTORY: MapperFactory = cf.default_mapper_factory
     """A callable ``(config, for_fetcher) -> Mapper | None``.
 
     Overwrite attribute with your own :attr:`.MapperFactory` implementation to customize.
@@ -73,7 +73,7 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
     TransformerFactory: TypeAlias = Callable[[str, dict[str, Any]], Transformer[Any]]
     """Signature for  :attr:`TRANSFORMER_FACTORY`."""
 
-    TRANSFORMER_FACTORY: TransformerFactory = staticmethod(cf.default_transformer_factory)
+    TRANSFORMER_FACTORY: TransformerFactory = cf.default_transformer_factory
     """A callable ``(clazz, config) -> Transformer``.
 
     Overwrite attribute with your own :attr:`.TransformerFactory` implementation to customize.
@@ -90,6 +90,25 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
 
     See Also:
         :ref:`translator-config-transform`
+    """
+
+    CacheAccessFactory: TypeAlias = Callable[[str, dict[str, Any]], CacheAccess[Any, Any]]
+    """Signature for  :attr:`CACHE_ACCESS_FACTORY`."""
+
+    CACHE_ACCESS_FACTORY: CacheAccessFactory = cf.default_cache_access_factory
+    """A callable ``(clazz, config) -> CacheAccess``.
+
+    Overwrite attribute with your own :attr:`.CacheAccessFactory` implementation to customize.
+
+    Args:
+        clazz: Type of :class:`.CacheAccess` to create.
+        config: Keyword arguments for the cache class.
+
+    Returns:
+        A :class:`.CacheAccess` instance.
+
+    Raises:
+        ConfigurationError: If `config` is invalid.
     """
 
     TOP_LEVEL_KEYS = ("translator", "mapping", "fetching", "unknown_ids", "transform")
@@ -225,8 +244,13 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
         return cls.MAPPER_FACTORY(config, for_fetcher)
 
     @classmethod
+    def _make_cache_access(cls, config: dict[str, Any]) -> CacheAccess[Any, Any]:
+        return cls.CACHE_ACCESS_FACTORY(config.pop("type"), config)
+
+    @classmethod
     def _make_fetcher(cls, identifiers: list[str], **config: Any) -> AbstractFetcher[SourceType, IdType]:
         mapper = cls._make_mapper("fetching", config) if "mapping" in config else None
+        cache_access = cls._make_cache_access(config.pop("cache")) if "cache" in config else None
 
         if len(config) == 0:  # pragma: no cover
             raise ConfigurationError("Fetcher implementation section missing.")
@@ -237,6 +261,7 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
 
         kwargs["identifiers"] = kwargs.get("identifiers", identifiers)
         kwargs["mapper"] = mapper
+        kwargs["cache_access"] = cache_access
         return cls.FETCHER_FACTORY(clazz, kwargs)
 
     @classmethod
@@ -288,5 +313,9 @@ def _rethrow_with_file(file: str) -> Generator[None, None, None]:
     try:
         yield
     except Exception as e:
-        msg = f"{type(e).__name__}: {e}\n   raised when parsing file: {Path(file).resolve()}"
-        raise ConfigurationError(msg) from e
+        if isinstance(e, ConfigurationError):
+            e.add_note(f"    raised when parsing file: {Path(file).resolve()}")
+            raise
+        else:
+            msg = f"{type(e).__name__}: {e}\n    raised when parsing file: {Path(file).resolve()}"
+            raise ConfigurationError(msg) from e

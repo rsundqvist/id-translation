@@ -17,6 +17,7 @@ Base fetchers:
 """
 
 from ._abstract_fetcher import AbstractFetcher
+from ._cache_access import CacheAccess
 from ._fetcher import Fetcher
 from ._memory_fetcher import MemoryFetcher
 from ._multi_fetcher import MultiFetcher
@@ -25,6 +26,7 @@ from ._sql_fetcher import SqlFetcher
 
 __all__ = [
     "AbstractFetcher",
+    "CacheAccess",
     "Fetcher",
     "MemoryFetcher",
     "MultiFetcher",

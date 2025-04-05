@@ -468,12 +468,12 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
     def __deepcopy__(self, memo: dict[int, Any] = {}) -> Self:  # noqa: B006
         cls = self.__class__
         result = cls.__new__(cls)
+        memo[id(self)] = result
 
         dicts = self._copy_dicts(memo)
         for k, v in self.__dict__.items():
             setattr(result, k, dicts[k] if k in dicts else deepcopy(v, memo))
 
-        memo[id(self)] = result
         return result
 
     def _copy_dicts(self, memo: dict[int, Any]) -> dict[str, dict[str, Any] | dict[int, Any]]:

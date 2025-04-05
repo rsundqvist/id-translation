@@ -302,3 +302,13 @@ with ZipFile(f"{root}/dvdrental.zip", "w") as archive:
     archive.write(f"{root}/query.sql", "dvdrental/query.sql")
     archive.write(f"{root}/sql-fetcher.toml", "dvdrental/sql-fetcher.toml")
     archive.write(f"{root}/translation.toml", "dvdrental/translation.toml")
+
+
+def show_first_argument_in_docs():
+    from id_translation.toml import TranslatorFactory
+    for name in filter(lambda s: s.endswith("_FACTORY"), dir(TranslatorFactory)):
+        attr = getattr(TranslatorFactory, name)
+        static = staticmethod(attr)
+        setattr(TranslatorFactory, name, static)
+
+show_first_argument_in_docs()

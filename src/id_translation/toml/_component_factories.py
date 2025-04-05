@@ -5,6 +5,7 @@ from rics.misc import get_by_full_name
 
 from id_translation import exceptions
 from id_translation.fetching import AbstractFetcher
+from id_translation.fetching.types import CacheAccess
 from id_translation.mapping import HeuristicScore, Mapper
 from id_translation.transform.types import Transformer
 from id_translation.types import IdType, SourceType
@@ -81,6 +82,15 @@ def default_transformer_factory(clazz: str, config: dict[str, Any]) -> Transform
         clazz,
         default_module,
         subclass_of=Transformer,  # type: ignore[type-abstract]  # https://github.com/python/mypy/issues/4717
+    )
+    return cls(**config)
+
+
+def default_cache_access_factory(clazz: str, config: dict[str, Any]) -> CacheAccess[SourceType, IdType]:
+    """Create a ``CacheAccess`` from config."""
+    cls = get_by_full_name(
+        clazz,
+        subclass_of=CacheAccess,  # type: ignore[type-abstract]  # https://github.com/python/mypy/issues/4717
     )
     return cls(**config)
 
