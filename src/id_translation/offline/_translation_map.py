@@ -29,7 +29,7 @@ class TranslationMap(
         fmt: A translation format. Must be given to use as a mapping.
         default_fmt: Alternative format specification to use instead of `fmt` for fallback translation.
         default_fmt_placeholders: Per-source default placeholder values.
-        enable_uuid_heuristics: Enabling may improve matching when :py:class:`~uuid.UUID`-like IDs are in use.
+        enable_uuid_heuristics: Improves matching when :py:class:`~uuid.UUID`-like IDs are in use.
         transformers: A dict ``{source: transformer}`` of initialized :class:`.Transformer` instances.
 
     """

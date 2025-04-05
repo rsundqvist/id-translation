@@ -36,7 +36,7 @@ print(
 )
 ```
 
-Check out this [demo project](https://github.com/rsundqvist/id-translation-project/tree/master/demo/bci-id-translation)
+Check out the [demo project](https://github.com/rsundqvist/id-translation-project/tree/master/demo/bci-id-translation)
 (and its 📚[generated documentation](https://rsundqvist.github.io/id-translation-project/)) to get a preview of what 
 Your generated project might look like, or continue to the next section for a brief feature overview.
 
