@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.0] - 2025-04-05
+
 ### Added
 - Parameter `Translator.load_persistent_instance(on_config_changed=recreate|raise)`.
 - Method `PlaceholderTranslations.to_dataframe()`.
@@ -345,7 +347,8 @@ cookiecutter template.
 - Switch to relative imports.
 - Fix some intersphinx issues.
 
-[Unreleased]: https://github.com/rsundqvist/id-translation/compare/v0.12.2...HEAD
+[Unreleased]: https://github.com/rsundqvist/id-translation/compare/v0.13.0...HEAD
+[0.13.0]: https://github.com/rsundqvist/id-translator/compare/v0.12.2...v0.13.0
 [0.12.2]: https://github.com/rsundqvist/id-translation/compare/v0.12.1...v0.12.2
 [0.12.1]: https://github.com/rsundqvist/id-translation/compare/v0.12.0...v0.12.1
 [0.12.0]: https://github.com/rsundqvist/id-translation/compare/v0.11.1...v0.12.0
