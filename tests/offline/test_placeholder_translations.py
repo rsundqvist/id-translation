@@ -33,10 +33,14 @@ def test_dict_df_equal(source):
     assert from_df == from_dict
 
 
-def test_to_dict():
-    source = OPTIONS[0]
+@pytest.mark.parametrize("source", OPTIONS)
+def test_to_common_types(source):
     df = pd.read_json(PATH.format(source))
-    PlaceholderTranslations.from_dataframe(source, df).to_dict()
+    pht = PlaceholderTranslations.from_dataframe(source, df)
+
+    pd.testing.assert_frame_equal(df, pht.to_dataframe())
+
+    assert df.to_dict(orient="list") == pht.to_dict()
 
 
 def test_to_dicts():

@@ -62,6 +62,12 @@ class PlaceholderTranslations(_t.Generic[_tt.SourceType]):
         records = self.records[:max_rows] if max_rows else self.records
         return {placeholder: [row[i] for row in records] for i, placeholder in enumerate(self.placeholders)}
 
+    def to_dataframe(self, max_rows: int = 0) -> "pandas.DataFrame":
+        """Create a pandas DataFrame representation of the translations."""
+        import pandas as pd
+
+        return pd.DataFrame.from_dict(self.to_dict(max_rows))
+
     @staticmethod
     def to_dicts(
         source_translations: "SourcePlaceholderTranslations[_tt.SourceType]",
