@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - The docs no longer incorrectly state the `max_fails` stops working when `default_fmt_placeholders` are in use.
 - Fix `max_fails` check when transformers are in use.
+- The `BitmaskTransformer` no longer uses missing IDs in decomposed bitmask translations.
 
 ## [0.13.0] - 2025-04-05
 
