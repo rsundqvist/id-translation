@@ -4,6 +4,7 @@ fmt = "{name}"
 [transform.drinking_preferences_bitmask.BitmaskTransformer]
 joiner = " AND "
 overrides = [{ id = 0, override = "just water" }]
+force_real_translations = true
 
 [transform.guests.'tests.transform.test_factory.SayHi']
 random_seed = 2019

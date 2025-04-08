@@ -76,11 +76,6 @@ Section: Unknown IDs
   in a ``[unknown_ids.overrides]``-subsection. See: :ref:`Subsection: Overrides` for details (context =
   :attr:`source <id_translation.types.SourceType>`).
 
-.. note::
-
-   Sources that are translated using default placeholders count as successful translations when using
-   :meth:`Translator.translate(max_fails != 1) <.Translator.translate>`.
-
 .. _translator-config-transform:
 
 Section: Transformations

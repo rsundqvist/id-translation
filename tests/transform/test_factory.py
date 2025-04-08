@@ -42,10 +42,10 @@ class SayHi(Transformer[int]):
 
         self.random = Random(random_seed)
 
-    def update_ids(self, ids):
+    def update_ids(self, _, /):
         pass
 
-    def update_translations(self, translations):
+    def update_translations(self, translations, /):
         greetings = ["Oh, it's you again {}.", "Hello {}!", "What's up, {}?"]
 
         for idx, name in translations.items():

@@ -3,6 +3,7 @@ import pytest
 from rics.misc import serializable
 
 from id_translation import Translator
+from id_translation.exceptions import TooManyFailedTranslationsError
 from id_translation.fetching import PandasFetcher
 from id_translation.transform import BitmaskTransformer
 
@@ -119,6 +120,45 @@ def test_overrides_take_precedence_over_forced_decomposition(online, data):
         15: "Automobiles & 2:Quad bikes & 4:Skateboards & 8:Bicycles",
         16: "<Failed: id=np.int64(16)>",
     }
+
+
+class TestMaxFails:
+    def test_0_true(self, online):
+        with pytest.raises(TooManyFailedTranslationsError):
+            self._run(online, 0.0, True)
+
+    def test_1_true(self, online):
+        assert self._run(online, 1.0, True) == [
+            "2:Quad bikes",
+            "4:Skateboards",
+            "Cool vehicles only",
+            "2:Quad bikes & 8:Bicycles",
+            "<Failed: id=33>",
+        ]
+
+    def test_0_false(self, online):
+        assert self._run(online, 0.0, False) == [
+            "2:Quad bikes",
+            "4:Skateboards",
+            "Cool vehicles only",
+            "2:Quad bikes & 8:Bicycles",
+            "Automobiles & <Failed: id=32>",
+        ]
+
+    def test_1_false(self, online):
+        assert self._run(online, 1.0, False) == [
+            "2:Quad bikes",
+            "4:Skateboards",
+            "Cool vehicles only",
+            "2:Quad bikes & 8:Bicycles",
+            "Automobiles & <Failed: id=32>",
+        ]
+
+    @classmethod
+    def _run(cls, online: str, max_fails: float, real: bool) -> list[str]:
+        transformer = BitmaskTransformer(overrides=OVERRIDES, force_real_translations=real)
+        translator = make_translator(online, transformer)
+        return translator.translate([2, 4, 6, 10, 33], names="vehicles", max_fails=max_fails)
 
 
 @pytest.fixture
