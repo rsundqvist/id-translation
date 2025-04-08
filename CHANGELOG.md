@@ -7,8 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Methods `MagicDict.real_get` and `real_contains`.
+
 ### Fixed
 - The docs no longer incorrectly state the `max_fails` stops working when `default_fmt_placeholders` are in use.
+- Fix `max_fails` check when transformers are in use.
 
 ## [0.13.0] - 2025-04-05
 

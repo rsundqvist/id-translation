@@ -222,11 +222,14 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
 
         for name, ids in name_to_ids.items():
             source = tmap.name_to_source[name]
-            known = translations[source].real
-            if self.reverse != tmap.reverse_mode:
-                known = set(known.values())  # type: ignore[assignment]
+            magic_dict = translations[source]
 
-            is_missing = [idx not in known for idx in ids]
+            if self.reverse == tmap.reverse_mode:
+                is_known = magic_dict.real_contains
+            else:
+                is_known = {*magic_dict.real.values()}.__contains__
+
+            is_missing = [not is_known(idx) for idx in ids]
             n_untranslated = sum(is_missing)
             if n_untranslated == 0:
                 continue

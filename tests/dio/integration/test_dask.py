@@ -19,7 +19,7 @@ def to_uuid(i: int) -> UUID:
 
 UNKNOWN = {"uuids": to_uuid(1000), "ints": 1000, "strs": "one thousand!"}
 EXPECTED = {
-    "uuids": ["00000001:uuid-one", "00000002:uuid-two", "<Failed: id=UUID('000003e8-0000-0000-0000-000000000000')>"],
+    "uuids": ["00000001:uuid-one", "00000002:uuid-two", "<Failed: id='000003e8-0000-0000-0000-000000000000'>"],
     "ints": ["0:int-zero", "1:int-one", "<Failed: id=1000>"],
     "strs": ["zero!:str-zero", "one!:str-one", "<Failed: id='one thousand!'>"],
 }

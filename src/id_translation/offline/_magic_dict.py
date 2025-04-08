@@ -21,13 +21,9 @@ class MagicDict(MutableMapping[IdType, str]):
     Args:
         real_translations: A dict holding :attr:`real` translations.
         default_value: A string with exactly one or zero placeholders.
-        enable_uuid_heuristics: Improves matching when :py:class:`~uuid.UUID`-like IDs are in use.
+        enable_uuid_heuristics: Improves matching when :py:class:`~uuid.UUID`-like IDs are in use. Forcibly set to
+            ``False`` if any of the `real_translations` are not ``UUID``-like.
         transformer: Initialized :class:`.Transformer` instance.
-
-            .. note:
-
-               If any of the `real_translations` are not ``UUID``-like,
-               ``enable_uuid_heuristics`` is forcibly set to ``False``.
 
     Examples:
         **Similarities with the built-in dict**
@@ -109,12 +105,33 @@ class MagicDict(MutableMapping[IdType, str]):
             transformer.update_translations(real_translations)
             self._try_add_missing_key = transformer.try_add_missing_key
 
-    def get(self, __key: IdType, /, _: Any = None) -> str:
+    def get(self, key: IdType, /, _: Any = None) -> str:
         """Same as ``__getitem__``.
 
         Values for missing keys are generated from :attr:`default_value`.
         """
-        return self[__key]
+        return self[key]
+
+    def real_get(self, key: IdType) -> str | None:
+        """Attempt to get an actual translation.
+
+        This method behaves like ``MagicDict.__getitem__``, applying all appropriate heuristics **except** for falling
+        back to the :attr:`default_value`. Returns ``None`` if the `key` cannot be mapped to a real values, like the
+        regular ``dict.get`` method would.
+
+        To bypass the heuristics, use :attr:`real` and :meth:`dict.get` instead. Note that the backing dict may still
+        contain mappings added transformers, since the :meth:`.Transformer.update_translations` interface is called
+        during initialization.
+        """
+        if key in self._real:
+            return self._real[key]
+
+        key = self._on_read(key)
+        return self._real.get(key)
+
+    def real_contains(self, key: IdType, /) -> bool:
+        """Check if an actual translation exists using :meth:`real_get`."""
+        return self.real_get(key) is not None
 
     @property
     def real(self) -> dict[IdType, str]:
@@ -130,11 +147,8 @@ class MagicDict(MutableMapping[IdType, str]):
         return _uuid_utils.try_cast_one(key) if self._cast_key else key
 
     def __getitem__(self, key: IdType) -> str:
-        if key in self._real:
-            return self._real[key]
-
-        key = self._on_read(key)
-        return self._real[key] if key in self._real else self.default_value.format(key)
+        value = self.real_get(key)
+        return self.default_value.format(key) if value is None else value
 
     def __contains__(self, key: Any) -> bool:
         """Always returns ``True``."""

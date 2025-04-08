@@ -18,7 +18,7 @@ def to_uuid(i: int) -> UUID:
 
 UNKNOWN = {"uuids": to_uuid(1000), "ints": 1000, "strs": "one thousand!"}
 EXPECTED = {
-    "uuids": ["00000001:uuid-one", "00000002:uuid-two", "<Failed: id=UUID('000003e8-0000-0000-0000-000000000000')>"],
+    "uuids": ["00000001:uuid-one", "00000002:uuid-two", "<Failed: id='000003e8-0000-0000-0000-000000000000'>"],
     "ints": ["0:int-zero", "1:int-one", "<Failed: id=1000>"],
     "strs": ["zero!:str-zero", "one!:str-one", "<Failed: id='one thousand!'>"],
 }
@@ -56,7 +56,8 @@ def test_dataframe(translator, df, copy):
         assert df.to_dict(as_series=False) == EXPECTED
 
 
-def test_series(translator, df):
-    for series in df.iter_columns():
-        actual: pl.Series = translator.translate(series)
-        assert actual.to_list() == EXPECTED[series.name]
+@pytest.mark.parametrize("column", [*UNKNOWN])
+def test_series(translator, df, column):
+    series = df[column]
+    actual: pl.Series = translator.translate(series)
+    assert actual.to_list() == EXPECTED[series.name]
