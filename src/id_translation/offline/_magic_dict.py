@@ -3,10 +3,8 @@ from collections.abc import Iterator, MutableMapping
 from typing import Any
 from uuid import UUID
 
-from rics.misc import tname
-
 from .. import _uuid_utils
-from ..transform.types import Transformer, TransformerStop
+from ..transform.types import Transformer
 from ..types import IdType
 from ._format import Format
 from .types import TranslatedIds
@@ -20,10 +18,11 @@ class MagicDict(MutableMapping[IdType, str]):
 
     Args:
         real_translations: A dict holding :attr:`real` translations.
-        default_value: A string with exactly one or zero placeholders.
+        default_value: A string with exactly one or zero positional placeholders.
         enable_uuid_heuristics: Improves matching when :py:class:`~uuid.UUID`-like IDs are in use. Forcibly set to
             ``False`` if any of the `real_translations` are not ``UUID``-like.
-        transformer: Initialized :class:`.Transformer` instance.
+        transformer: Initialized :class:`.Transformer` instance. The :meth:`.Transformer.update_translations`-method is
+            called after UUID heuristics are applied.
 
     Examples:
         **Similarities with the built-in dict**
@@ -95,15 +94,13 @@ class MagicDict(MutableMapping[IdType, str]):
     ) -> None:
         if enable_uuid_heuristics and real_translations:
             real_translations, enable_uuid_heuristics = _try_stringify_many(real_translations)
+        if transformer:
+            transformer.update_translations(real_translations)
 
         self._real: TranslatedIds[IdType] = real_translations
         self._default = self._verify_default_value(default_value)
         self._cast_key = enable_uuid_heuristics
-
-        self._try_add_missing_key = None
-        if transformer is not None:
-            transformer.update_translations(real_translations)
-            self._try_add_missing_key = transformer.try_add_missing_key
+        self._transformer = transformer
 
     def get(self, key: IdType, /, _: Any = None) -> str:
         """Same as ``__getitem__``.
@@ -156,14 +153,8 @@ class MagicDict(MutableMapping[IdType, str]):
 
     def _on_read(self, key: IdType) -> IdType:
         key = self._try_stringify(key)
-        if self._try_add_missing_key and key not in self._real:
-            try:
-                self._try_add_missing_key(key, translations=self)
-            except TransformerStop as e:
-                if self.LOGGER.isEnabledFor(logging.DEBUG):
-                    call = f"{tname(self._try_add_missing_key, prefix_classname=True)}({key!r}, translations=self)"
-                    self.LOGGER.debug(f"try_add_missing_key: {call} raised {e!r}. Dropping this callback function.")
-                self._try_add_missing_key = None
+        if self._transformer and key not in self._real:
+            self._transformer.try_add_missing_key(key, translations=self)
         return key
 
     def __setitem__(self, key: IdType, value: str) -> None:

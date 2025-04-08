@@ -91,14 +91,14 @@ class BitmaskTransformer(Transformer[IdType]):
         self._force_real_translations = force_real_translations
 
     @classmethod
-    def update_ids(cls, ids: set[IdType]) -> None:
+    def update_ids(cls, ids: set[IdType], /) -> None:
         """Add decomposed bitmask values."""
         new_ids = set()
         for decomposed in map(cls.decompose_bitmask, ids):
             new_ids.update(decomposed)
         ids.update(new_ids)
 
-    def update_translations(self, translations: dict[IdType, str]) -> None:
+    def update_translations(self, translations: dict[IdType, str], /) -> None:
         """Join decomposed bitmask values using the `joiner` string."""
         ids_to_update: Iterable[IdType] = filter(self.is_decomposable, translations)
         if not self._force:
