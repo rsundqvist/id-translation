@@ -299,6 +299,8 @@ def test_extra_placeholder():
         default_fmt="{id}:{right}",
         default_fmt_placeholders=dict(default={"left": "left-value", "right": "right-value"}),
     )
+    assert t.translate(1999, "people") == "1999:Sofia"
+
     assert t.translate(1, names="people") == "1:right-value"
 
     t = t.copy(default_fmt="{left}, {right}")
@@ -306,6 +308,9 @@ def test_extra_placeholder():
 
     t = t.copy(default_fmt_placeholders=dict(default={"left": "LEFT", "right": "RIGHT"}))
     assert t.translate(1, names="people") == "LEFT, RIGHT"
+
+    with pytest.raises(TooManyFailedTranslationsError):
+        t.translate(1, names="people", max_fails=0)
 
 
 def test_plain_default(hex_fetcher):

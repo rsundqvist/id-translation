@@ -84,8 +84,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         mapper: A :class:`~.mapping.Mapper` instance for binding names to sources.
         default_fmt: Alternative :class:`.Format` to use fallback translation of unknown IDs.
         default_fmt_placeholders: Shared and/or source-specific default placeholder values for unknown IDs. See
-            :meth:`InheritedKeysDict.make() <rics.collections.dicts.InheritedKeysDict.make>` for details. IDs translated
-            using defaults count as successful when using :meth:`Translator.translate(max_fails \< 1) <translate>`.
+            :meth:`InheritedKeysDict.make() <rics.collections.dicts.InheritedKeysDict.make>` for details.
         enable_uuid_heuristics: Improves matching when :py:class:`~uuid.UUID`-like IDs are in use.
         transformers: A dict ``{source: transformer}`` of initialized :class:`.Transformer` instances.
 
