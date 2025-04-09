@@ -9,15 +9,16 @@ To get started, inherit from :class:`DataStructureIO` or copy an
 
 Automatic integration discovery
 -------------------------------
-You may add an entrypoint in the :attr:`{entrypoint_group!r} <id_translation.dio.ENTRYPOINT_GROUP>` entrypoint group to
+You may add an entrypoint in the ``{entrypoint_group!r}`` entrypoint group to
 automatically register custom implementations (as opposed to calling :meth:`.DataStructureIO.register` manually). The
 snippet below shows how the :mod:`bundled <.integration>` integrations are registered using project entrypoints.
 
 .. code-block:: toml
-   :caption: Entrypoints in ``pyproject.toml`` in the https://github.com/rsundqvist/id-translation/blob//v0.13.0/pyproject.toml#L45-L48 project.
+   :caption: Entrypoints in ``pyproject.toml`` in the
+        https://github.com/rsundqvist/id-translation/blob/v0.14.0/pyproject.toml#L45-L48 project.
 
-   [project.entry-points."id_translation.dio.integration"]
-   # Names are not used.
+   [project.entry-points."id_translation.dio"]
+   # The name (e.g. 'dask_io') is not important, but should be unique.
    dask_io = "id_translation.dio.integration.dask:DaskIO"
    polars_io = "id_translation.dio.integration.polars:PolarsIO"
 

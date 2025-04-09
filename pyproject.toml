@@ -43,7 +43,7 @@ documentation = "https://id-translation.readthedocs.io"
 # No scripts.
 
 [project.entry-points."id_translation.dio"]
-# Names are not used.
+# The name (e.g. 'dask_io') is not important, but should be unique.
 dask_io = "id_translation.dio.integration.dask:DaskIO"
 polars_io = "id_translation.dio.integration.polars:PolarsIO"
 

@@ -15,7 +15,7 @@ class TomlOverrideRecord(TypedDict):
 
 
 class BitmaskTransformer(Transformer[IdType]):
-    """Transformations for translating bitmask fields.
+    r"""Transformations for translating bitmask fields.
 
     IDs must be integers.
 
@@ -38,8 +38,9 @@ class BitmaskTransformer(Transformer[IdType]):
         joiner: A string used to join bitmask flag labels.
         overrides: A dict ``{id: translation}``. Use to add or override the translation source.
         force_decomposition: If ``True``, ignore composite values in the translation source.
-        force_real_translations: If ``True``, convert :class:`id_translation.offline.MagicDict` instances to plain
-            ``dict`` using the :attr:`.MagicDict.real` attribute. This will prevent translations such as ``''``.
+        force_real_translations: If ``True``, convert :class:`.MagicDict` instances to plain ``dict`` using the
+            :attr:`.MagicDict.real` attribute. Results such as ``'<Failed: id=2> & 4:name-of-4'`` are possible when
+            ``False``, and will be considered hits by :meth:`translate(max_fails \< 1) <.Translator.translate>` calls.
 
     Examples:
         Basic usage.
