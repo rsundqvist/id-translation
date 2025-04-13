@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Methods `MagicDict.real_get` and `real_contains`.
+- New typehint `translator_typing.AbstractFetcherParams`.
 
 ### Changed
 - Make some `Transformer` method parameters `positional`-only.

@@ -1,9 +1,10 @@
 from collections.abc import Mapping, Sequence
-from typing import Any
+from typing import Any, Unpack
 
 import pandas as pd
 
 from ..offline.types import PlaceholderTranslations, SourcePlaceholderTranslations
+from ..translator_typing import AbstractFetcherParams
 from ..types import ID, IdType, SourceType
 from ._abstract_fetcher import AbstractFetcher
 from .types import FetchInstruction
@@ -27,7 +28,7 @@ class MemoryFetcher(AbstractFetcher[SourceType, IdType]):
             | None
         ) = None,
         return_all: bool = True,
-        **kwargs: Any,
+        **kwargs: Unpack[AbstractFetcherParams[SourceType, IdType]],
     ) -> None:
         kwargs.setdefault("concurrent_operation_action", "ignore")
         super().__init__(**kwargs)

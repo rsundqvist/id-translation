@@ -91,7 +91,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
             )
         )
         self._concurrent_operation_action = ActionLevel.verify(concurrent_operation_action, forbidden=ActionLevel.WARN)
-        self._selective_fetch_all: bool = selective_fetch_all
+        self._selective_fetch_all = selective_fetch_all
 
         logger = logging.getLogger(__package__)
         mapper_logger = logging.getLogger("id_translation.mapping.placeholders")
@@ -105,7 +105,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
             mapper_logger = mapper_logger.getChild(key0)
             logger.addFilter(adder)
             mapper_logger.addFilter(adder)
-        self._optional: bool = optional
+        self._optional = optional
         self._identifiers: tuple[str, ...] = identifiers
         self.logger = logger
         self._mapper.logger = mapper_logger
