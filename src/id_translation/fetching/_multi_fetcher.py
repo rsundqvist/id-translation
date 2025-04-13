@@ -106,6 +106,19 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         return self._placeholders
 
     def initialize_sources(self, task_id: int = -1, *, force: bool = False) -> None:
+        """Perform source discovery.
+
+        Perform source discovery for all :attr:`children`, discarding :attr:`optional <.Fetcher.optional>` children that
+        raise or do not return any sources when their respective :meth:`.Fetcher.initialize_sources` methods are
+        called.
+
+        Args:
+            task_id: Used for logging.
+            force: If ``True``, perform full discovery even if sources are already known.
+
+        Notes:
+            Calling this method multiple times will not recover previously discarded optional child fetchers.
+        """
         if not (self._placeholders is None or force):
             return
 

@@ -11,12 +11,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Methods `MagicDict.real_get` and `real_contains`.
 
 ### Changed
-- Make `Transformer` method parameters `positional`-only.
+- Make some `Transformer` method parameters `positional`-only.
+- The `TranslatorFactory` can now discard _optional_ fetchers that raise when imported or initialized. Set
+  `ID_TRANSLATION_SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS=true` to enable (not recommended).
 
 ### Fixed
-- The docs no longer incorrectly state the `max_fails` stops working when `default_fmt_placeholders` are in use.
+- The docs no longer incorrectly state that `max_fails` stops working when `default_fmt_placeholders` are in use.
 - Fix `max_fails` check when transformers are in use.
 - The `BitmaskTransformer` no longer uses missing IDs in decomposed bitmask translations.
+- Fix `SqlFetcher.__init__`: Suppress exceptions from `create_engine()` if *optional*.
 
 ### Removed
 - The `TransformerStop` class and associated functionality (it wasn't very useful).

@@ -7,7 +7,13 @@ Environment variables
 ---------------------
 .. envvar:: ID_TRANSLATION_DISABLED
 
-    Global switch. When ``true``, the :meth:`Translator.translate`-method returns immediately.
+   Global switch. When ``true``, the :meth:`Translator.translate`-method returns immediately.
+
+.. envvar:: ID_TRANSLATION_SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS
+
+   Global switch. Set to ``true`` (not recommended) to allow the :meth:`~id_translation.toml.TranslatorFactory` to
+   discard `optional` fetchers that raise when imported or initialized.
+   See the `documentation <../documentation/translator-config.html#optional-fetchers>`__ for details.
 """
 
 import logging as _logging

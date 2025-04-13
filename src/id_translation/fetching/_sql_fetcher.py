@@ -15,6 +15,7 @@ from sqlalchemy import BINARY, CHAR, TypeDecorator
 from id_translation._compat import fmt_perf
 
 from .. import _uuid_utils
+from ..exceptions import ConnectionStatusError
 from ..offline.types import PlaceholderTranslations
 from ..types import ID, IdType
 from . import exceptions
@@ -85,10 +86,13 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
-
         self._engine_kwargs = engine_kwargs or {}
-        self._engine = self.create_engine(connection_string, password, self._engine_kwargs)
-        self._estr = str(self.engine)
+        self._engine: sqlalchemy.Engine | None = None
+
+        engine, engine_str = self._create_engine(connection_string, password)
+        self._engine = engine
+        self._estr = engine_str
+
         self._schema = schema
         self._reflect_views = include_views
 
@@ -105,10 +109,28 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
             self._whitelist = list(set(whitelist_tables))
 
             if len(self._whitelist) == 0:
-                self.close()
                 msg = f"Got empty 'whitelist_tables' argument. No tables will be available to {self}."
                 self.logger.getChild("sql").warning(msg)
                 warnings.warn(msg, category=FetcherWarning, stacklevel=2)
+
+    def _create_engine(
+        self,
+        connection_string: str,
+        password: str | None = None,
+    ) -> tuple[sqlalchemy.Engine | None, str]:
+        engine: sqlalchemy.Engine | None
+        if not self.optional:
+            engine = self.create_engine(connection_string, password, self._engine_kwargs)
+            return engine, str(engine)
+
+        try:
+            engine = self.create_engine(connection_string, password, self._engine_kwargs)
+            engine_str = str(engine)
+        except Exception as e:
+            engine = None
+            engine_str = f"no engine: {e!r}"
+
+        return engine, engine_str
 
     def select_where(
         self,
@@ -298,9 +320,13 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         return self._engine is not None  # pragma: no cover
 
     def _initialize_sources(self, task_id: int) -> dict[str, list[str]]:
+        if self._engine is None:
+            raise ConnectionStatusError(f"disconnected: {self._estr}")
+
         self._table_summaries = self._get_summaries(task_id)
         return {
-            name: [str(c.name) for c in table_summary.columns] for name, table_summary in self._table_summaries.items()
+            table_name: [str(c.name) for c in table_summary.columns]  # table_name = source
+            for table_name, table_summary in self._table_summaries.items()
         }
 
     @property
@@ -319,6 +345,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
     def engine(self) -> sqlalchemy.engine.Engine:
         """The :class:`~sqlalchemy.engine.Engine` used by this fetcher."""
         self.assert_online()
+        assert self._engine is not None  # noqa: S101
         return self._engine
 
     def close(self) -> None:
@@ -329,6 +356,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         self.logger.getChild("sql").debug("Dispose %s", self._estr)
         self._table_summaries = {}
         self._engine.dispose()
+        self._engine = None
 
     @classmethod
     def create_engine(

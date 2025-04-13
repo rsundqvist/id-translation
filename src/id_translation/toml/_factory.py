@@ -1,8 +1,9 @@
 import logging
 from collections.abc import Callable, Generator, Iterable
 from contextlib import contextmanager
+from os import getenv
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Generic, TypeAlias
+from typing import TYPE_CHECKING, Any, Generic, Literal, TypeAlias
 
 from rics.collections.dicts import InheritedKeysDict
 
@@ -19,6 +20,11 @@ from .meta import ConfigMetadata, Metaconf
 
 if TYPE_CHECKING:
     from id_translation import Translator
+
+
+ID_TRANSLATION_SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS: Literal[
+    "ID_TRANSLATION_SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS"
+] = "ID_TRANSLATION_SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS"
 
 
 class TranslatorFactory(Generic[NameType, SourceType, IdType]):
@@ -131,6 +137,10 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
         self._metaconf = Metaconf.from_path_or_default(metaconf_path)
         self.logger = logging.getLogger(__package__).getChild(type(self).__name__)
 
+        self.suppress_optional_fetcher_init_errors = (
+            getenv(ID_TRANSLATION_SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS, "").lower() == "true"
+        )
+
     @property
     def metaconf(self) -> Metaconf:
         """Returns the meta configuration instance used by this factory."""
@@ -199,14 +209,21 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
         transformers: Transformers[SourceType, IdType] = {}
 
         if config:
-            with _rethrow_with_file(self.file):
-                fetchers.append(self._make_fetcher(default_identifiers[0], **config))  # Add primary fetcher
+            with _rethrow_with_file(self.file, show_init_errors_hint=True):
+                fetcher = self._make_fetcher(default_identifiers[0], **config)
+                if isinstance(fetcher, Exception):
+                    self._log_optional_fetcher_init_error(fetcher, str(self.file))
+                else:
+                    fetchers.append(fetcher)  # Add primary fetcher
 
         for i, fetcher_file in enumerate(extra_fetchers, start=1):
-            with _rethrow_with_file(fetcher_file):
+            with _rethrow_with_file(fetcher_file, show_init_errors_hint=True):
                 fetcher_config = self.load_toml_file(fetcher_file)
                 _check_allowed_keys(["fetching", "transform"], actual=fetcher_config, toml_path="<root>")
                 fetcher = self._make_fetcher(default_identifiers[i], **fetcher_config["fetching"])
+                if isinstance(fetcher, Exception):
+                    self._log_optional_fetcher_init_error(fetcher, fetcher_file)
+                    continue
                 new_transformers = self._handler_transformers(fetcher_config.get("transform", {}))
 
                 if keys := set(new_transformers).intersection(transformers):
@@ -232,6 +249,18 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
             retval = MultiFetcher(*fetchers, **multi_fetcher_kwargs)
         return retval, transformers
 
+    def _log_optional_fetcher_init_error(self, exception: BaseException, fetcher_file: str) -> None:
+        value = getenv(ID_TRANSLATION_SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS)
+        env = f"{ID_TRANSLATION_SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS}={value}"
+        url = "https://id-translation.readthedocs.io/en/stable/documentation/translator-config.html#optional-fetchers"
+        self.logger.exception(
+            f"Discarded optional fetcher in file '{fetcher_file}': {exception!r}."
+            f"\nHINT: Discarded since `optional=true` and `{env}`."
+            f"\nHINT: See {url} for help.",
+            exc_info=exception,
+            extra={"fetcher_file": str(fetcher_file), "reason": str(exception)},
+        )
+
     @classmethod
     def _make_mapper(cls, parent_section: str, config: dict[str, Any]) -> Mapper[Any, Any, Any] | None:
         if "mapping" not in config:
@@ -248,10 +277,9 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
     def _make_cache_access(cls, config: dict[str, Any]) -> CacheAccess[Any, Any]:
         return cls.CACHE_ACCESS_FACTORY(config.pop("type"), config)
 
-    @classmethod
-    def _make_fetcher(cls, identifiers: list[str], **config: Any) -> AbstractFetcher[SourceType, IdType]:
-        mapper = cls._make_mapper("fetching", config) if "mapping" in config else None
-        cache_access = cls._make_cache_access(config.pop("cache")) if "cache" in config else None
+    def _make_fetcher(self, __identifiers: list[str], **config: Any) -> AbstractFetcher[SourceType, IdType] | Exception:
+        mapper = self._make_mapper("fetching", config) if "mapping" in config else None
+        cache_access = self._make_cache_access(config.pop("cache")) if "cache" in config else None
 
         if len(config) == 0:  # pragma: no cover
             raise ConfigurationError("Fetcher implementation section missing.")
@@ -260,10 +288,24 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
 
         clazz, kwargs = next(iter(config.items()))
 
-        kwargs["identifiers"] = kwargs.get("identifiers", identifiers)
+        kwargs["identifiers"] = kwargs.get("identifiers", __identifiers)
         kwargs["mapper"] = mapper
         kwargs["cache_access"] = cache_access
-        return cls.FETCHER_FACTORY(clazz, kwargs)
+
+        is_optional = kwargs.get("optional")
+        if isinstance(is_optional, bool):
+            # Only if ID_TRANSLATION_SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS=true.
+            is_optional = is_optional and self.suppress_optional_fetcher_init_errors
+        else:
+            is_optional = False
+
+        if is_optional:
+            try:
+                return self.FETCHER_FACTORY(clazz, kwargs)
+            except Exception as e:
+                return e
+        else:
+            return self.FETCHER_FACTORY(clazz, kwargs)
 
     @classmethod
     def _handler_transformers(cls, per_source: dict[SourceType, dict[str, Any]]) -> Transformers[SourceType, IdType]:
@@ -310,12 +352,23 @@ def _identifier_from_config_metadata(config_metadata: ConfigMetadata) -> list[li
 
 
 @contextmanager
-def _rethrow_with_file(file: str) -> Generator[None, None, None]:
+def _rethrow_with_file(
+    file: str,
+    *,
+    show_init_errors_hint: bool = False,
+) -> Generator[None, None, None]:
     try:
         yield
     except Exception as e:
+        file_hint = f"In file: {Path(file).resolve()}"
+        notes = [file_hint]
+        if show_init_errors_hint:
+            notes.append(f"Setting {ID_TRANSLATION_SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS}=true may help temporarily.")
+
+        for hint in notes:
+            e.add_note(f"HINT: {hint}")
+
         if isinstance(e, ConfigurationError):
-            e.add_note(f"    raised when parsing file: {Path(file).resolve()}")
             raise
         else:
             msg = f"{type(e).__name__}: {e}\n    raised when parsing file: {Path(file).resolve()}"

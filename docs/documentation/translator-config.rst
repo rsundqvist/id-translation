@@ -151,7 +151,7 @@ a :class:`~id_translation.fetching.MemoryFetcher` would be created by adding a `
    * - optional
      - :py:class:`bool`
      - If ``True``, discard on :attr:`~id_translation.types.HasSources.sources`-resolution crash.
-     - Multi-fetcher mode only.
+     - Multi-fetcher mode only. See :ref:`Optional fetchers` for details.
    * - | concurrent_operation
        | _action
      - `raise | ignore`
@@ -180,6 +180,28 @@ See: :ref:`Subsection: Mapping` for details. For all mapping operations performe
    ``my.library`` module.
 
    Under the hood, this will call :func:`~rics.misc.get_by_full_name` using ``name="my.library.SuperFetcher"``.
+
+Optional fetchers
+~~~~~~~~~~~~~~~~~
+:meth:`Optional <.Fetcher.optional>` fetchers are allowed to raise when :meth:`.Fetcher.initialize_sources` is called.
+Fetchers should **not** raise when imported or initialized. To suppress init errors (e.g. :class:`ModuleNotFoundError`),
+the config file must specify ``optional = true`` in the class init args:
+
+.. code-block:: toml
+
+   [fetching."my_module.MyFetcher"]
+   optional = true
+
+The :envvar:`ID_TRANSLATION_SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS` variable must also be ``true``. The
+:class:`~id_translation.toml.TranslatorFactory` will always use the ``ERROR`` level for fetchers that are discarded this
+way.
+
+.. warning::
+
+   Using ``ID_TRANSLATION_SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS=true`` can and often will hide configuration errors
+   (e.g. misspelled argument names) or broken packages.
+
+Fetchers should be designed so that they do not raise before :meth:`.Fetcher.initialize_sources` is called.
 
 Caching
 ~~~~~~~
