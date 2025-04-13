@@ -1,12 +1,13 @@
 from collections.abc import Callable, Iterable, Mapping
 from pathlib import Path
-from typing import Any
+from typing import Any, Unpack
 
 import pandas as pd
 from rics.misc import get_by_full_name, tname
 
 from .._compat import PathLikeType
 from ..offline.types import PlaceholderTranslations
+from ..translator_typing import AbstractFetcherParams
 from ..types import IdType
 from ._abstract_fetcher import AbstractFetcher
 from .types import FetchInstruction
@@ -48,7 +49,7 @@ class PandasFetcher(AbstractFetcher[str, IdType]):
         read_path_format: str | FormatFn = "data/{}.csv",
         read_function_kwargs: Mapping[str, Any] | None = None,
         online: bool = False,
-        **kwargs: Any,
+        **kwargs: Unpack[AbstractFetcherParams[str, IdType]],
     ) -> None:
         super().__init__(**kwargs)
         self._read = get_by_full_name(read_function, pd) if isinstance(read_function, str) else read_function

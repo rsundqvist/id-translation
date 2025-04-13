@@ -2,9 +2,11 @@
 
 import typing as _t
 
+from rics.action_level import ActionLevel as _ActionLevel
 from rics.collections.dicts import MakeType as _MakeType
 
 from . import types as _tt
+from .fetching import CacheAccess as _CacheAccess
 from .fetching import Fetcher as _Fetcher
 from .mapping import Mapper as _Mapper
 from .mapping.types import UserOverrideFunction as _UserOverrideFunction
@@ -21,19 +23,32 @@ Must be on the form ``{source: {id: name}}``.
 SourceToPlaceholderTranslationsMakeTypes = _t.Mapping[_tt.SourceType, _ot.MakeTypes[_tt.SourceType, _tt.IdType]]
 """Data for translating using arbitrary placeholders; see :meth:`.PlaceholderTranslations.make`"""
 
-NativeFetcherTypes = (
+NativeFetcherTypes: _t.TypeAlias = (
     _TranslationMap[_tt.NameType, _tt.SourceType, _tt.IdType]
     | _Fetcher[_tt.SourceType, _tt.IdType]
     | _ot.SourcePlaceholderTranslations[_tt.SourceType]
 )
 """Internal types related to fetching."""
 
-FetcherTypes = (
+FetcherTypes: _t.TypeAlias = (
     NativeFetcherTypes[_tt.NameType, _tt.SourceType, _tt.IdType]
     | SimpleDictFetcherTypes[_tt.SourceType, _tt.IdType]
     | SourceToPlaceholderTranslationsMakeTypes[_tt.SourceType, _tt.IdType]
 )
 """All valid input types for creating a ``Translator``."""
+
+
+class AbstractFetcherParams(_t.TypedDict, _t.Generic[_tt.SourceType, _tt.IdType], total=False):
+    """Keyword arguments for the :class:`.AbstractFetcher` base class."""
+
+    mapper: _Mapper[str, str, _tt.SourceType]
+    allow_fetch_all: bool
+    fetch_all_unmapped_values_action: _ActionLevel.ParseType
+    selective_fetch_all: bool
+    identifiers: _t.Sequence[str] | None
+    optional: bool
+    concurrent_operation_action: _ActionLevel.ParseType
+    cache_access: _CacheAccess[_tt.SourceType, _tt.IdType]
 
 
 class MapParams(_t.TypedDict, _t.Generic[_tt.NameType, _tt.SourceType, _tt.IdType], total=False):

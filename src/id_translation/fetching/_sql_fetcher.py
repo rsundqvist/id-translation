@@ -4,7 +4,7 @@ from collections.abc import Collection, Iterable
 from copy import deepcopy
 from dataclasses import dataclass
 from time import perf_counter
-from typing import Any, Generic, Literal, Self, TypeAlias
+from typing import Any, Generic, Literal, Self, TypeAlias, Unpack
 from urllib.parse import quote_plus
 from uuid import UUID
 
@@ -17,6 +17,7 @@ from id_translation._compat import fmt_perf
 from .. import _uuid_utils
 from ..exceptions import ConnectionStatusError
 from ..offline.types import PlaceholderTranslations
+from ..translator_typing import AbstractFetcherParams
 from ..types import ID, IdType
 from . import exceptions
 from ._abstract_fetcher import AbstractFetcher
@@ -83,7 +84,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         schema: str | None = None,
         include_views: bool = False,
         engine_kwargs: dict[str, Any] | None = None,
-        **kwargs: Any,
+        **kwargs: Unpack[AbstractFetcherParams[str, IdType]],
     ) -> None:
         super().__init__(**kwargs)
         self._engine_kwargs = engine_kwargs or {}
