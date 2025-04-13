@@ -275,11 +275,10 @@ autodoc_default_options = {
 
 # -- Intersphinx configuration -------------------------------------------------
 intersphinx_mapping = {
-    "python": ("https://docs.python.org/3", None),
+    "python": ("https://docs.python.org/3/", None),
     "pandas": ("http://pandas.pydata.org/pandas-docs/stable/", None),
-    "numpy": ("http://docs.scipy.org/doc/numpy/", None),
-    "sqlalchemy": ("https://docs.sqlalchemy.org/en/14/", None),
-    "matplotlib": ("https://matplotlib.org/stable/", None),
+    "numpy": ("https://numpy.org/doc/stable/", None),
+    "sqlalchemy": ("https://docs.sqlalchemy.org/en/20/", None),
     "rics": (rics_docs, None),
 }
 
