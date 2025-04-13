@@ -23,7 +23,7 @@ def test_unknown_sources(fetcher):
     assert {"edible_humans"} == ec.value.unknown_sources
 
     with pytest.raises(exceptions.UnknownSourceError, match="edible_humans") as ec:
-        fetcher.get_placeholders("edible_humans")
+        fetcher.map_placeholders("edible_humans", placeholders=["not-used"])
     assert {"edible_humans"} == ec.value.unknown_sources
 
 
@@ -164,3 +164,28 @@ class CachingFetcher(MemoryFetcher[str, int]):
     def fetch_translations(self, instr):
         self.calls["fetch"] += 1
         return super().fetch_translations(instr)
+
+
+class TestBadImplementation:
+    def test_initialize_sources(self):
+        fetcher = BadFetcher()
+        with pytest.raises(RuntimeError, match=r"Call to BadFetcher._initialize_sources\(\) failed."):
+            fetcher.initialize_sources()
+
+    def test_fetch(self):
+        fetcher = BadFetcher()
+        with pytest.raises(RuntimeError, match=r"Call to BadFetcher._initialize_sources\(\) failed."):
+            fetcher.fetch([IdsToFetch("source", {1})])
+
+    def test_id_column(self):
+        fetcher = BadFetcher()
+        with pytest.raises(TypeError, match=r"Bad candidates=\[\] argument; must be a non-empty collection."):
+            fetcher.id_column("source", candidates=[])
+
+
+class BadFetcher(AbstractFetcher[str, int]):
+    def _initialize_sources(self, _):
+        return None
+
+    def fetch_translations(self, instr):
+        raise NotImplementedError
