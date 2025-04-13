@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Make some `Transformer` method parameters `positional`-only.
 - The `TranslatorFactory` can now discard _optional_ fetchers that raise when imported or initialized. Set
   `ID_TRANSLATION_SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS=true` to enable (not recommended).
+- The `AbstractFetcher.map_placeholders` method no longer uses caching.
 
 ### Fixed
 - The docs no longer incorrectly state that `max_fails` stops working when `default_fmt_placeholders` are in use.
@@ -24,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 - The `TransformerStop` class and associated functionality (it wasn't very useful).
+- The `AbstractFetcher.get_placeholders` method.
 
 ## [0.13.0] - 2025-04-05
 

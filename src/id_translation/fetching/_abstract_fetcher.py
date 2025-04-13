@@ -76,7 +76,6 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
                 stacklevel=2,
             )
 
-        self._mapping_cache: dict[SourceType, dict[str, str | None]] = {}
         self._allow_fetch_all: bool = allow_fetch_all
         self._active_operation: Literal["FETCH", "FETCH_ALL", None] = None
 
@@ -121,6 +120,9 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
     def initialize_sources(self, task_id: int = -1, *, force: bool = False) -> None:
         if self._placeholders is None or force:
             self._placeholders = self._initialize_sources(task_id)
+            if self._placeholders is None:
+                msg = f"Call to {self._initialize_sources.__qualname__}() failed."
+                raise RuntimeError(msg)
 
     @abstractmethod
     def _initialize_sources(self, task_id: int) -> dict[SourceType, list[str]]:
@@ -158,22 +160,17 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         placeholders: Iterable[str],
         *,
         candidates: Iterable[str] | None = None,
-        clear_cache: bool = False,
         task_id: int | None = None,
     ) -> dict[str, str | None]:
         """Map `placeholder` names to the actual names seen in `source`.
 
-        This method calls ``Mapper.apply(values=placeholders, candidates=candidates, context=source)`` using this
-        fetchers :attr:`.AbstractFetcher.mapper` instance. It is assumed that names in sources rarely change, so
-        mappings are cached until the fetcher is recreated or until this method is called with ``clear_cache=True``.
-
-        Placeholder mapping caching should not be confused with ``FETCH_ALL`` data caching.
+        This method calls ``Mapper.apply(values=placeholders, candidates=candidates, context=source)`` using the local
+        :attr:`.AbstractFetcher.mapper` instance.
 
         Args:
             source: The source to map placeholders for.
             placeholders: Desired :attr:`~.Format.placeholders`.
             candidates: A subset of candidates (placeholder names) in `source` to map with `placeholders`.
-            clear_cache: If ``True``, force a full remap.
             task_id: Used for logging purposes.
 
         Returns:
@@ -182,22 +179,23 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
             the candidates available for the source.
 
         Raises:
-            UnknownPlaceholderError: If any of `required_placeholders` are incorrectly mapped, or not mapped at all.
+            UnknownSourceError: If `source` is not in :attr:`sources`.
 
         See Also:
             🔑 This is a key event method. See :ref:`key-events` for details.
         """
         start = perf_counter()
 
-        if clear_cache or source not in self._mapping_cache:
-            self._mapping_cache[source] = {}
-        ans = self._mapping_cache[source]
+        if self._placeholders is not None and source not in self._placeholders:
+            # Check the underlying attribute to avoid infinite recursion in _initialize_sources()-implementations that
+            # call this method. This is typically done indirectly via id_column(), which requires explicit candidates.
+            raise exceptions.UnknownSourceError({source}, self.sources)
+        if candidates is None:
+            # May lead to infinite recursion if _initialize_sources() calls map_placeholders(candidates=None).
+            candidates = self.placeholders[source]
 
-        candidates = set(self.get_placeholders(source) if candidates is None else candidates)
-        placeholders = set(placeholders).difference(ans)  # Don't remap cached mappings
-
-        if not placeholders:
-            return ans  # Nothing new to map.
+        candidates = set(candidates)
+        placeholders = set(placeholders)
 
         log_level = settings.MAP_PLACEHOLDERS
         if self.logger.isEnabledFor(log_level.enter):
@@ -219,9 +217,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
 
         dm = self.mapper.apply(placeholders, candidates, context=source)
 
-        for actual, wanted in dm.left_to_right.items():
-            ans[actual] = wanted[0]
-
+        ans: dict[str, str | None] = dm.flatten()  # type: ignore[assignment]
         for not_mapped in placeholders.difference(ans):
             ans[not_mapped] = None
 
@@ -248,10 +244,13 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         self,
         source: SourceType,
         *,
-        candidates: Iterable[str] | None = None,
+        candidates: Iterable[str],
         task_id: int | None = None,
     ) -> str | None:
         """Return the ID column for `source`."""
+        if not candidates:
+            msg = f"Bad {candidates=} argument; must be a non-empty collection."
+            raise TypeError(msg)
         return self.map_placeholders(source, [ID], candidates=candidates, task_id=task_id)[ID]
 
     @property
@@ -283,13 +282,6 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         """
         if not self.online:  # pragma: no cover
             raise ConnectionStatusError("disconnected")
-
-    def get_placeholders(self, source: SourceType) -> list[str]:
-        """Get placeholders for `source`."""
-        placeholders = self.placeholders
-        if source not in placeholders:
-            raise exceptions.UnknownSourceError({source}, self.sources)
-        return placeholders[source]
 
     @property
     def allow_fetch_all(self) -> bool:
@@ -634,7 +626,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
 
     @classmethod
     def default_mapper_kwargs(cls) -> dict[str, Any]:
-        """Return default ``Mapper`` arguments for ``AbstractFetcher`` implementations."""
+        """Return default :class:`.Mapper` arguments for ``AbstractFetcher`` implementations."""
         return dict(
             score_function=HeuristicScore(
                 cls.default_score_function,  # type: ignore
