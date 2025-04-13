@@ -195,6 +195,8 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
     ) -> Self:
         """Create a :class:`.Translator` from TOML inputs.
 
+        See :ref:`translator-config` for help.
+
         Args:
             path: Path to the main TOML configuration file.
             extra_fetchers: Paths to fetching configuration TOML files. If multiple fetchers are defined, they are
@@ -203,7 +205,9 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         Returns:
             A new :class:`.Translator` instance with a :attr:`config_metadata` attribute.
         """
-        return TranslatorFactory(path, extra_fetchers, cls).create()  # type: ignore[return-value]
+        # docs: https://id-translation.readthedocs.io/en/stable/documentation/translator-config.html
+        factory: TranslatorFactory[NameType, SourceType, IdType] = TranslatorFactory(path, extra_fetchers, cls)
+        return factory.create()  # type: ignore[return-value]
 
     @property
     def config_metadata(self) -> meta.ConfigMetadata:

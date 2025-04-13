@@ -4,6 +4,7 @@ import pandas as pd
 import pytest
 import sqlalchemy
 
+from id_translation.exceptions import ConnectionStatusError
 from id_translation.fetching import SqlFetcher as RealSqlFetcher
 from id_translation.fetching import exceptions
 from id_translation.fetching.exceptions import FetcherWarning
@@ -156,3 +157,37 @@ def test_deepcopy(connection_string):
 
     assert original_fetch_all == cloned.fetch_all()
     assert original_fetch == cloned.fetch(ids_to_fetch)
+
+
+def test_optional_engine_error():
+    connection_string = "not a proper connection string!"
+    fetcher = SqlFetcher(connection_string, optional=True)
+
+    message = "Could not parse SQLAlchemy URL from string 'not a proper connection string!'"
+    assert str(fetcher) == f'SqlFetcher(<disconnected>: no engine: ArgumentError("{message}"))'
+    with pytest.raises(ConnectionStatusError, match=message):
+        fetcher.initialize_sources()
+
+
+def test_disconnected(connection_string):
+    expected_placeholders = {
+        "animals": ["id", "name", "is_nice"],
+        "big_table": ["id"],
+        "huge_table": ["id"],
+        "humans": ["id", "name", "gender"],
+    }
+
+    fetcher = SqlFetcher(connection_string)
+
+    fetcher.initialize_sources()
+    assert fetcher.placeholders == expected_placeholders
+
+    fetcher.close()
+    assert fetcher.placeholders == expected_placeholders
+
+    fetcher.initialize_sources()  # Should not crash yet - discovery already done
+    assert fetcher.placeholders == expected_placeholders
+
+    with pytest.raises(ConnectionStatusError, match=r"disconnected: Engine\(sqlite"):
+        fetcher.initialize_sources(force=True)
+    assert fetcher.placeholders == expected_placeholders

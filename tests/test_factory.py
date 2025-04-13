@@ -1,3 +1,4 @@
+import logging
 from typing import Any
 
 import pytest
@@ -5,6 +6,7 @@ import pytest
 from id_translation import Translator
 from id_translation.exceptions import ConfigurationError
 from id_translation.fetching import AbstractFetcher, CacheAccess, MemoryFetcher, MultiFetcher
+from id_translation.toml._factory import ID_TRANSLATION_SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS
 from id_translation.toml.factories._fetcher import default_fetcher_factory
 from id_translation.types import IdType, SourceType
 
@@ -142,3 +144,88 @@ class DummyCacheAccess(CacheAccess[Any, Any]):
 
     def store(self, instr, translations):
         raise NotImplementedError
+
+
+@pytest.mark.parametrize(
+    "clazz, expected_error",
+    [
+        ("does_not_exist.FetcherClass", ModuleNotFoundError("No module named 'does_not_exist'")),
+        (f"{__name__}.CrashesOnInitFetcher", ValueError("I always crash!")),
+    ],
+)
+class TestOptionalFetchers:
+    @staticmethod
+    def run(caplog, tmp_path, toml, expected_error):
+        bad = tmp_path / "bad-fetcher.toml"
+        bad.write_text(toml, encoding="utf-8")
+
+        toml = """
+        [translator]
+        [fetching.MemoryFetcher.data]
+        people = { id = [0], name = [""] }
+        """
+        main = tmp_path / "main.toml"
+        main.write_text(toml, encoding="utf-8")
+
+        toml = """
+        [fetching.MemoryFetcher.data]
+        animals = { id = [2021], name = ["Morris"] }
+        """
+        good = tmp_path / "ok-fetcher.toml"
+        good.write_text(toml, encoding="utf-8")
+
+        translator = Translator[Any, Any, Any].from_config(main, [good, bad])
+        assert translator.sources == ["people", "animals"]
+
+        fetcher = translator.fetcher
+        assert isinstance(fetcher, MultiFetcher)
+        assert len(fetcher.children) == 2
+        assert not any(c.optional for c in fetcher.children)
+
+        # Verify logged information.
+        assert len(caplog.records) == 1
+        record = caplog.records[0]
+
+        # Verify message
+        message = record.getMessage()
+        assert "ID_TRANSLATION_SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS=true" in message
+        assert "translator-config.html#optional-fetchers" in message
+        assert "bad-fetcher.toml" in message
+        assert repr(expected_error) in message
+
+        # Check record details
+        assert record.name == "id_translation.toml.TranslatorFactory"
+        assert record.levelno == logging.ERROR
+        assert record.fetcher_file.endswith("bad-fetcher.toml")
+        actual_error = record.exc_info[1]
+        assert str(actual_error) == str(expected_error)
+        assert type(actual_error) is type(expected_error)
+
+    def test_on(self, clazz, expected_error, caplog, tmp_path, monkeypatch):
+        monkeypatch.setenv(ID_TRANSLATION_SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS, "true")
+        toml = f"""
+        [fetching."{clazz}"]
+        optional = true
+        """
+        self.run(caplog, tmp_path, toml, expected_error)
+
+    def test_off(self, clazz, expected_error, caplog, tmp_path):
+        toml = f"""
+        [fetching."{clazz}"]
+        optional = true
+        """
+
+        with pytest.raises(ConfigurationError) as exc_info:
+            self.run(caplog, tmp_path, toml, "not-used")
+
+        exc_repr = repr(exc_info.value)
+        assert type(expected_error).__name__ in exc_repr
+        assert str(expected_error) in exc_repr
+        assert "bad-fetcher.toml" in exc_repr
+
+
+class CrashesOnInitFetcher(MemoryFetcher[Any, Any]):
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+
+        raise ValueError("I always crash!")
