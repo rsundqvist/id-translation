@@ -3,7 +3,7 @@ from collections.abc import Callable, Generator, Iterable
 from contextlib import contextmanager
 from os import getenv
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Generic, Literal, TypeAlias
+from typing import TYPE_CHECKING, Any, Generic, TypeAlias
 
 from rics.collections.dicts import InheritedKeysDict
 
@@ -22,9 +22,7 @@ if TYPE_CHECKING:
     from id_translation import Translator
 
 
-ID_TRANSLATION_SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS: Literal[
-    "ID_TRANSLATION_SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS"
-] = "ID_TRANSLATION_SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS"
+SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS = "ID_TRANSLATION_SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS"
 
 
 class TranslatorFactory(Generic[NameType, SourceType, IdType]):
@@ -126,6 +124,7 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
         file: PathLikeType,
         fetchers: Iterable[PathLikeType],
         clazz: type["Translator[NameType, SourceType, IdType]"] | None = None,
+        suppress_optional_fetcher_init_errors: bool | None = None,
     ) -> None:
         from id_translation import Translator
 
@@ -133,13 +132,13 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
         self.extra_fetchers = list(map(str, fetchers))
         self.clazz: type[Translator[NameType, SourceType, IdType]] = clazz or Translator[NameType, SourceType, IdType]
 
-        metaconf_path = str(Path(self.file).with_name("metaconf.toml"))
+        metaconf_path = Path(self.file).with_name("metaconf.toml")
         self._metaconf = Metaconf.from_path_or_default(metaconf_path)
         self.logger = logging.getLogger(__package__).getChild(type(self).__name__)
 
-        self.suppress_optional_fetcher_init_errors = (
-            getenv(ID_TRANSLATION_SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS, "").lower() == "true"
-        )
+        if suppress_optional_fetcher_init_errors is None:
+            suppress_optional_fetcher_init_errors = read_bool(SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS)
+        self.suppress_optional_fetcher_init_errors = suppress_optional_fetcher_init_errors
 
     @property
     def metaconf(self) -> Metaconf:
@@ -250,8 +249,8 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
         return retval, transformers
 
     def _log_optional_fetcher_init_error(self, exception: BaseException, fetcher_file: str) -> None:
-        value = getenv(ID_TRANSLATION_SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS)
-        env = f"{ID_TRANSLATION_SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS}={value}"
+        value = getenv(SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS)
+        env = f"{SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS}={value}"
         url = "https://id-translation.readthedocs.io/en/stable/documentation/translator-config.html#optional-fetchers"
         self.logger.exception(
             f"Discarded optional fetcher in file '{fetcher_file}': {exception!r}."
@@ -363,7 +362,7 @@ def _rethrow_with_file(
         file_hint = f"In file: {Path(file).resolve()}"
         notes = [file_hint]
         if show_init_errors_hint:
-            notes.append(f"Setting {ID_TRANSLATION_SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS}=true may help temporarily.")
+            notes.append(f"Setting {SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS}=true may help temporarily.")
 
         for hint in notes:
             e.add_note(f"HINT: {hint}")

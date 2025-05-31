@@ -2,6 +2,7 @@
 
 import typing as _t
 import warnings as _w
+from collections import abc as _abc
 
 import polars as pl
 
@@ -38,8 +39,8 @@ class PolarsIO(_dio.DataStructureIO[PolarsT, str, _tt.SourceType, _tt.IdType]):
         return series
 
     @classmethod
-    def extract(cls, translatable: PolarsT, names: list[str]) -> dict[str, _t.Sequence[_tt.IdType]]:
-        def extract(series: pl.Series) -> _t.Sequence[_tt.IdType]:
+    def extract(cls, translatable: PolarsT, names: list[str]) -> dict[str, _abc.Sequence[_tt.IdType]]:
+        def extract(series: pl.Series) -> _abc.Sequence[_tt.IdType]:
             return cls._obj_to_str(series).unique().to_list()
 
         if isinstance(translatable, pl.Series):

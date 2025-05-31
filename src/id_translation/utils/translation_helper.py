@@ -94,6 +94,7 @@ Examples:
 
 import os as _os
 import typing as _t
+from collections import abc as _abc
 
 from id_translation import Translator as _Translator
 from id_translation import translator_typing as _trt
@@ -109,7 +110,7 @@ UserParams = (
     | _trt.TranslateParams[_tt.NameType, _tt.SourceType, _tt.IdType]
 )
 
-FactoryFn = _t.Callable[[], _Translator[_tt.NameType, _tt.SourceType, _tt.IdType]]
+FactoryFn = _abc.Callable[[], _Translator[_tt.NameType, _tt.SourceType, _tt.IdType]]
 FactoryTypes = (
     FactoryFn[_tt.NameType, _tt.SourceType, _tt.IdType] | _Translator[_tt.NameType, _tt.SourceType, _tt.IdType]
 )

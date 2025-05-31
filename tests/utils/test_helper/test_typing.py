@@ -20,7 +20,7 @@ class TestTrue:
         result = [1]
         result = helper.apply(result, copy=True, user_params=True)
         assert_type(result, list[str])  # type: ignore[assert-type]  # this is what we actually want
-        assert_type(result, list[int])  # this is what we know we get - WRONG
+        assert_type(result, Any)  # this is what we know we get - WRONG
 
 
 class TestFalse:

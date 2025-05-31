@@ -1,6 +1,7 @@
 """Integration for `Dask <https://www.dask.org/>`_ types."""
 
 import typing as _t
+from collections import abc as _abc
 
 from dask import compute as _compute
 from dask import dataframe as dd
@@ -29,7 +30,7 @@ class DaskIO(_dio.DataStructureIO[DaskT, str, _tt.SourceType, _tt.IdType]):
         return None if translatable.name is None else [translatable.name]
 
     @classmethod
-    def extract(cls, translatable: DaskT, names: list[str]) -> dict[str, _t.Sequence[_tt.IdType]]:
+    def extract(cls, translatable: DaskT, names: list[str]) -> dict[str, _abc.Sequence[_tt.IdType]]:
         if isinstance(translatable, dd.Series):
             if len(names) != 1:
                 raise RuntimeError(f"{len(names)=} != 1 is not supported for dask.Series")

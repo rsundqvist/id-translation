@@ -118,9 +118,8 @@ class BaseMetadata(ABC):
         if max_age is None:
             return True, "does not expire", None
 
-        max_age = pandas.Timedelta(max_age)
-
-        expires_at = (stored_config.created + abs(max_age)).replace(microsecond=0)
+        delta = pandas.Timedelta(max_age)
+        expires_at = (stored_config.created + abs(delta)).replace(microsecond=0)
         offset = fmt_sec(round(abs(datetime.now(UTC) - expires_at).total_seconds()))
 
         if expires_at <= stored_config.created:

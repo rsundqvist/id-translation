@@ -1,31 +1,32 @@
 """Types used for mapping."""
 
 import typing as _t
+from collections import abc as _abc
 
 if _t.TYPE_CHECKING:
     from ._cardinality import Cardinality
 
-HL = _t.TypeVar("HL", bound=_t.Hashable)
-"""_t.Hashable type on the left side of a directional relationship."""
-HR = _t.TypeVar("HR", bound=_t.Hashable)
-"""_t.Hashable type on the right side of a directional relationship."""
+HL = _t.TypeVar("HL", bound=_abc.Hashable)
+"""Hashable type on the left side of a directional relationship."""
+HR = _t.TypeVar("HR", bound=_abc.Hashable)
+"""Hashable type on the right side of a directional relationship."""
 LeftToRight = dict[HL, tuple[HR, ...]]
 """A left-to-right mapping."""
 RightToLeft = dict[HR, tuple[HL, ...]]
 """A right-to-left mapping."""
 
-ValueType = _t.TypeVar("ValueType", bound=_t.Hashable)
+ValueType = _t.TypeVar("ValueType", bound=_abc.Hashable)
 """A type of item being mapped."""
-CandidateType = _t.TypeVar("CandidateType", bound=_t.Hashable)
+CandidateType = _t.TypeVar("CandidateType", bound=_abc.Hashable)
 """A type of item being mapped."""
 MatchTuple = tuple[CandidateType, ...]
 """A tuple of candidates matched to a value."""
-ContextType = _t.TypeVar("ContextType", bound=_t.Hashable)
+ContextType = _t.TypeVar("ContextType", bound=_abc.Hashable)
 """Type of context in which mapping is being performed."""
 
 CardinalityType = _t.Union[str, "Cardinality"]
 
-UserOverrideFunction = _t.Callable[
+UserOverrideFunction = _abc.Callable[
     [ValueType, set[CandidateType], ContextType | None],
     CandidateType | None,
 ]
@@ -40,9 +41,9 @@ Returns:
     Either ``None`` (let regular logic decide) or a single candidate `c` in `candidates`.
 """
 
-ScoreFunction = _t.Callable[
-    [ValueType, _t.Iterable[CandidateType], ContextType | None],
-    _t.Iterable[float],
+ScoreFunction = _abc.Callable[
+    [ValueType, _abc.Iterable[CandidateType], ContextType | None],
+    _abc.Iterable[float],
 ]
 """Signature for a likeness score function.
 
@@ -58,9 +59,9 @@ Yields:
     A score for each candidate `c` in `candidates`.
 """
 
-AliasFunction = _t.Callable[
-    [ValueType, _t.Iterable[CandidateType], ContextType | None],
-    tuple[ValueType, _t.Iterable[CandidateType]],
+AliasFunction = _abc.Callable[
+    [ValueType, _abc.Iterable[CandidateType], ContextType | None],
+    tuple[ValueType, _abc.Iterable[CandidateType]],
 ]
 """Signature for an alias function for heuristic scoring.
 
@@ -76,8 +77,8 @@ Returns:
     A tuple (name, candidates) with applied heuristics to increase (or decrease) score as desired.
 """
 
-FilterFunction = _t.Callable[
-    [ValueType, _t.Iterable[CandidateType], ContextType | None],
+FilterFunction = _abc.Callable[
+    [ValueType, _abc.Iterable[CandidateType], ContextType | None],
     set[CandidateType],
 ]
 """Signature for a filter function.

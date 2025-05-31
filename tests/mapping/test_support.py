@@ -46,7 +46,7 @@ def test_enable_verbose_debug_messages():
 def test_natural_number_mapping(cardinality, min_score, expected):
     score = pd.DataFrame(np.arange(0, 20).reshape((4, -1)))
     score.columns = list(map("c{}".format, score))
-    score.columns.name = "candidates"  # type: ignore[attr-defined]
+    score.columns.name = "candidates"
     score.index.name = "values"
     dm: DirectionalMapping[int, str] = support.MatchScores(score, min_score).to_directional_mapping(cardinality)
     actual = dm.left_to_right

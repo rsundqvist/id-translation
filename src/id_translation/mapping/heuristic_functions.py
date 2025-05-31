@@ -4,8 +4,6 @@ See Also:
     The :class:`~.HeuristicScore` class.
 """
 
-from __future__ import annotations
-
 import collections.abc as _abc
 import logging as _logging
 import re as _re
@@ -358,6 +356,9 @@ class NounTransformer:
         ('bu', 'new')
 
         See :attr:`PLURAL_TO_SINGULAR_SUFFIXES` for affected suffixes.
+
+    Notes:
+        This is not :class:`~id_translation.transform.types.Transformer` implementation, in spite of the name.
     """
 
     IRREGULARS: _t.ClassVar[dict[str, str]] = {
@@ -412,7 +413,7 @@ def _get_noun_transformer(plural_to_singular: PluralToSingularArg) -> _abc.Calla
 
         transformer = get_by_full_name(plural_to_singular)
         _NOUN_TRANSFORMER_CACHE[plural_to_singular] = transformer
-        return transformer
+        return transformer  # type: ignore[no-any-return]
 
     if callable(plural_to_singular):
         return plural_to_singular

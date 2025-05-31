@@ -1,6 +1,7 @@
 """Types that are specific to the :class:`id_translation.Translator` implementation."""
 
 import typing as _t
+from collections import abc as _abc
 
 from rics.action_level import ActionLevel as _ActionLevel
 from rics.collections.dicts import MakeType as _MakeType
@@ -20,7 +21,7 @@ SimpleDictFetcherTypes = dict[_tt.SourceType, dict[_tt.IdType, str]]
 Must be on the form ``{source: {id: name}}``.
 """
 
-SourceToPlaceholderTranslationsMakeTypes = _t.Mapping[_tt.SourceType, _ot.MakeTypes[_tt.SourceType, _tt.IdType]]
+SourceToPlaceholderTranslationsMakeTypes = _abc.Mapping[_tt.SourceType, _ot.MakeTypes[_tt.SourceType, _tt.IdType]]
 """Data for translating using arbitrary placeholders; see :meth:`.PlaceholderTranslations.make`"""
 
 NativeFetcherTypes: _t.TypeAlias = (
@@ -45,7 +46,7 @@ class AbstractFetcherParams(_t.TypedDict, _t.Generic[_tt.SourceType, _tt.IdType]
     allow_fetch_all: bool
     fetch_all_unmapped_values_action: _ActionLevel.ParseType
     selective_fetch_all: bool
-    identifiers: _t.Sequence[str] | None
+    identifiers: _abc.Sequence[str] | None
     optional: bool
     concurrent_operation_action: _ActionLevel.ParseType
     cache_access: _CacheAccess[_tt.SourceType, _tt.IdType]

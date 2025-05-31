@@ -6,7 +6,7 @@ import pytest
 from id_translation import Translator
 from id_translation.exceptions import ConfigurationError
 from id_translation.fetching import AbstractFetcher, CacheAccess, MemoryFetcher, MultiFetcher
-from id_translation.toml._factory import ID_TRANSLATION_SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS
+from id_translation.toml._factory import SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS
 from id_translation.toml.factories._fetcher import default_fetcher_factory
 from id_translation.types import IdType, SourceType
 
@@ -202,7 +202,7 @@ class TestOptionalFetchers:
         assert type(actual_error) is type(expected_error)
 
     def test_on(self, clazz, expected_error, caplog, tmp_path, monkeypatch):
-        monkeypatch.setenv(ID_TRANSLATION_SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS, "true")
+        monkeypatch.setenv(SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS, "true")
         toml = f"""
         [fetching."{clazz}"]
         optional = true

@@ -31,7 +31,8 @@ All ``pandas`` types will be ``None`` without stubs, which will break the overlo
 """
 
 import abc as _abc
-import typing as _type
+import typing as _t
+from collections import abc as _cabc
 from typing import TYPE_CHECKING
 from uuid import UUID as _UUID
 
@@ -40,17 +41,17 @@ ID: str = "id"
 
 IdTypes = int | str | _UUID
 """Type of the value being translated into human-readable labels."""
-IdType = _type.TypeVar("IdType", bound=IdTypes)
+IdType = _t.TypeVar("IdType", bound=IdTypes)
 """Type variable bound by :attr:`IdTypes`."""
 
-NameType = _type.TypeVar("NameType", bound=_type.Hashable)
+NameType = _t.TypeVar("NameType", bound=_cabc.Hashable)
 """Type used to label collections of IDs, such as the column names in a DataFrame or the keys of a dict."""
 
 if TYPE_CHECKING:
     import pandas
 
 
-CopyTranslatable: _type.TypeAlias = (
+CopyTranslatable: _t.TypeAlias = (
     # Scalar
     IdType
     |
@@ -61,7 +62,7 @@ CopyTranslatable: _type.TypeAlias = (
     | tuple[IdType, ...]
 )
 
-_InplaceTranslatable: _type.TypeAlias = list[IdType] | list[list[IdType]] | set[IdType]
+_InplaceTranslatable: _t.TypeAlias = list[IdType] | list[list[IdType]] | set[IdType]
 
 
 # From CopyTranslatable
@@ -82,11 +83,11 @@ DictTranslatable = (
     | DictToVarTuple[NameType, IdType]
 )
 
-PandasTranslatable = _type.Union["pandas.DataFrame", "pandas.Series", "pandas.Index"]
+PandasTranslatable = _t.Union["pandas.DataFrame", "pandas.Series", "pandas.Index"]
 
-InplaceTranslatable: _type.TypeAlias = DictTranslatable[NameType, IdType] | _InplaceTranslatable[IdType]
+InplaceTranslatable: _t.TypeAlias = DictTranslatable[NameType, IdType] | _InplaceTranslatable[IdType]
 
-Translatable: _type.TypeAlias = InplaceTranslatable[NameType, IdType] | CopyTranslatable[IdType] | PandasTranslatable
+Translatable: _t.TypeAlias = InplaceTranslatable[NameType, IdType] | CopyTranslatable[IdType] | PandasTranslatable
 """Enumeration of translatable types.
 
 Types ``int``, ``str``, and ``UUID`` can be translated, or a collection thereof. Some :mod:`numpy` and :mod:`pandas`
@@ -101,24 +102,24 @@ and will do its best to return a data structure of the same type (albeit with el
 """
 
 
-SourceType = _type.TypeVar("SourceType", bound=_type.Hashable)
+SourceType = _t.TypeVar("SourceType", bound=_cabc.Hashable)
 """Type used to describe sources. Typically a string for things like files and database tables."""
 
 NameToSource = dict[NameType, SourceType]
 """A mapping from name to source."""
 
-NamesPredicate = _type.Callable[[NameType], bool]
+NamesPredicate = _t.Callable[[NameType], bool]
 """A predicate type on names."""
-NameTypes: _type.TypeAlias = NameType | _type.Iterable[NameType]
+NameTypes: _t.TypeAlias = NameType | _cabc.Iterable[NameType]
 """A union of a name type, or an iterable thereof."""
-Names: _type.TypeAlias = NameTypes[NameType] | NamesPredicate[NameType]
+Names: _t.TypeAlias = NameTypes[NameType] | NamesPredicate[NameType]
 """Acceptable name types."""
 
-TranslatableT = _type.TypeVar("TranslatableT", bound=Translatable[_type.Any, _type.Any])  # TODO: Higher-Kinded TypeVars
+TranslatableT = _t.TypeVar("TranslatableT", bound=Translatable[_t.Any, _t.Any])  # TODO: Higher-Kinded TypeVars
 """Simplified ``Translatable`` type."""
 
 
-class HasSources(_abc.ABC, _type.Generic[SourceType]):
+class HasSources(_abc.ABC, _t.Generic[SourceType]):
     """Indicates that `sources` and `placeholders` are available."""
 
     @property

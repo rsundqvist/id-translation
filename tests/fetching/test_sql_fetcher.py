@@ -163,8 +163,8 @@ def test_optional_engine_error():
     connection_string = "not a proper connection string!"
     fetcher = SqlFetcher(connection_string, optional=True)
 
-    message = "Could not parse SQLAlchemy URL from string 'not a proper connection string!'"
-    assert str(fetcher) == f'SqlFetcher(<disconnected>: no engine: ArgumentError("{message}"))'
+    message = "Could not parse SQLAlchemy URL from given URL string"
+    assert str(fetcher) == f"SqlFetcher(<disconnected>: no engine: ArgumentError('{message}'))"
     with pytest.raises(ConnectionStatusError, match=message):
         fetcher.initialize_sources()
 
