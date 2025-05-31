@@ -1,7 +1,8 @@
 import logging
 from dataclasses import asdict, dataclass, field
-from pathlib import Path
 from typing import Any, Self
+
+from rics.paths import AnyPath, any_path_to_path
 
 from .._load_toml import load_toml_file
 
@@ -105,9 +106,9 @@ class Metaconf:
         )
 
     @classmethod
-    def from_path_or_default(cls, path: Path | str) -> Self:
+    def from_path_or_default(cls, path: AnyPath) -> Self:
         """Read TOML configuration or return default configuration."""
-        path = Path(str(path))
+        path = any_path_to_path(path)
         config = load_toml_file(path) if path.exists() else {}
         return cls.from_dict(config)
 

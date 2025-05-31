@@ -10,9 +10,8 @@ from uuid import UUID
 
 import sqlalchemy
 from rics.misc import format_kwargs, tname
+from rics.strings import format_perf_counter as fmt_perf
 from sqlalchemy import BINARY, CHAR, TypeDecorator
-
-from id_translation._compat import fmt_perf
 
 from .. import _uuid_utils
 from ..exceptions import ConnectionStatusError

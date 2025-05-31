@@ -2,8 +2,6 @@ import logging
 import warnings
 from collections.abc import Iterable
 from copy import deepcopy
-from os import getenv
-from pathlib import Path
 from time import perf_counter
 from typing import (
     TYPE_CHECKING,
@@ -18,9 +16,11 @@ from typing import (
 
 from rics.collections.dicts import InheritedKeysDict, MakeType
 from rics.collections.misc import as_list
+from rics.env.read import read_bool
 from rics.misc import get_public_module, tname
+from rics.paths import AnyPath, any_path_to_path
+from rics.strings import format_perf_counter as fmt_perf
 
-from ._compat import PathLikeType, deprecated_params, fmt_perf
 from ._tasks import MappingTask, TranslationTask, generate_task_id
 from .exceptions import ConfigurationChangedError, ConnectionStatusError, TranslationDisabledWarning
 from .fetching import Fetcher
@@ -62,7 +62,7 @@ from .types import (
 LOGGER = logging.getLogger(__package__).getChild("Translator")
 
 
-ID_TRANSLATION_DISABLED: Literal["ID_TRANSLATION_DISABLED"] = "ID_TRANSLATION_DISABLED"
+ID_TRANSLATION_DISABLED = "ID_TRANSLATION_DISABLED"
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -190,8 +190,8 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
     @classmethod
     def from_config(
         cls,
-        path: PathLikeType,
-        extra_fetchers: Iterable[PathLikeType] = (),
+        path: AnyPath,
+        extra_fetchers: Iterable[AnyPath] = (),
     ) -> Self:
         """Create a :class:`.Translator` from TOML inputs.
 
@@ -695,12 +695,11 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         See Also:
             The :envvar:`ID_TRANSLATION_DISABLED` variable.
         """
-        if getenv(ID_TRANSLATION_DISABLED, "").lower() == "true":
-            message = "Translation aborted; ID_TRANSLATION_DISABLED is set."
+        if read_bool(ID_TRANSLATION_DISABLED):
+            message = f"Translation aborted; {ID_TRANSLATION_DISABLED} is set."
             LOGGER.warning(message)
             warnings.warn(message, category=TranslationDisabledWarning, stacklevel=2)
-            # Return unchanged; this is technically against the API spec.
-            return translatable if copy else None
+            return translatable if copy else None  # Return unchanged; breaks typing.
 
         if self.online and reverse:  # pragma: no cover
             raise ConnectionStatusError("Reverse translation cannot be performed online.")
@@ -870,9 +869,9 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
     @classmethod
     def load_persistent_instance(
         cls,
-        cache_dir: PathLikeType,
-        config_path: PathLikeType,
-        extra_fetchers: Iterable[PathLikeType] = (),
+        cache_dir: AnyPath,
+        config_path: AnyPath,
+        extra_fetchers: Iterable[AnyPath] = (),
         max_age: meta.BaseMetadata.MaxAge = "12h",
         on_config_changed: Literal["raise", "recreate"] = "recreate",
     ) -> Self:
@@ -908,8 +907,8 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         See Also:
              The :meth:`from_config` method, which will read the `config_path`.
         """
-        path = Path(str(config_path))
-        cache_dir = Path(str(cache_dir)).expanduser().absolute()
+        path = any_path_to_path(config_path)
+        cache_dir = any_path_to_path(cache_dir).expanduser().absolute()
         cache_dir.mkdir(parents=True, exist_ok=True)
 
         metadata_path = cache_dir / "metadata.json"
@@ -937,7 +936,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         return translator
 
     @classmethod
-    def restore(cls, path: PathLikeType) -> Self:
+    def restore(cls, path: AnyPath) -> Self:
         """Restore a serialized :class:`.Translator`.
 
         Args:
@@ -954,7 +953,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         """
         import pickle
 
-        full_path = Path(str(path)).expanduser()
+        full_path = any_path_to_path(path).expanduser()
         with full_path.open("rb") as f:
             ans = pickle.load(f)  # noqa: S301
 
@@ -976,7 +975,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
         max_fails: float = 1.0,
         fmt: FormatType | None = None,
-        path: PathLikeType = None,
+        path: AnyPath | None = None,
     ) -> Self:
         """Retrieve and store translations in memory.
 
@@ -1027,7 +1026,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         if path:
             import pickle
 
-            path = Path(str(path)).expanduser()
+            path = any_path_to_path(path).expanduser()
             path.parent.mkdir(parents=True, exist_ok=True)
             with path.open("wb") as f:
                 pickle.dump(self, f)

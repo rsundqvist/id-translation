@@ -1,14 +1,12 @@
 import tomllib
-from pathlib import Path
 from typing import Any
 
 from rics.misc import interpolate_environment_variables
-
-from .._compat import PathLikeType
+from rics.paths import AnyPath, any_path_to_path
 
 
 def load_toml_file(
-    path: PathLikeType,
+    path: AnyPath,
     *,
     allow_interpolation: bool = False,
     allow_nested: bool = False,
@@ -31,7 +29,7 @@ def load_toml_file(
     Returns:
         A dict parsed from `path`.
     """
-    with Path(path).open(encoding="UTF-8") as f:
+    with any_path_to_path(path).open(encoding="UTF-8") as f:
         toml_string = f.read()
 
     if allow_interpolation:

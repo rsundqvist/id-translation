@@ -4,15 +4,15 @@ from typing import Any, Unpack
 
 import pandas as pd
 from rics.misc import get_by_full_name, tname
+from rics.types import AnyPath
 
-from .._compat import PathLikeType
 from ..offline.types import PlaceholderTranslations
 from ..translator_typing import AbstractFetcherParams
 from ..types import IdType
 from ._abstract_fetcher import AbstractFetcher
 from .types import FetchInstruction
 
-PandasReadFunction = Callable[[PathLikeType], pd.DataFrame]
+PandasReadFunction = Callable[[AnyPath], pd.DataFrame]
 FormatFn = Callable[[str], str]
 
 
@@ -63,7 +63,7 @@ class PandasFetcher(AbstractFetcher[str, IdType]):
 
         self._source_paths: dict[str, str] = {}
 
-    def read(self, source_path: PathLikeType) -> pd.DataFrame:
+    def read(self, source_path: AnyPath) -> pd.DataFrame:
         """Read a ``DataFrame`` from a source path.
 
         Args:

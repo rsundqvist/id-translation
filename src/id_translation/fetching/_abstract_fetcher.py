@@ -10,8 +10,8 @@ from typing import Any, Literal, Self, final
 from rics.action_level import ActionLevel
 from rics.collections.dicts import InheritedKeysDict, reverse_dict
 from rics.misc import tname
+from rics.strings import format_seconds as fmt_sec
 
-from .._compat import fmt_sec
 from .._tasks import generate_task_id
 from ..exceptions import ConnectionStatusError
 from ..mapping import HeuristicScore, Mapper

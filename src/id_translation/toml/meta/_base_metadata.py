@@ -7,8 +7,8 @@ from pathlib import Path
 from typing import Any, Literal, Self, TypeAlias
 
 import pandas
+from rics.strings import format_seconds as fmt_sec
 
-from id_translation._compat import fmt_sec
 from id_translation.translator_typing import CacheMissReasonType
 
 

@@ -6,8 +6,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Generic, TypeAlias
 
 from rics.collections.dicts import InheritedKeysDict
+from rics.env.read import read_bool
+from rics.types import AnyPath
 
-from id_translation._compat import PathLikeType
 from id_translation.exceptions import ConfigurationError
 from id_translation.fetching import AbstractFetcher, CacheAccess, Fetcher, MultiFetcher
 from id_translation.mapping import Mapper
@@ -121,8 +122,8 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
 
     def __init__(
         self,
-        file: PathLikeType,
-        fetchers: Iterable[PathLikeType],
+        file: AnyPath,
+        fetchers: Iterable[AnyPath],
         clazz: type["Translator[NameType, SourceType, IdType]"] | None = None,
         suppress_optional_fetcher_init_errors: bool | None = None,
     ) -> None:

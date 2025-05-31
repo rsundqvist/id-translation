@@ -7,9 +7,9 @@ from typing import TYPE_CHECKING, Any, get_args
 
 from numpy import isnan, unique
 from rics.misc import tname
+from rics.strings import format_seconds as fmt_sec
 
 from .. import _uuid_utils
-from .._compat import fmt_sec
 from ..exceptions import TooManyFailedTranslationsError
 from ..mapping.types import UserOverrideFunction
 from ..offline import Format, TranslationMap

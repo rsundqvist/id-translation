@@ -10,8 +10,8 @@ from typing import TYPE_CHECKING, Any, Never, Self, final
 from rics.action_level import ActionLevel, ActionLevelHelper
 from rics.collections.dicts import reverse_dict
 from rics.misc import tname
+from rics.strings import format_seconds as fmt_sec
 
-from .._compat import fmt_sec
 from .._tasks import generate_task_id
 from ..offline.types import SourcePlaceholderTranslations
 from ..settings import logging as settings

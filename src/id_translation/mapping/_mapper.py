@@ -9,8 +9,7 @@ import pandas as pd
 from rics.action_level import ActionLevel
 from rics.collections.dicts import InheritedKeysDict
 from rics.misc import get_by_full_name, tname
-
-from id_translation._compat import fmt_perf
+from rics.strings import format_perf_counter as fmt_perf
 
 from . import exceptions
 from . import filter_functions as mf
