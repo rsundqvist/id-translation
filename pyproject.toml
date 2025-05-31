@@ -30,7 +30,7 @@ requires-python = ">=3.11"
 dependencies = [
     "pandas >= 2.0.3",
     "sqlalchemy >= 2.0.5", # 2.0.5 (YANKED) is the minimum version where UUID tests pass for Microsoft SQL server.
-    "rics >= 4.0.1",
+    "rics >= 5.1.0",
 ]
 
 [project.urls]
@@ -53,8 +53,8 @@ poetry-plugin-export = ">=1.8"
 
 [tool.poetry.group.manual-extras.dependencies]
 # Extras that must be available for docs + tests go here. Doc/test-only deps go in their respective groups.
-polars = { version = "^1.21.0" }
-dask = { version = "^2025.1.0", extras = ["dataframe"] }
+polars = { version = "~1.30.0" }
+dask = { version = "~2025.5.1", extras = ["dataframe"] }
 
 [tool.poetry.group.docs]
 [tool.poetry.group.docs.dependencies]
@@ -86,7 +86,7 @@ s3fs = { version = "^2025.3.0", platform = "linux" }
 
 # db drivers and related dependencies
 pg8000 = "^1.31.2"
-pymssql = "^2.3.2"
+pymssql = "==2.3.2"  # TODO(2025-05-31): 2.3.3 and above fails to install on Windows runners
 pymysql = "^1.1.1"
 cryptography = "*"
 

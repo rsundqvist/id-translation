@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+This release is a mostly focused on adding documentation and removing things to make the project less cumbersome to 
+maintain. Concrete implementations for things like caching are being dropped and replaced by generic interfaces (the
+[CacheAccess] pattern). This is part of the process of getting ready to release `1.0.0` sometime this year.
+
+[CacheAccess]: https://id-translation.readthedocs.io/en/stable/api/id_translation.fetching.html#id_translation.fetching.CacheAccess
 
 ### Added
 - Methods `MagicDict.real_get` and `real_contains`.
@@ -368,7 +373,7 @@ cookiecutter template.
 - Fix some intersphinx issues.
 
 [Unreleased]: https://github.com/rsundqvist/id-translation/compare/v0.13.0...HEAD
-[0.13.0]: https://github.com/rsundqvist/id-translator/compare/v0.12.2...v0.13.0
+[0.13.0]: https://github.com/rsundqvist/id-translation/compare/v0.12.2...v0.13.0
 [0.12.2]: https://github.com/rsundqvist/id-translation/compare/v0.12.1...v0.12.2
 [0.12.1]: https://github.com/rsundqvist/id-translation/compare/v0.12.0...v0.12.1
 [0.12.0]: https://github.com/rsundqvist/id-translation/compare/v0.11.1...v0.12.0
