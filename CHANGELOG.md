@@ -31,6 +31,7 @@ maintain. Concrete implementations for things like caching are being dropped and
 ### Removed
 - The `TransformerStop` class and associated functionality (it wasn't very useful).
 - The `AbstractFetcher.get_placeholders` method.
+- Dropped deprecated `Translator.translate` arguments `inplace` and `maximal_untranslated_fraction`.
 
 ## [0.13.0] - 2025-04-05
 

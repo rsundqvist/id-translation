@@ -627,7 +627,6 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             fmt: FormatType | None = None,
         ) -> Translatable[NameType, IdType]: ...
 
-    @deprecated_params
     def translate(
         self,
         translatable: Translatable[NameType, IdType],
