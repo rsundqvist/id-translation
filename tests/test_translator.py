@@ -157,7 +157,7 @@ def test_from_config():
     actual = translator.config_metadata
 
     assert actual.main[0].name == "config.toml"
-    assert actual.main[1] == "27dfe5760a68e26664df42e089dc3ef9544353436d60925b23d8ff532cf037bc"
+    assert actual.main[1] == "5d4fb2b2588712125ba367d1809bebac6225b4d8e15461a77455347db424df9b"
     assert actual.extra_fetchers == ()
 
     assert sorted(actual.to_dict()) == ["class", "created", "extra_fetchers", "main", "metaconf", "versions"]
@@ -192,7 +192,7 @@ def test_store_with_explicit_values(hex_fetcher):
         "negative_numbers": list(range(-5, -1)),
     }
     translator = UnitTestTranslator(
-        hex_fetcher, fmt="{hex}", default_fmt="{id} not known", mapper=Mapper(unmapped_values_action="ignore")
+        hex_fetcher, fmt="{hex}", default_fmt="{id} not known", mapper=Mapper(on_unmapped="ignore")
     )
 
     with pytest.raises(MappingError) as e, pytest.warns(UserWarning) as w:
@@ -610,7 +610,7 @@ class TestDictNames:
         tmp = UnitTestTranslator.from_config(ROOT.joinpath("config.imdb.toml"))
         translator = tmp.copy(
             fmt="{id}:{name}",
-            mapper=tmp.mapper.copy(unknown_user_override_action="ignore"),
+            mapper=tmp.mapper.copy(on_unknown_user_override="keep"),
         )
         assert "name_basics" in translator.sources
         cls.translate = translator.translate

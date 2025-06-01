@@ -113,7 +113,7 @@ matching `val0 → cand1` had been chosen first.
 Troubleshooting
 ---------------
 Unmapped values are allowed by default. If mapping failure is not an acceptable outcome for your application, initialize
-the ``Mapper`` with ``unmapped_values_action='raise'`` to ensure that an error is raised for unmapped values, along with
+the ``Mapper`` with ``on_unmapped='raise'`` to ensure that an error is raised for unmapped values, along with
 more detailed log messages which are emitted on the error level.
 
 Mapper ``verbose``-messages
@@ -138,7 +138,7 @@ number of legs.
         'human' -> '4'; score=0.000 < 0.9 (below threshold).
 
 The severity of unmapped values depends on the application. As such, the level for these kinds of messages is determined
-by the :attr:`.Mapper.unmapped_values_action`-attribute.
+by the :attr:`.Mapper.on_unmapped`-attribute.
 
 .. code-block:: python
    :caption: Explanation of why a match was not made.
@@ -147,7 +147,7 @@ by the :attr:`.Mapper.unmapped_values_action`-attribute.
         'cat' -> '4'; score=1.000 (superseded on candidate=4: 'dog' -> '4'; score=inf).
         'cat' -> '0'; score=0.000 < 0.9 (below threshold).
 
-Even if ``unmapped_values_action='ignore'``, records are still emitted on the ``DEBUG``-level under the ``verbose``
+Even if ``on_unmapped='ignore'``, records are still emitted on the ``DEBUG``-level under the ``verbose``
 logger namespace.
 
 Managing verbosity

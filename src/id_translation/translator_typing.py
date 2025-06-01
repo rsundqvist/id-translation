@@ -58,7 +58,7 @@ class MapParams(_t.TypedDict, _t.Generic[_tt.NameType, _tt.SourceType, _tt.IdTyp
     translatable: _t.Required[_tt.Translatable[_tt.NameType, _tt.IdType]]
     names: _tt.NameTypes[_tt.NameType] | None
     ignore_names: _tt.Names[_tt.NameType] | None
-    override_function: _UserOverrideFunction[_tt.NameType, _tt.SourceType, None]
+    override_function: _UserOverrideFunction[_tt.NameType, _tt.SourceType, None] | None
 
 
 class UniqueCopyParams(_t.TypedDict, _t.Generic[_tt.NameType, _tt.SourceType, _tt.IdType], total=False):

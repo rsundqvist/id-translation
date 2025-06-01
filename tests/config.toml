@@ -8,7 +8,7 @@ fmt = "{id}:{name}[ (original: {original_name})] *{from}†{to}"
 # Name-to-source mapping configuration. Binds names to source, eg 'cute_animals'
 # -> 'my_database.animals'. Overrides take precedence over scoring logic.
 [translator.mapping]
-unmapped_values_action = "raise"
+on_unmapped = "raise"
 score_function = "modified_hamming"
 
 [[translator.mapping.score_function_heuristics]]

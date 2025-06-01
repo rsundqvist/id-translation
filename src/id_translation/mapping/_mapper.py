@@ -6,10 +6,10 @@ from typing import Any, Generic, Self
 
 import numpy as np
 import pandas as pd
-from rics.action_level import ActionLevel
 from rics.collections.dicts import InheritedKeysDict
 from rics.misc import get_by_full_name, tname
 from rics.strings import format_perf_counter as fmt_perf
+from rics.types import LiteralHelper
 
 from . import exceptions
 from . import filter_functions as mf
@@ -28,6 +28,8 @@ from .types import (
     CardinalityType,
     ContextType,
     FilterFunction,
+    OnUnknownUserOverride,
+    OnUnmapped,
     ScoreFunction,
     UserOverrideFunction,
     ValueType,
@@ -54,10 +56,10 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):
         overrides: If a dict, assumed to be 1:1 mappings (`value` to `candidate`) which override the scoring logic. If
             :class:`rics.collections.dicts.InheritedKeysDict`, the context passed to :meth:`apply` is used to retrieve
             specific overrides.
-        unmapped_values_action: Action to take if mapping fails for any values.
-        unknown_user_override_action: Action to take if a :attr:`id_translation.mapping.types.UserOverrideFunction`
+        on_unmapped: Action to take if mapping fails for any values.
+        on_unknown_user_override: Action to take if an :attr:`~id_translation.mapping.types.UserOverrideFunction`
             returns an unknown candidate. Unknown candidates, i.e. candidates not in the input `candidates` collection,
-            will not be used unless `'ignore'` is chosen. As such, `'ignore'` should rather be interpreted as `'allow'`.
+            will not be used unless `'allow'` is chosen.
         cardinality: Desired cardinality for mapped values. Derive for each matching if ``None``.
         verbose_logging: If ``True``, enable verbose logging for the :meth:`apply` function. Has no effect when the log
             level is above ``logging.DEBUG``.
@@ -74,8 +76,8 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):
         overrides: dict[ValueType, CandidateType]
         | InheritedKeysDict[ContextType, ValueType, CandidateType]
         | None = None,
-        unmapped_values_action: ActionLevel.ParseType = ActionLevel.IGNORE,
-        unknown_user_override_action: ActionLevel.ParseType = ActionLevel.RAISE,
+        on_unmapped: OnUnmapped = "ignore",
+        on_unknown_user_override: OnUnknownUserOverride = "raise",
         cardinality: CardinalityType | None = Cardinality.ManyToOne,
         verbose_logging: bool = False,
     ) -> None:
@@ -88,8 +90,8 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):
         self._overrides: InheritedKeysDict[ContextType, ValueType, CandidateType] | dict[ValueType, CandidateType] = (
             overrides if isinstance(overrides, InheritedKeysDict) else (overrides or {})
         )
-        self._unmapped_action: ActionLevel = ActionLevel.verify(unmapped_values_action)
-        self._bad_candidate_action: ActionLevel = ActionLevel.verify(unknown_user_override_action)
+        self._on_unmapped = OU_HELPER.check(on_unmapped)
+        self._on_unknown_user_override = OUUO_HELPER.check(on_unknown_user_override)
         self._cardinality = None if cardinality is None else Cardinality.parse(cardinality, strict=True)
         self._filters: list[tuple[FilterFunction[ValueType, CandidateType, ContextType], dict[str, Any]]] = [
             ((get_by_full_name(func, mf) if isinstance(func, str) else func), kwargs)
@@ -114,7 +116,7 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):
             context: Context in which mapping is being done.
             override_function: A callable that takes inputs ``(value, candidates, context)`` that returns either
                 ``None`` (let the regular mapping logic decide) or one of the `candidates`. How non-candidates returned
-                is handled is determined by the :attr:`unknown_user_override_action` property.
+                is handled is determined by the :attr:`on_unknown_user_override` property.
             **kwargs: Runtime keyword arguments for score and filter functions. May be used to add information which is
                 not known when the ``Mapper`` is initialized.
 
@@ -124,14 +126,20 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):
             :attr:`.DirectionalMapping.cardinality` is of type :attr:`.Cardinality.one_right`).
 
         Raises:
-            MappingError: If any values failed to match and ``unmapped_values_action='raise'``.
+            MappingError: If any values failed to match and ``on_unmapped='raise'``.
             BadFilterError: If a filter returns candidates that are not a subset of the original candidates.
             UserMappingError: If `override_function` returns an unknown candidate and
-                ``unknown_user_override_action != 'ignore'``
+                ``on_unknown_user_override != 'allow'``
             MappingError: If passing ``context=None`` (the default) when using context-sensitive overrides (type
                 :class:`rics.collections.dicts.InheritedKeysDict`).
         """
         start = perf_counter()
+
+        candidates = list(candidates)
+        values = list(values)
+        if not (values and candidates):
+            self.logger.debug("Aborting since values=%r and candidates=%r in context=%r.", values, candidates, context)
+            return DirectionalMapping(left_to_right={}, _verify=False, cardinality=self.cardinality)
 
         if self.verbose_logging:
             with enable_verbose_debug_messages():
@@ -149,8 +157,6 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):
 
         verbose_logger = self._get_verbose_logger()
         if verbose_logger.isEnabledFor(logging.DEBUG):
-            values = list(scores.index)
-            candidates = list(scores.columns)
             cardinality = "automatic" if self.cardinality is None else self.cardinality.name
 
             l2r = dm.left_to_right
@@ -166,21 +172,16 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):
         return dm
 
     def _report_unmapped(self, msg: str) -> None:
-        if self.unmapped_values_action is ActionLevel.RAISE:
-            msg += (
-                "\nHint: Set "
-                f"unmapped_values_action='{ActionLevel.WARN.value}' or "
-                f"unmapped_values_action='{ActionLevel.IGNORE.value}' "
-                "to allow unmapped values."
-            )
+        if self.on_unmapped == "raise":
+            msg += "\nHint: Set on_unmapped='warn' or on_unmapped='ignore' to allow unmapped values."
             self.logger.error(msg)
             raise UnmappedValuesError(msg)
-        elif self.unmapped_values_action is ActionLevel.WARN:
+        elif self.on_unmapped == "warn":
             self.logger.warning(msg)
             msg += (
                 "\nHint: Set "
-                f"unmapped_values_action='{ActionLevel.IGNORE.value}' to hide this warning, or "
-                f"unmapped_values_action='{ActionLevel.RAISE.value}' to raise an {UnmappedValuesError.__name__}."
+                "on_unmapped='ignore' to hide this warning, or "
+                f"on_unmapped='raise' to raise an {UnmappedValuesError.__name__}."
             )
             warnings.warn(msg, UnmappedValuesWarning, stacklevel=3)
         else:
@@ -202,7 +203,7 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):
             context: Context in which mapping is being done.
             override_function: A callable that takes inputs ``(value, candidates, context)`` that returns either
                 ``None`` (let the regular mapping logic decide) or one of the `candidates`. How non-candidates returned
-                is handled is determined by the :attr:`unknown_user_override_action` property.
+                is handled is determined by the :attr:`on_unknown_user_override` property.
             **kwargs: Runtime keyword arguments for score and filter functions. May be used to add information which is
                 not known when the ``Mapper`` is initialized.
 
@@ -213,7 +214,7 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):
         Raises:
             BadFilterError: If a filter returns candidates that are not a subset of the original candidates.
             UserMappingError: If `override_function` returns an unknown candidate and
-                ``unknown_user_override_action != 'ignore'``
+                ``on_unknown_user_override != 'allow'``
         """
         start = perf_counter()
 
@@ -294,21 +295,18 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):
         return self._cardinality
 
     @property
-    def unmapped_values_action(self) -> ActionLevel:
+    def on_unmapped(self) -> OnUnmapped:
         """Return the action to take if mapping fails for any values."""
-        return self._unmapped_action
+        return self._on_unmapped
 
     @property
-    def unknown_user_override_action(self) -> ActionLevel:
+    def on_unknown_user_override(self) -> OnUnknownUserOverride:
         """Return the action to take if an override function returns an unknown candidate.
-
-        Unknown candidates, i.e. candidates not in the input `candidates` collection, will not be used unless `'ignore'`
-        is chosen. As such, `'ignore'` should rather be interpreted as `'allow'`.
 
         Returns:
             Action to take if a user-defined override function returns an unknown candidate.
         """
-        return self._bad_candidate_action
+        return self._on_unknown_user_override
 
     @property
     def verbose_logging(self) -> bool:
@@ -394,17 +392,15 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):
             user_override = func(value, candidates, context)
             if user_override is None:
                 continue
-            if self.unknown_user_override_action is not ActionLevel.IGNORE and user_override not in candidates:
+            if user_override not in candidates and self.on_unknown_user_override != "keep":
                 msg = (
                     f"The user-defined override function {func} returned an unknown candidate={user_override!r} for"
-                    f" {value=}."
-                    "\nHint: If this is intended behaviour, set unknown_user_override_action='ignore' to allow."
+                    f" {value=}.\nHint: Set on_unknown_user_override='keep' to use this value anyway."
                 )
-                if self.unknown_user_override_action is ActionLevel.RAISE:
+                if self.on_unknown_user_override == "raise":
                     self.logger.error(msg)
                     raise UserMappingError(msg, value, candidates)
-                elif self.unknown_user_override_action is ActionLevel.WARN:
-                    msg += " The override has been ignored."
+                elif self.on_unknown_user_override == "warn":
                     self.logger.warning(msg)
                     warnings.warn(msg, UserMappingWarning, stacklevel=2)
                 continue
@@ -461,8 +457,8 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):
         kwargs: dict[str, Any] = {
             "score_function": self._score,
             "min_score": self._min_score,
-            "unmapped_values_action": self.unmapped_values_action,
-            "unknown_user_override_action": self.unknown_user_override_action,
+            "on_unmapped": self.on_unmapped,
+            "on_unknown_user_override": self.on_unknown_user_override,
             "cardinality": self.cardinality,
             "verbose_logging": self.verbose_logging,
             **overrides,
@@ -491,9 +487,21 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):
                 self._filters == other._filters,
                 self._min_score == other._min_score,
                 self._overrides == other._overrides,
-                self._unmapped_action == other._unmapped_action,
-                self._bad_candidate_action == other._bad_candidate_action,
+                self._on_unmapped == other._on_unmapped,
+                self._on_unknown_user_override == other._on_unknown_user_override,
                 self._cardinality == other._cardinality,
                 self._verbose == other._verbose,
             )
         )
+
+
+OU_HELPER: LiteralHelper[OnUnmapped] = LiteralHelper(
+    OnUnmapped,
+    default_name="on_unmapped",
+    type_name="OnUnmapped",
+)
+OUUO_HELPER: LiteralHelper[OnUnknownUserOverride] = LiteralHelper(
+    OnUnknownUserOverride,
+    default_name="on_unknown_user_override",
+    type_name="OnUnknownUserOverride",
+)

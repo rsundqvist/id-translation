@@ -52,11 +52,11 @@ def test_user_override(candidates, user_override, expected):
 
 
 def test_user_overrides_ignore_unknown(candidates):
-    mapper: Mapper[str, str, None] = Mapper(overrides={"a": "fixed"}, unknown_user_override_action="warn")
+    mapper: Mapper[str, str, None] = Mapper(overrides={"a": "fixed"}, on_unknown_user_override="warn")
     with pytest.warns(UserMappingWarning):
         assert mapper.apply(["a"], candidates, override_function=lambda *args: "bad").left_to_right == {"a": ("fixed",)}
 
-    mapper = Mapper(overrides={"a": "fixed"}, unknown_user_override_action="raise")
+    mapper = Mapper(overrides={"a": "fixed"}, on_unknown_user_override="raise")
     with pytest.raises(UserMappingError):
         mapper.apply(["a"], candidates, override_function=lambda *args: "bad")
 
@@ -103,7 +103,7 @@ def test_multiple_matches_with_overrides(values, expected, allow_multiple):
 
 
 def test_mapping_failure(candidates):
-    mapper: Mapper[int, str, None] = Mapper(unmapped_values_action="raise")
+    mapper: Mapper[int, str, None] = Mapper(on_unmapped="raise")
     with pytest.raises(exceptions.MappingError):
         mapper.apply((3, 4), candidates)
 
@@ -137,7 +137,7 @@ def test_conflicting_overrides_prioritizes_first(values, expected):
 )
 def test_conflicting_function_overrides_prioritizes_first(values, expected):
     mapper: Mapper[int, int, None] = Mapper(
-        score_function=lambda *_: [1] * len(values), unknown_user_override_action="ignore", cardinality="1:1"
+        score_function=lambda *_: [1] * len(values), on_unknown_user_override="keep", cardinality="1:1"
     )
     assert mapper.apply(values, reversed(values), override_function=lambda *_: 0).flatten() == expected
 

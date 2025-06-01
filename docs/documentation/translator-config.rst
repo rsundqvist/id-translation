@@ -284,14 +284,14 @@ For more information about the mapping procedure, please refer to the :ref:`mapp
      - :attr:`~id_translation.mapping.types.ScoreFunction`
      - Compute value/candidate-likeness
      - See built-in :mod:`~id_translation.mapping.score_functions`.
-   * - unmapped_values_action
+   * - on_unmapped
      - `raise | warn | ignore`
      - Handle unmatched values.
-     - :class:`~rics.action_level.ActionLevel`
+     -
    * - cardinality
-     - `OneToOne | ManyToOne`
-     - Determine how many candidates to map a single value to.
      - :class:`~id_translation.mapping.Cardinality`
+     - Determine how many candidates to map a single value to.
+     - E.g. `'1:1'` or `'N:1'`.
 
 * Score functions which take additional keyword arguments should be specified in a child section, eg
   ``[*.mapping.<score-function-name>]``. See: :mod:`id_translation.mapping.score_functions` for options.

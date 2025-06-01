@@ -13,7 +13,7 @@ secret = "minioadmin"
 client_kwargs = { endpoint_url = "http://localhost:9000" }
 
 [fetching.mapping]
-# unmapped_values_action = "ignore"
+# on_unmapped = "ignore"
 
 [fetching.mapping.overrides.name_basics]
 id = "nconst"

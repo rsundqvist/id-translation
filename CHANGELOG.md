@@ -21,6 +21,10 @@ maintain. Concrete implementations for things like caching are being dropped and
 - The `TranslatorFactory` can now discard _optional_ fetchers that raise when imported or initialized. Set
   `ID_TRANSLATION_SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS=true` to enable (not recommended).
 - The `AbstractFetcher.map_placeholders` method no longer uses caching.
+- Renamed init args:
+  * `Mapper.unmapped_values_action` -> `on_unmapped`
+  * `Mapper.unknown_user_override_action` -> `on_unknown_user_override`
+- Replaced `ActionLevel` with `typing.Literal` in several places.
 
 ### Fixed
 - The docs no longer incorrectly state that `max_fails` stops working when `default_fmt_placeholders` are in use.

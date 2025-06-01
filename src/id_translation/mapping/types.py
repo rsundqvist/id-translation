@@ -99,3 +99,8 @@ HeuristicsTypes: _t.TypeAlias = (
     AliasFunction[ValueType, CandidateType, ContextType] | FilterFunction[ValueType, CandidateType, ContextType]
 )
 """Types that may be interpreted as a score function heuristic."""
+
+OnUnmapped = _t.Literal["raise", "warn", "ignore"]
+"""Action types for unmapped values."""
+OnUnknownUserOverride = _t.Literal["raise", "warn", "keep"]
+"""Action types for bad user overrides (dict or function)."""

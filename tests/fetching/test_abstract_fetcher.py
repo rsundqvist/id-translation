@@ -48,11 +48,11 @@ def test_unknown_placeholders(fetcher):
     ],
 )
 def test_selective_fetch_all(data, selective_fetch_all, required, expected):
-    with pytest.warns(MappingWarning, match="unmapped_values_action='raise'"):
+    with pytest.warns(MappingWarning, match="on_unmapped='raise'"):
         fetcher: AbstractFetcher[str, int] = MemoryFetcher(
             data,
             selective_fetch_all=selective_fetch_all,
-            mapper=Mapper("equality", unmapped_values_action="raise"),
+            mapper=Mapper("equality", on_unmapped="raise"),
         )
     assert set(fetcher.fetch_all(required=required)) == expected
 

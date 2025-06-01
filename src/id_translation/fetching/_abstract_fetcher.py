@@ -34,9 +34,9 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         mapper: A :class:`.Mapper` instance used to adapt placeholder names in sources to wanted names, i.e.
             the names of the placeholders that are in the translation :class:`.Format` being used.
         allow_fetch_all: If ``False``, an error will be raised when :meth:`fetch_all` is called.
-        fetch_all_unmapped_values_action: A temporary value to use for :attr:`Mapper.unmapped_values_action
-            <.Mapper.unmapped_values_action>` while :meth:`fetch_all` is executing. Setting
-            ``fetch_all_unmapped_values_action='raise'`` is mutually exclusive with ``selective_fetch_all=True``.
+        fetch_all_unmapped_values_action: A temporary value to use for :attr:`Mapper.on_unmapped <.Mapper.on_unmapped>`
+            while :meth:`fetch_all` is executing. Setting ``fetch_all_unmapped_values_action='raise'`` is mutually
+            exclusive with ``selective_fetch_all=True``.
         selective_fetch_all: If ``True``, fetch only from those :attr:`~.HasSources.sources` that contain the required
             :attr:`~.HasSources.placeholders` (after mapping). May also reduce the number of placeholders retrieved.
         identifiers: A collection of hierarchical identifiers. If given, element zero
@@ -58,7 +58,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
     def __init__(
         self,
         *,
-        mapper: Mapper[str, str, SourceType] = None,
+        mapper: Mapper[str, str, SourceType] | None = None,
         allow_fetch_all: bool = True,
         fetch_all_unmapped_values_action: ActionLevel.ParseType = None,
         selective_fetch_all: bool = True,
@@ -68,9 +68,9 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         cache_access: CacheAccess[SourceType, IdType] | None = None,
     ) -> None:
         self._mapper: Mapper[str, str, SourceType] = mapper or Mapper(**self.default_mapper_kwargs())
-        if self._mapper.unmapped_values_action is ActionLevel.RAISE:
+        if self._mapper.on_unmapped == "raise":
             warnings.warn(
-                "Using unmapped_values_action='raise' will treat optional placeholders as "
+                "Using on_unmapped='raise' will treat optional placeholders as "
                 "required placeholders during normal operation.",
                 category=MappingWarning,
                 stacklevel=2,
@@ -415,17 +415,17 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
             yield
             return
 
-        unmapped_values_action = fetch_all_unmapped_values_action or ActionLevel.IGNORE
+        on_unmapped = fetch_all_unmapped_values_action or ActionLevel.IGNORE
 
-        if self.mapper.unmapped_values_action == unmapped_values_action:
+        if self.mapper.on_unmapped == on_unmapped:
             yield
             return
 
         original_mapper = self._mapper
-        self._mapper = self._mapper.copy(unmapped_values_action=unmapped_values_action)
+        self._mapper = self._mapper.copy(on_unmapped=on_unmapped)
         try:
             self.logger.info(
-                f"Using Mapper.{unmapped_values_action=} until the current {self._FETCH_ALL}-operation finishes, "
+                f"Using Mapper.{on_unmapped=} until the current {self._FETCH_ALL}-operation finishes, "
                 f"since {selective_fetch_all=} and {fetch_all_unmapped_values_action=}."
             )
             yield

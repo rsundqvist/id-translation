@@ -10,7 +10,7 @@ blacklist_tables = [
 # Placeholder mapping configuration. Binds actual names in sources (such as
 # column names in an SQL table) to wanted names, eg id = 'animal_id'.
 [fetching.mapping]
-unmapped_values_action = "ignore"
+on_unmapped = "ignore"
 
 [[fetching.mapping.filter_functions]]
 function = "filter_sources"

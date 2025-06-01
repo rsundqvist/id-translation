@@ -14,7 +14,7 @@ class MappingError(Exception):
 
 
 class UnmappedValuesError(MappingError):
-    """Raised when there are unmapped values left after filtering and unmapped_values_action='raise'."""
+    """Raised when there are unmapped values left after filtering and on_unmapped='raise'."""
 
 
 class ScoringDisabledError(MappingError):
@@ -64,7 +64,7 @@ class MappingWarning(UserWarning):
 
 
 class UnmappedValuesWarning(MappingWarning):
-    """Raised when there are unmapped values left after filtering and unmapped_values_action='raise'."""
+    """Raised when there are unmapped values left after filtering and on_unmapped='raise'."""
 
 
 class UserMappingWarning(MappingWarning):

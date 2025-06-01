@@ -689,7 +689,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             TooManyFailedTranslationsError: If translation fails for more than `max_fails` of IDs.
             ConnectionStatusError: If ``reverse=True`` while the :class:`.Translator` is online.
             UserMappingError: If `override_function` returns a source which is not known, and
-                ``self.mapper.unknown_user_override_action != 'ignore'``.
+                ``mapper.on_unknown_user_override != 'ignore'``.
 
         See Also:
             The :envvar:`ID_TRANSLATION_DISABLED` variable.
@@ -779,7 +779,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             MappingError: If any required (explicitly given) names fail to map to a source.
             MappingError: If name-to-source mapping is ambiguous.
             UserMappingError: If `override_function` returns a source which is not known, and
-                ``self.mapper.unknown_user_override_action != 'ignore'``.
+                ``mapper.on_unknown_user_override != 'ignore'``.
 
         See Also:
             🔑 This is a key event method. See :ref:`key-events` for details.
