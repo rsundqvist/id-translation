@@ -39,6 +39,7 @@ maintain. Concrete implementations for things like caching are being dropped and
 - The `AbstractFetcher.get_placeholders` method.
 - The `AbstractFetcher.concurrent_operation_action` option.
 - The `AbstractFetcher.fetch_all_unmapped_values_action` option; manage automatically when `selective_fetch_all=True`.
+- The `PandasFetcher(online)` init arg.
 - Dropped deprecated `Translator.translate` arguments `inplace` and `maximal_untranslated_fraction`.
 
 ## [0.13.0] - 2025-04-05

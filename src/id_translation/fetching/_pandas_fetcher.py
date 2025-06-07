@@ -17,11 +17,11 @@ FormatFn = Callable[[str], str]
 
 
 class PandasFetcher(AbstractFetcher[str, IdType]):
-    """Fetcher implementation using pandas ``DataFrame`` s as the data format.
+    """Fetcher implementation using :class:`pandas.DataFrame` as the data format.
 
-    Fetch data from serialized ``DataFrame`` s. How this is done is determined by the `read_function`. This is typically
-    a Pandas function such as :func:`pandas.read_csv` or :func:`pandas.read_parquet`, but any function that accepts a
-    string `source` as the  first argument and returns a data frame can be used.
+    Fetch data from serialized frames. How this is done is determined by the `read_function`. This is typically a Pandas
+    function such as :func:`pandas.read_csv` or :func:`pandas.read_parquet`, but any function that accepts a string or
+    path `source` as the first argument and returns a data frame can be used.
 
     .. hint::
 
@@ -29,13 +29,12 @@ class PandasFetcher(AbstractFetcher[str, IdType]):
        `AbstractFileSystem.glob()`_. If resolution fails, consider overriding the :meth:`find_sources`-method.
 
     Args:
-        read_function: A Pandas `read`-function. If a string is given, the function is resolved using
-            :func:`rics.misc.get_by_full_name`. Unqualified names are assumed to belong to the ``pandas`` namespace.
-        read_path_format: A string on the form ``protocol://path/to/sources/{}.ext``, or a callable to apply
+        read_function: A Pandas `read`-function. String are resolved by :func:`~rics.misc.get_by_full_name`, using
+            ``default_module=pandas`` for convenience.
+        read_path_format: A string on the form ``protocol://path/to/sources/{}.<ext>``, or a callable to apply
             to a source before passing them to `read_function`.
         read_function_kwargs: Additional keyword arguments for `read_function`.
-        online: Setting ``online=False`` typically indicates that files are hosted at a location where there are access
-            limitations, e.g. through data transfer fees.
+        **kwargs: See :class:`.AbstractFetcher`.
 
     See Also:
         The official `Pandas IO documentation <https://pandas.pydata.org/pandas-docs/stable/user_guide/io.html>`_
@@ -48,17 +47,11 @@ class PandasFetcher(AbstractFetcher[str, IdType]):
         read_function: PandasReadFunction | str = "read_csv",
         read_path_format: str | FormatFn = "data/{}.csv",
         read_function_kwargs: Mapping[str, Any] | None = None,
-        online: bool = False,
         **kwargs: Unpack[AbstractFetcherParams[str, IdType]],
     ) -> None:
         super().__init__(**kwargs)
         self._read = get_by_full_name(read_function, pd) if isinstance(read_function, str) else read_function
-        self._format_source: FormatFn  # Oneliner makes MyPy complain?
-        if callable(read_path_format):
-            self._format_source = read_path_format  # pragma: no cover
-        else:
-            self._format_source = read_path_format.format
-        self._online = online
+        self._format_source: FormatFn = read_path_format if callable(read_path_format) else read_path_format.format
         self._kwargs = read_function_kwargs or {}
 
         self._source_paths: dict[str, str] = {}
@@ -88,7 +81,7 @@ class PandasFetcher(AbstractFetcher[str, IdType]):
 
         1. Create glob pattern by calling :meth:`format_source` with ``source='*'``.
         2. Glob files using `AbstractFileSystem.glob()`_ (requires ``fsspec``) or :meth:`Path.glob() <pathlib.Path.glob>`.
-        3. Strip the directory  and file suffix from the globbed paths to create source names.
+        3. Strip the directory and file suffix from the globbed paths to create source names.
 
         .. _AbstractFileSystem.glob(): https://filesystem-spec.readthedocs.io/en/latest/api.html?highlight=glob#fsspec.spec.AbstractFileSystem.glob
 
@@ -146,10 +139,6 @@ class PandasFetcher(AbstractFetcher[str, IdType]):
             instr.source,
             self.read(self._source_paths[instr.source]),
         )
-
-    @property
-    def online(self) -> bool:
-        return self._online
 
     def __repr__(self) -> str:
         read_path_format = self.format_source("{}")
