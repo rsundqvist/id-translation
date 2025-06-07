@@ -1,3 +1,4 @@
+import re
 from copy import deepcopy
 from pathlib import Path
 
@@ -28,10 +29,9 @@ def test_unknown_sources(fetcher):
 
 
 def test_fetch_all_forbidden(data):
-    fetcher: AbstractFetcher[str, int] = MemoryFetcher(data)
-    fetcher._allow_fetch_all = False
-
-    with pytest.raises(exceptions.ForbiddenOperationError, match="'FETCH_ALL' not allowed"):
+    fetcher: MemoryFetcher[str, int] = MemoryFetcher(data, allow_fetch_all=False)
+    match = re.escape(f"Operation 'FETCH_ALL' not allowed by {fetcher}.")
+    with pytest.raises(exceptions.ForbiddenOperationError, match=match):
         fetcher.fetch_all()
 
 

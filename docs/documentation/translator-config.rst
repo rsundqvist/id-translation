@@ -134,16 +134,10 @@ a :class:`~id_translation.fetching.MemoryFetcher` would be created by adding a `
      - :py:class:`bool`
      - Control access to :func:`~id_translation.fetching.Fetcher.fetch_all`.
      - Some fetchers types redefine or ignore this key.
-   * - | fetch_all_unmapped
-       | _values_action
-     - `raise | warn | ignore`
-     - Special action level for :func:`~id_translation.fetching.Fetcher.fetch_all`.
-     - Interacts with `selective_fetch_all`.
    * - selective_fetch_all
      - :py:class:`bool`
      - Sources without required keys are are not fetched.
-     - | Implicit `fetch_all_unmapped`
-       | `_values_action='ignore'`
+     -
    * - identifiers
      - :py:class:`Sequence[str] <typing.Sequence>`
      - Hierarchical identifiers for the fetcher.

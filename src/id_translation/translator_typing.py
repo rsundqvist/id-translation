@@ -3,7 +3,6 @@
 import typing as _t
 from collections import abc as _abc
 
-from rics.action_level import ActionLevel as _ActionLevel
 from rics.collections.dicts import MakeType as _MakeType
 
 from . import types as _tt
@@ -44,7 +43,6 @@ class AbstractFetcherParams(_t.TypedDict, _t.Generic[_tt.SourceType, _tt.IdType]
 
     mapper: _Mapper[str, str, _tt.SourceType] | None
     allow_fetch_all: bool
-    fetch_all_unmapped_values_action: _ActionLevel.ParseType
     selective_fetch_all: bool
     identifiers: _abc.Sequence[str] | None
     optional: bool

@@ -7,7 +7,6 @@ from copy import deepcopy
 from time import perf_counter
 from typing import Any, Self, final
 
-from rics.action_level import ActionLevel
 from rics.collections.dicts import InheritedKeysDict, reverse_dict
 from rics.misc import tname
 from rics.strings import format_seconds as fmt_sec
@@ -34,20 +33,13 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         mapper: A :class:`.Mapper` instance used to adapt placeholder names in sources to wanted names, i.e.
             the names of the placeholders that are in the translation :class:`.Format` being used.
         allow_fetch_all: If ``False``, an error will be raised when :meth:`fetch_all` is called.
-        fetch_all_unmapped_values_action: A temporary value to use for :attr:`Mapper.on_unmapped <.Mapper.on_unmapped>`
-            while :meth:`fetch_all` is executing. Setting ``fetch_all_unmapped_values_action='raise'`` is mutually
-            exclusive with ``selective_fetch_all=True``.
         selective_fetch_all: If ``True``, fetch only from those :attr:`~.HasSources.sources` that contain the required
-            :attr:`~.HasSources.placeholders` (after mapping). May also reduce the number of placeholders retrieved.
+            :attr:`~.HasSources.placeholders` (after mapping). May reduce the number of sources retrieved.
         identifiers: A collection of hierarchical identifiers. If given, element zero
             of the `identifiers` is added to the :attr:`logger` name for the fetcher.
         optional: If ``True``, this fetcher may be discarded if source/placeholder-enumeration fails in multi-fetcher
             mode.
         cache_access: A :class:`.CacheAccess` instance. Defaults to a NOOP-implementation (i.e. always fetch new data).
-
-    Raises:
-        rics.action_level.BadActionLevelError: If `selective_fetch_all` is ``True`` and
-            `fetch_all_unmapped_values_action` is ``'raise'``.
     """
 
     def __init__(
@@ -55,7 +47,6 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         *,
         mapper: Mapper[str, str, SourceType] | None = None,
         allow_fetch_all: bool = True,
-        fetch_all_unmapped_values_action: ActionLevel.ParseType = None,
         selective_fetch_all: bool = True,
         identifiers: Sequence[str] | None = None,
         optional: bool = False,
@@ -71,17 +62,6 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
             )
 
         self._allow_fetch_all: bool = allow_fetch_all
-
-        self._fetch_all_unmapped_values_action: ActionLevel | None = (
-            None
-            if fetch_all_unmapped_values_action is None
-            else ActionLevel.verify(
-                fetch_all_unmapped_values_action,
-                "AbstractFetcher.fetch_all_unmapped_values_action"
-                + (f" with {selective_fetch_all=}" if selective_fetch_all else ""),
-                forbidden=ActionLevel.RAISE if selective_fetch_all else None,
-            )
-        )
         self._selective_fetch_all = selective_fetch_all
 
         logger = logging.getLogger(__package__)
@@ -334,7 +314,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
             return self._fetch_all(
                 tuple(placeholders),
                 required_placeholders=set(required),
-                wanted_sources=set(self.sources) if sources is None else sources.intersection(self.sources),
+                wanted_sources=sources,
                 task_id=task_id,
                 enable_uuid_heuristics=enable_uuid_heuristics,
             )
@@ -343,10 +323,13 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         self,
         placeholders: PlaceholdersTuple,
         required_placeholders: set[str],
-        wanted_sources: set[SourceType],
+        wanted_sources: set[SourceType] | None,
         task_id: int,
         enable_uuid_heuristics: bool,
     ) -> SourcePlaceholderTranslations[SourceType]:
+        if wanted_sources is None:
+            wanted_sources = {*self.sources}
+
         if self._selective_fetch_all:
             # There's nothing stopping us from doing this for regular fetching. But we assume that then the user wants
             # fetching to fail if explicit IDs can't be translated as specified.
@@ -355,8 +338,8 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
                 for source in wanted_sources
                 if required_placeholders.issubset(self._wanted_to_actual(source, required_placeholders, task_id))
             ]
-            discarded = set(wanted_sources).difference(sources)
-            if discarded:
+
+            if discarded := wanted_sources.difference(sources):
                 self.logger.info(
                     f"Ignoring {len(discarded)} sources {discarded} since required "
                     f"placeholders {sorted(required_placeholders)} could not be mapped by {self}.",
@@ -380,25 +363,21 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
 
     @contextmanager
     def _fetch_all_mapping_context(self):  # type: ignore  # noqa
-        fetch_all_unmapped_values_action = self._fetch_all_unmapped_values_action
-        selective_fetch_all = self._selective_fetch_all
-        if fetch_all_unmapped_values_action is None and not selective_fetch_all:
-            yield
-            return
-
-        on_unmapped = fetch_all_unmapped_values_action or ActionLevel.IGNORE
-
-        if self.mapper.on_unmapped == on_unmapped:
-            yield
-            return
-
         original_mapper = self._mapper
+
+        on_unmapped = "ignore"
+        selective_fetch_all = self._selective_fetch_all
+        if not (selective_fetch_all and original_mapper.on_unmapped != on_unmapped):
+            yield
+            return
+
+        if self.logger.isEnabledFor(logging.DEBUG):
+            self.logger.debug(
+                f"Using Mapper.{on_unmapped=} until the current {self.fetch_all.__qualname__}-operation"
+                f" finishes, since {selective_fetch_all=}."
+            )
         self._mapper = self._mapper.copy(on_unmapped=on_unmapped)
         try:
-            self.logger.info(
-                f"Using Mapper.{on_unmapped=} until the current FETCH_ALL-operation finishes, "
-                f"since {selective_fetch_all=} and {fetch_all_unmapped_values_action=}."
-            )
             yield
         finally:
             self._mapper = original_mapper
