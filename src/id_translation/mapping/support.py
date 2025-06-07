@@ -42,6 +42,11 @@ def enable_verbose_debug_messages():  # type: ignore  # noqa
 
     before = filter_functions.VERBOSE, heuristic_functions.VERBOSE, score_functions.VERBOSE, _VERBOSE_LOGGER.disabled
     enable = (True, True, True, False)
+
+    if before == enable:
+        yield
+        return
+
     try:
         (
             filter_functions.VERBOSE,

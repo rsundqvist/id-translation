@@ -41,3 +41,9 @@ class FetchInstruction(_t.Generic[_tt.SourceType, _tt.IdType]):
     def fetch_all(self) -> bool:
         """If ``True``, retrieve all available data."""
         return self.ids is None
+
+
+FetchOperation = _t.Literal["FETCH", "FETCH_ALL"]
+"""Key operation types for fetching."""
+Operation = _t.Literal["INITIALIZE_SOURCES"] | FetchOperation
+"""Key operation types for fetchers."""

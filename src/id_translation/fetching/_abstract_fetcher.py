@@ -5,7 +5,7 @@ from collections.abc import Iterable, Sequence
 from contextlib import contextmanager
 from copy import deepcopy
 from time import perf_counter
-from typing import Any, Literal, Self, final
+from typing import Any, Self, final
 
 from rics.action_level import ActionLevel
 from rics.collections.dicts import InheritedKeysDict, reverse_dict
@@ -43,17 +43,12 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
             of the `identifiers` is added to the :attr:`logger` name for the fetcher.
         optional: If ``True``, this fetcher may be discarded if source/placeholder-enumeration fails in multi-fetcher
             mode.
-        concurrent_operation_action: Action to take if fetch(-all) operations are executed concurrently. Should be
-            set to ``'ignore'`` for thread-safe fetchers.
         cache_access: A :class:`.CacheAccess` instance. Defaults to a NOOP-implementation (i.e. always fetch new data).
 
     Raises:
         rics.action_level.BadActionLevelError: If `selective_fetch_all` is ``True`` and
             `fetch_all_unmapped_values_action` is ``'raise'``.
     """
-
-    _FETCH: Literal["FETCH"] = "FETCH"
-    _FETCH_ALL: Literal["FETCH_ALL"] = "FETCH_ALL"
 
     def __init__(
         self,
@@ -64,7 +59,6 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         selective_fetch_all: bool = True,
         identifiers: Sequence[str] | None = None,
         optional: bool = False,
-        concurrent_operation_action: ActionLevel.ParseType = "raise",
         cache_access: CacheAccess[SourceType, IdType] | None = None,
     ) -> None:
         self._mapper: Mapper[str, str, SourceType] = mapper or Mapper(**self.default_mapper_kwargs())
@@ -77,7 +71,6 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
             )
 
         self._allow_fetch_all: bool = allow_fetch_all
-        self._active_operation: Literal["FETCH", "FETCH_ALL", None] = None
 
         self._fetch_all_unmapped_values_action: ActionLevel | None = (
             None
@@ -89,7 +82,6 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
                 forbidden=ActionLevel.RAISE if selective_fetch_all else None,
             )
         )
-        self._concurrent_operation_action = ActionLevel.verify(concurrent_operation_action, forbidden=ActionLevel.WARN)
         self._selective_fetch_all = selective_fetch_all
 
         logger = logging.getLogger(__package__)
@@ -300,26 +292,6 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
     def optional(self) -> bool:
         return self._optional
 
-    @contextmanager
-    def _start_operation(self, operation):  # type: ignore  # noqa
-        concurrent_operation_action = self._concurrent_operation_action
-        if concurrent_operation_action is ActionLevel.IGNORE:
-            yield
-            return
-
-        if self._active_operation:  # pragma: no cover
-            raise exceptions.ConcurrentOperationError(
-                operation,
-                self._active_operation,
-                param_info="concurrent_operation_action='ignore'",
-            )
-
-        self._active_operation = operation
-        try:
-            yield
-        finally:
-            self._active_operation = None
-
     def fetch(
         self,
         ids_to_fetch: Iterable[IdsToFetch[SourceType, IdType]],
@@ -331,18 +303,17 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         if task_id is None:
             task_id = generate_task_id()
 
-        with self._start_operation(self._FETCH):
-            return {
-                itf.source: self._fetch_translations(
-                    itf.source,
-                    tuple(placeholders),
-                    required_placeholders=set(required),
-                    ids=itf.ids,
-                    task_id=task_id,
-                    enable_uuid_heuristics=enable_uuid_heuristics,
-                )
-                for itf in ids_to_fetch
-            }
+        return {
+            itf.source: self._fetch_translations(
+                itf.source,
+                tuple(placeholders),
+                required_placeholders=set(required),
+                ids=itf.ids,
+                task_id=task_id,
+                enable_uuid_heuristics=enable_uuid_heuristics,
+            )
+            for itf in ids_to_fetch
+        }
 
     def fetch_all(
         self,
@@ -354,12 +325,12 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         enable_uuid_heuristics: bool = False,
     ) -> SourcePlaceholderTranslations[SourceType]:
         if not self._allow_fetch_all:
-            raise exceptions.ForbiddenOperationError(self._FETCH_ALL)
+            raise exceptions.ForbiddenOperationError("FETCH_ALL", reason=f"not allowed by {self}.")
 
         if task_id is None:
             task_id = generate_task_id()
 
-        with self._start_operation(self._FETCH_ALL), self._fetch_all_mapping_context():
+        with self._fetch_all_mapping_context():
             return self._fetch_all(
                 tuple(placeholders),
                 required_placeholders=set(required),
@@ -425,7 +396,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         self._mapper = self._mapper.copy(on_unmapped=on_unmapped)
         try:
             self.logger.info(
-                f"Using Mapper.{on_unmapped=} until the current {self._FETCH_ALL}-operation finishes, "
+                f"Using Mapper.{on_unmapped=} until the current FETCH_ALL-operation finishes, "
                 f"since {selective_fetch_all=} and {fetch_all_unmapped_values_action=}."
             )
             yield

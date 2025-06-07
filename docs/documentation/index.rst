@@ -10,4 +10,5 @@ Examples and documentation.
    translator-config
    translation-primer
    mapping-primer
+   translation-concurrency
    translation-logging

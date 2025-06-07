@@ -17,6 +17,9 @@ class Fetcher(Generic[SourceType, IdType], HasSources[SourceType]):
         Args:
             task_id: Used for logging.
             force: If ``True``, perform full discovery even if sources are already known.
+
+        Notes:
+            This function is called implicitly before every translation task. Result should be cached.
         """
 
     @property

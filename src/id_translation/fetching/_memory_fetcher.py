@@ -16,6 +16,7 @@ class MemoryFetcher(AbstractFetcher[SourceType, IdType]):
     Args:
         data: A dict ``{source: PlaceholderTranslations}`` to fetch from.
         return_all: If ``False``, return only the requested IDs and placeholders.
+        **kwargs: See :class:`.AbstractFetcher`.
     """
 
     def __init__(
@@ -30,7 +31,6 @@ class MemoryFetcher(AbstractFetcher[SourceType, IdType]):
         return_all: bool = True,
         **kwargs: Unpack[AbstractFetcherParams[SourceType, IdType]],
     ) -> None:
-        kwargs.setdefault("concurrent_operation_action", "ignore")
         super().__init__(**kwargs)
         self._data: SourcePlaceholderTranslations[SourceType] = (
             {} if not data else {source: PlaceholderTranslations.make(source, pht) for source, pht in data.items()}

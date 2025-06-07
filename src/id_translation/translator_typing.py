@@ -42,14 +42,13 @@ FetcherTypes: _t.TypeAlias = (
 class AbstractFetcherParams(_t.TypedDict, _t.Generic[_tt.SourceType, _tt.IdType], total=False):
     """Keyword arguments for the :class:`.AbstractFetcher` base class."""
 
-    mapper: _Mapper[str, str, _tt.SourceType]
+    mapper: _Mapper[str, str, _tt.SourceType] | None
     allow_fetch_all: bool
     fetch_all_unmapped_values_action: _ActionLevel.ParseType
     selective_fetch_all: bool
     identifiers: _abc.Sequence[str] | None
     optional: bool
-    concurrent_operation_action: _ActionLevel.ParseType
-    cache_access: _CacheAccess[_tt.SourceType, _tt.IdType]
+    cache_access: _CacheAccess[_tt.SourceType, _tt.IdType] | None
 
 
 class MapParams(_t.TypedDict, _t.Generic[_tt.NameType, _tt.SourceType, _tt.IdType], total=False):

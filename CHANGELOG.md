@@ -15,6 +15,8 @@ maintain. Concrete implementations for things like caching are being dropped and
 ### Added
 - Methods `MagicDict.real_get` and `real_contains`.
 - New typehint `translator_typing.AbstractFetcherParams`.
+- Added [concurrency and thread-safety](https://id-translation.readthedocs.io/en/stable/documentation/translation-concurrency.html)
+  table to the documentation.
 
 ### Changed
 - Make some `Transformer` method parameters `positional`-only.
@@ -35,6 +37,7 @@ maintain. Concrete implementations for things like caching are being dropped and
 ### Removed
 - The `TransformerStop` class and associated functionality (it wasn't very useful).
 - The `AbstractFetcher.get_placeholders` method.
+- The `AbstractFetcher.concurrent_operation_action` option.
 - Dropped deprecated `Translator.translate` arguments `inplace` and `maximal_untranslated_fraction`.
 
 ## [0.13.0] - 2025-04-05

@@ -184,7 +184,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         ts = self._table_summaries[instr.source]
 
         if instr.fetch_all and not ts.fetch_all_permitted:  # pragma: no cover
-            raise exceptions.ForbiddenOperationError(self._FETCH_ALL, f"disabled for table '{ts.name}'.")
+            raise exceptions.ForbiddenOperationError("FETCH_ALL", f"disabled for table '{ts.name}'.")
 
         id_column: sqlalchemy.sql.elements.Cast | sqlalchemy.Column  # type: ignore[type-arg]
         ids_are_uuid_like = instr.enable_uuid_heuristics and self.uuid_like(ts.id_column, instr.ids)

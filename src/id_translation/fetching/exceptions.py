@@ -15,22 +15,9 @@ class FetcherError(RuntimeError):
 class ForbiddenOperationError(FetcherError):
     """Exception indicating that the ``Fetcher`` does not support an operation."""
 
-    def __init__(self, operation: str, reason: str = "not supported by this fetcher.") -> None:
+    def __init__(self, operation: str, reason: str) -> None:
         super().__init__(f"Operation '{operation}' " + reason)
         self.operation = operation
-
-
-class ConcurrentOperationError(FetcherError):
-    """Exception indicating that an operation is already in progress."""
-
-    def __init__(self, operation: str, active_operation: str, *, param_info: str) -> None:  # pragma: no cover
-        msg = (
-            f"Operation '{operation}' cannot begin while a '{active_operation}'-operation is in progress."
-            f"\nHint: Set {param_info} to allow concurrent operations."
-        )
-        super().__init__(msg)
-        self.operation = operation
-        self.active_operation = active_operation
 
 
 class ImplementationError(FetcherError):

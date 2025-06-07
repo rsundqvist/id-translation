@@ -152,11 +152,6 @@ a :class:`~id_translation.fetching.MemoryFetcher` would be created by adding a `
      - :py:class:`bool`
      - If ``True``, discard on :attr:`~id_translation.types.HasSources.sources`-resolution crash.
      - Multi-fetcher mode only. See :ref:`Optional fetchers` for details.
-   * - | concurrent_operation
-       | _action
-     - `raise | ignore`
-     - Action to take if fetch(-all) operations are executed concurrently.
-     - Should be set to ``'ignore'`` for thread-safe fetchers
    * - cache
      - :class:`.CacheAccess` subtype
      - User-defined caching implementation.
