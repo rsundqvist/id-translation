@@ -61,4 +61,4 @@ class DuplicateSourceError(FetcherError):
 
 
 class CacheAccessNotAvailableError(FetcherError):
-    """Raise when calling :attr:`.AbstractFetcher.cache_access` on an instance that is not cached."""
+    """Raised when calling :attr:`.AbstractFetcher.cache_access` on an instance that is not cached."""

@@ -108,7 +108,7 @@ class TestCache:
         assert fetcher.fetch(ids_to_fetch) == expected
         assert calls == {"store": 1, "load": 3, "fetch": 1}
 
-        # Clear the cache. The AbstractFetcher
+        # Clear the cache.
         assert isinstance(fetcher.cache_access, StoreFetchAllCacheAccess)
         fetcher.cache_access.reset()
 

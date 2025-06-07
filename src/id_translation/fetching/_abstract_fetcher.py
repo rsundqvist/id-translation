@@ -239,7 +239,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
             return cache_access
 
         link = "https://id-translation.readthedocs.io/en/stable/documentation/examples/caching/caching.html"
-        msg = f"{self} does not have `CacheAccess`.\nFor help, please refer to the {link} page."
+        msg = f"{self} does not have a `CacheAccess`.\nHint: {link}"
         raise CacheAccessNotAvailableError(msg)
 
     @property
@@ -423,11 +423,10 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         translations: PlaceholderTranslations[SourceType] | None = None
 
         cache = self._cache_access
-
-        logger: logging.Logger | None
+        logger: logging.Logger | None = None
+        store_cache = False
 
         def log_cache(msg: str, event: str) -> None:
-            nonlocal logger
             if logger is None:
                 return
 
@@ -446,9 +445,6 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
                 value = f"{len(translations.records)} IDs" if translations else None
                 cache_event = "hit" if translations else "miss"
                 log_cache(f"{{}}.load() returned {value}.", cache_event)
-        else:
-            logger = None
-            store_cache = False
 
         if translations is None:
             translations = self._call_user_impl(instr)

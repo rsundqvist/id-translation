@@ -3,7 +3,8 @@
 ================================
 A ``CacheAccess`` implementation
 ================================
-A caching solution that stores data locally on disk. Click :download:`here <caching.py>` to download the full script.
+A :class:`.CacheAccess` solution that stores data locally on disk. Click :download:`here <caching.py>` to download the
+full script.
 
 Design goals
 ------------
