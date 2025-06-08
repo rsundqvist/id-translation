@@ -8,6 +8,7 @@ import json
 import logging
 import os
 import textwrap
+from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 
@@ -17,8 +18,10 @@ import sqlalchemy
 from id_translation import Translator
 from id_translation.mapping.support import enable_verbose_debug_messages
 
-OUTPUT_DIR = Path(__file__).parent
 ROOT = Path(__file__).parent.parent.joinpath("tests/dvdrental/")
+OUTPUT_DIR = Path(__file__).parent
+RECORDS_FILE = OUTPUT_DIR / "documentation/dvdrental-records.json"
+RST_FILE = OUTPUT_DIR / "documentation/translation-logging.rst"
 
 
 class JsonLogRecorder(logging.Handler):
@@ -44,6 +47,9 @@ class JsonLogRecorder(logging.Handler):
             self.key_events.append(record_dict)
 
     def flush(self) -> None:
+        if not self.all_records:
+            return
+
         if self.WRITE_ISOLATED_KEY_EVENTS:
             root = OUTPUT_DIR / "key-events"
             root.mkdir()
@@ -55,7 +61,7 @@ class JsonLogRecorder(logging.Handler):
 
         root = OUTPUT_DIR / "documentation"
         records = sorted(self.all_records, key=lambda d: d["created"])
-        with root.joinpath("dvdrental-records.json").open("w") as f:
+        with RECORDS_FILE.open("w") as f:
             json.dump(records, f, indent=2)
 
         root.joinpath("dvdrental-exit-message.txt").write_text(
@@ -63,9 +69,21 @@ class JsonLogRecorder(logging.Handler):
         )
         print(f"Dumped {len(self.all_records)} records in '{root}'.")
 
+        by_name = defaultdict(int)
+        for record in self.all_records:
+            by_name[record["name"]] += 1
+
+        counts = pd.Series(by_name).sort_values(ascending=False).head(10).to_frame("#records").to_string()
+        print(counts)
+        print("=" * counts.index("\n"))
+
+        self.all_records = []
+        self.key_events = []
+
 
 def main():
-    logging.basicConfig(level=logging.DEBUG, handlers=[JsonLogRecorder(), logging.StreamHandler()])
+    recorder = JsonLogRecorder()
+    logging.basicConfig(level=logging.DEBUG, handlers=[recorder, logging.StreamHandler()])
     os.environ["DVDRENTAL_PASSWORD"] = "Sofia123!"
     os.environ["DVDRENTAL_CONNECTION_STRING"] = "postgresql+pg8000://postgres:{password}@localhost:5002/sakila"
 
@@ -84,6 +102,34 @@ def main():
         translator.translate(df, copy=False)
 
     pd.testing.assert_frame_equal(df, expected)
+
+    recorder.flush()
+
+    handle_rst()
+
+
+def handle_rst() -> None:
+    start, stop = find_doc_lines()
+    content = RST_FILE.read_text()
+    for part in f":lines: {start}-{stop}", f":lineno-start: {stop}":
+        if part in content:
+            print(f"OK: {part=}")
+        else:
+            print(f"MISSING: {part=}")
+
+
+def find_doc_lines() -> tuple[int, int]:
+    lines = RECORDS_FILE.read_text().splitlines()
+    line0 = '    "event_title": "MULTIFETCHER.FETCH.EXIT",'
+    line1 = '    "event_title": "TRANSLATOR.TRANSLATE.EXIT",'
+
+    start = lines.index(line0)
+    stop = lines.index(line1)
+    for i, line in enumerate(lines[start:stop]):
+        if line == "  },":
+            return start + i + 2, len(lines) - 1
+
+    raise ValueError("not found")
 
 
 if __name__ == "__main__":

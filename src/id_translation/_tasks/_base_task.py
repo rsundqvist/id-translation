@@ -26,9 +26,21 @@ class BaseTask(Generic[NameType, SourceType, IdType]):
         self._io = resolve_io(translatable)
         self._start = perf_counter()
         self._task_id = generate_task_id(self._start)
+        self._timings: dict[str, float] = {}
 
         if caller.online:
             caller.fetcher.initialize_sources(self.task_id)
+
+    def add_timing(self, key: str, value: float, /) -> None:
+        """Add timing."""
+        # assert key not in self._timings, f"duplicate {key=}"
+        self._timings[key] = value
+
+    def get_timings(self) -> dict[str, float]:
+        """Retrieve timings."""
+        timings = {k: round(1000 * v, 1) for k, v in self._timings.items()}
+        timings["total"] = round(1000 * (perf_counter() - self._start), 1)
+        return timings
 
     @property
     def io(self) -> DataStructureIO[Translatable[NameType, IdType], NameType, SourceType, IdType]:

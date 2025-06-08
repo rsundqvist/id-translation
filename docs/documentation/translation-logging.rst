@@ -46,7 +46,8 @@ for ingestion and will always contain the ``event_key``-key, as well as some oth
      - ``<CLASSNAME>.FETCH_TRANSLATIONS``
      - fetch_all, source, placeholders, num_ids
 
-These were chosen since translation issue tend to fall clearly within one of these domains.
+Translation issues tend to fall within one of these domains. To modify the levels, update the
+:class:`~id_translation.settings.KeyEventLogLevel` tuples in the :class:`id_translation.settings.logging` class.
 
 .. hint::
 
@@ -84,9 +85,9 @@ include a ``execution_time``-value in seconds. Messages related to mapping will 
 
 .. literalinclude:: dvdrental-records.json
    :caption: A ``TRANSLATOR.TRANSLATE.EXIT``-record emitted on the ``INFO``-level.
-   :lines: 8287-
-   :lineno-start: 8287
-   :emphasize-lines: 2,5,15,22,25,26,28,30-34,36
+   :lines: 5745-5789
+   :lineno-start: 5789
+   :emphasize-lines: 2,5,22,25,26,27,30,33,36,38,44
 
 A few of the more interesting parts of the record have been highlighted. Click :download:`here <dvdrental-records.json>`
 to download. The line numbers shown above are the actual line numbers of this file.

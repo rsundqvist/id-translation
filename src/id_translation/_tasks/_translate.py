@@ -79,6 +79,7 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
 
     def extract_ids(self) -> dict[SourceType, set[IdType]]:
         """Extract IDs to fetch from the translatable."""
+        start = perf_counter()
         name_to_source = self.name_to_source
         source_to_ids: dict[SourceType, set[IdType]] = defaultdict(set)
 
@@ -118,6 +119,10 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
                 f" Affected names ({len(float_names)}): {float_names}.",
                 stacklevel=3,
             )
+
+        execution_time = perf_counter() - start
+        self.add_timing("extract", execution_time)
+
         return source_to_ids
 
     @classmethod
@@ -181,6 +186,7 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
                 event_stage="EXIT",
                 event_title="TRANSLATOR.TRANSLATE.EXIT",
                 execution_time=execution_time,
+                duration_ms=self.get_timings(),
                 # Task-specific
                 translatable_type=self.full_type_name,
                 copy=copy,
@@ -193,6 +199,7 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
         self, translation_map: TranslationMap[NameType, SourceType, IdType]
     ) -> Translatable[NameType, str] | None:
         """Insert translated IDs into the `translatable`, based on data retrieved by the fetcher."""
+        start = perf_counter()
         copy = self.copy
 
         translation_map.reverse_mode = self.reverse
@@ -206,6 +213,8 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
         finally:
             translation_map.reverse_mode = False
 
+        execution_time = perf_counter() - start
+        self.add_timing("insert", execution_time)
         return result if copy else None
 
     def verify(self, tmap: TranslationMap[NameType, SourceType, IdType]) -> None:
@@ -214,6 +223,8 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
         Performs translation with pre-defined formats, counting the number of IDs which are (and aren't) known to the
         translation map.
         """
+        start = perf_counter()
+
         if not (self.max_fails < 1.0 or LOGGER.isEnabledFor(logging.DEBUG)):
             return
 
@@ -251,6 +262,9 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
             else:
                 message = message.format(reason=", above limit; DEBUG logging is enabled")
                 LOGGER.debug(message, extra=extra)
+
+        execution_time = perf_counter() - start
+        self.add_timing("verify", execution_time)
 
     def _name_to_ids_in_order(self) -> dict[NameType, Sequence[Any]]:
         name_to_ids: dict[NameType, Sequence[Any]] = self._extract_ids()

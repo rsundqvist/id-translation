@@ -83,7 +83,7 @@ Examples:
     and :meth:`type error <.make_type_error_docstring>` docstrings, which may be used as part of the docstring of
     functions that use translation helpers.
 
-    >>> example.__doc__.format(  # Doctest: +SKIP
+    >>> example.__doc__.format(  # doctest: +SKIP
     ...     translate=helper.make_user_params_docstring(),
     ...     type_error=helper.make_type_error_docstring(),
     ... )

@@ -326,8 +326,15 @@ As an example, the next snippet ensures that only names ending with an ``'_id'``
 Score function
 ~~~~~~~~~~~~~~
 There are some :attr:`~id_translation.mapping.types.ScoreFunction` s which take additional keyword arguments. These must
-be declared in a ``[*.overrides.<score-function-name>]``-subsection. See: :mod:`id_translation.mapping.score_functions`
-for options.
+be declared in a ``[*.<score-function-name>]``-subsection. Example:
+
+.. code-block:: toml
+   :caption: Arguments for :func:`~id_translation.mapping.score_functions.modified_hamming` a scorer.
+
+   [translator.mapping.score_function.modified_hamming]
+   add_length_ratio_term = false
+
+See :mod:`id_translation.mapping.score_functions` for options.
 
 Score function heuristics
 ~~~~~~~~~~~~~~~~~~~~~~~~~

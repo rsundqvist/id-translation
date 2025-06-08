@@ -255,8 +255,8 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
         url = "https://id-translation.readthedocs.io/en/stable/documentation/translator-config.html#optional-fetchers"
         self.logger.exception(
             f"Discarded optional fetcher in file '{fetcher_file}': {exception!r}."
-            f"\nHINT: Discarded since `optional=true` and `{env}`."
-            f"\nHINT: See {url} for help.",
+            f"\nHint: Discarded since `optional=true` and `{env}`."
+            f"\nHint: See {url} for help.",
             exc_info=exception,
             extra={"fetcher_file": str(fetcher_file), "reason": str(exception)},
         )
@@ -366,7 +366,7 @@ def _rethrow_with_file(
             notes.append(f"Setting {SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS}=true may help temporarily.")
 
         for hint in notes:
-            e.add_note(f"HINT: {hint}")
+            e.add_note(f"Hint: {hint}")
 
         if isinstance(e, ConfigurationError):
             raise

@@ -90,8 +90,8 @@ class MappingTask(NamesTask[NameType, SourceType, IdType]):
         result: DirectionalMapping[NameType, SourceType]
         result = self.caller.mapper.apply(values, sources, None, self.override_function)
         name_to_source = result.flatten()
+        execution_time = perf_counter() - start
         if LOGGER.isEnabledFor(log_level.exit):
-            execution_time = perf_counter() - start
             LOGGER.log(
                 log_level.exit,
                 f"Finished name-to-source mapping of names={values} in {type_name} against {sources=}:"
@@ -137,6 +137,8 @@ class MappingTask(NamesTask[NameType, SourceType, IdType]):
                         f"Name-to-source mapping {name_to_source} is ambiguous; {value} -> {candidates}."
                         f"\nHint: Choose a different cardinality such that Mapper.cardinality.many_right is False."
                     )
+
+        self.add_timing("map", execution_time)
         return name_to_source
 
     def compute_scores(self) -> pd.DataFrame:

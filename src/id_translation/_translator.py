@@ -114,7 +114,8 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         ...     },
         ...     "people": {1999: "Sofia", 1991: "Richard", 1904: "Fred"},
         ... }
-        >>> translator = Translator(translation_data, fmt="{id}:{name}[, nice={is_nice}]")
+        >>> fmt = "{id}:{name}[, nice={is_nice}]"
+        >>> translator = Translator(translation_data, fmt=fmt)
 
         Since `people` only has columns `id` and `name`, we can use the simplified ``{id: name}`` data format. We're
         using the full format for `animals` since we have an additional `is_nice` column in this table.
@@ -1199,6 +1200,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
     def _execute_fetch(
         self, task: TranslationTask[NameType, SourceType, IdType]
     ) -> TranslationMap[NameType, SourceType, IdType]:
+        start = perf_counter()
         source_to_ids = task.extract_ids()
 
         for source in source_to_ids:
@@ -1207,7 +1209,11 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
         ids_to_fetch = [IdsToFetch(source, ids=ids) for source, ids in source_to_ids.items()]
         source_translations = self._fetch(ids_to_fetch, fmt=task.fmt, task_id=task.task_id)
-        return self._to_translation_map(source_translations, fmt=task.fmt)
+        translation_map = self._to_translation_map(source_translations, fmt=task.fmt)
+
+        task.add_timing("fetch", perf_counter() - start)
+
+        return translation_map
 
     def _fetch(
         self,
