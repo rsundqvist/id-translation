@@ -1,3 +1,4 @@
+import logging
 from collections.abc import Collection
 from copy import deepcopy
 
@@ -25,9 +26,9 @@ def fetchers(data: dict[str, pd.DataFrame]) -> Collection[AbstractFetcher[str, i
     return humans_fetcher, empty_fetcher, everything_fetcher, sql_fetcher
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def multi_fetcher(fetchers):
-    fetcher = MultiFetcher(*fetchers, duplicate_source_discovered_action="ignore")
+    fetcher = MultiFetcher(*fetchers, on_source_conflict="ignore")
     yield fetcher
     fetcher.close()
 
@@ -47,6 +48,15 @@ def test_sources_per_child(multi_fetcher):
     assert children[0].sources == ["humans"]
     assert sorted(children[1].sources) == ["animals", "big_table", "huge_table", "humans"]
     assert sorted(children[2].sources) == []
+
+
+def test_source_to_child_mapping(multi_fetcher):
+    children = multi_fetcher.children
+    assert len(children) == 3
+
+    assert multi_fetcher.get_child("humans") == children[0]
+    assert children[1].sources == ["animals", "humans", "big_table", "huge_table"]
+    assert multi_fetcher.get_sources(children[1]) == ["animals", "big_table", "huge_table"]
 
 
 def test_placeholders(multi_fetcher):
@@ -69,7 +79,7 @@ def test_process_future():
 
     def make_and_process(rank):
         pht = PlaceholderTranslations.make("source", pd.DataFrame([rank], columns=["rank"]))
-        fetcher._process_future_result({"source": pht}, rank=rank, source_ranks=source_ranks, ans=ans)
+        fetcher._process_future_result({"source": pht}, rank, source_ranks, ans, "FETCH")
         return pht
 
     translations4 = make_and_process(4)
@@ -88,10 +98,22 @@ def test_process_future():
     assert ans["source"] == translations0
 
 
-def test_fetch_all(multi_fetcher, expected):
-    with pytest.warns(exceptions.DuplicateSourceWarning):
-        actual = multi_fetcher.fetch_all()
+def test_fetch_all(multi_fetcher, expected, caplog):
+    actual = multi_fetcher.fetch_all()
+
     assert actual == expected
+
+    dropped = (
+        "Dropping translations for source='humans' returned by the rank-2 fetcher "
+        "MemoryFetcher(sources=['animals', 'humans', 'big_table', 'huge_table'])"
+    )
+
+    for record in caplog.records:
+        if record.getMessage().startswith(dropped):
+            assert record.levelno == logging.DEBUG, "should be DEBUG during fetch_all"
+            return
+
+    raise AssertionError(f"not found: {dropped!r}")
 
 
 def test_fetch(multi_fetcher: MultiFetcher[str, int], data: dict[str, pd.DataFrame]) -> None:
@@ -177,7 +199,7 @@ class TestOptionalFetchers:
 
     @staticmethod
     def _run(children, expected):
-        fetcher = MultiFetcher(*children, duplicate_source_discovered_action="ignore")
+        fetcher = MultiFetcher(*children, on_source_conflict="ignore")
 
         if expected is None:
             with pytest.raises(ValueError, match="I crashed!"):
@@ -221,7 +243,7 @@ class TestNoSources:
     @pytest.mark.parametrize("level", ["DEBUG", "WARNING"])
     def test_optional(self, caplog, level):
         fetcher: MultiFetcher[str, int] = MultiFetcher(
-            MemoryFetcher({}, optional=True), optional_fetcher_discarded_log_level=level
+            MemoryFetcher({}, optional=True), fetcher_discarded_log_level=level
         )
         fetcher.initialize_sources()
 
@@ -237,7 +259,7 @@ def test_copy(fetchers):
     ids_to_fetch = [IdsToFetch("animals", {1})]
 
     not_cloneable = NotCloneableFetcher()
-    original = MultiFetcher(not_cloneable, *fetchers, duplicate_source_discovered_action="ignore", max_workers=2)
+    original = MultiFetcher(not_cloneable, *fetchers, on_source_conflict="ignore", max_workers=2)
     original.initialize_sources()
     original_fetch_all = original.fetch_all()
     original_fetch = original.fetch(ids_to_fetch)
@@ -254,3 +276,59 @@ def test_copy(fetchers):
     assert copied_children != original_children, "IDs should be different"
 
     assert original_fetch == copied.fetch(ids_to_fetch)
+
+
+def test_init_logging(multi_fetcher, caplog):
+    assert len(caplog.records) == 0
+
+    multi_fetcher.initialize_sources(id(test_init_logging))
+
+    def discard_empty_optional(message: str, level: int) -> bool:
+        if message.startswith("Discarding optional rank-1 fetcher MemoryFetcher(sources=<no sources>)"):
+            assert level == logging.DEBUG, "optional => DEBUG"
+            assert message.endswith(": No sources.")
+            return True
+
+        return False
+
+    def required_no_sources(message: str, level: int) -> bool:
+        if message.startswith("Required rank-3 fetcher SqlFetcher(Engine(sqlite://))"):
+            assert level == logging.WARNING, "required => WARNING"
+            assert message.endswith("does not provide any sources.")
+            return True
+
+        return False
+
+    def optional_source_outranked(message: str, level: int) -> bool:
+        if message.startswith("Discarded source='humans' retrieved from rank-2 fetcher MemoryFetcher"):
+            assert level == logging.DEBUG, "optional => DEBUG"
+            assert "since the rank-0 fetcher MemoryFetcher(sources=['humans'])" in message
+            assert "already claimed same source." in message
+            return True
+
+        return False
+
+    def required_empty_kept(message: str, level: int) -> bool:
+        if message.startswith("Required rank-3 fetcher SqlFetcher(Engine(sqlite://))"):
+            assert level == logging.WARNING, "required => WARNING"
+            assert message.endswith("is useless, but will be kept: All sources found in higher-ranking fetchers.")
+            return True
+
+        return False
+
+    checkers = [
+        discard_empty_optional,
+        required_no_sources,
+        optional_source_outranked,
+        required_empty_kept,
+    ]
+
+    index = 0
+    for record in caplog.records:
+        if index == len(checkers):
+            return  # All checkers done
+        if checkers[index](record.getMessage(), record.levelno):
+            index += 1
+
+    if index < len(checkers):
+        raise AssertionError(f"Did not finish: {index=} | checker={checkers[index - 1]}")

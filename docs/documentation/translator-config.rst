@@ -245,14 +245,15 @@ defined in `translation.toml` (if there is one), then `primary-fetcher.toml` and
      - Type
      - Description
    * - max_workers
-     - :py:class:`int`
+     - ``int``
      - Maximum number of individual child fetchers to call in parallel.
-   * - duplicate_translation_action
+   * - on_source_conflict
      - `raise | warn | ignore`
-     - Action to take when multiple fetchers return translations for the same source.
-   * - duplicate_source_discovered_action
-     - `raise | warn | ignore`
-     - Action to take when multiple fetchers claim the same source.
+     - Action for disputes during :meth:`source discovery <.Fetcher.initialize_sources>`.
+   * - fetcher_discarded_log_level
+     - ``int | str``
+     - Discarding of :attr:`~.Fetcher.optional` fetchers that fail (e.g. raise) during
+       :meth:`source discovery <.Fetcher.initialize_sources>`.
 
 The ``[fetching.MultiFetcher]`` section is permitted only in the main configuration file.
 

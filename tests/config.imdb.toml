@@ -42,7 +42,7 @@ original_name = "Original title unknown"
 # Parallel fetching configuration.
 ################################################################################
 [fetching.MultiFetcher]
-duplicate_source_discovered_action = "ignore"
+on_source_conflict = "ignore"
 
 ################################################################################
 # Fetching configuration.

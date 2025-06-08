@@ -26,6 +26,8 @@ maintain. Concrete implementations for things like caching are being dropped and
 - Renamed init args:
   * `Mapper.unmapped_values_action` -> `on_unmapped`
   * `Mapper.unknown_user_override_action` -> `on_unknown_user_override`
+  * `MultiFetcher.duplicate_source_discovered_action` -> `on_source_conflict`
+  * `MultiFetcher.optional_fetcher_discarded_log_level` -> `fetcher_discarded_log_level`
 - Replaced `ActionLevel` with `typing.Literal` in several places.
 
 ### Fixed
@@ -39,6 +41,7 @@ maintain. Concrete implementations for things like caching are being dropped and
 - The `AbstractFetcher.get_placeholders` method.
 - The `AbstractFetcher.concurrent_operation_action` option.
 - The `AbstractFetcher.fetch_all_unmapped_values_action` option; manage automatically when `selective_fetch_all=True`.
+- The `MultiFetcher.duplicate_translation_action` option; now managed automatically (fetch=warn, fetch_all=ignore).
 - The `PandasFetcher(online)` init arg.
 - Dropped deprecated `Translator.translate` arguments `inplace` and `maximal_untranslated_fraction`.
 
