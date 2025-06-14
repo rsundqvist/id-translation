@@ -441,7 +441,8 @@ def _patch_docstrings() -> None:
         func.__doc__ = func.__doc__.format_map(docstrings)
 
 
-_patch_docstrings()
+if __doc__:
+    _patch_docstrings()
 
 
 if _os.environ.get("SPHINX_BUILD") == "true":  # pragma: no cover

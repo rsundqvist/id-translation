@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Fix crashes when using `python -OO` and some other docs issues.
+
 ## [0.14.0] - 2025-06-08
 This release is a mostly focused on adding documentation and removing things to make the project less cumbersome to 
 maintain. Concrete implementations for things like caching are being dropped and replaced by generic interfaces (the

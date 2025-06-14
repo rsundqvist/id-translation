@@ -14,4 +14,4 @@ Most functions and classes are thread safe. Notable exceptions are documented he
        fetchers (e.g. the :class:`.SqlFetcher`) inherit from this class.
    * - :meth:`.Fetcher.initialize_sources`
      - Invoked implicitly before all translation tasks. Results are cached when using a :class:`.MultiFetcher` or
-       :class:`.AbstractFetcher` subtype, after which ``initialize_sources`` is thread-safe for these types.<
+       :class:`.AbstractFetcher` subtype, after which ``initialize_sources`` is thread-safe for these types.

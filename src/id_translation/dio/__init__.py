@@ -24,23 +24,23 @@ snippet below shows how the :mod:`bundled <.integration>` integrations are regis
 
 The :func:`loader <id_translation.dio.load_integrations>` will skip the integration if calling
 :class:`EntryPoint.load() <importlib.metadata.EntryPoint>` raises an :py:class:`ImportError`.
-
-.. autodata:: id_translation.dio::ENTRYPOINT_GROUP
 """
-
-# The autodata is a workaround for ENTRYPOINT_GROUP
-#   https://github.com/sphinx-doc/sphinx/issues/6495#issuecomment-1058033697
-#   https://github.com/sphinx-doc/sphinx/issues/12020
 
 from ._data_structure_io import DataStructureIO
 from ._resolve import (
-    ENTRYPOINT_GROUP,
+    _ENTRYPOINT_GROUP,
     get_resolution_order,
     is_registered,
     load_integrations,
     register_io,
     resolve_io,
 )
+
+ENTRYPOINT_GROUP: str = _ENTRYPOINT_GROUP  # Public reexport. Makes Sphinx happy.
+"""Group used to discover :class:`DataStructureIO` integrations.
+
+See :func:`load_integrations` and :py:func:`importlib.metadata.entry_points` for details.
+"""
 
 __all__ = [
     "ENTRYPOINT_GROUP",
@@ -53,4 +53,6 @@ __all__ = [
 ]
 
 load_integrations()
-__doc__ = __doc__.format(entrypoint_group=ENTRYPOINT_GROUP)
+
+if __doc__:
+    __doc__ = __doc__.format(entrypoint_group=ENTRYPOINT_GROUP)

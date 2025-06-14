@@ -1,4 +1,4 @@
-"""Data structure I  exceptions."""
+"""Data structure IO exceptions."""
 
 from typing import Any as _Any
 
@@ -15,7 +15,10 @@ class UntranslatableTypeError(DataStructureIOError):
     """
 
     def __init__(self, t: type[_Any]) -> None:
-        super().__init__(f"Type {t} cannot be translated.")
+        super().__init__(
+            f"Type {t} cannot be translated."
+            "\nHint: https://id-translation.readthedocs.io/en/stable/api/id_translation.dio.html#user-defined-integrations"
+        )
 
 
 class NotInplaceTranslatableError(DataStructureIOError):
@@ -26,4 +29,7 @@ class NotInplaceTranslatableError(DataStructureIOError):
     """
 
     def __init__(self, arg: _Any) -> None:
-        super().__init__(f"Inplace translation not possible or implemented for type: {type(arg)}")
+        super().__init__(
+            f"Inplace translation not possible or implemented for type: {type(arg)}"
+            "\nHint: https://id-translation.readthedocs.io/en/stable/api/id_translation.dio.html#user-defined-integrations"
+        )

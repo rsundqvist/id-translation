@@ -25,11 +25,19 @@ _RESOLUTION_ORDER: list[type[AnyDataStructureIO]] = [*_DEFAULT_IMPLEMENTATIONS]
 LOGGER = logging.getLogger(__package__)
 
 
-ENTRYPOINT_GROUP: str = "id_translation.dio"
-"""Entrypoint used to automatically discover :class:`DataStructureIO` integrations."""
+_ENTRYPOINT_GROUP: str = "id_translation.dio"
+"""Alias of the ``__init__.ENTRYPOINT_GROUP`` attribute.
+
+Background:
+    https://github.com/sphinx-doc/sphinx/issues/6495#issuecomment-1058033697
+    https://github.com/sphinx-doc/sphinx/issues/12020
+"""
 
 
-def resolve_io(arg: TranslatableT, **kwargs: Any) -> DataStructureIO[TranslatableT, NameType, SourceType, IdType]:
+def resolve_io(
+    arg: TranslatableT,
+    **kwargs: Any,
+) -> DataStructureIO[TranslatableT, NameType, SourceType, IdType]:
     """Get an IO instance for `arg`.
 
     Args:
@@ -121,8 +129,10 @@ def load_integrations() -> None:
     """Discover, load and register entrypoint integrations.
 
     Reset the registry, then load entrypoints in the
-    :const:`{entrypoint_group!r} <id_translation.dio.ENTRYPOINT_GROUP>`
-    entrypoint group. Will skip integrations that raise :class:`ImportError`.
+    :const:`{_ENTRYPOINT_GROUP!r} <id_translation.dio.ENTRYPOINT_GROUP>`
+    entrypoint group (see :py:func:`importlib.metadata.entry_points` for details).
+
+    Will skip integrations that raise :class:`ImportError` when loaded.
 
     Raises:
         TypeError: If an integration does not inherit from :class:`.DataStructureIO`.
@@ -134,12 +144,12 @@ def load_integrations() -> None:
 
     start = perf_counter()
 
-    LOGGER.debug("Initializing %s integrations in group='%s'.", DataStructureIO.__name__, ENTRYPOINT_GROUP)
+    LOGGER.debug("Initializing %s integrations in group='%s'.", DataStructureIO.__name__, _ENTRYPOINT_GROUP)
     _RESOLUTION_ORDER = [*_DEFAULT_IMPLEMENTATIONS]
 
     n_total = 0
     n_ok = 0
-    for ep in entry_points(group=ENTRYPOINT_GROUP):
+    for ep in entry_points(group=_ENTRYPOINT_GROUP):
         n_total += 1
 
         try:
@@ -159,4 +169,5 @@ def load_integrations() -> None:
     LOGGER.debug("Imported and registered %i/%i integrations in %i milliseconds.", n_ok, n_total, millis)
 
 
-load_integrations.__doc__ = load_integrations.__doc__.format(entrypoint_group=ENTRYPOINT_GROUP)  # type: ignore[union-attr]
+if load_integrations.__doc__:
+    load_integrations.__doc__ = load_integrations.__doc__.format(_ENTRYPOINT_GROUP=_ENTRYPOINT_GROUP)
