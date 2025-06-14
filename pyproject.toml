@@ -1,6 +1,6 @@
 [project]
 name = "id-translation"
-version = "0.14.0.dev1"
+version = "0.14.1"
 description = "Convert IDs into human-readable labels."
 authors = [
     { name = "Richard Sundqvist", email = "richard.sundqvist@live.se" },
