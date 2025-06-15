@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - The `DataStructureIO.priority` property and 
-  [document](https://id-translation.readthedocs.io/en/stable/api/id_translation.dio.html#selection-process)
+  [document](https://id-translation.readthedocs.io/en/latest/documentation/translation-io.html#selection-process)
   the IO resolution procedure.
 - The `id_translation.dio.default` module (exposes built-in `DataStructureIO` impls).
 
