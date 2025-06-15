@@ -12,3 +12,4 @@ Examples and documentation.
    mapping-primer
    translation-concurrency
    translation-logging
+   translation-io

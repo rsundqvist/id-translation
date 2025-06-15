@@ -1,43 +1,6 @@
 """Integration for insertion and extraction of IDs and translations to and from various data structures.
 
-User-defined integrations
--------------------------
-The purpose of creating new integrations is typically to enable translation of a new data type.
-To get started, inherit from :class:`DataStructureIO` or copy an
-:class:`existing <id_translation.dio.integration.polars>` integration. Don't forget to
-:meth:`register <.DataStructureIO.register>` the implementation, or the :class:`.Translator` won't be able to find it.
-
-Automatic integration discovery
--------------------------------
-You may add an entrypoint in the ``{entrypoint_group!r}`` entrypoint group to
-automatically register custom implementations (as opposed to calling :meth:`.DataStructureIO.register` manually). The
-snippet below shows how the :mod:`bundled <.integration>` integrations are registered using project entrypoints.
-
-.. code-block:: toml
-   :caption: Entrypoints in ``pyproject.toml`` in the
-        https://github.com/rsundqvist/id-translation/blob/v0.14.0/pyproject.toml#L45-L48 project.
-
-   [project.entry-points."id_translation.dio"]
-   # The name (e.g. 'dask_io') is not important, but should be unique.
-   dask_io = "id_translation.dio.integration.dask:DaskIO"
-   polars_io = "id_translation.dio.integration.polars:PolarsIO"
-
-The :func:`loader <id_translation.dio.load_integrations>` will skip the integration if calling
-:class:`EntryPoint.load() <importlib.metadata.EntryPoint>` raises an :py:class:`ImportError`.
-
-Selection process
------------------
-The :class:`~id_translation.Translator` will call :func:`.resolve_io` once per task. The first implementation whose
-:meth:`DataStructureIO.handles_type`-method returns ``True`` will be used. The order in which implementations are
-considered is determined by the :attr:`~DataStructureIO.priority` attribute.
-
-Bundled implementations have priorities in the `1000 - 1999` range (inclusive); see the table below.
-
-.. csv-table:: Ranking of built-in :class:`DataStructureIO` implementations.
-   :file: ../../../docs/_images/expected-order.csv
-   :header-rows: 1
-
-New implementations default to ``priority=10_000`` and are therefore considered first.
+See :doc:`/documentation/translation-io` for help.
 """
 
 from ._data_structure_io import DataStructureIO
@@ -65,6 +28,3 @@ __all__ = [
     "register_io",
     "resolve_io",
 ]
-
-if __doc__:
-    __doc__ = __doc__.format(entrypoint_group=ENTRYPOINT_GROUP)
