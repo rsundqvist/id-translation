@@ -34,7 +34,7 @@ considered is determined by the :attr:`~DataStructureIO.priority` attribute.
 Bundled implementations have priorities in the `1000 - 1999` range (inclusive); see the table below.
 
 .. csv-table:: Ranking of built-in :class:`DataStructureIO` implementations.
-   :file: /../../tests/dio/expected-order.csv
+   :file: ../../../docs/_images/expected-order.csv
    :header-rows: 1
 
 New implementations default to ``priority=10_000`` and are therefore considered first.
