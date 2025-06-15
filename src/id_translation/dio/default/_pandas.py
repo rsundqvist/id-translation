@@ -1,30 +1,41 @@
+import os
 import warnings
 from collections import defaultdict
 from collections.abc import Sequence
-from typing import Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 
 import pandas as pd
 from pandas.api.types import is_float_dtype, is_numeric_dtype
 
-from ..offline import TranslationMap
-from ..types import IdType, NameType, SourceType
-from ._data_structure_io import DataStructureIO
-from ._sequence import SequenceIO, translate_sequence, verify_names
-from .exceptions import NotInplaceTranslatableError
+from id_translation.offline import TranslationMap
+from id_translation.types import IdType, NameType, SourceType
 
-T = TypeVar("T", pd.DataFrame, pd.Series, pd.Index, pd.MultiIndex)
+from .._data_structure_io import DataStructureIO
+from ..exceptions import NotInplaceTranslatableError
+from ._sequence import SequenceIO, translate_sequence, verify_names
+
+PandasT = TypeVar("PandasT", pd.DataFrame, pd.Series, pd.Index, pd.MultiIndex)
 PandasVectorT = TypeVar("PandasVectorT", pd.Series, pd.Index)
 
 
-class PandasIO(DataStructureIO[T, NameType, SourceType, IdType]):
-    """Implementation for Pandas data types."""
+class PandasIO(DataStructureIO[PandasT, NameType, SourceType, IdType]):
+    """IO implementation for ``pandas`` types."""
+
+    priority = 1999
+
+    if not TYPE_CHECKING and os.environ.get("SPHINX_BUILD") == "true":
+        PandasT = PandasT  # type: ignore
+        """Generic pandas type.
+
+        This property does not exist at runtime.
+        """
 
     @classmethod
     def handles_type(cls, arg: Any) -> bool:
         return isinstance(arg, (pd.DataFrame, pd.Series, pd.Index))
 
     @classmethod
-    def names(cls, translatable: T) -> list[NameType] | None:
+    def names(cls, translatable: PandasT) -> list[NameType] | None:
         if isinstance(translatable, pd.DataFrame):
             columns = translatable.columns
             if isinstance(columns, pd.MultiIndex):
@@ -39,7 +50,7 @@ class PandasIO(DataStructureIO[T, NameType, SourceType, IdType]):
         return None if translatable.name is None else [translatable.name]
 
     @classmethod
-    def extract(cls, translatable: T, names: list[NameType]) -> dict[NameType, Sequence[IdType]]:
+    def extract(cls, translatable: PandasT, names: list[NameType]) -> dict[NameType, Sequence[IdType]]:
         if isinstance(translatable, pd.DataFrame):
             ans = defaultdict(list)
             for i, name in enumerate(translatable.columns):
@@ -62,11 +73,11 @@ class PandasIO(DataStructureIO[T, NameType, SourceType, IdType]):
     @classmethod
     def insert(
         cls,
-        translatable: T,
+        translatable: PandasT,
         names: list[NameType],
         tmap: TranslationMap[NameType, SourceType, IdType],
         copy: bool,
-    ) -> T | None:
+    ) -> PandasT | None:
         if not copy:
             if isinstance(translatable, pd.DataFrame):
                 pass  # Ok
@@ -121,10 +132,10 @@ def _translate_pandas_vector(
 
 
 def _translate_index(
-    index: T,
+    index: PandasT,
     names: list[NameType],
     tmap: TranslationMap[NameType, SourceType, IdType],
-) -> T | None:
+) -> PandasT | None:
     if isinstance(index, pd.MultiIndex):
         df = index.to_frame()
         _translate_frame(df, names, tmap, copy=False)

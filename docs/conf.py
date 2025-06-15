@@ -1,4 +1,5 @@
 """Sphinx configuration."""
+
 import os
 from datetime import datetime, timezone
 from zipfile import ZipFile
@@ -68,6 +69,20 @@ def monkeypatch_autosummary_toc() -> None:
 
 def callback(_app, _env, node, _contnode):  # noqa
     reftarget = node.get("reftarget")
+
+    dio = {
+        "id_translation.dio.default._pandas.PandasT": "id_translation.dio.default.PandasIO",
+        "id_translation.dio.default._sequence.SequenceT": "id_translation.dio.default.SequenceIO",
+    }
+
+    for type_var, owner in dio.items():
+        if reftarget == type_var:
+            name = reftarget.rpartition(".")[-1]
+            reftarget = owner + "." + name
+            ans_hax = reference(refuri="id_translation.dio.default.html#" + reftarget, reftitle=reftarget)
+            ans_hax.children.append(Text(name))
+            return ans_hax
+
 
     # This doesn't actually do anything now, since autodoc_typehints = "none" (see above).
     if reftarget in ("NameType", "SourceType", "IdType"):
@@ -305,9 +320,11 @@ with ZipFile(f"{root}/dvdrental.zip", "w") as archive:
 
 def show_first_argument_in_docs():
     from id_translation.toml import TranslatorFactory
+
     for name in filter(lambda s: s.endswith("_FACTORY"), dir(TranslatorFactory)):
         attr = getattr(TranslatorFactory, name)
         static = staticmethod(attr)
         setattr(TranslatorFactory, name, static)
+
 
 show_first_argument_in_docs()

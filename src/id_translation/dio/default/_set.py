@@ -1,13 +1,16 @@
 from collections.abc import Sequence
 from typing import Any
 
-from ..offline import TranslationMap
-from ..types import IdType, NameType, SourceType
-from ._data_structure_io import DataStructureIO
+from id_translation.offline import TranslationMap
+from id_translation.types import IdType, NameType, SourceType
+
+from .._data_structure_io import DataStructureIO
 
 
 class SetIO(DataStructureIO[set[IdType], NameType, SourceType, IdType]):
-    """Implementation for dicts."""
+    """IO implementation for ``set`` types."""
+
+    priority = 1010
 
     @classmethod
     def handles_type(cls, arg: Any) -> bool:

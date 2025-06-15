@@ -2,14 +2,17 @@ from collections.abc import Sequence
 from typing import Any
 from uuid import UUID
 
-from ..offline import TranslationMap
-from ..types import IdType, NameType, SourceType
-from . import DataStructureIO
-from .exceptions import NotInplaceTranslatableError
+from id_translation.offline import TranslationMap
+from id_translation.types import IdType, NameType, SourceType
+
+from .._data_structure_io import DataStructureIO
+from ..exceptions import NotInplaceTranslatableError
 
 
 class SingleValueIO(DataStructureIO[IdType, NameType, SourceType, IdType]):
-    """Implementation for non-iterables. And strings."""
+    """IO implementation for ``int``, ``str`` and ``UUID`` types."""
+
+    priority = 1500
 
     @classmethod
     def handles_type(cls, arg: Any) -> bool:

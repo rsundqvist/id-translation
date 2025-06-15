@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-from id_translation.dio._pandas import PandasIO
+from id_translation.dio.default import PandasIO
 from id_translation.dio.exceptions import NotInplaceTranslatableError
 
 

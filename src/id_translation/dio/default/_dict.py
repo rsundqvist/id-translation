@@ -3,13 +3,16 @@ from typing import Any
 
 from rics.collections.misc import as_list
 
-from ..offline import TranslationMap
-from ..types import IdType, NameType, SourceType
-from ._data_structure_io import DataStructureIO
+from id_translation.offline import TranslationMap
+from id_translation.types import IdType, NameType, SourceType
+
+from .._data_structure_io import DataStructureIO
 
 
 class DictIO(DataStructureIO[dict[NameType, IdType], NameType, SourceType, IdType]):
-    """Implementation for dicts."""
+    """IO implementation for ``dict`` types."""
+
+    priority = 1000
 
     @classmethod
     def handles_type(cls, arg: Any) -> bool:
@@ -33,8 +36,8 @@ class DictIO(DataStructureIO[dict[NameType, IdType], NameType, SourceType, IdTyp
     ) -> dict[NameType, Any] | None:
         from rics.logs import disable_temporarily
 
-        from ._resolve import LOGGER as RESOLVE_IO_LOGGER
-        from ._resolve import resolve_io
+        from .._resolve import LOGGER as RESOLVE_IO_LOGGER
+        from .._resolve import resolve_io
 
         with disable_temporarily(RESOLVE_IO_LOGGER):
             translated = {}

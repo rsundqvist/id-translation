@@ -8,8 +8,7 @@ from id_translation.dio.integration.polars import PolarsIO
 from id_translation.types import IdTypes
 
 assert PolarsIO.is_registered(), "entrypoint loader failed"
-PolarsIO.register()
-assert PolarsIO.get_rank() == 0
+assert PolarsIO.get_rank() == 1
 
 
 def to_uuid(i: int) -> UUID:

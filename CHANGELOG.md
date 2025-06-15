@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- The `DataStructureIO.priority` property and 
+  [document](https://id-translation.readthedocs.io/en/stable/api/id_translation.dio.html#selection-process)
+  the IO resolution procedure.
+- The `id_translation.dio.default` module (exposes built-in `DataStructureIO` impls).
+
+### Removed
+- The `dio.register_io(sort)` parameter (now always done).
+
 ## [0.14.1] - 2025-06-14
 
 ### Fixed

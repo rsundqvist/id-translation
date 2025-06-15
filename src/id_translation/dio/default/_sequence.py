@@ -1,26 +1,38 @@
+import os
 from collections.abc import Callable, Sequence
-from typing import Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 
 import numpy as np
 from rics.collections.misc import as_list
 
-from ..offline import TranslationMap
-from ..types import IdType, NameType, SourceType
-from . import DataStructureIO
-from .exceptions import NotInplaceTranslatableError
+from id_translation.offline import TranslationMap
+from id_translation.types import IdType, NameType, SourceType
 
-T = TypeVar("T", list, np.ndarray, tuple)  # type: ignore[type-arg]  # TODO: Higher-Kinded TypeVars
+from .._data_structure_io import DataStructureIO
+from ..exceptions import NotInplaceTranslatableError
+
+SequenceT = TypeVar("SequenceT", list, np.ndarray, tuple)  # type: ignore[type-arg]  # TODO: Higher-Kinded TypeVars
 
 
-class SequenceIO(DataStructureIO[T, NameType, SourceType, IdType]):
-    """Implementation for numpy arrays, Python lists and tuples."""
+class SequenceIO(DataStructureIO[SequenceT, NameType, SourceType, IdType]):
+    """IO implementation for ``list``, ``tuple`` and  ``numpy.array`` types."""
+
+    priority = 1100
+
+    if not TYPE_CHECKING and os.environ.get("SPHINX_BUILD") == "true":
+        SequenceT = SequenceT  # type: ignore[attr-defined]
+        """Generic sequence type.
+
+        This property does not exist at runtime. The element type cannot be parameterized due to limitations in the
+        ``TypeVar`` implementation.
+        """
 
     @classmethod
     def handles_type(cls, arg: Any) -> bool:
         return isinstance(arg, (list, np.ndarray, tuple))
 
     @classmethod
-    def extract(cls, translatable: T, names: list[NameType]) -> dict[NameType, Sequence[IdType]]:
+    def extract(cls, translatable: SequenceT, names: list[NameType]) -> dict[NameType, Sequence[IdType]]:
         verify_names(len(translatable), names)
         return (
             {names[0]: as_list(translatable)}
@@ -31,15 +43,15 @@ class SequenceIO(DataStructureIO[T, NameType, SourceType, IdType]):
     @classmethod
     def insert(
         cls,
-        translatable: T,
+        translatable: SequenceT,
         names: list[NameType],
         tmap: TranslationMap[NameType, SourceType, IdType],
         copy: bool,
-    ) -> T | None:
+    ) -> SequenceT | None:
         verify_names(len(translatable), names)
         t = translate_sequence(translatable, names, tmap)
 
-        ctor: Callable[[list[str | None]], T]
+        ctor: Callable[[list[str | None]], SequenceT]
         if copy:
             if isinstance(translatable, np.ndarray):
                 ctor = np.array
@@ -54,7 +66,9 @@ class SequenceIO(DataStructureIO[T, NameType, SourceType, IdType]):
             raise NotInplaceTranslatableError(translatable) from e
 
 
-def translate_sequence(s: T, names: list[NameType], tmap: TranslationMap[NameType, SourceType, IdType]) -> list[str]:
+def translate_sequence(
+    s: SequenceT, names: list[NameType], tmap: TranslationMap[NameType, SourceType, IdType]
+) -> list[str]:
     """Return a translated copy of the sequence `s`."""
     if len(names) == 1:
         magic_dict = tmap[names[0]]

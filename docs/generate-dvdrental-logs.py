@@ -111,11 +111,12 @@ def main():
 def handle_rst() -> None:
     start, stop = find_doc_lines()
     content = RST_FILE.read_text()
+
     for part in f":lines: {start}-{stop}", f":lineno-start: {stop}":
         if part in content:
-            print(f"OK: {part=}")
+            print(f"\033[92mOK:\033[0m {part=}")
         else:
-            print(f"MISSING: {part=}")
+            print(f"\033[31mMISSING:\033[0m {part=}")
 
 
 def find_doc_lines() -> tuple[int, int]:

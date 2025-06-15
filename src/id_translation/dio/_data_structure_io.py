@@ -2,7 +2,7 @@
 
 from abc import abstractmethod
 from collections.abc import Sequence
-from typing import Any, Generic
+from typing import Any, ClassVar, Generic
 
 from ..offline import TranslationMap
 from ..types import IdType, NameType, SourceType, TranslatableT
@@ -10,6 +10,12 @@ from ..types import IdType, NameType, SourceType, TranslatableT
 
 class DataStructureIO(Generic[TranslatableT, NameType, SourceType, IdType]):
     """Insertion and extraction of IDs and translations."""
+
+    priority: ClassVar[int] = 10_000
+    """Determines order in which IOs are considered (higher = earlier).
+
+    Set `priority < 0` to disable.
+    """
 
     @classmethod
     def register(cls) -> None:
@@ -35,7 +41,7 @@ class DataStructureIO(Generic[TranslatableT, NameType, SourceType, IdType]):
     def get_rank(cls) -> int:
         """Return the rank of this implementation.
 
-        See :func:`.dio.get_resolution_order` for details.
+        See :func:`.dio.get_resolution_order` for details. The highest possible rank is 0.
 
         Returns:
             Implementation rank.
@@ -48,7 +54,12 @@ class DataStructureIO(Generic[TranslatableT, NameType, SourceType, IdType]):
         try:
             return get_resolution_order(real=True).index(cls)
         except ValueError:
-            raise ValueError(f"not registered: {cls.__name__}") from None
+            msg = (
+                f"Not registered: {cls.__name__}"
+                f"\nHint: Use {cls.register.__qualname__}() to register this implementation."
+                "\nHint: https://id-translation.readthedocs.io/en/stable/api/id_translation.dio.html#user-defined-integrations"
+            )
+            raise ValueError(msg) from None
 
     @classmethod
     @abstractmethod

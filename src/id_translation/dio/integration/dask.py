@@ -4,34 +4,36 @@ import typing as _t
 from collections import abc as _abc
 
 from dask import compute as _compute
-from dask import dataframe as dd
+from dask import dataframe as _dd
 
 from id_translation import dio as _dio
 from id_translation import types as _tt
 from id_translation.offline import MagicDict as _MagicDict
 from id_translation.offline import TranslationMap as _TranslationMap
 
-DaskT = _t.TypeVar("DaskT", dd.DataFrame, dd.Series)
+DaskT = _t.TypeVar("DaskT", _dd.DataFrame, _dd.Series)
 """Supported ``dask`` types."""
 
 
 class DaskIO(_dio.DataStructureIO[DaskT, str, _tt.SourceType, _tt.IdType]):
-    """IO implementation for ``dask`` types."""
+    """Optional IO implementation for ``dask`` types."""
+
+    priority = 1980
 
     @classmethod
     def handles_type(cls, arg: _t.Any) -> bool:
-        return isinstance(arg, (dd.DataFrame, dd.Series))
+        return isinstance(arg, (_dd.DataFrame, _dd.Series))
 
     @classmethod
     def names(cls, translatable: DaskT) -> list[str] | None:
-        if isinstance(translatable, dd.DataFrame):
+        if isinstance(translatable, _dd.DataFrame):
             return list(translatable.columns)
 
         return None if translatable.name is None else [translatable.name]
 
     @classmethod
     def extract(cls, translatable: DaskT, names: list[str]) -> dict[str, _abc.Sequence[_tt.IdType]]:
-        if isinstance(translatable, dd.Series):
+        if isinstance(translatable, _dd.Series):
             if len(names) != 1:
                 raise RuntimeError(f"{len(names)=} != 1 is not supported for dask.Series")
             return {names[0]: translatable.unique().compute().to_list()}
@@ -53,22 +55,22 @@ class DaskIO(_dio.DataStructureIO[DaskT, str, _tt.SourceType, _tt.IdType]):
 
             raise NotInplaceTranslatableError(translatable)  # Can't in-place a compute graph.
 
-        if isinstance(translatable, dd.Series):
+        if isinstance(translatable, _dd.Series):
             return _translate_series(translatable, tmap[names[0]])
         else:
             return _translate_frame(translatable, names, tmap)
 
 
-def _translate_series(series: dd.Series, magic_dict: _MagicDict[_tt.IdType]) -> dd.Series:
+def _translate_series(series: _dd.Series, magic_dict: _MagicDict[_tt.IdType]) -> _dd.Series:
     mapping = {idx: magic_dict[idx] for idx in series.unique().compute()}
     return series.replace(mapping)  # type: ignore[no-any-return]
 
 
 def _translate_frame(
-    df: dd.DataFrame,
+    df: _dd.DataFrame,
     names: list[_tt.NameType],
     tmap: _TranslationMap[_tt.NameType, _tt.SourceType, _tt.IdType],
-) -> dd.DataFrame:
+) -> _dd.DataFrame:
     original_columns = df.columns
 
     try:
