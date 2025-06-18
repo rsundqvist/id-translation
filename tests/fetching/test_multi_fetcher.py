@@ -292,7 +292,7 @@ def test_init_logging(multi_fetcher, caplog):
         return False
 
     def required_no_sources(message: str, level: int) -> bool:
-        if message.startswith("Required rank-3 fetcher SqlFetcher(Engine(sqlite://))"):
+        if message.startswith("Required rank-3 fetcher SqlFetcher('sqlite://')"):
             assert level == logging.WARNING, "required => WARNING"
             assert message.endswith("does not provide any sources.")
             return True
@@ -309,7 +309,7 @@ def test_init_logging(multi_fetcher, caplog):
         return False
 
     def required_empty_kept(message: str, level: int) -> bool:
-        if message.startswith("Required rank-3 fetcher SqlFetcher(Engine(sqlite://))"):
+        if message.startswith("Required rank-3 fetcher SqlFetcher('sqlite://')"):
             assert level == logging.WARNING, "required => WARNING"
             assert message.endswith("is useless, but will be kept: All sources found in higher-ranking fetchers.")
             return True

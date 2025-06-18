@@ -121,11 +121,11 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         engine: sqlalchemy.Engine | None
         if not self.optional:
             engine = self.create_engine(connection_string, password, self._engine_kwargs)
-            return engine, str(engine)
+            return engine, repr(str(engine.url))
 
         try:
             engine = self.create_engine(connection_string, password, self._engine_kwargs)
-            engine_str = str(engine)
+            engine_str = repr(str(engine.url))
         except Exception as e:
             engine = None
             engine_str = f"no engine: {e!r}"

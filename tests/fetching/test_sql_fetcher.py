@@ -188,6 +188,6 @@ def test_disconnected(connection_string):
     fetcher.initialize_sources()  # Should not crash yet - discovery already done
     assert fetcher.placeholders == expected_placeholders
 
-    with pytest.raises(ConnectionStatusError, match=r"disconnected: Engine\(sqlite"):
+    with pytest.raises(ConnectionStatusError, match=r"disconnected: 'sqlite"):
         fetcher.initialize_sources(force=True)
     assert fetcher.placeholders == expected_placeholders
