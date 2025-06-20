@@ -1,7 +1,7 @@
 import tomllib
 from typing import Any
 
-from rics.misc import interpolate_environment_variables
+from rics.env.interpolation import replace_in_string
 from rics.paths import AnyPath, any_path_to_path
 
 
@@ -33,6 +33,6 @@ def load_toml_file(
         toml_string = f.read()
 
     if allow_interpolation:
-        toml_string = interpolate_environment_variables(toml_string, allow_nested=allow_nested, allow_blank=allow_blank)
+        toml_string = replace_in_string(toml_string, allow_nested=allow_nested, allow_blank=allow_blank)
 
     return tomllib.loads(toml_string)
