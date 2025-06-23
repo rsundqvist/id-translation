@@ -1,5 +1,5 @@
 Rank,Weight,Class,Comment
-1,1999,:class:`~id_translation.dio.default.PandasIO`,IO implementation for ``pandas`` types.
+1,1999,:class:`~id_translation.dio.integration.pandas.PandasIO`,Optional IO implementation for ``pandas`` types.
 2,1990,:class:`~id_translation.dio.integration.polars.PolarsIO`,Optional IO implementation for ``polars`` types.
 3,1980,:class:`~id_translation.dio.integration.dask.DaskIO`,Optional IO implementation for ``dask`` types.
 4,1500,:class:`~id_translation.dio.default.SingleValueIO`,"IO implementation for ``int``, ``str`` and ``UUID`` types."

@@ -5,13 +5,13 @@ from rics.misc import tname
 
 from ..types import IdType, NameType, SourceType, TranslatableT
 from ._data_structure_io import DataStructureIO
-from .default import DictIO, PandasIO, SequenceIO, SetIO, SingleValueIO
+from .default import DictIO, SequenceIO, SetIO, SingleValueIO
 from .exceptions import UntranslatableTypeError
 
 AnyDataStructureIO = DataStructureIO[Any, Any, Any, Any]
 
 
-_DEFAULT_IMPLEMENTATIONS = PandasIO, DictIO, SetIO, SequenceIO, SingleValueIO
+_DEFAULT_IMPLEMENTATIONS = DictIO, SetIO, SequenceIO, SingleValueIO
 _RESOLUTION_ORDER: list[type[AnyDataStructureIO]] = [*_DEFAULT_IMPLEMENTATIONS]
 LOGGER = logging.getLogger(__package__)
 

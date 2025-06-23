@@ -2,7 +2,6 @@ import os
 from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING, Any, TypeVar
 
-import numpy as np
 from rics.collections.misc import as_list
 
 from id_translation.offline import TranslationMap
@@ -11,7 +10,16 @@ from id_translation.types import IdType, NameType, SourceType
 from .._data_structure_io import DataStructureIO
 from ..exceptions import NotInplaceTranslatableError
 
-SequenceT = TypeVar("SequenceT", list, np.ndarray, tuple)  # type: ignore[type-arg]  # TODO: Higher-Kinded TypeVars
+try:
+    from numpy import array, ndarray
+except ImportError:
+
+    class ndarray:  # type: ignore  # noqa
+        """Dummy implementation; numpy is not available."""
+
+    array = ndarray  # type: ignore[assignment]
+
+SequenceT = TypeVar("SequenceT", list, ndarray, tuple)  # type: ignore[type-arg]  # TODO: Higher-Kinded TypeVars
 
 
 class SequenceIO(DataStructureIO[SequenceT, NameType, SourceType, IdType]):
@@ -29,7 +37,7 @@ class SequenceIO(DataStructureIO[SequenceT, NameType, SourceType, IdType]):
 
     @classmethod
     def handles_type(cls, arg: Any) -> bool:
-        return isinstance(arg, (list, np.ndarray, tuple))
+        return isinstance(arg, (list, ndarray, tuple))
 
     @classmethod
     def extract(cls, translatable: SequenceT, names: list[NameType]) -> dict[NameType, Sequence[IdType]]:
@@ -53,8 +61,8 @@ class SequenceIO(DataStructureIO[SequenceT, NameType, SourceType, IdType]):
 
         ctor: Callable[[list[str | None]], SequenceT]
         if copy:
-            if isinstance(translatable, np.ndarray):
-                ctor = np.array
+            if isinstance(translatable, ndarray):
+                ctor = array
             else:
                 ctor = type(translatable)
             return ctor(t)
