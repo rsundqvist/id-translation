@@ -16,7 +16,7 @@ FormatType = _t.Union[str, "Format"]
 PlaceholdersTuple = tuple[str, ...]
 TranslatedIds = dict[_tt.IdType, str]  # {id: translation}
 
-DictMakeTypes = dict[str, _Sequence[_t.Any]] | dict[_tt.IdType, str]
+DictMakeTypes = _t.Mapping[str, _Sequence[_t.Any]] | _t.Mapping[_tt.IdType, str]
 
 
 @_dataclasses.dataclass
@@ -38,18 +38,22 @@ class PlaceholderTranslations(_t.Generic[_tt.SourceType]):
 
         Args:
             source: Source label for the translations.
-            data: Some data to convert to a PlaceholderTranslations instance.
+            data: Some data to convert to a ``PlaceholderTranslations`` instance.
 
         Returns:
-            A new PlaceholderTranslations instance.
+            A new :class:`PlaceholderTranslations` instance.
 
         Raises:
             TypeError: If `data` cannot be converted.
         """
-        import pandas as pd
+        try:
+            from pandas import DataFrame
 
-        if isinstance(data, pd.DataFrame):
-            return cls.from_dataframe(source, data)
+            if isinstance(data, DataFrame):
+                return cls.from_dataframe(source, data)
+        except ImportError:
+            pass
+
         if isinstance(data, dict):
             return cls.from_dict(source, data)
         if isinstance(data, PlaceholderTranslations):
@@ -62,7 +66,7 @@ class PlaceholderTranslations(_t.Generic[_tt.SourceType]):
         records = self.records[:max_rows] if max_rows else self.records
         return {placeholder: [row[i] for row in records] for i, placeholder in enumerate(self.placeholders)}
 
-    def to_dataframe(self, max_rows: int = 0) -> "pandas.DataFrame":
+    def to_pandas(self, max_rows: int = 0) -> "pandas.DataFrame":
         """Create a pandas DataFrame representation of the translations."""
         import pandas as pd
 
@@ -89,14 +93,21 @@ class PlaceholderTranslations(_t.Generic[_tt.SourceType]):
     @classmethod
     def from_dict(cls, source: _tt.SourceType, data: DictMakeTypes[_tt.IdType]) -> _t.Self:
         """Create instance from a dict."""
-        import pandas as pd
-
         if cls._is_simple_form(data):
             # Users may pass dicts on the form {source: {id: name}}, where our data={id: name}.
             _t.assert_type(data, dict[_tt.IdType, str])
-            data = {_tt.ID: list(data.keys()), "name": list(data.values())}  # type: ignore[assignment]
+            records = tuple(tuple(item) for item in data.items())
+            return cls(source, (_tt.ID, "name"), records, id_pos=0)
 
-        return cls.from_dataframe(source, pd.DataFrame.from_dict(data))
+        try:
+            from pandas import DataFrame
+
+            return cls.from_dataframe(source, DataFrame.from_dict(data))
+        except ImportError:
+            placeholders: tuple[str, ...] = tuple(data)  # type: ignore[arg-type]
+            records = tuple(zip(*data.values(), strict=True))
+            id_pos = placeholders.index(_tt.ID) if _tt.ID in placeholders else -1
+            return cls(source, placeholders, records, id_pos)
 
     @classmethod
     def _is_simple_form(cls, data: DictMakeTypes[_tt.IdType]) -> _t.TypeGuard[dict[_tt.IdType, str]]:

@@ -38,7 +38,7 @@ def test_to_common_types(source):
     df = pd.read_json(PATH.format(source))
     pht = PlaceholderTranslations.from_dataframe(source, df)
 
-    pd.testing.assert_frame_equal(df, pht.to_dataframe())
+    pd.testing.assert_frame_equal(df, pht.to_pandas())
 
     assert df.to_dict(orient="list") == pht.to_dict()
 

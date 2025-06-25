@@ -18,7 +18,7 @@ from ..conftest import ROOT, NotCloneableFetcher
 @pytest.fixture(scope="module")
 def fetchers(data: dict[str, pd.DataFrame]) -> Collection[AbstractFetcher[str, int]]:
     humans_fetcher: MemoryFetcher[str, int] = MemoryFetcher({"humans": data["humans"]})
-    empty_fetcher: MemoryFetcher[str, int] = MemoryFetcher(optional=True)
+    empty_fetcher: MemoryFetcher[str, int] = MemoryFetcher({}, optional=True)
     everything_fetcher: MemoryFetcher[str, int] = MemoryFetcher(data)
 
     with pytest.warns(FetcherWarning, match="empty"):
@@ -105,7 +105,7 @@ def test_fetch_all(multi_fetcher, expected, caplog):
 
     dropped = (
         "Dropping translations for source='humans' returned by the rank-2 fetcher "
-        "MemoryFetcher(sources=['animals', 'humans', 'big_table', 'huge_table'])"
+        "MemoryFetcher(sources=['animals', 'humans', 'big_table', 'huge_table']"
     )
 
     for record in caplog.records:
@@ -284,7 +284,7 @@ def test_init_logging(multi_fetcher, caplog):
     multi_fetcher.initialize_sources(id(test_init_logging))
 
     def discard_empty_optional(message: str, level: int) -> bool:
-        if message.startswith("Discarding optional rank-1 fetcher MemoryFetcher(sources=<no sources>)"):
+        if message.startswith("Discarding optional rank-1 fetcher MemoryFetcher(sources=<no sources>"):
             assert level == logging.DEBUG, "optional => DEBUG"
             assert message.endswith(": No sources.")
             return True
@@ -302,7 +302,7 @@ def test_init_logging(multi_fetcher, caplog):
     def optional_source_outranked(message: str, level: int) -> bool:
         if message.startswith("Discarded source='humans' retrieved from rank-2 fetcher MemoryFetcher"):
             assert level == logging.DEBUG, "optional => DEBUG"
-            assert "since the rank-0 fetcher MemoryFetcher(sources=['humans'])" in message
+            assert "since the rank-0 fetcher MemoryFetcher(sources=['humans']" in message
             assert "already claimed same source." in message
             return True
 

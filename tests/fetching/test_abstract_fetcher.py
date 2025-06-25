@@ -2,7 +2,6 @@ import re
 from copy import deepcopy
 from pathlib import Path
 
-import pandas as pd
 import pytest
 
 from id_translation.fetching import AbstractFetcher, CacheAccess, MemoryFetcher, exceptions
@@ -69,7 +68,7 @@ class TestCache:
 
     def test_no_access(self):
         with pytest.raises(CacheAccessNotAvailableError, match="documentation/examples/caching/caching.html"):
-            _ = MemoryFetcher().cache_access
+            _ = MemoryFetcher({}).cache_access
 
     def test_clone(self, windows_hack_temp_dir):
         original = CachingFetcher(windows_hack_temp_dir)
@@ -87,10 +86,8 @@ class TestCache:
 
     @staticmethod
     def _run(fetcher: "CachingFetcher") -> None:
-        from id_translation.offline.types import PlaceholderTranslations
-
         ids_to_fetch = [IdsToFetch("people", {1999})]
-        expected = {"people": PlaceholderTranslations("people", ("id", "name"), [[1999, "Sofia"]], 0)}
+        expected = {"people": PlaceholderTranslations("people", ("id", "name"), ((1999, "Sofia"),), 0)}
 
         calls = fetcher.calls
 
@@ -121,32 +118,23 @@ class StoreFetchAllCacheAccess(CacheAccess[str, int]):
         super().__init__()
         self._root = root
         self._calls = calls
+        self._cache: PlaceholderTranslations[str] | None = None
 
     def reset(self) -> None:
-        self._path("people").unlink()
-
-    def _path(self, source: str) -> Path:
-        assert source == "people"
-        return self._root / f"{source}.ftr"
+        self._cache = None
 
     def store(self, instr: FetchInstruction[str, int], translations: PlaceholderTranslations[str]) -> None:
+        assert instr.source == "people"
         if instr.ids is not None:
             return
 
         self._calls["store"] += 1
-        df = pd.DataFrame.from_dict(translations.to_dict())
-        path = self._path(translations.source)
-        df.to_feather(path)
+        self._cache = translations
 
     def load(self, instr: FetchInstruction[str, int]) -> PlaceholderTranslations[str] | None:
+        assert instr.source == "people"
         self._calls["load"] += 1
-        path = self._path(instr.source)
-
-        if not path.is_file():
-            return None
-
-        df = pd.read_feather(path)
-        return PlaceholderTranslations.from_dataframe(instr.source, df)
+        return self._cache
 
 
 class CachingFetcher(MemoryFetcher[str, int]):

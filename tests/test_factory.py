@@ -61,6 +61,7 @@ class TestEnvVars:
         fetcher = """
         [fetching.MemoryFetcher]
         return_all = ${VAR_NAME:true}
+        data = {}
         """
         fetcher_path = tmp_path / "fetcher.toml"
         fetcher_path.write_text(fetcher, encoding="utf-8")
@@ -206,6 +207,7 @@ class TestOptionalFetchers:
         toml = f"""
         [fetching."{clazz}"]
         optional = true
+        data = {{}}
         """
         self.run(caplog, tmp_path, toml, expected_error)
 
@@ -213,6 +215,7 @@ class TestOptionalFetchers:
         toml = f"""
         [fetching."{clazz}"]
         optional = true
+        data = {{}}
         """
 
         with pytest.raises(ConfigurationError) as exc_info:

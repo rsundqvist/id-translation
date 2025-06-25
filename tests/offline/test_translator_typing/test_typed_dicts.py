@@ -30,7 +30,7 @@ def test_map_scores():
     translator.map_scores(**params)
 
     def call(**kwargs: Unpack[tt.MapParams[str, bool, int | UUID]]) -> None:
-        assert translator.map_scores(**kwargs).to_dict() == {
+        assert translator.map_scores(**kwargs).to_pandas().to_dict() == {
             False: {"people": -inf, "places": inf},
             True: {"people": inf, "places": -inf},
         }

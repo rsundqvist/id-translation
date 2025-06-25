@@ -719,7 +719,7 @@ def test_go_offline_args(translator):
 
 
 def test_map_scores(translator):
-    actual = translator.map_scores({"p": 0, "positive_numbers": 1, "foo": 0}).to_numpy().tolist()
+    actual = translator.map_scores({"p": 0, "positive_numbers": 1, "foo": 0}).to_pandas().to_numpy().tolist()
     inf = float("inf")
     assert actual == [[inf, -inf], [inf, -inf], [0.0, 0.0]]
 

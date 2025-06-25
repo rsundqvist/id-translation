@@ -15,12 +15,7 @@ def test_unfiltered(data):
 
 def test_filtered(data):
     actual = fetch_translations(data, return_all=False)
-    assert actual == PlaceholderTranslations(
-        source="humans",
-        placeholders=("name",),
-        records=[["Sofia"]],
-        id_pos=-1,
-    )
+    assert actual == PlaceholderTranslations(source="humans", placeholders=("name",), records=(("Sofia",),), id_pos=-1)
 
 
 def fetch_translations(data, return_all):
