@@ -137,7 +137,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         self,
         fetcher: FetcherTypes[NameType, SourceType, IdType] | None = None,
         fmt: FormatType = Format.DEFAULT,
-        mapper: Mapper[NameType, SourceType, None] = None,
+        mapper: Mapper[NameType, SourceType, None] | None = None,
         default_fmt: FormatType = Format.DEFAULT_FAILED,
         default_fmt_placeholders: MakeType[SourceType, str, Any] | None = None,
         enable_uuid_heuristics: bool = False,
@@ -1220,7 +1220,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
     def _fetch(
         self,
         ids_or_sources: list[IdsToFetch[SourceType, IdType]] | set[SourceType] | None,
-        fmt: Format = None,
+        fmt: Format | None = None,
         task_id: int | None = None,
     ) -> SourcePlaceholderTranslations[SourceType]:
         fmt = fmt or self._fmt
@@ -1255,7 +1255,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
     def _to_translation_map(
         self,
         source_translations: SourcePlaceholderTranslations[SourceType],
-        fmt: Format = None,
+        fmt: Format | None = None,
     ) -> TranslationMap[NameType, SourceType, IdType]:
         return TranslationMap(
             source_translations,

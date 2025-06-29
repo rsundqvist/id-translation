@@ -65,7 +65,7 @@ class FormatApplier(Generic[NameType, SourceType, IdType]):
         self,
         translations: PlaceholderTranslations[SourceType],
         *,
-        transformer: Transformer[IdType] = None,
+        transformer: Transformer[IdType] | None = None,
     ) -> None:
         self._translations = translations
         self._source = translations.source

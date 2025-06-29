@@ -78,7 +78,7 @@ class TranslationMap(
         """
         return {applier.source: applier.to_pandas() for applier in self._format_appliers.values()}
 
-    def to_translations(self, fmt: FormatType = None) -> dict[SourceType, MagicDict[IdType]]:
+    def to_translations(self, fmt: FormatType | None = None) -> dict[SourceType, MagicDict[IdType]]:
         """Create translations for all sources.
 
         Returned values are of type :class:`.MagicDict`. To convert to regular built-in dicts, run

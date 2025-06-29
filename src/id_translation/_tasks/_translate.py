@@ -35,7 +35,7 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
         fmt: Format,
         names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
         *,
-        ignore_names: Names[NameType] = None,
+        ignore_names: Names[NameType] | None = None,
         override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
         copy: bool = True,
         max_fails: float = 1.0,

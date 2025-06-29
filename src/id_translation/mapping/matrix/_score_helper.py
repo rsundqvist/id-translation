@@ -156,7 +156,8 @@ class ScoreHelper(Generic[ValueType, CandidateType]):
         )
 
     def _match(
-        self, cardinality: Cardinality = None
+        self,
+        cardinality: Cardinality | None = None,
     ) -> tuple[list[Record[ValueType, CandidateType]], list[Reject[ValueType, CandidateType]]]:
         rejections: list[Reject[ValueType, CandidateType]] | None = None
         records: list[Record[ValueType, CandidateType]] = self.above()
