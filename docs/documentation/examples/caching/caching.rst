@@ -34,7 +34,7 @@ We can now start implementing the abstract methods in :class:`.CacheAccess`. We'
 **Requirement 1**: If :attr:`.FetchInstruction.fetch_all` is ``False``, data should not be stored.
 
 Otherwise, we use source as the file name and we convert the translations to a :class:`~.pandas.DataFrame` using
-:meth:`.PlaceholderTranslations.to_dataframe`. **Requirement 2**: The frame is witten to disk using
+:meth:`.PlaceholderTranslations.to_pandas`. **Requirement 2**: The frame is witten to disk using
 :meth:`pandas.DataFrame.to_feather`.
 
 We're now ready to implement :meth:`.CacheAccess.load`, which will read, verify, and convert the stored data.

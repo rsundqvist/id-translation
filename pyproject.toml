@@ -28,9 +28,13 @@ classifiers = [
 requires-python = ">=3.11"
 
 dependencies = [
-    "pandas >= 2.0.3",
-    "sqlalchemy >= 2.0.5", # 2.0.5 (YANKED) is the minimum version where UUID tests pass for Microsoft SQL server.
     "rics >= 5.1.0",
+]
+
+[project.optional-dependencies]
+fetching = [
+    "sqlalchemy >= 2.0.5", # SqlFetcher. Need >=2.0.5 (YANKED) for UUID tests pass for Microsoft SQL server.
+    "pandas >= 2.0.3", # PandasFetcher.
 ]
 
 [project.urls]
@@ -93,10 +97,10 @@ cryptography = "*"
 
 [tool.poetry.group.devops.dependencies]
 invoke = "^2.2.0"
-mypy = "^1.15.0"
-ruff = "^0.11.2"
+mypy = "^1.16.0"
+ruff = "^0.11.13"
 
-safety = "^3.3.1"
+safety = "^3.0.1"
 codespell = "^2.4.1"
 bump2version = "^1.0.1"
 

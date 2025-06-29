@@ -337,8 +337,14 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
     def __str__(self) -> str:
         disconnected = "<disconnected>: " if not self.online else ""
 
-        kwargs = {"schema": self._schema, "blacklist": self._blacklist, "whitelist": self._whitelist}
-        kwargs = {k: v for k, v in kwargs.items() if v}
+        kwargs: dict[str, Any] = {}
+        if self._schema:
+            kwargs["schema"] = self._schema
+        if self._whitelist:
+            kwargs["whitelist"] = self._whitelist
+        elif self._table_summaries:
+            kwargs["sources"] = [*self._table_summaries]
+
         return f"{tname(self)}({disconnected}{self._estr}{', ' + format_kwargs(kwargs) if kwargs else ''})"
 
     @property

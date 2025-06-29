@@ -12,6 +12,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   [document](https://id-translation.readthedocs.io/en/latest/documentation/translation-io.html#selection-process)
   the IO resolution procedure.
 - The `id_translation.dio.default` module (exposes built-in `DataStructureIO` impls).
+- The `mapping.matrix.ScoreMatrix` class.
+  * Pure Python implementation.
+  * Replaces `score: pd.DataFrame` in the API; e.g. `Translator.map_scores()` return type.
+  * Convert using `ScoreMatrix.to_pandas()`.
+
+### Changed
+- Both `pandas` and `SQLAlchemy` are now optional dependencies.
+  * The `PandasFetcher` and `SqlFetcher` classes will raise if dependencies are missing
+  * Moved `dio.default.PandasIO` to `dio.integration.pandas`.
+- The `MemoryFetcher` and `PlaceholderTranslations` classes now prefer `tuple` to `list`.
 
 ### Removed
 - The `dio.register_io(sort)` parameter (now always done).

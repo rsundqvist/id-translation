@@ -19,10 +19,11 @@ snippet below shows how the :mod:`bundled <.integration>` integrations are regis
 
 .. code-block:: toml
    :caption: Entrypoints in ``pyproject.toml`` in the
-        https://github.com/rsundqvist/id-translation/blob/v0.14.0/pyproject.toml#L45-L48 project.
+        https://github.com/rsundqvist/id-translation/blob/v0.15.0/pyproject.toml#L50-L54 project.
 
    [project.entry-points."id_translation.dio"]
-   # The name (e.g. 'dask_io') is not important, but should be unique.
+   # The name (e.g. 'pandas_io') is not important, but should be unique.
+   pandas_io = "id_translation.dio.integration.pandas:PandasIO"
    dask_io = "id_translation.dio.integration.dask:DaskIO"
    polars_io = "id_translation.dio.integration.polars:PolarsIO"
 

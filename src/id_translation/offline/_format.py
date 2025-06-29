@@ -37,7 +37,7 @@ class Format:
         >>> Format(Format.DEFAULT).fstring().format(id=1, name="First")
         '1:First'
 
-        Using :meth:`Format.fstring` and :py:meth:`str.format` is flexible but verbose. Formats can be applier either
+        Using :meth:`Format.fstring` and :py:meth:`str.format` is flexible but verbose. Formats can be applied either
         through :meth:`Format.format`...
 
         >>> fmt = Format(Format.DEFAULT_FAILED)

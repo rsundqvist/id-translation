@@ -18,7 +18,9 @@ from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
-from id_translation.fetching.types import FetchInstruction, CacheAccess
+
+from id_translation.fetching import CacheAccess
+from id_translation.fetching.types import FetchInstruction
 from id_translation.offline.types import PlaceholderTranslations
 from id_translation.types import IdType, SourceType
 
@@ -27,6 +29,7 @@ class MyCacheAccess(CacheAccess[SourceType, IdType]):
     """Example caching implementation."""
 
     def __init__(self, root: str, ttl: int) -> None:
+        super().__init__()
         self._root = Path(root)
         self._ttl = ttl  # In seconds
 
@@ -38,11 +41,13 @@ class MyCacheAccess(CacheAccess[SourceType, IdType]):
         translations: PlaceholderTranslations[SourceType],
     ) -> None:
         if not instr.fetch_all:
-            print(f"Refuse caching of source={instr.source!r} "
-                  "since FetchInstruction.fetch_all=False.")
+            print(
+                f"Refuse caching of source={instr.source!r}"
+                " since FetchInstruction.fetch_all=False."
+            )
             return
 
-        df = translations.to_dataframe()
+        df = translations.to_pandas()
         path = self._root / f"{translations.source}.ftr"
         print(f"Store cache at path='{path}'.")
         df.to_feather(path)
@@ -104,8 +109,6 @@ print("person=", translator.translate(1904, "people"))
 print("person=", create().translate(1904, "people"))
 
 # ==================================================================================================================== #
-
-
 import os
 
 os.remove("cache/people.ftr")
