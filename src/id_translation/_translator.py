@@ -27,6 +27,7 @@ from .fetching import Fetcher
 from .fetching.types import IdsToFetch
 from .mapping import Mapper
 from .mapping.exceptions import MappingError
+from .mapping.matrix import ScoreMatrix
 from .mapping.types import UserOverrideFunction
 from .offline import Format, TranslationMap
 from .offline.types import (
@@ -800,7 +801,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         *,
         ignore_names: Names[NameType] | None = None,
         override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
-    ) -> "pandas.DataFrame":
+    ) -> ScoreMatrix[NameType, SourceType]:
         """Returns raw match scores for name-to-source mapping. See :meth:`map` for details."""
         return MappingTask(
             self,

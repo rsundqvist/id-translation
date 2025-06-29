@@ -3,8 +3,7 @@ import warnings
 from time import perf_counter
 from typing import TYPE_CHECKING
 
-import pandas as pd
-
+from ..mapping.matrix import ScoreMatrix
 from ..mapping.types import UserOverrideFunction
 from ._names import NamesTask
 
@@ -141,7 +140,7 @@ class MappingTask(NamesTask[NameType, SourceType, IdType]):
         self.add_timing("map", execution_time)
         return name_to_source
 
-    def compute_scores(self) -> pd.DataFrame:
+    def compute_scores(self) -> ScoreMatrix[NameType, SourceType]:
         """Compute name-to-source match scores."""
         return self.caller.mapper.compute_scores(
             self.mapper_input_names,

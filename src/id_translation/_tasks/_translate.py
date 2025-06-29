@@ -5,7 +5,6 @@ from collections.abc import Iterable, Sequence
 from time import perf_counter
 from typing import TYPE_CHECKING, Any, get_args
 
-from numpy import isnan, unique
 from rics.misc import tname
 from rics.strings import format_seconds as fmt_sec
 
@@ -103,7 +102,7 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
                     num_coerced += n_new  # Somewhat inaccurate; includes repeat IDs from other names
                     float_names.append(name)
                     was_coerced = True
-                except TypeError:
+                except (TypeError, ImportError):
                     pass
 
             if not was_coerced and self.enable_uuid_heuristics:
@@ -127,6 +126,8 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
 
     @classmethod
     def _coerce_float_to_int(cls, ids: Sequence[float]) -> tuple[Iterable[int], int]:
+        from numpy import isnan, unique
+
         arr = unique(ids)
         keep_mask = ~isnan(arr, casting="no")
         arr = arr[keep_mask]
