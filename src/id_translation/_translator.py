@@ -2,6 +2,7 @@ import logging
 import warnings
 from collections.abc import Iterable
 from copy import deepcopy
+from datetime import timedelta
 from time import perf_counter
 from typing import (
     TYPE_CHECKING,
@@ -873,7 +874,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         cache_dir: AnyPath,
         config_path: AnyPath,
         extra_fetchers: Iterable[AnyPath] = (),
-        max_age: meta.BaseMetadata.MaxAge = "12h",
+        max_age: str | timedelta | None = "12h",
         on_config_changed: Literal["raise", "recreate"] = "recreate",
     ) -> Self:
         """Load or create a persistent :attr:`~.Fetcher.fetch_all`-instance.

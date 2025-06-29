@@ -4,8 +4,6 @@ from collections.abc import Collection as _Collection
 from collections.abc import Iterable as _Iterable
 from typing import Any as _Any
 
-import pandas as pd
-
 from .fetching import Fetcher as _Fetcher
 from .fetching.types import IdsToFetch as _IdsToFetch
 from .mapping import DirectionalMapping as _DirectionalMapping
@@ -17,7 +15,7 @@ from .offline.types import (
 from .offline.types import (
     SourcePlaceholderTranslations as _SourcePlaceholderTranslations,
 )
-from .types import IdType, SourceType
+from .types import ID, IdType, SourceType
 
 
 class TestMapper(_Mapper[ValueType, ValueType, ContextType]):
@@ -90,10 +88,10 @@ class TestFetcher(_Fetcher[SourceType, IdType]):
         if itf.ids is None:
             raise NotImplementedError
 
-        ids = list(itf.ids)
-        df = pd.DataFrame([[f"{p}-of-{idx}" for p in placeholders] for idx in ids], columns=placeholders)
-        df["id"] = ids
-        return _PlaceholderTranslations.make(itf.source, df)
+        ids = [*itf.ids]
+        data: dict[str, list[str] | list[IdType]] = {p: [f"{p}-of-{idx}" for idx in ids] for p in placeholders}
+        data[ID] = ids
+        return _PlaceholderTranslations.from_dict(itf.source, data=data)
 
     def fetch_all(
         self,

@@ -4,9 +4,8 @@ from collections.abc import Iterable
 from datetime import UTC, datetime, timedelta
 from importlib.metadata import version as get_version
 from pathlib import Path
-from typing import Any, Literal, Self, TypeAlias
+from typing import Any, Literal, Self
 
-import pandas
 from rics.strings import format_seconds as fmt_sec
 
 from id_translation.translator_typing import CacheMissReasonType
@@ -19,8 +18,6 @@ class BaseMetadata(ABC):
         versions: Versions, e.g. ``{'python': '3.11.11'`, 'your-package': '1.0.0'}``.
         created: The time at which the metadata was originally created.
     """
-
-    MaxAge: TypeAlias = str | pandas.Timedelta | timedelta | None
 
     def __init__(
         self,
@@ -95,7 +92,7 @@ class BaseMetadata(ABC):
     def use_cached(
         self,
         metadata_path: Path,
-        max_age: MaxAge,
+        max_age: str | timedelta | None,
     ) -> tuple[Literal[True], str, None] | tuple[Literal[False], str, CacheMissReasonType]:
         """Check status of stored metadata config based a desired configuration ``self``.
 
@@ -117,8 +114,11 @@ class BaseMetadata(ABC):
 
         if max_age is None:
             return True, "does not expire", None
+        elif isinstance(max_age, str):
+            delta = self._delta_from_string(max_age)
+        else:
+            delta = max_age
 
-        delta = pandas.Timedelta(max_age)
         expires_at = (stored_config.created + abs(delta)).replace(microsecond=0)
         offset = fmt_sec(round(abs(datetime.now(UTC) - expires_at).total_seconds()))
 
@@ -128,8 +128,43 @@ class BaseMetadata(ABC):
             return True, f"expires at {expires_at.isoformat()} (in {offset})", None
 
     @classmethod
+    def _delta_from_string(cls, max_age: str) -> timedelta:
+        try:
+            import pandas
+
+            return pandas.Timedelta(max_age).to_pytimedelta()  # type: ignore[no-any-return]
+        except ImportError:
+            pass
+
+        unit = ""
+        for c in max_age:
+            if c.isalpha():
+                unit = c
+                break
+
+        if not unit:
+            msg = f"bad {max_age=}"
+            raise ValueError(msg)
+
+        unit_multiplier: int
+        match unit.lower():
+            case "s":
+                unit_multiplier = 1
+            case "m":
+                unit_multiplier = 60
+            case "h":
+                unit_multiplier = 60 * 60
+            case "d":
+                unit_multiplier = 60 * 60 * 24
+            case _:
+                raise ValueError(f"bad {max_age=}")
+
+        n_units = int(max_age[: max_age.index(unit)])
+        return timedelta(seconds=n_units * unit_multiplier)
+
+    @classmethod
     def get_package_versions(cls, extra_packages: Iterable[str]) -> dict[str, str]:
         """Extract package versions using ``importlib.metadata``."""
         assert not isinstance(extra_packages, str)  # noqa: S101
-        packages = ["rics", "id-translation", "sqlalchemy", "pandas", *extra_packages]
+        packages = ["id-translation", *extra_packages]
         return {package: get_version(package) for package in packages}

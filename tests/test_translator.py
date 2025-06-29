@@ -162,7 +162,7 @@ def test_from_config():
 
     assert sorted(actual.to_dict()) == ["class", "created", "extra_fetchers", "main", "metaconf", "versions"]
     assert actual.clazz == "tests.test_translator.UnitTestTranslator"
-    assert sorted(actual.versions) == ["id-translation", "pandas", "python", "rics", "sqlalchemy"]
+    assert sorted(actual.versions) == ["id-translation", "python"]
     assert actual.metaconf.equivalence.extra_packages == []
 
     reason_not_equivalent = actual.is_equivalent(actual)
