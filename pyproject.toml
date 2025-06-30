@@ -86,7 +86,7 @@ s3fs = { version = "^2025.3.0", platform = "linux" }
 
 # db drivers and related dependencies
 pg8000 = "^1.31.2"
-pymssql = "==2.3.2"  # TODO(2025-05-31): 2.3.3 and above fails to install on Windows runners
+pymssql = "==2.3.6"  # TODO(2025-05-31): 2.3.3 and above fails to install on Windows runners
 pymysql = "^1.1.1"
 cryptography = "*"
 
