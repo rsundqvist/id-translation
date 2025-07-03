@@ -157,12 +157,14 @@ class CachingFetcher(MemoryFetcher[str, int]):
 class TestBadImplementation:
     def test_initialize_sources(self):
         fetcher = BadFetcher()
-        with pytest.raises(RuntimeError, match=r"Call to BadFetcher._initialize_sources\(\) failed."):
+        match = r"Call to .*test_abstract_fetcher\.BadFetcher.initialize_sources\(\) failed."
+        with pytest.raises(RuntimeError, match=match):
             fetcher.initialize_sources()
 
     def test_fetch(self):
         fetcher = BadFetcher()
-        with pytest.raises(RuntimeError, match=r"Call to BadFetcher._initialize_sources\(\) failed."):
+        match = r"Call to .*test_abstract_fetcher\.BadFetcher.initialize_sources\(\) failed."
+        with pytest.raises(RuntimeError, match=match):
             fetcher.fetch([IdsToFetch("source", {1})])
 
     def test_id_column(self):

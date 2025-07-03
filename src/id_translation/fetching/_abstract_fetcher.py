@@ -8,16 +8,14 @@ from time import perf_counter
 from typing import Any, Self, final
 
 from rics.collections.dicts import InheritedKeysDict, reverse_dict
-from rics.misc import tname
 from rics.strings import format_seconds as fmt_sec
 
-from .._tasks import generate_task_id
+from .. import logging as _logging
 from ..exceptions import ConnectionStatusError
 from ..mapping import HeuristicScore, Mapper
 from ..mapping.exceptions import MappingWarning
 from ..mapping.score_functions import modified_hamming
 from ..offline.types import PlaceholdersTuple, PlaceholderTranslations, SourcePlaceholderTranslations
-from ..settings import logging as settings
 from ..types import ID, IdType, SourceType
 from . import exceptions
 from ._cache_access import CacheAccess
@@ -64,22 +62,14 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         self._allow_fetch_all: bool = allow_fetch_all
         self._selective_fetch_all = selective_fetch_all
 
-        logger = logging.getLogger(__package__)
-        mapper_logger = logging.getLogger("id_translation.mapping.placeholders")
-        if identifiers is None:
-            identifiers = ()
-        else:
-            identifiers = (*identifiers,)
-            adder = _ExtrasAdder(config_file=identifiers[0])
-            key0 = identifiers[0].replace(".", "-")
-            logger = logger.getChild(key0)
-            mapper_logger = mapper_logger.getChild(key0)
-            logger.addFilter(adder)
-            mapper_logger.addFilter(adder)
-        self._optional = optional
-        self._identifiers: tuple[str, ...] = identifiers
+        identifiers = () if identifiers is None else (*identifiers,)
+        logger, mapper_logger = self._configure_loggers(identifiers)
         self.logger = logger
         self._mapper.logger = mapper_logger
+
+        self._identifiers: tuple[str, ...] = identifiers
+        self._optional = optional
+
         self._placeholders: dict[SourceType, list[str]] | None = None
 
         if cache_access is None:
@@ -88,13 +78,40 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
             cache_access.set_parent(self)
         self._cache_access = cache_access
 
-    @final
-    def initialize_sources(self, task_id: int = -1, *, force: bool = False) -> None:
-        if self._placeholders is None or force:
-            self._placeholders = self._initialize_sources(task_id)
-            if self._placeholders is None:
-                msg = f"Call to {self._initialize_sources.__qualname__}() failed."
-                raise RuntimeError(msg)
+    @final  # Prevent accidental overriding
+    def initialize_sources(self, task_id: int | None = None, *, force: bool = False) -> None:
+        if not (self._placeholders is None or force):
+            return
+
+        start = perf_counter()
+        if task_id is None:
+            task_id = _logging.generate_task_id(start)
+
+        logger = self.logger
+        if _logging.ENABLE_VERBOSE_LOGGING and logger.isEnabledFor(logging.DEBUG):
+            logger.debug(
+                f"Begin initialization of '{self._cls_name()}' at {hex(id(self))}.",
+                extra=dict(
+                    task_id=task_id,
+                    event_key=_logging.get_event_key(self.initialize_sources, "enter"),
+                ),
+            )
+
+        self._placeholders = self._initialize_sources(task_id)
+        if self._placeholders is None:
+            msg = f"Call to {self._cls_name()}.{self.initialize_sources.__name__}() failed."
+            raise RuntimeError(msg)
+
+        if logger.isEnabledFor(logging.INFO):
+            seconds = perf_counter() - start
+            logger.info(
+                f"Finished initialization of '{self._cls_name()}' in {fmt_sec(seconds)}: {self}",
+                extra=dict(
+                    task_id=task_id,
+                    event_key=_logging.get_event_key(self.initialize_sources, "exit"),
+                    seconds=seconds,
+                ),
+            )
 
     @abstractmethod
     def _initialize_sources(self, task_id: int) -> dict[SourceType, list[str]]:
@@ -169,18 +186,14 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         candidates = set(candidates)
         placeholders = set(placeholders)
 
-        log_level = settings.MAP_PLACEHOLDERS
-        if self.logger.isEnabledFor(log_level.enter):
-            event_key = f"{self.__class__.__name__.upper()}.MAP_PLACEHOLDERS"
-            self.logger.log(
-                log_level.enter,
-                f"Begin wanted-to-actual placeholder mapping of {placeholders=} to actual placeholders={candidates}"
-                f" for {source=}.",
+        logger = self.logger
+        emit_key_event = self._placeholders or (_logging.ENABLE_VERBOSE_LOGGING and logger.isEnabledFor(logging.DEBUG))
+        if emit_key_event:
+            logger.debug(
+                f"Begin mapping of wanted {placeholders=} to actual placeholders={candidates} for {source=}.",
                 extra=dict(
                     task_id=task_id,
-                    event_key=event_key,
-                    event_stage="ENTER",
-                    event_title=f"{event_key}.ENTER",
+                    event_key=_logging.get_event_key(self.map_placeholders, "enter"),
                     values=list(placeholders),
                     candidates=list(candidates),
                     context=source,
@@ -193,19 +206,15 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         for not_mapped in placeholders.difference(ans):
             ans[not_mapped] = None
 
-        if self.logger.isEnabledFor(log_level.exit):
-            execution_time = perf_counter() - start
-            self.logger.log(
-                log_level.exit,
-                f"Finished wanted-to-actual placeholder mapping of {placeholders=} to actual placeholders={candidates}"
-                f" for {source=}: {dm.left_to_right}.",
+        if emit_key_event:
+            seconds = perf_counter() - start
+            logger.debug(
+                f"Finished placeholder mapping for {source=}: {ans}.",
                 extra=dict(
                     task_id=task_id,
-                    event_key=event_key,
-                    event_stage="EXIT",
-                    event_title=f"{event_key}.EXIT",
-                    execution_time=execution_time,
-                    mapping=dm.left_to_right,
+                    event_key=_logging.get_event_key(self.map_placeholders, "exit"),
+                    seconds=seconds,
+                    mapping=ans,
                     context=source,
                 ),
             )
@@ -280,20 +289,63 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         task_id: int | None = None,
         enable_uuid_heuristics: bool = False,
     ) -> SourcePlaceholderTranslations[SourceType]:
+        start = perf_counter()
         if task_id is None:
-            task_id = generate_task_id()
+            task_id = _logging.generate_task_id(start)
 
-        return {
+        placeholders = tuple(placeholders)
+        required_placeholders = set(required)
+        ids_to_fetch = tuple(ids_to_fetch)
+
+        logger = self.logger
+        if logger.isEnabledFor(logging.DEBUG):
+            num_ids = {itf.source: len(itf.ids) for itf in ids_to_fetch}
+            logger.debug(
+                f"Begin fetching {placeholders=} for {len(num_ids)} sources: {num_ids}.",
+                extra=dict(
+                    task_id=task_id,
+                    event_key=_logging.get_event_key(self.fetch, "enter"),
+                    placeholders=placeholders,
+                    required_placeholders=tuple(required_placeholders),
+                    num_ids=num_ids,
+                    fetch_all=False,
+                ),
+            )
+
+        rv = {
             itf.source: self._fetch_translations(
                 itf.source,
-                tuple(placeholders),
-                required_placeholders=set(required),
+                placeholders,
+                required_placeholders=required_placeholders,
                 ids=itf.ids,
                 task_id=task_id,
                 enable_uuid_heuristics=enable_uuid_heuristics,
             )
             for itf in ids_to_fetch
         }
+
+        if logger.isEnabledFor(logging.INFO):
+            seconds = perf_counter() - start
+
+            num_ids = {itf.source: len(itf.ids) for itf in ids_to_fetch}
+            placeholders_returned = {source: len(pht.placeholders) for source, pht in rv.items()}
+            pretty = self._format_fetch_result(rv, num_ids)
+
+            logger.info(
+                f"Finished fetching from {len(rv)} sources in {fmt_sec(seconds)}: {pretty}.",
+                extra=dict(
+                    task_id=task_id,
+                    event_key=_logging.get_event_key(self.fetch, "exit"),
+                    seconds=seconds,
+                    sources=[*rv],
+                    placeholders_returned=placeholders_returned,
+                    num_ids=num_ids,
+                    num_ids_returned={source: len(pht.records) for source, pht in rv.items()},
+                    fetch_all=False,
+                ),
+            )
+
+        return rv
 
     def fetch_all(
         self,
@@ -304,20 +356,61 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         task_id: int | None = None,
         enable_uuid_heuristics: bool = False,
     ) -> SourcePlaceholderTranslations[SourceType]:
+        start = perf_counter()
+        if task_id is None:
+            task_id = _logging.generate_task_id()
+
         if not self._allow_fetch_all:
             raise exceptions.ForbiddenOperationError("FETCH_ALL", reason=f"not allowed by {self}.")
 
-        if task_id is None:
-            task_id = generate_task_id()
+        placeholders = tuple(placeholders)
+        required_placeholders = set(required)
+
+        logger = self.logger
+        if logger.isEnabledFor(logging.DEBUG):
+            wanted = self.sources if sources is None else list(sources)
+            logger.debug(
+                f"Begin fetching all IDs for {placeholders=} for {len(wanted)}/{len(self.sources)}: {wanted}.",
+                extra=dict(
+                    task_id=task_id,
+                    event_key=_logging.get_event_key(self.fetch_all, "enter"),
+                    placeholders=placeholders,
+                    required_placeholders=tuple(required_placeholders),
+                    wanted_sources=wanted,
+                    num_ids=None,
+                    fetch_all=True,
+                ),
+            )
 
         with self._fetch_all_mapping_context():
-            return self._fetch_all(
+            rv = self._fetch_all(
                 tuple(placeholders),
                 required_placeholders=set(required),
                 wanted_sources=sources,
                 task_id=task_id,
                 enable_uuid_heuristics=enable_uuid_heuristics,
             )
+
+        if logger.isEnabledFor(logging.INFO):
+            seconds = perf_counter() - start
+
+            pretty = self._format_fetch_result(rv, None)
+            logger.info(
+                f"Finished fetching all IDs from {len(self.sources) if sources is None else len(sources)}/"
+                f"{len(self.sources)} sources in {fmt_sec(seconds)}: {pretty}.",
+                extra=dict(
+                    task_id=task_id,
+                    event_key=_logging.get_event_key(self.fetch, "exit"),
+                    seconds=seconds,
+                    sources=[*rv],
+                    placeholders_returned={source: len(pht.placeholders) for source, pht in rv.items()},
+                    num_ids=None,
+                    num_ids_returned={source: len(pht.records) for source, pht in rv.items()},
+                    fetch_all=True,
+                ),
+            )
+
+        return rv
 
     def _fetch_all(
         self,
@@ -471,19 +564,14 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         source = instr.source
         placeholders = instr.placeholders
 
-        log_level = settings.FETCH_TRANSLATIONS
-        if self.logger.isEnabledFor(log_level.enter):
-            event_key = f"{self.__class__.__name__.upper()}.FETCH_TRANSLATIONS"
-            self.logger.log(
-                log_level.enter,
-                f"Begin fetching {placeholders=} from {source=} for {'all' if instr.ids is None else len(instr.ids)} IDs.",
+        logger = self.logger
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug(
+                f"Begin fetching {'all' if instr.ids is None else len(instr.ids)} IDs from {source=}. Placeholders: {placeholders}",
                 extra=dict(
-                    event_key=event_key,
-                    event_stage="ENTER",
-                    event_title=f"{event_key}.ENTER",
+                    event_key=_logging.get_event_key(self.fetch_translations, "enter"),
                     source=source,
                     placeholders=instr.placeholders,
-                    required_placeholders=list(instr.required),
                     num_ids=None if instr.ids is None else len(instr.ids),
                     fetch_all=instr.fetch_all,
                     task_id=instr.task_id,
@@ -492,22 +580,20 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
 
         translations = self.fetch_translations(instr)
 
-        if self.logger.isEnabledFor(log_level.exit):
-            execution_time = perf_counter() - start
-            self.logger.log(
-                log_level.exit,
-                f"Finished fetching placeholders={translations.placeholders} for {len(translations.records)} IDs "
-                f"from source '{translations.source}' in {fmt_sec(execution_time)}, using {self}.",
+        if logger.isEnabledFor(logging.DEBUG):
+            seconds = perf_counter() - start
+            logger.debug(
+                f"Finished fetching {len(translations.records)} IDs from source='{translations.source}'"
+                f" in {fmt_sec(seconds)}. Placeholders: {translations.placeholders}.",
                 extra=dict(
-                    event_key=event_key,
-                    event_stage="EXIT",
-                    event_title=f"{event_key}.EXIT",
-                    execution_time=execution_time,
+                    task_id=instr.task_id,
+                    event_key=_logging.get_event_key(self.fetch_translations, "exit"),
+                    seconds=seconds,
                     source=source,
                     placeholders=translations.placeholders,
-                    num_ids=len(translations.records),
+                    num_ids=None if instr.ids is None else len(instr.ids),
+                    num_ids_returned=len(translations.records),
                     fetch_all=instr.fetch_all,
-                    task_id=instr.task_id,
                 ),
             )
 
@@ -592,7 +678,12 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
                 return "<no sources>"
 
         sources = self.sources if self.sources else NoSources()
-        return f"{tname(self)}({sources=})"
+        return f"{type(self).__name__}({sources=})"
+
+    def _cls_name(self) -> str:
+        from rics.misc import tname
+
+        return tname(self, include_module=True).removeprefix(__package__ + ".")
 
     def __deepcopy__(self, memo: dict[int, Any] = {}) -> Self:  # noqa: B006
         cls = self.__class__
@@ -604,15 +695,56 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
 
         return result
 
+    @classmethod
+    def _configure_loggers(cls, identifiers: tuple[str, ...]) -> tuple[logging.Logger, logging.Logger]:
+        config_file: str | None = None
+        for identifier in identifiers:
+            if identifier.endswith(".toml"):
+                config_file = identifier
+                break
 
-class _ExtrasAdder(logging.Filter):
-    def __init__(self, **extras: Any) -> None:
+        adapter = _AbstractFetcherLogAdapter(cls.__module__ + "." + cls.__name__, config_file=config_file)
+
+        logger = logging.getLogger(__package__)
+        logger.addFilter(adapter)
+
+        mapper_logger = logger.getChild("map")
+        mapper_logger.addFilter(adapter)
+
+        return logger, mapper_logger
+
+    @classmethod
+    def _format_fetch_result(
+        cls,
+        source_translation: dict[SourceType, PlaceholderTranslations[SourceType]],
+        num_ids_requested: dict[SourceType, int] | None,
+    ) -> str:
+        def add_requested(source: SourceType) -> str:
+            if num_ids_requested is None:
+                return ""
+
+            return f"/{num_ids_requested[source]}"
+
+        return ", ".join(
+            f"[{source!r} x {pht.placeholders} x {len(pht.records)}{add_requested(source)} IDs]"
+            for source, pht in source_translation.items()
+        )
+
+
+class _AbstractFetcherLogAdapter(logging.Filter):
+    def __init__(
+        self,
+        cls: str,
+        *,
+        config_file: str | None,
+    ) -> None:
         super().__init__()
-        self.extras = extras
+        self.config_file = config_file
+        self.cls = cls
 
     def filter(self, record: logging.LogRecord) -> bool:
-        for name, value in self.extras.items():
-            setattr(record, name, value)
+        record.fetcher_config_file = self.config_file
+        record.fetcher_class = self.cls
         return True
 
 

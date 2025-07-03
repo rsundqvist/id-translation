@@ -33,7 +33,8 @@ def make_id(case: Any) -> str:
 
 
 @pytest.mark.parametrize("cardinality, run_params", CASES, ids=map(make_id, CASES))
-def test_hierarchy(cardinality, run_params):
+def test_hierarchy(cardinality, run_params, monkeypatch):
+    monkeypatch.setattr("id_translation.logging.ENABLE_VERBOSE_LOGGING", True)
     run(cardinality, *run_params)
 
 

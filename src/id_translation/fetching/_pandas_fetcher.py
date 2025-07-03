@@ -6,6 +6,7 @@ import pandas as pd
 from rics.misc import get_by_full_name, tname
 from rics.types import AnyPath
 
+from ..logging import generate_task_id
 from ..offline.types import PlaceholderTranslations
 from ..translator_typing import AbstractFetcherParams
 from ..types import IdType
@@ -71,7 +72,7 @@ class PandasFetcher(AbstractFetcher[str, IdType]):
         """Get the path for `source`."""
         return self._format_source(source)
 
-    def find_sources(self, task_id: int = -1) -> dict[str, str]:
+    def find_sources(self, task_id: int | None = None) -> dict[str, str]:
         """Resolve sources and their associated paths.
 
         Args:
@@ -88,6 +89,8 @@ class PandasFetcher(AbstractFetcher[str, IdType]):
         Returns:
             A dict ``{source: path}``.
         """
+        if task_id is None:
+            task_id = generate_task_id()
         pattern = self.format_source("*")
 
         try:

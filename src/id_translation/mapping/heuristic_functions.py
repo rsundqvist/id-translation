@@ -5,13 +5,11 @@ See Also:
 """
 
 import collections.abc as _abc
-import logging as _logging
+import logging
 import re as _re
 import typing as _t
 
-VERBOSE: bool = False
-LOGGER = _logging.getLogger(__package__).getChild("verbose").getChild("heuristic_functions")
-
+from .. import logging as _logging
 
 _NOUN_TRANSFORMER_CACHE: dict[str, _abc.Callable[[str], str]] = {}
 PluralToSingularArg = bool | dict[str, str] | _abc.Callable[[str], str] | str
@@ -196,19 +194,23 @@ def short_circuit(
         Short-circuiting will only trigger if the `value_regex` matches, and the `target_candidate` is present.
     """
     candidates = set(candidates)
-    pattern = _re.compile(value_regex, flags=_re.IGNORECASE) if isinstance(value_regex, str) else value_regex
 
-    if target_candidate not in candidates:
-        LOGGER.getChild("short_circuit").debug(
-            f"Short-circuiting failed for {value=}: The {target_candidate=} is an input candidate."
-        )
-        return set()
+    if target_candidate in candidates:
+        pattern = _re.compile(value_regex, flags=_re.IGNORECASE) if isinstance(value_regex, str) else value_regex
+        if pattern.match(value):
+            return {target_candidate}
 
-    if not pattern.match(value):
-        LOGGER.getChild("short_circuit").debug(f"Short-circuiting failed for {value=}: Does not match {pattern=}.")
-        return set()
+    if _logging.ENABLE_VERBOSE_LOGGING:
+        logger = logging.getLogger(__name__).getChild(short_circuit.__name__)
 
-    return {target_candidate}
+        pattern = _re.compile(value_regex, flags=_re.IGNORECASE) if isinstance(value_regex, str) else value_regex
+        if logger.isEnabledFor(logging.DEBUG):
+            if target_candidate not in candidates:
+                logger.debug(f"Short-circuiting failed for {value=}: The {target_candidate=} is an input candidate.")
+            else:
+                logger.debug(f"Short-circuiting failed for {value=}: Does not match {pattern=}.")
+
+    return set()
 
 
 def force_lower_case(

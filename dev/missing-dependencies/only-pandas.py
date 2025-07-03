@@ -5,7 +5,7 @@ import pandas as pd
 from rics import configure_stuff
 
 from id_translation import Translator
-from id_translation.mapping.support import enable_verbose_debug_messages
+from id_translation.logging import enable_verbose_debug_messages
 
 assert find_spec("sqlalchemy") is None
 
@@ -24,4 +24,3 @@ df = pd.DataFrame([[1, 25509]], columns=["nconst", "title_basics"])
 with enable_verbose_debug_messages():
     result = translator.translate(df, max_fails=0)
 print(result)
-

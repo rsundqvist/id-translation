@@ -4,7 +4,7 @@ import os
 from rics import configure_stuff
 
 from id_translation import Translator
-from id_translation.mapping.support import enable_verbose_debug_messages
+from id_translation.logging import enable_verbose_debug_messages
 
 assert find_spec("pandas") is None
 assert find_spec("numpy") is None

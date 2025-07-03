@@ -107,5 +107,5 @@ class TestFetcher(_Fetcher[SourceType, IdType]):
     def __repr__(self) -> str:
         return f"TestFetcher(sources={self._sources or None!r})"
 
-    def initialize_sources(self, task_id: int = -1, *, force: bool = False) -> None:
+    def initialize_sources(self, task_id: int | None = None, *, force: bool = False) -> None:
         pass

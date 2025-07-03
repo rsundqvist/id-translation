@@ -8,7 +8,7 @@ Most functions and classes are thread safe. Notable exceptions are documented he
    * - Not thread safe
      - Comment
    * - :func:`.enable_verbose_debug_messages`
-     - This function modifies global state. Implicit when :attr:`.Mapper.verbose_logging` is set.
+     - This function modifies global state.
    * - :meth:`.AbstractFetcher.fetch_all`
      - When ``selective_fetch_all=True`` (default), a temporary :class:`.Mapper` instance may be used. All built-in
        fetchers (e.g. the :class:`.SqlFetcher`) inherit from this class.

@@ -4,7 +4,7 @@ from collections.abc import Iterable, Mapping
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from copy import deepcopy
 from time import perf_counter
-from typing import Any, Literal, Never, Self, final
+from typing import Any, Literal, Never, Self
 
 from rics.collections.dicts import reverse_dict
 from rics.logs import LogLevel, convert_log_level
@@ -12,9 +12,8 @@ from rics.misc import tname
 from rics.strings import format_seconds as fmt_sec
 from rics.types import LiteralHelper
 
-from .._tasks import generate_task_id
+from ..logging import generate_task_id, get_event_key
 from ..offline.types import SourcePlaceholderTranslations
-from ..settings import logging as settings
 from ..types import IdType, SourceType
 from . import AbstractFetcher, Fetcher, exceptions
 from .types import IdsToFetch, Operation
@@ -73,14 +72,14 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
     @property
     def children(self) -> list[Fetcher[SourceType, IdType]]:
         """Return child fetchers sorted by rank."""
-        self.initialize_sources(id(self))
+        self.initialize_sources()
         children = [*self._id_to_fetcher.values()]
         # children.sort(key=lambda fetcher: self._id_to_rank[id(fetcher)])
         return children
 
     def get_child(self, source: SourceType) -> Fetcher[SourceType, IdType]:
         """Return child fetcher for the given source."""
-        self.initialize_sources(hash(source))
+        self.initialize_sources()
 
         child_id = self._source_to_id[source]
         fetcher = self._id_to_fetcher[child_id]
@@ -90,10 +89,9 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         """Return sources for the given child."""
         if not isinstance(child, int):
             child = id(child)
-        self.initialize_sources(child)
+        self.initialize_sources()
         return [source for source, child_id in self._source_to_id.items() if child_id == child]
 
-    @final
     @property
     def placeholders(self) -> dict[SourceType, list[str]]:
         if self._placeholders is None:
@@ -102,7 +100,7 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
 
         return self._placeholders
 
-    def initialize_sources(self, task_id: int = -1, *, force: bool = False) -> None:
+    def initialize_sources(self, task_id: int | None = None, *, force: bool = False) -> None:
         """Perform source discovery.
 
         Perform source discovery for all :attr:`children`, discarding :attr:`optional <.Fetcher.optional>` children that
@@ -118,6 +116,10 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         """
         if not (self._placeholders is None or force):
             return
+
+        start = perf_counter()
+        if task_id is None:
+            task_id = generate_task_id()
 
         fid_to_placeholders = self._initialize_sources(task_id)
         self._source_to_id = self._make_source_to_id(fid_to_placeholders)
@@ -139,6 +141,14 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
 
         if not self._id_to_fetcher:
             warnings.warn("No fetchers. See log output for more information.", UserWarning, stacklevel=1)
+
+        if LOGGER.isEnabledFor(logging.DEBUG):
+            seconds = perf_counter() - start
+            LOGGER.debug(
+                f"Finished initialization {len(self._id_to_fetcher)} children and "
+                f"{len(self._source_to_id)} sources in {fmt_sec(seconds)}.",
+                extra=dict(task_id=task_id, seconds=seconds),
+            )
 
     def _initialize_sources(self, task_id: int) -> dict[int, dict[SourceType, list[str]]]:
         retval: dict[int, dict[SourceType, list[str]]] = {}
@@ -239,17 +249,12 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         n_sources_and_fetchers = f"{len(sources)} sources using {len(tasks)} different fetchers"
 
         start = perf_counter()
-        log_level = settings.MULTI_FETCH
-        if LOGGER.isEnabledFor(log_level.enter):
-            event_key = f"{self.__class__.__name__.upper()}.FETCH"
-            LOGGER.log(
-                log_level.enter,
+        if LOGGER.isEnabledFor(logging.DEBUG):
+            LOGGER.debug(
                 f"Dispatch FETCH jobs for {n_sources_and_fetchers} on {self.max_workers} threads.",
                 extra=dict(
                     task_id=task_id,
-                    event_key=event_key,
-                    event_stage="ENTER",
-                    event_title=f"{event_key}.ENTER",
+                    event_key=get_event_key(self.fetch, "enter"),
                     sources=sources,
                     placeholders=placeholders,
                     required_placeholders=required,
@@ -280,17 +285,14 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
             futures = [executor.submit(fetch, fid) for fid in tasks]
             ans = self._gather(futures, operation="FETCH")
 
-        if LOGGER.isEnabledFor(log_level.exit):
-            execution_time = perf_counter() - start
-            LOGGER.log(
-                log_level.exit,
-                f"Completed FETCH jobs for {n_sources_and_fetchers} in {fmt_sec(execution_time)}.",
+        if LOGGER.isEnabledFor(logging.DEBUG):
+            seconds = perf_counter() - start
+            LOGGER.debug(
+                f"Completed FETCH jobs for {n_sources_and_fetchers} in {fmt_sec(seconds)}.",
                 extra=dict(
                     task_id=task_id,
-                    event_key=event_key,
-                    event_stage="EXIT",
-                    event_title=f"{event_key}.EXIT",
-                    execution_time=execution_time,
+                    event_key=get_event_key(self.fetch, "exit"),
+                    seconds=seconds,
                     sources=len(ans),
                     max_workers=self.max_workers,
                     num_fetchers=len(tasks),
@@ -317,32 +319,22 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         required = tuple(required)
 
         start = perf_counter()
-        log_level = settings.MULTI_FETCH_ALL
-        event_key = f"{self.__class__.__name__.upper()}.FETCH_ALL"
-        if LOGGER.isEnabledFor(log_level.enter):
-            LOGGER.log(
-                log_level.enter,
+        if LOGGER.isEnabledFor(logging.DEBUG):
+            LOGGER.debug(
                 f"Dispatch FETCH_ALL jobs for {len(self.children)} fetchers on {self.max_workers} threads.",
                 extra=dict(
-                    event_key=event_key,
-                    event_stage="ENTER",
-                    event_title=f"{event_key}.ENTER",
+                    task_id=task_id,
+                    event_key=get_event_key(self.fetch_all, "enter"),
                     placeholders=placeholders,
                     required_placeholders=required,
                     sources=sources,
                     max_workers=self.max_workers,
                     num_fetchers=len(self.children),
                     fetch_all=True,
-                    task_id=task_id,
                 ),
             )
 
-        debug_logging_enabled = LOGGER.isEnabledFor(logging.DEBUG)
-
         def fetch_all(fetcher: Fetcher[SourceType, IdType]) -> FetchResult[SourceType]:
-            if debug_logging_enabled:
-                LOGGER.debug(f"Begin FETCH_ALL job using {self.format_child(fetcher)}.")
-
             result = fetcher.fetch_all(
                 placeholders,
                 required=required,
@@ -356,22 +348,19 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
             futures = [executor.submit(fetch_all, fetcher) for fetcher in children]
             ans = self._gather(futures, operation="FETCH_ALL")
 
-        if LOGGER.isEnabledFor(log_level.exit):
-            execution_time = perf_counter() - start
-            LOGGER.log(
-                log_level.exit,
+        if LOGGER.isEnabledFor(logging.DEBUG):
+            seconds = perf_counter() - start
+            LOGGER.debug(
                 f"Completed FETCH_ALL jobs for {len(ans)} sources using "
-                f"{len(self.children)} fetchers in {fmt_sec(execution_time)}.",
+                f"{len(self.children)} fetchers in {fmt_sec(seconds)}.",
                 extra=dict(
-                    event_key=event_key,
-                    event_stage="EXIT",
-                    event_title=f"{event_key}.EXIT",
-                    execution_time=execution_time,
+                    task_id=task_id,
+                    event_key=get_event_key(self.fetch_all, "exit"),
+                    seconds=seconds,
                     sources=list(ans),
                     max_workers=self.max_workers,
                     num_fetchers=len(self.children),
                     fetch_all=True,
-                    task_id=task_id,
                 ),
             )
         return ans

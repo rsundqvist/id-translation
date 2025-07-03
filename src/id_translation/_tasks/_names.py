@@ -14,7 +14,7 @@ from ..mapping.types import UserOverrideFunction
 from ..types import IdType, Names, NameToSource, NameType, NameTypes, SourceType, Translatable
 from ._base_task import BaseTask
 
-LOGGER = logging.getLogger("id_translation.Translator.names")
+LOGGER = logging.getLogger("id_translation.Translator")
 
 
 class NamesTask(BaseTask[NameType, SourceType, IdType]):
@@ -27,8 +27,9 @@ class NamesTask(BaseTask[NameType, SourceType, IdType]):
         names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
         ignore_names: Names[NameType] | None = None,
         override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
+        task_id: int | None = None,
     ) -> None:
-        super().__init__(caller, translatable)
+        super().__init__(caller, translatable, task_id=task_id)
 
         if not (names is None or ignore_names is None):
             raise ValueError(

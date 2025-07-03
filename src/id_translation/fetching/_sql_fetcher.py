@@ -14,6 +14,7 @@ from rics.strings import format_perf_counter as fmt_perf
 from sqlalchemy import BINARY, CHAR, TypeDecorator
 
 from .. import _uuid_utils
+from .. import logging as _logging
 from ..exceptions import ConnectionStatusError
 from ..offline.types import PlaceholderTranslations
 from ..translator_typing import AbstractFetcherParams
@@ -220,7 +221,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         logger_extra: dict[str, Any],
         query_length_limit: int = 512,
     ) -> None:
-        if not self.logger.isEnabledFor(logging.DEBUG):
+        if not (_logging.ENABLE_VERBOSE_LOGGING and self.logger.isEnabledFor(logging.DEBUG)):
             return
 
         try:
@@ -359,7 +360,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         if self._engine is None:
             return
 
-        self.logger.getChild("sql").debug("Dispose %s", self._estr)
+        self.logger.debug("Dispose %s.", self._estr)
         self._table_summaries = {}
         self._engine.dispose()
         self._engine = None
@@ -406,9 +407,9 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         start = perf_counter()
         metadata = self.get_metadata()
 
-        logger = self.logger.getChild("sql").getChild("discovery")
+        logger = self.logger
         if logger.isEnabledFor(logging.DEBUG):
-            logger.debug(f"{self._estr}: Metadata created in {fmt_perf(start)}.")
+            logger.debug(f"Metadata for {self._estr} created in {fmt_perf(start)}.")
 
         table_names = {t.name for t in metadata.tables.values()}
         tables: Collection[str]
@@ -418,35 +419,50 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
             tables = table_names.difference(self._blacklist) if self._blacklist else table_names
 
         if not tables:  # pragma: no cover
+            extra = ""
             if self._whitelist:
                 extra = f" (whitelist: {self._whitelist})"
             elif self._blacklist:
                 extra = f" (blacklist: {self._blacklist})"
-            else:
-                extra = ""
 
             logger.warning(f"{self._estr}: No sources found{extra}. Available tables: {table_names}")
             return {}
 
+        discarded = []
         ans = {}
         for name in tables:
             qualified_name = name if self._schema is None else f"{self._schema}.{name}"
             table = metadata.tables[qualified_name]
             id_column_name = self.id_column(table.name, candidates=(c.name for c in table.columns), task_id=task_id)
             if id_column_name is None or (id_column := table.columns.get(id_column_name)) is None:
-                self._handle_unknown_table(id_column_name, table, qualified_name)
+                reason = self._handle_unknown_table(id_column_name, table, qualified_name)
+                if reason:
+                    discarded.append((qualified_name, reason))
             else:
                 ans[str(name)] = self.make_table_summary(table, id_column)
 
+        if discarded and _logging.ENABLE_VERBOSE_LOGGING and self.logger.isEnabledFor(logging.DEBUG):
+            per_reason: dict[str, list[str]] = {}
+            for qualified_name, reason in discarded:
+                per_reason.setdefault(reason, []).append(qualified_name)
+            self.logger.debug(
+                f"Discarded {len(discarded)} tables. Reason: {per_reason}",
+                extra={"task_id": task_id, "reason": per_reason},
+            )
+
         return ans
 
-    def _handle_unknown_table(self, id_column: str | None, table: sqlalchemy.Table, table_name: str) -> None:
+    def _handle_unknown_table(
+        self,
+        id_column: str | None,
+        table: sqlalchemy.Table,
+        table_name: str,
+    ) -> str | None:
         whitelisted = False if self._whitelist is None else table.name in self._whitelist
         unmapped = id_column is None
 
         if unmapped and not whitelisted:
-            self.logger.debug(f"Discarding table='{table_name}'; no suitable ID column found.")
-            return
+            return "no ID column"
 
         messages = []
         if whitelisted:

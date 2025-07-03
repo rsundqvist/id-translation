@@ -184,7 +184,6 @@ class TestOptionalFetchers:
         assert not any(c.optional for c in fetcher.children)
 
         # Verify logged information.
-        assert len(caplog.records) == 1
         record = caplog.records[0]
 
         # Verify message

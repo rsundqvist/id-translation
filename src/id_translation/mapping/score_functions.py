@@ -9,8 +9,6 @@ from collections.abc import Iterable as _Iterable
 from . import exceptions
 from .types import CandidateType, ContextType, ValueType
 
-VERBOSE: bool = False
-
 
 def modified_hamming(
     name: str,

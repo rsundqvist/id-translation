@@ -3,17 +3,19 @@ import warnings
 from time import perf_counter
 from typing import TYPE_CHECKING
 
+from rics.strings import format_seconds as fmt_sec
+
+from .. import logging as _logging
+from ..mapping.exceptions import MappingError, MappingWarning
 from ..mapping.matrix import ScoreMatrix
 from ..mapping.types import UserOverrideFunction
+from ..types import IdType, Names, NameToSource, NameType, NameTypes, SourceType, Translatable
 from ._names import NamesTask
 
 if TYPE_CHECKING:
     from .._translator import Translator
     from ..mapping import DirectionalMapping
 
-from ..mapping.exceptions import MappingError, MappingWarning
-from ..settings import logging as settings
-from ..types import IdType, Names, NameToSource, NameType, NameTypes, SourceType, Translatable
 
 LOGGER = logging.getLogger("id_translation.Translator.map")
 
@@ -29,6 +31,7 @@ class MappingTask(NamesTask[NameType, SourceType, IdType]):
         *,
         ignore_names: Names[NameType] | None = None,
         override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
+        task_id: int | None = None,
     ) -> None:
         super().__init__(
             caller,
@@ -36,6 +39,7 @@ class MappingTask(NamesTask[NameType, SourceType, IdType]):
             names,
             ignore_names=ignore_names,
             override_function=override_function,
+            task_id=task_id,
         )
 
         # Task outputs
@@ -67,43 +71,36 @@ class MappingTask(NamesTask[NameType, SourceType, IdType]):
             return {}
 
         sources = self.caller.sources
-        log_level = settings.MAP
-        if LOGGER.isEnabledFor(log_level.enter):
-            event_key = f"{self.caller.__class__.__name__.upper()}.MAP"
-            type_name = self.type_name
-            LOGGER.log(
-                log_level.enter,
+        if LOGGER.isEnabledFor(logging.DEBUG):
+            LOGGER.debug(
                 f"Begin name-to-source mapping of names={values} in {type_name} against {sources=}.",
                 extra=dict(
                     task_id=self.task_id,
-                    event_key=event_key,
-                    event_stage="ENTER",
-                    event_title=f"{event_key}.ENTER",
-                    translatable_type=type_name,
+                    event_key=_logging.get_event_key(self.caller.map, "enter"),
+                    translatable_type=self.full_type_name,
                     values=values,
                     candidates=sources,
-                    context=None,
                 ),
             )
 
         result: DirectionalMapping[NameType, SourceType]
         result = self.caller.mapper.apply(values, sources, None, self.override_function)
         name_to_source = result.flatten()
-        execution_time = perf_counter() - start
-        if LOGGER.isEnabledFor(log_level.exit):
-            LOGGER.log(
-                log_level.exit,
-                f"Finished name-to-source mapping of names={values} in {type_name} against {sources=}:"
-                f" {name_to_source}.",
+        seconds = perf_counter() - start
+
+        if LOGGER.isEnabledFor(logging.INFO):
+            with_nones = {name: name_to_source.get(name) for name in self.mapper_input_names}
+            LOGGER.info(
+                f"Finished mapping of {len(name_to_source)}/{len(self.mapper_input_names)} names in {type_name} "
+                f"in {fmt_sec(seconds)}: {with_nones}.",
                 extra=dict(
                     task_id=self.task_id,
-                    event_key=event_key,
-                    event_stage="EXIT",
-                    event_title=f"{event_key}.EXIT",
-                    execution_time=execution_time,
-                    translatable_type=type_name,
-                    mapping=name_to_source,
-                    context=None,
+                    event_key=_logging.get_event_key(self.caller.map, "exit"),
+                    seconds=seconds,
+                    translatable_type=self.full_type_name,
+                    values=values,
+                    candidates=sources,
+                    mapping=with_nones,
                 ),
             )
 
@@ -137,7 +134,7 @@ class MappingTask(NamesTask[NameType, SourceType, IdType]):
                         f"\nHint: Choose a different cardinality such that Mapper.cardinality.many_right is False."
                     )
 
-        self.add_timing("map", execution_time)
+        self.add_timing("map", seconds)
         return name_to_source
 
     def compute_scores(self) -> ScoreMatrix[NameType, SourceType]:

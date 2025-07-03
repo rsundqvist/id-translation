@@ -18,6 +18,7 @@ from id_translation.exceptions import (
     TranslationDisabledWarning,
 )
 from id_translation.fetching.exceptions import UnknownSourceError
+from id_translation.logging import enable_verbose_debug_messages
 from id_translation.mapping import Mapper
 from id_translation.mapping.exceptions import MappingError, MappingWarning, UserMappingError
 from id_translation.toml.meta import _config_metadata
@@ -465,7 +466,7 @@ def test_float_ids(translator):
     from id_translation.offline import Format
 
     translatable = {"positive_numbers": [0.0, 0, 1, 0.1, float("nan"), np.nan, 3, np.nan]}
-    task = TranslationTask(translator, translatable, fmt=Format(""))
+    task = TranslationTask(translator, translatable, fmt=Format(""), event_key=test_float_ids.__name__)
     ids_to_fetch = task.extract_ids()
     assert len(ids_to_fetch) == 1
     ids = ids_to_fetch["positive_numbers"]
@@ -617,7 +618,9 @@ class TestDictNames:
 
     def test_override_info_in_logs(self, caplog):
         expected = {"nconst": ["1:Fred Astaire", "15:James Dean"]}
-        assert self.translate({"nconst": [1, 15]}, names={"nconst": "name_basics"}) == expected
+
+        with enable_verbose_debug_messages():
+            assert self.translate({"nconst": [1, 15]}, names={"nconst": "name_basics"}) == expected
         record = next(record for record in caplog.messages if "names={'nconst': 'name_basics'}" in record)
         assert "override_function=UserArgument" in record
 
@@ -626,7 +629,7 @@ class TestDictNames:
             assert self.translate("", names={}, override_function=crash)
 
     def test_mapping_to_unknown_source(self, caplog):
-        with pytest.raises(UnknownSourceError, match="'unknown-source"):
+        with enable_verbose_debug_messages(), pytest.raises(UnknownSourceError, match="'unknown-source"):
             self.translate({"nconst": [1, 15]}, names={"nconst": "unknown-source"})
         record = next(record for record in caplog.messages if "names={'nconst': 'unknown-source'}" in record)
         assert "override_function=UserArgument" in record

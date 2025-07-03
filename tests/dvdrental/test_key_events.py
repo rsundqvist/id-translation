@@ -1,14 +1,15 @@
 import logging
 from dataclasses import dataclass
-from typing import Literal, cast, get_args
+from typing import Literal, get_args
 
 import pytest
 
 from id_translation import Translator
+from id_translation.logging import enable_verbose_debug_messages
 
 from .conftest import DIALECTS, LINUX_ONLY, get_df, setup_for_dialect
 
-KindType = Literal["translate", "map", "fetch"]
+KindType = Literal["translate", "map", "fetch", "initialize_sources"]
 CACHE: dict[str, list["KeyEventDetails"]] = {}
 
 pytestmark = [pytest.mark.parametrize("dialect", DIALECTS), LINUX_ONLY]
@@ -40,27 +41,23 @@ class KeyEventDetails:
 class TestKeyEvents:
     def test_translate_exit(self, dialect, caplog):
         ked = get_key_event_details(dialect, caplog)[-1]
-        assert ked.key == ("TRANSLATOR", "TRANSLATE")
+        assert ked.key == ("Translator", "translate")
         assert ked.is_enter is False
         assert ked.kind == "translate"
         assert ked.record is not None
-        assert ked.record.message.startswith("Finished translation of 4 names in 'DataFrame'-type data in")
+        assert ked.record.message.startswith("Finished in-place translation of 'DataFrame' in")
         assert ked.record.levelno == logging.INFO
 
-    def test_log_levels(self, dialect, caplog):
-        for ked in get_key_event_details(dialect, caplog)[:-1]:
-            assert ked.record.levelno == logging.DEBUG, ked
-
     def test_no_nested_enter_on_same_key(self, dialect, caplog):
-        active_keys: set[tuple[str, str]] = set()
+        active_keys: dict[tuple[str, str], int] = {}
 
         for i, ked in enumerate(get_key_event_details(dialect, caplog)):
             if ked.is_enter:
                 assert ked.key not in active_keys, f"{i=}: nested entry on {ked}."
-                active_keys.add(ked.key)
+                active_keys[ked.key] = i
             else:
                 assert ked.key in active_keys, f"{i=}: exit without entry on {ked}."
-                active_keys.remove(ked.key)
+                del active_keys[ked.key]
 
     def test_task_id(self, dialect, caplog):
         key_event_details = get_key_event_details(dialect, caplog)
@@ -86,29 +83,27 @@ def get_key_event_details(dialect, caplog):
     if dialect in CACHE:
         return CACHE[dialect]
 
-    # Called for every function. Would be nice if this could be per parameter.
     translator: Translator[str, str, int] = Translator.from_config(*setup_for_dialect(dialect))
-    translator.translate(get_df(dialect), copy=False)
+
+    with enable_verbose_debug_messages():
+        translator.translate(get_df(dialect), copy=False)
 
     ret = []
     for i, r in enumerate(caplog.records):
         if not hasattr(r, "event_key"):
             continue
 
-        assert r.event_key.upper() == r.event_key
-        assert r.event_stage.upper() == r.event_stage
-        assert r.event_title.upper() == r.event_title
-        assert r.event_title == f"{r.event_key}.{r.event_stage}"
+        cls, meth, stage = r.event_key.replace(":", ".").split(".")
 
-        ret.append(
-            KeyEventDetails(
-                task_id=r.task_id,
-                key=cast("tuple[str, str]", tuple(r.event_key.split("."))),
-                is_enter=r.event_stage == "ENTER",
-                kind=KeyEventDetails.get_kind(r.event_key),
-                index=i,
-                record=r,
-            )
+        ked = KeyEventDetails(
+            task_id=r.task_id,
+            key=(cls, meth),
+            is_enter=stage == "enter",
+            kind=KeyEventDetails.get_kind(meth),
+            index=i,
+            record=r,
         )
+        ret.append(ked)
+
     CACHE[dialect] = ret
     return ret

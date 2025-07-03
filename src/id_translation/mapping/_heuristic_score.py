@@ -4,10 +4,9 @@ from typing import Any, Generic
 
 from rics.misc import get_by_full_name, tname
 
+from .. import logging as _logging
 from . import filter_functions, heuristic_functions, score_functions
 from .types import CandidateType, ContextType, HeuristicsTypes, ScoreFunction, ValueType
-
-LOGGER = logging.getLogger(__package__).getChild("verbose").getChild("HeuristicScore")
 
 
 class HeuristicScore(Generic[ValueType, CandidateType, ContextType]):
@@ -81,7 +80,11 @@ class HeuristicScore(Generic[ValueType, CandidateType, ContextType]):
         return f"{tname(self)}({score_function=}, {heuristics=})"
 
     def __call__(
-        self, value: ValueType, candidates: Iterable[CandidateType], context: ContextType | None, **kwargs: Any
+        self,
+        value: ValueType,
+        candidates: Iterable[CandidateType],
+        context: ContextType | None,
+        **kwargs: Any,
     ) -> Iterable[float]:
         """Apply `score_function` with heuristics and short-circuiting."""
         candidates = list(candidates)
@@ -89,7 +92,13 @@ class HeuristicScore(Generic[ValueType, CandidateType, ContextType]):
         base_score = list(self.score_function(value, candidates, context, **kwargs))  # Unmodified score
         best = list(base_score)
 
-        log_aliases = heuristic_functions.VERBOSE and LOGGER.isEnabledFor(logging.DEBUG)
+        logger: logging.Logger | None
+        if _logging.ENABLE_VERBOSE_LOGGING:
+            logger = logging.getLogger(__package__).getChild("HeuristicScore")
+            if not logger.isEnabledFor(logging.DEBUG):
+                logger = None
+        else:
+            logger = None
 
         positional_penalty = 0.0  # A small value that rewards alias functions based on their position.
         h_value = value
@@ -105,20 +114,18 @@ class HeuristicScore(Generic[ValueType, CandidateType, ContextType]):
                     heuristic_score -= positional_penalty  # noqa: PLW2901
                     best[i] = max(best[i], heuristic_score)
 
-                if log_aliases:
+                if logger:
                     mutating = "mutating" if mutate else "non-mutating"
 
                     res_value_repr = f"{res_value!r}" if (h_value != res_value) else "*"
                     res_candidates_repr = f"{res_candidates!r}" if (h_candidates != res_candidates) else "*"
 
                     res_score_repr = [round(s, 3) for s in res_scores]
-                    LOGGER.debug(
+                    logger.debug(
                         f"Called {mutating} alias function {_stringify((func, func_kwargs))} in {context=}:\n    "
                         f"({h_value!r}, {h_candidates!r}) -> ({res_value_repr}, {res_candidates_repr})."
                         f"\n    Positional penalty={positional_penalty:.3f}. Scores before penalty: {res_score_repr}."
                     )
-                else:
-                    pass  # pragma: no cover
 
                 if mutate:
                     h_value, h_candidates = res_value, res_candidates
@@ -128,20 +135,21 @@ class HeuristicScore(Generic[ValueType, CandidateType, ContextType]):
                 if mutate:
                     raise TypeError(f"Filter function {_stringify((func, func_kwargs))} cannot use {mutate=}.")
 
-                if heuristic_functions.VERBOSE and LOGGER.isEnabledFor(logging.DEBUG):
+                if logger:
                     base_args = ", ".join([repr(h_value), repr(h_candidates), f"{context=}"])
                     extra_args = ", ".join(f"{k}={v!r}" for k, v in func_kwargs.items())
                     info = f"{tname(func)}({', '.join([base_args, extra_args])})"
-                    LOGGER.debug(f"Short-circuit {value=} -> candidates={res!r}, triggered by {info}.")
+                    logger.debug(f"Short-circuit {value=} -> candidates={res!r}, triggered by {info}.")
+
                 yield from (float("inf") if c in res else -float("inf") for c in h_candidates)
                 return
 
-        if heuristic_functions.VERBOSE and LOGGER.isEnabledFor(logging.DEBUG):
+        if logger:
             changes = [
                 f"{cand!r}: {score:.2f} -> {heuristic_score:.2f} ({heuristic_score - score:+.2f})"
                 for cand, score, heuristic_score in zip(candidates, base_score, best, strict=True)
             ]
-            LOGGER.debug(f"Heuristics scores for {value=}: [{', '.join(changes)}]")
+            logger.debug(f"Heuristics scores for {value=}: [{', '.join(changes)}]")
 
         yield from best
 

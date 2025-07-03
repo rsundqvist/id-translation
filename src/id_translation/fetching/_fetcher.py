@@ -11,12 +11,15 @@ class Fetcher(Generic[SourceType, IdType], HasSources[SourceType]):
     """Interface for fetching translations from an external source."""
 
     @abstractmethod
-    def initialize_sources(self, task_id: int = -1, *, force: bool = False) -> None:
+    def initialize_sources(self, task_id: int | None = None, *, force: bool = False) -> None:
         """Perform source discovery.
 
         Args:
             task_id: Used for logging.
             force: If ``True``, perform full discovery even if sources are already known.
+
+        See Also:
+            🔑 This is a key event method. See :ref:`key-events` for details.
 
         Notes:
             This function is called implicitly before every translation task. Result should be cached.
@@ -75,6 +78,9 @@ class Fetcher(Generic[SourceType, IdType], HasSources[SourceType]):
             ForbiddenOperationError: If trying to fetch all IDs when not possible or permitted.
             ImplementationError: For errors made by the inheriting implementation.
 
+        See Also:
+            🔑 This is a key event method. See :ref:`key-events` for details.
+
         Notes:
             Placeholders are usually columns in relational database applications. These are the components which are
             combined to create ID translations. See :class:`~id_translation.offline.Format` documentation for details.
@@ -101,6 +107,9 @@ class Fetcher(Generic[SourceType, IdType], HasSources[SourceType]):
 
         Returns:
             A mapping ``{source: PlaceholderTranslations}`` of translation elements.
+
+        See Also:
+            🔑 This is a key event method. See :ref:`key-events` for details.
 
         Raises:
             ForbiddenOperationError: If fetching all IDs is not possible or permitted.

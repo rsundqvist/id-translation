@@ -235,10 +235,19 @@ class TestNoSources:
 
         assert len(fetcher.children) == 1
 
-        assert len(caplog.records) == 2
-        assert caplog.records[0].levelname == "WARNING"
-        assert "does not provide any sources" in caplog.messages[0]
-        assert "useless" in caplog.messages[1]
+        ends = {
+            "does not provide any sources.",
+            "but will be kept: All sources found in higher-ranking fetchers.",
+        }
+        for record in caplog.records:
+            message = record.getMessage()
+            for end in ends:
+                if message.endswith(end):
+                    assert message.startswith("Required rank-0")
+                    assert record.levelname == "WARNING"
+                    assert record.name.endswith("MultiFetcher")
+                    ends.remove(end)
+                    break
 
     @pytest.mark.parametrize("level", ["DEBUG", "WARNING"])
     def test_optional(self, caplog, level):
@@ -249,9 +258,16 @@ class TestNoSources:
 
         assert len(fetcher.children) == 0
 
-        assert len(caplog.records) == 1
-        assert caplog.records[0].levelname == level
-        assert caplog.messages[0].startswith("Discard")
+        for record in caplog.records:
+            message = record.getMessage()
+
+            if message.startswith("Discarding optional rank-0"):
+                assert message.endswith("No sources.")
+                assert record.levelname == level
+                assert record.name.endswith("MultiFetcher")
+                return
+
+        raise AssertionError("no matching record found")
 
 
 @pytest.mark.filterwarnings("ignore:Discarded:id_translation.fetching.exceptions.DuplicateSourceWarning")

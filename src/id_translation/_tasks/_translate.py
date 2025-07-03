@@ -1,9 +1,10 @@
 import logging
 import warnings
 from collections import defaultdict
-from collections.abc import Iterable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from time import perf_counter
 from typing import TYPE_CHECKING, Any, get_args
+from uuid import UUID
 
 from rics.misc import tname
 from rics.strings import format_seconds as fmt_sec
@@ -12,12 +13,10 @@ from .. import _uuid_utils
 from ..exceptions import TooManyFailedTranslationsError
 from ..mapping.types import UserOverrideFunction
 from ..offline import Format, TranslationMap
-from ..settings import logging as settings
 from ..types import IdType, IdTypes, Names, NameToSource, NameType, NameTypes, SourceType, Translatable
-from ..utils.logging import cast_unsafe
 from ._map import MappingTask
 
-LOGGER = logging.getLogger("id_translation.Translator.translate")
+LOGGER = logging.getLogger("id_translation.Translator")
 
 NUM_SAMPLE_IDS = 10
 
@@ -41,6 +40,8 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
         max_fails: float = 1.0,
         reverse: bool = False,
         enable_uuid_heuristics: bool = False,
+        event_key: str,
+        task_id: int | None = None,
     ) -> None:
         super().__init__(
             caller,
@@ -48,6 +49,7 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
             names,
             ignore_names=ignore_names,
             override_function=override_function,
+            task_id=task_id,
         )
 
         if not (0.0 <= max_fails <= 1):
@@ -61,9 +63,8 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
 
         self.enable_uuid_heuristics = enable_uuid_heuristics
 
-        self.key_event_level = settings.TRANSLATE_ONLINE if self.caller.online else settings.TRANSLATE_OFFLINE
-
         self._names_without_ids: set[NameType] = set()
+        self._event_key = event_key
 
     @property
     def io_names(self) -> list[NameType]:
@@ -119,8 +120,7 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
                 stacklevel=3,
             )
 
-        execution_time = perf_counter() - start
-        self.add_timing("extract", execution_time)
+        self.add_timing("extract", perf_counter() - start)
 
         return source_to_ids
 
@@ -135,29 +135,26 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
         return arr, keep_mask.sum()
 
     def log_key_event_enter(self) -> None:
-        """Emits the ``TRANSLATOR:TRANSLATE.ENTER`` message."""
-        if not LOGGER.isEnabledFor(self.key_event_level.enter):
+        """Emits the enter message."""
+        if not LOGGER.isEnabledFor(logging.DEBUG):
             return
 
         type_name = self.type_name
         names = self.names_from_user
         ignore_names = self.ignore_names
 
-        name_info = f"Derive based on type={type_name}" if names is None else repr(names)
+        name_info = "Derive based on type" if names is None else repr(names)
         if ignore_names is not None:
             name_info += f", excluding those given by {ignore_names=}"
 
-        LOGGER.log(
-            level=self.key_event_level.enter,
+        LOGGER.debug(
             msg=f"Begin translation of {type_name}-type data. Names to translate: {name_info}.",
             extra=dict(
                 task_id=self.task_id,
-                event_key="TRANSLATOR.TRANSLATE",
-                event_stage="ENTER",
-                event_title="TRANSLATOR.TRANSLATE.ENTER",
+                event_key=self._event_key + ":enter",
+                # Task-specific
                 sources=self.caller.sources,
                 online=self.caller.online,
-                # Task-specific
                 translatable_type=self.full_type_name,
                 names=names,
                 ignore_names=tname(ignore_names, prefix_classname=True) if callable(ignore_names) else ignore_names,
@@ -167,32 +164,26 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
         )
 
     def log_key_event_exit(self) -> None:
-        """Emits the ``TRANSLATOR:TRANSLATE.EXIT`` key event message."""
-        if not LOGGER.isEnabledFor(self.key_event_level.exit):
+        """Emits the exit message."""
+        if not LOGGER.isEnabledFor(logging.INFO):
             return
 
-        copy = self.copy
-        n2s = self.name_to_source
-        execution_time = perf_counter() - self._start
+        seconds = perf_counter() - self._start
+        inplace = " " if self.copy else " in-place "
 
-        LOGGER.log(
-            level=self.key_event_level.exit,
-            msg=(
-                f"Finished translation of {len(n2s)} names in {self.type_name}-type data in "
-                f"{fmt_sec(execution_time)}, using name-to-source mapping: {n2s}."
-            ),
+        LOGGER.info(
+            msg="Finished" + inplace + f"translation of {self.type_name} in {fmt_sec(seconds)}.",
             extra=dict(
                 task_id=self.task_id,
-                event_key="TRANSLATOR.TRANSLATE",
-                event_stage="EXIT",
-                event_title="TRANSLATOR.TRANSLATE.EXIT",
-                execution_time=execution_time,
-                duration_ms=self.get_timings(),
+                event_key=self._event_key + ":exit",
+                seconds=seconds,
                 # Task-specific
+                duration_ms=self.get_timings_ms(),
+                online=self.caller.online,
                 translatable_type=self.full_type_name,
-                copy=copy,
+                copy=self.copy,
                 reverse=self.reverse,
-                name_to_source=n2s,
+                name_to_source=self.name_to_source,
             ),
         )
 
@@ -214,8 +205,7 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
         finally:
             translation_map.reverse_mode = False
 
-        execution_time = perf_counter() - start
-        self.add_timing("insert", execution_time)
+        self.add_timing("insert", perf_counter() - start)
         return result if copy else None
 
     def verify(self, tmap: TranslationMap[NameType, SourceType, IdType]) -> None:
@@ -224,11 +214,11 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
         Performs translation with pre-defined formats, counting the number of IDs which are (and aren't) known to the
         translation map.
         """
-        start = perf_counter()
-
-        if not (self.max_fails < 1.0 or LOGGER.isEnabledFor(logging.DEBUG)):
+        max_fails = self.max_fails
+        if not (max_fails < 1.0 or LOGGER.isEnabledFor(logging.DEBUG)):
             return
 
+        start = perf_counter()
         name_to_ids = self._name_to_ids_in_order()
         translations = tmap.to_translations()
 
@@ -250,22 +240,33 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
 
             sample_ids = self._get_untranslated_ids(name_to_ids[name], is_missing_mask=is_missing)
 
-            extra = {"name_of_ids": name, "source": source, "sample_ids": cast_unsafe(sample_ids)}
+            fail = f_untranslated > max_fails
+
+            if not (fail or LOGGER.isEnabledFor(logging.DEBUG)):
+                continue
+
             message = (
-                f"Failed to translate {n_untranslated}/{n_total} ({f_untranslated:.1%}{{reason}}) of IDs "
+                f"Failed to translate {n_untranslated}/{n_total} ({f_untranslated:.2%}{{reason}}) of IDs "
                 f"for {name=} using source={source!r}. Sample IDs: {sample_ids}."
             )
+            extra = {
+                "name_of_ids": name,
+                "source": source,
+                "n_untranslated": n_untranslated,
+                "n_total": n_total,
+                "max_fails": max_fails,
+                "sample_ids": _json_safe_types(sample_ids),
+            }
 
-            if f_untranslated > self.max_fails:
-                message = message.format(reason=f" > max_fails={self.max_fails:.1%}")
+            if fail:
+                message = message.format(reason=f" > max_fails={max_fails:.2%}")
                 LOGGER.error(message, extra=extra)
                 raise TooManyFailedTranslationsError(message)
-            else:
-                message = message.format(reason=", above limit; DEBUG logging is enabled")
-                LOGGER.debug(message, extra=extra)
 
-        execution_time = perf_counter() - start
-        self.add_timing("verify", execution_time)
+            message = message.format(reason=f" <= max_fails={max_fails:.2%}")
+            LOGGER.debug(message, extra=extra)
+
+        self.add_timing("verify", perf_counter() - start)
 
     def _name_to_ids_in_order(self) -> dict[NameType, Sequence[Any]]:
         name_to_ids: dict[NameType, Sequence[Any]] = self._extract_ids()
@@ -296,3 +297,23 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
                 break
 
         return retval
+
+
+def _json_safe_types(items: list[Any]) -> list[Any]:
+    converters: dict[type[Any], Callable[[Any], Any]] = {UUID: str}
+
+    try:
+        from numpy import floating, integer
+
+        converters[integer] = int
+        converters[floating] = float
+    except ImportError:
+        pass
+
+    def convert(item: Any) -> Any:
+        for cls, converter in converters.items():
+            if isinstance(item, cls):
+                return converter(item)
+        return item
+
+    return [convert(e) for e in items]

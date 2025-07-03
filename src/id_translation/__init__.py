@@ -2,7 +2,6 @@
 
 For an introduction to translation, see :ref:`translation-primer` and :ref:`mapping-primer`.
 
-
 Environment variables
 ---------------------
 .. envvar:: ID_TRANSLATION_DISABLED
@@ -13,7 +12,13 @@ Environment variables
 
    Global switch. Set to ``true`` (not recommended) to allow the :meth:`~id_translation.toml.TranslatorFactory` to
    discard `optional` fetchers that raise when imported or initialized.
-   See the `documentation <../documentation/translator-config.html#optional-fetchers>`__ for details.
+   See the `documentation </documentation/translator-config.html#optional-fetchers>`__ for details.
+
+.. envvar:: ID_TRANSLATION_VERBOSE
+
+   Global switch. Set to ``true`` to overwrite the default :data:`~.logging.ENABLE_VERBOSE_LOGGING` value. Note that
+   this variable is only read once (on module import). See the :doc:`documentation </documentation/translation-logging>`
+   for details.
 """
 
 import logging as _logging

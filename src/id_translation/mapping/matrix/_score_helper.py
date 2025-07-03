@@ -3,14 +3,13 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Generic, Self
 
+from ... import logging as _logging
 from .. import Cardinality, DirectionalMapping
 from ..exceptions import AmbiguousScoreError
 from ..types import CandidateType, ValueType
 from ._score_matrix import ScoreMatrix
 
 inf = float("inf")
-
-VERBOSE = False  # TODO configurable
 
 
 @dataclass(frozen=True)
@@ -116,9 +115,10 @@ class ScoreHelper(Generic[ValueType, CandidateType]):
         matches: list[Record[ValueType, CandidateType]]
         rejections: list[Reject[ValueType, CandidateType]]
         matches, rejections = self._match(cardinality)
+        min_score = self._min_score
 
         logger = self.logger
-        logging_disabled = not (VERBOSE and logger.isEnabledFor(logging.DEBUG))
+        logging_disabled = not (_logging.ENABLE_VERBOSE_LOGGING and logger.isEnabledFor(logging.DEBUG))
 
         left_to_right: dict[ValueType, list[CandidateType]] = {}
         for record in list(matches):
@@ -129,25 +129,30 @@ class ScoreHelper(Generic[ValueType, CandidateType]):
 
             supersedes: list[Reject[ValueType, CandidateType]] = []
             if rejections:
-                supersedes.extend(rr for rr in rejections if record in (rr.superseding_value, rr.superseding_candidate))
+                supersedes.extend(
+                    rr
+                    for rr in rejections
+                    if record in (rr.superseding_value, rr.superseding_candidate) and rr.record.score >= min_score
+                )
 
-            reason = "(short-circuit or override)" if record.score == inf else f">= {self._min_score}"
-            logger.debug(f"Accepted: {record} {reason}.")
+            reason = "(short-circuit or override)" if record.score == inf else f">= {min_score}"
+            msg = f"Accepted: {record} {reason}."
 
             if supersedes:
-                s = "\n".join("    " + rr.explain(self._min_score) for rr in supersedes)
-                logger.debug(f"This match supersedes {len(supersedes)} other matches:\n{s}")
+                s = "\n".join("    " + rr.explain(min_score) for rr in supersedes)
+                msg += f" This match supersedes {len(supersedes)} other matches:\n{s}"
+            logger.debug(msg)
 
         values = set(self._matrix.values)
         if rejections and not logging_disabled:
             unmapped_values = values.difference(left_to_right)
             for value in unmapped_values:
                 value_reasons = "\n".join(
-                    "    " + reject.explain(self._min_score, full=True)
+                    "    " + reject.explain(min_score, full=True)
                     for reject in rejections
                     if reject.record.value == value
                 )
-                logger.debug(f"Could not map {value=}:\n{value_reasons}")
+                logger.debug(f"Could not map {value=}. Rejected matches:\n{value_reasons}")
 
         return DirectionalMapping(
             cardinality=cardinality,
@@ -162,7 +167,7 @@ class ScoreHelper(Generic[ValueType, CandidateType]):
         rejections: list[Reject[ValueType, CandidateType]] | None = None
         records: list[Record[ValueType, CandidateType]] = self.above()
 
-        if VERBOSE and self.logger.isEnabledFor(logging.DEBUG):
+        if _logging.ENABLE_VERBOSE_LOGGING and self.logger.isEnabledFor(logging.DEBUG):
             rejections = []
             records.extend(self.below())
 

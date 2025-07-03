@@ -5,11 +5,9 @@ import re
 from collections.abc import Iterable as _Iterable
 from typing import Any as _Any
 
+from .. import logging as _logging
 from ..types import ID
 from . import exceptions
-
-VERBOSE: bool = False
-LOGGER = logging.getLogger(__package__).getChild("verbose").getChild("filter_functions")
 
 
 def filter_names(
@@ -155,9 +153,9 @@ def filter_placeholders(
     candidates = set(candidates)
     ans = {c for c in candidates if (pattern.match(c) is None) is remove}
 
-    if VERBOSE:
-        logger = LOGGER.getChild(filter_placeholders.__name__)
-        if logger.isEnabledFor(logging.DEBUG) and len(ans) < len(candidates):
+    if _logging.ENABLE_VERBOSE_LOGGING and len(ans) < len(candidates):
+        logger = logging.getLogger(__name__).getChild(filter_placeholders.__name__)
+        if logger.isEnabledFor(logging.DEBUG):
             removed = candidates.difference(ans)
             logger.debug(f"Discard placeholders={removed!r} in source={context!r}; matches {pattern=}.")
 
@@ -182,10 +180,12 @@ def _filter_single(
 ) -> bool:
     keep = (re.match(regex, string, re.IGNORECASE) is None) is remove
 
-    if not keep and VERBOSE:
-        logger = LOGGER.getChild(function_name)
-        if logger.isEnabledFor(logging.DEBUG):
-            pattern = re.compile(regex, re.IGNORECASE)
-            logger.debug(f"%s %s={string!r}; %s {pattern=}.", action, label, "matches" if remove else "does not match")
+    if keep or not _logging.ENABLE_VERBOSE_LOGGING:
+        return keep
+
+    logger = logging.getLogger(__name__).getChild(function_name)
+    if logger.isEnabledFor(logging.DEBUG):
+        pattern = re.compile(regex, re.IGNORECASE)
+        logger.debug(f"{action} {label}={string!r}; {'matches' if remove else 'does not match'} {pattern=}.")
 
     return keep

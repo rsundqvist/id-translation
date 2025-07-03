@@ -20,9 +20,10 @@ from rics.collections.misc import as_list
 from rics.env.read import read_bool
 from rics.misc import get_public_module, tname
 from rics.paths import AnyPath, any_path_to_path
-from rics.strings import format_perf_counter as fmt_perf
+from rics.strings import format_seconds as fmt_sec
 
-from ._tasks import MappingTask, TranslationTask, generate_task_id
+from . import logging as _logging
+from ._tasks import MappingTask, TranslationTask
 from .exceptions import ConfigurationChangedError, ConnectionStatusError, TranslationDisabledWarning
 from .fetching import Fetcher
 from .fetching.types import IdsToFetch
@@ -185,7 +186,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             raise TypeError(type(fetcher))  # pragma: no cover
 
         self._mapper: Mapper[NameType, SourceType, None] = mapper or Mapper()
-        self._mapper.logger = logging.getLogger(__package__).getChild("mapping").getChild("name-to-source")
+        self._mapper.logger = logging.getLogger("id_translation.Translator.map")
 
         self._config_metadata: meta.ConfigMetadata | None = None
         self._translated_names: NameToSource[NameType, SourceType] | None = None
@@ -706,6 +707,10 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         if self.online and reverse:  # pragma: no cover
             raise ConnectionStatusError("Reverse translation cannot be performed online.")
 
+        task_id = _logging.generate_task_id()
+        if self.online:
+            self.fetcher.initialize_sources(task_id)
+
         task: TranslationTask[NameType, SourceType, IdType] = TranslationTask(
             self,
             translatable,
@@ -717,6 +722,8 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             max_fails=max_fails,
             reverse=reverse,
             enable_uuid_heuristics=self._enable_uuid_heuristics,
+            event_key=f"{type(self).__name__}.{self.translate.__name__}",
+            task_id=task_id,
         )
         task.log_key_event_enter()
 
@@ -787,12 +794,17 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         See Also:
             🔑 This is a key event method. See :ref:`key-events` for details.
         """
+        task_id = _logging.generate_task_id()
+        if self.online:
+            self.fetcher.initialize_sources(task_id)
+
         return MappingTask(
             self,
             translatable,
             names,
             ignore_names=ignore_names,
             override_function=override_function,
+            task_id=task_id,
         ).name_to_source
 
     def map_scores(
@@ -985,6 +997,8 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
            The translator will be disconnected. No new translations may be fetched after this method returns.
 
+        Subsequent calls to this method will return immediately.
+
         Args:
             translatable: Data from which IDs to fetch will be extracted. Fetch all IDs if ``None``.
             names: Explicit names to translate. Derive from `translatable` if ``None``.
@@ -1009,7 +1023,26 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         See Also:
             The :meth:`restore` method.
         """
+        if not self.online:
+            return self
+
         start = perf_counter()
+        task_id = _logging.generate_task_id(start)
+
+        if LOGGER.isEnabledFor(logging.DEBUG):
+            LOGGER.debug(
+                msg=f"Begin going offline with {len(self.sources)} sources provided by: {self.fetcher}",
+                extra=dict(
+                    task_id=task_id,
+                    event_key=_logging.get_event_key(self.go_offline, "enter"),
+                    # Task-specific
+                    path=None if path is None else str(path),
+                    translatable_type=None
+                    if translatable is None
+                    else get_public_module(type(translatable), resolve_reexport=True, include_name=True),
+                ),
+            )
+
         translation_map = self._user_fetch(
             translatable,
             names,
@@ -1017,14 +1050,13 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             override_function=override_function,
             max_fails=max_fails,
             fmt=fmt,
+            func=self.go_offline.__qualname__,
+            task_id=task_id,
         )
         self.fetcher.close()
         del self._fetcher
         self._cached_tmap = translation_map
 
-        LOGGER.info(
-            f"Went offline with {len(translation_map.sources)} sources in {fmt_perf(start)}: {translation_map}."
-        )
         if path:
             import pickle
 
@@ -1033,9 +1065,35 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             with path.open("wb") as f:
                 pickle.dump(self, f)
 
-            cls = type(self)
-            pretty = get_public_module(cls, resolve_reexport=True) + "." + tname(self, prefix_classname=True)
-            LOGGER.info(f"Serialized {pretty!r} of size {path.stat().st_size / 2**20:.2g} MiB at path='{path}'.")
+            cls = tname(self, include_module=True)
+            LOGGER.info(
+                f"Serialized '{cls}' of size {path.stat().st_size / 2**20:.2g} MiB at path='{path}'.",
+                extra=dict(
+                    task_id=task_id,
+                    event_key=_logging.get_event_key(self.go_offline, "serialize"),
+                    # Task-specific
+                    path=str(path),
+                    translatable_type=None
+                    if translatable is None
+                    else get_public_module(type(translatable), resolve_reexport=True, include_name=True),
+                ),
+            )
+
+        if LOGGER.isEnabledFor(logging.INFO):
+            seconds = perf_counter() - start
+            LOGGER.info(
+                f"Went offline with {len(translation_map.sources)} sources in {fmt_sec(seconds)}: {translation_map}.",
+                extra=dict(
+                    task_id=task_id,
+                    event_key=_logging.get_event_key(self.go_offline, "enter"),
+                    seconds=seconds,
+                    # Task-specific
+                    path=None if path is None else str(path),
+                    translatable_type=None
+                    if translatable is None
+                    else get_public_module(type(translatable), resolve_reexport=True, include_name=True),
+                ),
+            )
 
         return self
 
@@ -1076,7 +1134,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
             ..
                # Hidden setup code
-               >>> from .fetching import MemoryFetcher
+               >>> from id_translation.fetching import MemoryFetcher
                >>> translation_data = {
                ...     "animals": {"id": [0, 1, 2], "name": ["Tarzan", "Morris", "Simba"]},
                ...     "people": {"id": [1999, 1991], "name": ["Sofia", "Richard"]},
@@ -1114,6 +1172,10 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             >>> translation_map.to_dicts()["people"]
             {'id': [1999, 1991], 'name': ['Sofia', 'Richard']}
         """
+        task_id = _logging.generate_task_id()
+        if self.online:
+            self.fetcher.initialize_sources(task_id)
+
         return self._user_fetch(
             translatable,
             names,
@@ -1121,6 +1183,8 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             override_function=override_function,
             max_fails=max_fails,
             fmt=fmt,
+            func=self.fetch.__qualname__,
+            task_id=task_id,
         )
 
     def _user_fetch(
@@ -1132,16 +1196,18 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
         max_fails: float = 1.0,
         fmt: FormatType | None = None,
+        func: str,
+        task_id: int | None = None,
     ) -> TranslationMap[NameType, SourceType, IdType]:
         fmt = self._fmt if fmt is None else Format.parse(fmt)
 
         if translatable is None:
             if all(p is None for p in (names, ignore_names, override_function)):
-                source_translations = self._fetch(None)
+                source_translations = self._fetch(None, task_id=task_id)
             else:
                 dummy = {source: None for source in self.sources}
                 sources = self.map(dummy, names, ignore_names=ignore_names, override_function=override_function)
-                source_translations = self._fetch(set(sources.values()))
+                source_translations = self._fetch(set(sources.values()), task_id=task_id)
             translation_map = self._to_translation_map(source_translations, fmt=fmt)
 
             if names is None:
@@ -1163,6 +1229,8 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                 ignore_names=ignore_names,
                 max_fails=max_fails,
                 enable_uuid_heuristics=self._enable_uuid_heuristics,
+                event_key=func,
+                task_id=task_id,
             )
             if not task.name_to_source:
                 msg = f"No names in the {tname(translatable, prefix_classname=True)!r}-type data were mapped."
@@ -1233,7 +1301,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             required = (*required, ID)
 
         if task_id is None:
-            task_id = generate_task_id()
+            task_id = _logging.generate_task_id()
 
         if ids_or_sources is None or isinstance(ids_or_sources, set):
             return self.fetcher.fetch_all(

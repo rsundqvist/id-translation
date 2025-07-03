@@ -1,7 +1,6 @@
 import json
 import logging
 from collections.abc import Iterable
-from functools import partialmethod
 from pathlib import Path
 from typing import Any
 
@@ -16,8 +15,6 @@ from id_translation.offline import MagicDict, TranslationMap
 from id_translation.offline.types import PlaceholderTranslations
 
 ROOT: Path = Path(__file__).parent
-
-Mapper.__init__ = partialmethod(Mapper.__init__, verbose_logging=True)  # type: ignore[assignment]
 
 
 def dont_call_get(*_, **__):
