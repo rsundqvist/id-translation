@@ -65,9 +65,9 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
 
         * :meth:`create_engine`; initializes the SQLAlchemy engine. Calls ``parse_connection_string``.
         * :meth:`parse_connection_string`; does basic URL encoding. Called by ``create_engine``.
-        * :meth:`select_where`; filter values on the `id_column` (from ``cast_id_column_to_uuid``) of the current table.
+        * :meth:`select_where`; filter values on the :attr:`~.TableSummary.id_column` of the current table.
         * :meth:`make_table_summary`; creates :class:`TableSummary` instances.
-        * :meth:`uuid_like`; determine if casting (with ``cast_id_column_to_uuid``) is needed.
+        * :meth:`uuid_like`; determine if :meth:`casting <cast_id_column_to_uuid>` is needed.
         * :meth:`cast_id_column_to_uuid`; attempt to cast the `id_column` to ``UUID``.
 
         Overriding should be done with care, as methods may call each other internally.

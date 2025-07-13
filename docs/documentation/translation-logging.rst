@@ -2,109 +2,85 @@
 
 Logging
 =======
-The translation and mapping processes can output vast amounts of information that can be difficult to sift through
-manually, especially with loggers working on the ``DEBUG``-level with extra verbose flags enabled. The exact flow of
-these processes are discussed in the :ref:`translation-primer` and :ref:`mapping-primer` pages. If you haven't looked at
-them already, you may want to do so before continuing.
+All messages are emitted by :mod:`id_translation` namespace loggers. The `id_translation` namespace uses the
+``logging.WARNING`` log level (similar to
+`SQLAlchemy <https://docs.sqlalchemy.org/en/14/core/engines.html#configuring-logging>`__).
+To enable logs at the ``ℹ️ INFO`` level and below, you must explicitly configure the log level.
+
+Verbose logging
+---------------
+Set the global :data:`~.logging.ENABLE_VERBOSE_LOGGING` flag (or use :func:`~.logging.enable_verbose_debug_messages`) to
+enable additional ``🪲 DEBUG``-level messages. Use the :envvar:`ID_TRANSLATION_VERBOSE` variable in containers.
+
+.. warning::
+
+   Verbose logging may emit hundreds of messages for a single translation task!
+
+Note that `verbose` and ``🪲 DEBUG`` logging are different things; verbose logging may emit hundreds of messages where
+regular ``🪲 DEBUG`` might only emit a dozen.
+
+Example
+-------
+The ``ℹ️ INFO``-level messages emitted for a single :meth:`.Translator.translate` class.
+
+.. literalinclude:: dvdrental-info-messages.log
+   :language: log
+
+Since these are :ref:`🔑 key event <Key Event Records>` messages, there are corresponding entry events. The
+``'enter'``-records, however, are only emitted on the ``🪲 DEBUG`` level.
 
 .. _key-events:
 
 Key Event Records
 -----------------
-Key event records are emitted on the ``INFO`` and ``DEBUG`` level, see the table below. These messages are structured
-for ingestion and will always contain the ``event_key``-key, as well as some other context-dependent data.
+Key event messages are emitted at the boundaries of the various stages in the translation process (see the
+:ref:`translation-primer` and :ref:`mapping-primer` pages). Common fields are listed below.
 
-.. list-table:: Key Events
-   :widths: 15, 25, 60
+.. list-table:: Key Event Record Structure
    :header-rows: 1
 
-   * - Function / log level
-     - Event key
-     - Domain-specific keys
-   * - | :meth:`.Translator.translate`
-       | ``INFO`` if :attr:`.Translator.online` else ``DEBUG``.
-     - ``TRANSLATOR.TRANSLATE``
-     - translatable_type, names, sources
-   * - | :meth:`.Translator.map`
-       | ``DEBUG``-level event.
-     - ``TRANSLATOR.MAP``
-     - translatable_type, value, candidates
-   * - | :meth:`.MultiFetcher.fetch`
-       | ``DEBUG``-level event.
-     - ``MULTIFETCHER.FETCH``
-     - max_workers, num_fetchers, sources, placeholders
-   * - | :meth:`.MultiFetcher.fetch_all`
-       | ``DEBUG``-level event.
-     - ``MULTIFETCHER.FETCH_ALL``
-     - max_workers, num_fetchers, placeholders
-   * - | :meth:`.AbstractFetcher.map_placeholders`
-       | ``DEBUG``-level event.
-     - ``<CLASSNAME>.MAP_PLACEHOLDERS``
-     - value, candidates, context
-   * - | :meth:`.AbstractFetcher.fetch_translations`
-       | ``DEBUG``-level event.
-     - ``<CLASSNAME>.FETCH_TRANSLATIONS``
-     - fetch_all, source, placeholders, num_ids
+   * - Field
+     - Type
+     - Description
+   * - `task_id`
+     - ``int``
+     - Unique task identifier, e.g. for a single :meth:`~.Translator.translate` call.
+   * - `event_key`
+     - ``str`` = ``class.method:stage``
+     - E.g. `MultiFetcher.fetch_all:enter` (where ``stage='enter'``).
+   * - `seconds`
+     - ``float``
+     - Task duration in seconds. Only when ``stage='exit'``.
 
-Translation issues tend to fall within one of these domains. To modify the levels, update the
-:class:`~id_translation.settings.KeyEventLogLevel` tuples in the :class:`id_translation.settings.logging` class.
+All key event methods add additional fields that are relevant to the current task and stage. Fields may be added,
+removed, or change values depending on the ``stage`` of the event.
 
-.. hint::
+Event-specific fields
+~~~~~~~~~~~~~~~~~~~~~
 
-   All ``event_key``-records also have an ``event_stage`` value. The delimiting values are ``'ENTER'`` (the event just
-   started) and ``'EXIT'`` (the event just finished), respectively. This allows selecting other log records that are
-   part of the same process that initially emitted the event key.
-
-Finding the first ``event_stage='ENTER'``-record without a corresponding ``'EXIT'``-record is usually a good place to
-start when something goes wrong!
-
-Sample record
--------------
-A single :meth:`.Translator.translate`-call with **every single debug option enabled** typically produces a few hundred
-records (about 300 in this case). The final ``TRANSLATOR.TRANSLATE.EXIT``-event is the only ``ℹ️INFO``-level message,
-shown in its entirety as a JSON-record at the bottom.
-
-.. literalinclude:: dvdrental-exit-message.txt
-   :language: python
-   :caption: Exit message of the :meth:`.Translator.translate`-method.
-
-The event keys aren't included in any user-facing messages, but are useful since they may be used for indexing by log
-ingestion frameworks. The event keys associated with the message above are shown in the next snippet. Metadata such as
-the names the user wanted to translate is included as well. Here, that value is ``null``, indicating that the user
-wanted automatic name selection based on the configuration. This field is populated by the names that were extracted by
-the ``Translator`` in the ``EXIT``-record.
+Let's take closer look at the final message. The :class:`~logging.LogRecord` contains additional information that isn't
+included in the message itself. The full ``Translator.translate:exit``-record is shown as JSON below.
 
 .. literalinclude:: dvdrental-records.json
-   :caption: Event keys emitted when entering the :meth:`.Translator.translate`-method.
-   :start-at: "event_key": "TRANSLATOR.TRANSLATE",
-   :end-before: "ignore_names": null,
+   :caption: Translation exit event. Click :download:`here <dvdrental-records.json>` to download.
+   :lines: 9726-9769
+   :lineno-start: 9726
 
-The exact data that is included varies naturally depending on the message. Any record with ``event_stage='EXIT'`` will
-include a ``execution_time``-value in seconds. Messages related to mapping will contain
-``(values, candidates, context)``, and so on.
-
-.. literalinclude:: dvdrental-records.json
-   :caption: A ``TRANSLATOR.TRANSLATE.EXIT``-record emitted on the ``INFO``-level.
-   :lines: 5745-5789
-   :lineno-start: 5789
-   :emphasize-lines: 2,5,22,25,26,27,30,33,36,38,44
-
-A few of the more interesting parts of the record have been highlighted. Click :download:`here <dvdrental-records.json>`
-to download. The line numbers shown above are the actual line numbers of this file.
+About 350 messages were emitted since ``ENABLE_VERBOSE_LOGGING=True``. If we were using regular ``🪲 DEBUG``-logging,
+about 40 messages would have been emitted instead. The vast majority of the verbose messages relate to mapping and
+fetcher initialization.
 
 .. code-block:: python
    :caption: Dummy version of the code that produced the the records.
 
+   from logging import basicConfig, DEBUG
    from id_translation import Translator
-   import logging
-   from id_translation.mapping.support import enable_verbose_debug_messages
+   from id_translation.logging import enable_verbose_debug_messages
 
-   logging.basicConfig(level=logging.DEBUG, handlers=[SomeJsonExporter()])
+   basicConfig(handlers=[SomeJsonExporter()])
 
    translator = Translator.from_config(main_config, [fetcher_configs..])
    with enable_verbose_debug_messages():
        translator.translate(df)
 
-The configs that were used are available `here <examples/dvdrental.html#configuration-files>`_.
-
-.. _dvdrental: https://github.com/rsundqvist/id-translation/blob/master/tests/dvdrental/
+The configs that were used are available `here <examples/dvdrental/dvdrental.html#configuration-files>`_.

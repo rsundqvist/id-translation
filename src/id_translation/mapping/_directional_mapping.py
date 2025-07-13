@@ -11,7 +11,7 @@ HAnySide = TypeVar("HAnySide", bound=Hashable)
 MatchTupleAnySide = TypeVar("MatchTupleAnySide", bound=Hashable)  # TODO: Higher-Kinded TypeVars
 
 
-class DirectionalMapping(Generic[HL, HR]):
+class DirectionalMapping(Generic[HL, HR]):  # noqa: PLW1641
     """A two-way mapping between hashable elements.
 
     Args:
@@ -140,12 +140,10 @@ class DirectionalMapping(Generic[HL, HR]):
         if backup_side is None:
             raise ValueError("At least one side must be given")
 
-        from collections import defaultdict
-
-        other_side = defaultdict(list)
+        other_side: dict[Any, list[Any]] = {}
         for k, matches_for_k in backup_side.items():
             for m in matches_for_k:
-                other_side[m].append(k)
+                other_side.setdefault(m, []).append(k)
         return {k: tuple(set(m)) for k, m in other_side.items()}
 
     def _verify(self, expected: "DirectionalMapping[HL, HR]") -> None:

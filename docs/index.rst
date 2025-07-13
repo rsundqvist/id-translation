@@ -18,8 +18,14 @@ other users; see the example below.
    )
 
 The template generates an installable ``{your-namespace}.id_translation`` module, with functions such as the one used
-above. Check out the `demo project`_ (and its 📚 `generated documentation`_) to get a preview of what Your generated
-project might look like.
+above.
+Check out the `demo project`_ (and its 📚 `generated documentation`_) to get a preview of what Your generated project
+might look like.
+
+.. hint::
+
+   See the :doc:`/documentation/translation-primer` for a high-level overview of the :class:`.Translator` plumbing.
+
 
 .. _id-translation-project: https://github.com/rsundqvist/id-translation-project/
 .. _demo project: https://github.com/rsundqvist/id-translation-project/tree/master/demo/bci-id-translation

@@ -6,7 +6,7 @@ Examples:
     **Initialization**
 
     Typically, you'd use something like a :meth:`id_translation.Translator.from_config` callback with suitable
-    arguments. For our purposes however, dummy translations are enough.
+    arguments. Dummy translations are used here.
 
     >>> from id_translation import Translator
     >>> helper = TranslationHelper[str, str, int](
@@ -26,7 +26,7 @@ Examples:
 
     In the example below, ``names="name"`` is a fixed argument and ``fmt="{id}:{name}"`` is a default argument. The
     `translatable` (= ``list(range(n))``) and `copy` arguments are always required, but cannot be defined as fixed
-    arguments. The reasons for this are mostly related to the use of :py:func:`typing.overload`.
+    arguments (to allow proper :py:func:`overload <typing.overload>` typing).
 
     >>> def example(
     ...     n: int,
@@ -55,13 +55,11 @@ Examples:
     >>> example(2, translate=False)
     [0, 1]
 
-    Note the output is of type ``list[int]``, rather than expected ``list[str]``, in this case.
+    Note the output type is ``list[int]``, rather than the expected ``list[str]``, in this case.
 
     .. seealso:: The :envvar:`ID_TRANSLATION_DISABLED` environment variable.
 
-    Aside from the obvious ``true|false`` behaviour, the :func:`TranslationHelper` may also act on the input type. The
-    helper can be configured what input that the user may pass; see the `fixed_params` argument of the class. Use
-    :meth:`.TranslationHelper.convert_user_params` to validate the configuration.
+    Aside from the obvious ``true | false`` behaviour, the helper may also act on the input type.
 
     **Argument forwarding**
 
@@ -76,6 +74,13 @@ Examples:
     'name-of-21 (binary=10101)'
 
     This is equivalent to passing ``translate={"fmt": "{name} (binary={id:0b})"}``, as we did above.
+
+    .. note::
+
+       Users may not override the `fixed_params` of the helper instance.
+
+    The helper uses :meth:`.TranslationHelper.convert_user_params` internally, which may also be used to validate the
+    configuration.
 
     **Documenting user arguments**
 
@@ -95,6 +100,9 @@ Examples:
 import os as _os
 import typing as _t
 from collections import abc as _abc
+
+from rics.misc import format_kwargs as _format_kwargs
+from rics.misc import get_public_module as _get_public_module
 
 from id_translation import Translator as _Translator
 from id_translation import translator_typing as _trt
@@ -314,12 +322,10 @@ class TranslationHelper(_t.Generic[_tt.NameType, _tt.SourceType, _tt.IdType]):
         return self._get()
 
     def __repr__(self) -> str:
-        from rics.misc import format_kwargs, get_public_module
-
-        parts = [get_public_module(self._get, include_name=True, resolve_reexport=True)]
+        parts = [_get_public_module(self._get, include_name=True, resolve_reexport=True)]
 
         if self._fixed:
-            parts.append(format_kwargs(self._fixed))
+            parts.append(_format_kwargs(self._fixed))
 
         if (user_param_name := self._user_params_name) != "translate":
             parts.append(f"{user_param_name=}")

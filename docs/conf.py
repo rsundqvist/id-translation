@@ -115,6 +115,19 @@ def setup(app):  # noqa
     app.connect("missing-reference", callback)  # Fixes linking of typevars
     monkeypatch_autosummary_toc()
 
+    add_custom_lexer()
+
+
+def add_custom_lexer():
+    """For `dvdrental-info-messages.log`.
+
+    The lexer itself doesn't make (much) sense.
+    """
+    from sphinx.highlighting import lexers
+    from log_lexer import LogLexer
+
+    lexers["log"] = LogLexer()
+
 
 # If extensions (or modules to document with autodoc) are in another
 # directory, add these directories to sys.path here. If the directory is

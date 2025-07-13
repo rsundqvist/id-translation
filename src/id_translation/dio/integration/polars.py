@@ -8,6 +8,7 @@ import polars as _pl
 
 from id_translation import dio as _dio
 from id_translation import types as _tt
+from id_translation.dio.exceptions import NotInplaceTranslatableError as _NotInplaceTranslatableError
 from id_translation.offline import TranslationMap as _TranslationMap
 
 PolarsT = _t.TypeVar("PolarsT", _pl.DataFrame, _pl.Series)
@@ -61,9 +62,7 @@ class PolarsIO(_dio.DataStructureIO[PolarsT, str, _tt.SourceType, _tt.IdType]):
         copy: bool,
     ) -> PolarsT | None:
         if not copy and isinstance(translatable, _pl.Series):
-            from id_translation.dio.exceptions import NotInplaceTranslatableError
-
-            raise NotInplaceTranslatableError(translatable)
+            raise _NotInplaceTranslatableError(translatable)
 
         def _translate_series(series: _pl.Series, name: str) -> _pl.Series:
             # Create the mappings before Polars can disappear into Rust, where the MagicDict logic will disappear. For

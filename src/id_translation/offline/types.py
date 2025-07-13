@@ -47,7 +47,7 @@ class PlaceholderTranslations(_t.Generic[_tt.SourceType]):
             TypeError: If `data` cannot be converted.
         """
         try:
-            from pandas import DataFrame
+            from pandas import DataFrame  # noqa: PLC0415
 
             if isinstance(data, DataFrame):
                 return cls.from_dataframe(source, data)
@@ -68,9 +68,9 @@ class PlaceholderTranslations(_t.Generic[_tt.SourceType]):
 
     def to_pandas(self, max_rows: int = 0) -> "pandas.DataFrame":
         """Create a pandas DataFrame representation of the translations."""
-        import pandas as pd
+        from pandas import DataFrame  # noqa: PLC0415
 
-        return pd.DataFrame.from_dict(self.to_dict(max_rows))
+        return DataFrame.from_dict(self.to_dict(max_rows))
 
     @staticmethod
     def to_dicts(
@@ -100,7 +100,7 @@ class PlaceholderTranslations(_t.Generic[_tt.SourceType]):
             return cls(source, (_tt.ID, "name"), records, id_pos=0)
 
         try:
-            from pandas import DataFrame
+            from pandas import DataFrame  # noqa: PLC0415
 
             return cls.from_dataframe(source, DataFrame.from_dict(data))
         except ImportError:

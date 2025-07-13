@@ -130,7 +130,7 @@ class BaseMetadata(ABC):
     @classmethod
     def _delta_from_string(cls, max_age: str) -> timedelta:
         try:
-            import pandas
+            import pandas  # noqa: PLC0415
 
             return pandas.Timedelta(max_age).to_pytimedelta()  # type: ignore[no-any-return]
         except ImportError:

@@ -10,7 +10,8 @@ from ..types import SourceType as _SourceType
 class Transformer(_t.Protocol[_IdType]):
     """Transformation API type.
 
-    Transformers are persistent entities owned by a single :class:`.Translator` instance.
+    Transformers are persistent entities owned by a single :class:`.Translator` instance. See the
+    :class:`.BitmaskTransformer` for a concrete example.
     """
 
     def update_ids(self, ids: set[_IdType], /) -> None:

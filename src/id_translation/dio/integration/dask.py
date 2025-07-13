@@ -8,6 +8,7 @@ from dask import dataframe as _dd
 
 from id_translation import dio as _dio
 from id_translation import types as _tt
+from id_translation.dio.exceptions import NotInplaceTranslatableError as _NotInplaceTranslatableError
 from id_translation.offline import MagicDict as _MagicDict
 from id_translation.offline import TranslationMap as _TranslationMap
 
@@ -51,9 +52,7 @@ class DaskIO(_dio.DataStructureIO[DaskT, str, _tt.SourceType, _tt.IdType]):
         copy: bool,
     ) -> DaskT | None:
         if not copy:
-            from id_translation.dio.exceptions import NotInplaceTranslatableError
-
-            raise NotInplaceTranslatableError(translatable)  # Can't in-place a compute graph.
+            raise _NotInplaceTranslatableError(translatable)  # Can't in-place a compute graph.
 
         if isinstance(translatable, _dd.Series):
             return _translate_series(translatable, tmap[names[0]])

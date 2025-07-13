@@ -1,0 +1,4 @@
+[project]
+name = "log-lexer"
+version = "0.0.0"
+dependencies = ["pygments"]

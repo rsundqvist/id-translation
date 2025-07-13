@@ -9,6 +9,8 @@ import logging
 import re as _re
 import typing as _t
 
+from rics.misc import get_by_full_name as _get_by_full_name
+
 from .. import logging as _logging
 
 _NOUN_TRANSFORMER_CACHE: dict[str, _abc.Callable[[str], str]] = {}
@@ -408,12 +410,10 @@ def _get_noun_transformer(plural_to_singular: PluralToSingularArg) -> _abc.Calla
         return lambda noun: noun
 
     if isinstance(plural_to_singular, str):
-        from rics.misc import get_by_full_name
-
         if (transformer := _NOUN_TRANSFORMER_CACHE.get(plural_to_singular)) is not None:
             return transformer
 
-        transformer = get_by_full_name(plural_to_singular)
+        transformer = _get_by_full_name(plural_to_singular)
         _NOUN_TRANSFORMER_CACHE[plural_to_singular] = transformer
         return transformer  # type: ignore[no-any-return]
 

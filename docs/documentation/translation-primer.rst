@@ -8,6 +8,11 @@ This document will be dedicated to a toy example -- translating a `"Bite report"
 order to demonstrate some key concepts. Each new component will be presented in the order in which they are used during
 normal operation.
 
+.. note::
+
+   Advanced topics such as :class:`transformations <id_translation.transform.types.Transformer>` and
+   :class:`caching <id_translation.fetching.CacheAccess>` are not covered.
+
 To keep things simple, we will keep everything in a single folder -- the current working directory -- for this example.
 The file structure is as follows:
 
@@ -65,7 +70,7 @@ doesn't work on files, so we'll translate a :class:`pandas.DataFrame` instead.
    from pandas import DataFrame, read_csv
    bite_report: DataFrame = read_csv("biting-victims-2019-05-11.csv")
 
-The :class:`Translator` knows what a ``DataFrame`` is, and will assume that the columns are names to translate.
+The ``Translator`` knows what a ``DataFrame`` is (see :class:`~.PandasIO`), and will use columns as names to translate.
 
 .. note::
    In the language of the :class:`Translator`, the bite report is a :attr:`~types.Translatable`. The columns

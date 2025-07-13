@@ -390,9 +390,9 @@ class. When used in config files, these appear as ``[*.overrides]``-sections. To
 
    The type of ``context`` is determined by the class that owns the overrides.
 
-This next snipped is from :doc:`another example <examples/notebooks/pickle-translation/PickleFetcher>`. For unknown IDs,
+This next snippet is from :doc:`another example <examples/notebooks/pickle-translation/PickleFetcher>`. For unknown IDs,
 the name is set to `'Name unknown'` for the `'name_basics'` source and `'Title unknown'` for the `'title_basics'`
-source, respectively. They both inherit the `from` and `to` keys which rare set to `'?'`.
+source, respectively. They both inherit the `from` and `to` keys which are set to `'?'`.
 
 .. code-block:: toml
 

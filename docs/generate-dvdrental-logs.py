@@ -16,21 +16,32 @@ import pandas as pd
 import sqlalchemy
 
 from id_translation import Translator
-from id_translation.mapping.support import enable_verbose_debug_messages
+from id_translation import logging as _logging
+
+from id_translation._tasks import _base_task
 
 ROOT = Path(__file__).parent.parent.joinpath("tests/dvdrental/")
 OUTPUT_DIR = Path(__file__).parent
 RECORDS_FILE = OUTPUT_DIR / "documentation/dvdrental-records.json"
 RST_FILE = OUTPUT_DIR / "documentation/translation-logging.rst"
 
+class Random:
+    def __init__(self, x):
+        pass
+
+    def randint(self, a, b):
+        return 2019_05_11
+
+_base_task.Random = Random
+_logging.ENABLE_VERBOSE_LOGGING = True
+_logging.LOGGER.setLevel(logging.DEBUG)
+
 
 class JsonLogRecorder(logging.Handler):
     ORIGIN = datetime.fromisoformat("2019-05-11T20:30:00").timestamp()
-    WRITE_ISOLATED_KEY_EVENTS = False
 
     def __init__(self):
         super().__init__()
-        self.key_events = []
         self.all_records = []
         self.start = datetime.now()
 
@@ -39,51 +50,58 @@ class JsonLogRecorder(logging.Handler):
         record.pathname = "".join(("<site-packages>", mid, right))
         record.created = self.ORIGIN + (datetime.now() - self.start).total_seconds()
 
-        self.all_records.append(record.__dict__)
         record_dict = record.__dict__
-
-        event_key = record_dict.get("event_key")
-        if event_key and record_dict.get("context", "customer") in ("customer", "category"):
-            self.key_events.append(record_dict)
+        self.all_records.append(record_dict)
 
     def flush(self) -> None:
         if not self.all_records:
             return
 
-        if self.WRITE_ISOLATED_KEY_EVENTS:
-            root = OUTPUT_DIR / "key-events"
-            root.mkdir()
-
-            for i, record in enumerate(self.key_events):
-                output_file = root / f"key-events/{i:02d}-{record['event_title']}.json"
-                with output_file.open("w") as f:
-                    json.dump(record, f, indent=2)
-
         root = OUTPUT_DIR / "documentation"
         records = sorted(self.all_records, key=lambda d: d["created"])
         with RECORDS_FILE.open("w") as f:
             json.dump(records, f, indent=2)
-
-        root.joinpath("dvdrental-exit-message.txt").write_text(
-            "\n  ".join(textwrap.wrap(self.key_events[-1]["message"], width=80))
-        )
         print(f"Dumped {len(self.all_records)} records in '{root}'.")
+
+        info_rows = []
+        for record in records:
+            if record["levelno"] == logging.INFO:
+                message = "[{name}]: {message}".format_map(record)
+                raw_lines = message.splitlines()
+                lines = []
+                for line in raw_lines:
+                    wrapped_line = textwrap.wrap(line, width=80, replace_whitespace=False, subsequent_indent="    ")
+                    lines.extend(wrapped_line)
+                message = "\n".join(lines)
+                info_rows.append(message)
+
+        root.joinpath("dvdrental-info-messages.log").write_text("\n\n".join(info_rows))
+        print(f"Dumped {len(info_rows)} INFO rows in '{root}'.")
 
         by_name = defaultdict(int)
         for record in self.all_records:
             by_name[record["name"]] += 1
 
-        counts = pd.Series(by_name).sort_values(ascending=False).head(10).to_frame("#records").to_string()
+        counts = pd.Series(by_name).sort_values(ascending=False)  # .head(10)
+        counts["total"] = counts.sum()
+        counts = counts.to_frame("#records").to_string()
         print(counts)
         print("=" * counts.index("\n"))
 
         self.all_records = []
-        self.key_events = []
 
 
 def main():
     recorder = JsonLogRecorder()
-    logging.basicConfig(level=logging.DEBUG, handlers=[recorder, logging.StreamHandler()])
+    gray = "\033[37m"
+    blue = "\033[34m"
+    reset = "\033[0m"
+    logging.basicConfig(
+        format=f"{gray}%(asctime)s.%(msecs)03d{reset} {blue}%(levelname)8s{reset} [{gray}%(name)s{reset}] %(message)s",
+        datefmt="%Y-%m-%dT%H:%M:%S",
+        level=logging.DEBUG,
+        handlers=[recorder, (logging.StreamHandler())],
+    )
     os.environ["DVDRENTAL_PASSWORD"] = "Sofia123!"
     os.environ["DVDRENTAL_CONNECTION_STRING"] = "postgresql+pg8000://postgres:{password}@localhost:5002/sakila"
 
@@ -98,8 +116,8 @@ def main():
         records = list(conn.execute(sqlalchemy.text((ROOT / "docker/tests/query.sql").read_text())))
     df = pd.DataFrame.from_records(records, columns=expected.columns).loc[expected.index]
 
-    with enable_verbose_debug_messages():
-        translator.translate(df, copy=False)
+    # Context hides all fetcher init logs since we call MultiFetcher.children above.
+    df = translator.translate(df)
 
     pd.testing.assert_frame_equal(df, expected)
 
@@ -112,7 +130,7 @@ def handle_rst() -> None:
     start, stop = find_doc_lines()
     content = RST_FILE.read_text()
 
-    for part in f":lines: {start}-{stop}", f":lineno-start: {stop}":
+    for part in f":lines: {start}-{stop}", f":lineno-start: {start}":
         if part in content:
             print(f"\033[92mOK:\033[0m {part=}")
         else:
@@ -121,14 +139,10 @@ def handle_rst() -> None:
 
 def find_doc_lines() -> tuple[int, int]:
     lines = RECORDS_FILE.read_text().splitlines()
-    line0 = '    "event_title": "MULTIFETCHER.FETCH.EXIT",'
-    line1 = '    "event_title": "TRANSLATOR.TRANSLATE.EXIT",'
 
-    start = lines.index(line0)
-    stop = lines.index(line1)
-    for i, line in enumerate(lines[start:stop]):
+    for r, line in enumerate(reversed(lines)):
         if line == "  },":
-            return start + i + 2, len(lines) - 1
+            return len(lines) - r + 1, len(lines) - 1
 
     raise ValueError("not found")
 

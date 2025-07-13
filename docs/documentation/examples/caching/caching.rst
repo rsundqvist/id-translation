@@ -23,6 +23,7 @@ The new class needs to know where to store data and how long to keep it.
 .. literalinclude:: caching.py
    :caption: The  ``__init__`` method.
    :pyobject: MyCacheAccess.__init__
+   :dedent:
 
 We can now start implementing the abstract methods in :class:`.CacheAccess`. We'll start with
 :meth:`.CacheAccess.store`:
@@ -30,6 +31,7 @@ We can now start implementing the abstract methods in :class:`.CacheAccess`. We'
 .. literalinclude:: caching.py
    :caption: The  ``MyCacheAccess.store()`` method.
    :pyobject: MyCacheAccess.store
+   :dedent:
 
 **Requirement 1**: If :attr:`.FetchInstruction.fetch_all` is ``False``, data should not be stored.
 
@@ -42,6 +44,7 @@ We're now ready to implement :meth:`.CacheAccess.load`, which will read, verify,
 .. literalinclude:: caching.py
    :caption: The  ``MyCacheAccess.load()`` method.
    :pyobject: MyCacheAccess.load
+   :dedent:
 
 As per **Requirement 3**, we should only return data that is newer than `ttl` seconds. We'll use the
 :py:data:`modification time <stat.ST_MTIME>` of the serialized data that is reported by the operating system.
@@ -49,6 +52,7 @@ As per **Requirement 3**, we should only return data that is newer than `ttl` se
 .. literalinclude:: caching.py
    :caption: The ``MyCacheAccess.age_in_seconds()`` method.
    :pyobject: MyCacheAccess.age_in_seconds
+   :dedent:
 
 If the data is stale, we return ``None``.
 
@@ -64,7 +68,7 @@ Creating a cached fetcher
 All :class:`.AbstractFetcher` implementations accept an optional `cache_access` keyword argument.
 
 .. literalinclude:: caching.py
-   :caption: Creating ``Translator`` with a cached fetcher.
+   :caption: Creating a :class:`.Translator` with a cached fetcher.
    :pyobject: create
 
 Using a :class:`.CacheAccess` with a :class:`.MemoryFetcher` doesn't make much sense, but the caching procedure works

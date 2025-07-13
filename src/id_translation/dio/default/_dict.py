@@ -2,6 +2,7 @@ from collections.abc import Sequence
 from typing import Any
 
 from rics.collections.misc import as_list
+from rics.logs import disable_temporarily
 
 from id_translation.offline import TranslationMap
 from id_translation.types import IdType, NameType, SourceType
@@ -34,10 +35,8 @@ class DictIO(DataStructureIO[dict[NameType, IdType], NameType, SourceType, IdTyp
         tmap: TranslationMap[NameType, SourceType, IdType],
         copy: bool,
     ) -> dict[NameType, Any] | None:
-        from rics.logs import disable_temporarily
-
-        from .._resolve import LOGGER as RESOLVE_IO_LOGGER
-        from .._resolve import resolve_io
+        from .._resolve import LOGGER as RESOLVE_IO_LOGGER  # noqa: PLC0415
+        from .._resolve import resolve_io  # noqa: PLC0415
 
         with disable_temporarily(RESOLVE_IO_LOGGER):
             translated = {}

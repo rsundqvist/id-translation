@@ -1,4 +1,5 @@
 import logging
+import pickle
 import warnings
 from collections.abc import Iterable
 from copy import deepcopy
@@ -37,6 +38,7 @@ from .offline.types import (
     PlaceholderTranslations,
     SourcePlaceholderTranslations,
 )
+from .testing import TestFetcher, TestMapper
 from .toml import TranslatorFactory, meta
 from .transform.types import Transformers
 from .translator_typing import CopyParams, FetcherTypes
@@ -122,7 +124,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
         Since `people` only has columns `id` and `name`, we can use the simplified ``{id: name}`` data format. We're
         using the full format for `animals` since we have an additional `is_nice` column in this table.
-        We didn't define a :class:`.Mapper`, so the names must match exactly.
+        We didn't define a :class:`.Mapper`, so the column names must match exactly.
 
         >>> import pandas as pd
         >>> df = pd.DataFrame({"animals": [0, 2], "people": [1991, 1999]})
@@ -154,8 +156,6 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         self._cached_tmap: TranslationMap[NameType, SourceType, IdType] = self._to_translation_map({})
         self._fetcher: Fetcher[SourceType, IdType]
         if fetcher is None:
-            from .testing import TestFetcher, TestMapper
-
             self._fetcher = TestFetcher([])  # No explicit sources
             if mapper:  # pragma: no cover
                 warnings.warn(
@@ -229,6 +229,9 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
         Returns:
             A copy of this :class:`.Translator` with `overrides` applied.
+
+        Notes:
+            User types are copied using :func:`copy.deepcopy`.
         """
         kwargs: dict[str, Any] = {
             "fmt": self.fmt,
@@ -250,12 +253,26 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                 except TypeError as e:
                     msg = (
                         f"Failed to clone fetcher (TypeError: {e}). Caller instance will be reused."
-                        "\nTo suppress this warning: Translator.copy(fetcher=Translator.fetcher)"
+                        "\nHnt: To suppress this warning: Translator.copy(fetcher=Translator.fetcher)"
                     )
                     warnings.warn(msg, category=UserWarning, stacklevel=2)
             else:
                 fetcher = self._cached_tmap.copy()
             kwargs["fetcher"] = fetcher
+        if "transformers" in kwargs:
+            transformers = []
+            for t in self.transformers:
+                try:
+                    tc = deepcopy(t)
+                    transformers.append(tc)
+                except TypeError as e:
+                    msg = (
+                        f"Failed to clone {t!r}. (TypeError: {e}). Caller instance will be reused."
+                        "\nHint: To suppress this warning: Translator.copy(transformers=Translator.transformers)"
+                    )
+                    warnings.warn(msg, category=UserWarning, stacklevel=2)
+                    transformers = [*self.transformers]
+            kwargs["transformers"] = transformers
 
         return type(self)(**kwargs)
 
@@ -965,8 +982,6 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         See Also:
             The :meth:`go_offline` method.
         """
-        import pickle
-
         full_path = any_path_to_path(path).expanduser()
         with full_path.open("rb") as f:
             ans = pickle.load(f)  # noqa: S301
@@ -1058,8 +1073,6 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         self._cached_tmap = translation_map
 
         if path:
-            import pickle
-
             path = any_path_to_path(path).expanduser()
             path.parent.mkdir(parents=True, exist_ok=True)
             with path.open("wb") as f:

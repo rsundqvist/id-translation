@@ -138,7 +138,7 @@ class FormatApplier(Generic[NameType, SourceType, IdType]):
 
     def to_pandas(self) -> "pandas.DataFrame":
         """Get the underlying data used for translations as a :class:`pandas.DataFrame`."""
-        from pandas import DataFrame
+        from pandas import DataFrame  # noqa: PLC0415
 
         return DataFrame(self.to_dict()).convert_dtypes()
 

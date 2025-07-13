@@ -42,7 +42,7 @@ with warnings.catch_warnings():
 inf = float("inf")
 
 
-class Mapper(Generic[ValueType, CandidateType, ContextType]):
+class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
     """Optimal value-candidate matching.
 
     For an introduction to mapping, see the :ref:`mapping-primer` page.

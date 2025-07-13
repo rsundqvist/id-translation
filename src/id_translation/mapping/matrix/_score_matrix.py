@@ -120,12 +120,12 @@ class ScoreMatrix(Generic[ValueType, CandidateType]):
 
     def to_pandas(self) -> "pandas.DataFrame":
         """Convert to :class:`pandas.DataFrame`."""
-        import pandas as pd
+        from pandas import DataFrame, Index  # noqa: PLC0415
 
-        return pd.DataFrame(
+        return DataFrame(
             self._grid,
-            index=pd.Index(self._values, name="values"),
-            columns=pd.Index(self._candidates, name="candidates"),
+            index=Index(self._values, name="values"),
+            columns=Index(self._candidates, name="candidates"),
         )
 
     def to_dict(self) -> dict[tuple[ValueType, CandidateType], float]:

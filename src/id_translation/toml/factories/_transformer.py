@@ -8,7 +8,7 @@ from id_translation.types import IdType
 
 def default_transformer_factory(clazz: str, config: dict[str, Any]) -> Transformer[IdType]:
     """Create a :class:`.Transformer` from config."""
-    from id_translation import transform as default_module
+    from id_translation import transform as default_module  # noqa: PLC0415
 
     cls = get_by_full_name(
         clazz,

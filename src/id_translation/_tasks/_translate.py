@@ -126,7 +126,7 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
 
     @classmethod
     def _coerce_float_to_int(cls, ids: Sequence[float]) -> tuple[Iterable[int], int]:
-        from numpy import isnan, unique
+        from numpy import isnan, unique  # noqa: PLC0415
 
         arr = unique(ids)
         keep_mask = ~isnan(arr, casting="no")
@@ -238,7 +238,7 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
             n_total = len(ids)
             f_untranslated = n_untranslated / n_total
 
-            sample_ids = self._get_untranslated_ids(name_to_ids[name], is_missing_mask=is_missing)
+            sample_ids = self._get_untranslated_ids(ids, is_missing_mask=is_missing)
 
             fail = f_untranslated > max_fails
 
@@ -303,7 +303,7 @@ def _json_safe_types(items: list[Any]) -> list[Any]:
     converters: dict[type[Any], Callable[[Any], Any]] = {UUID: str}
 
     try:
-        from numpy import floating, integer
+        from numpy import floating, integer  # noqa: PLC0415
 
         converters[integer] = int
         converters[floating] = float

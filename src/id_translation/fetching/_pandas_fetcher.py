@@ -108,7 +108,7 @@ class PandasFetcher(AbstractFetcher[str, IdType]):
             return {}
 
     def _find_sources_fsspec(self, pattern: str) -> dict[str, str]:
-        from fsspec.core import url_to_fs  # type: ignore
+        from fsspec.core import url_to_fs  # type: ignore  # noqa: PLC0415
 
         fs, _ = url_to_fs(pattern, **self._kwargs.get("storage_options", {}))
 

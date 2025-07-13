@@ -1,20 +1,21 @@
 """Transformations for translating bitmask fields."""
 
-from collections.abc import Iterable, Mapping, MutableMapping
-from itertools import filterfalse
-from typing import TypedDict
+import typing as _t
+from collections import abc as _abc
 
-from ..types import Transformer
+from rics.misc import format_kwargs as _format_kwargs
+
+from ..types import Transformer as _Transformer
 
 IdType = int
 
 
-class TomlOverrideRecord(TypedDict):
+class TomlOverrideRecord(_t.TypedDict):
     id: IdType
     override: str
 
 
-class BitmaskTransformer(Transformer[IdType]):
+class BitmaskTransformer(_Transformer[IdType]):
     r"""Transformations for translating bitmask fields.
 
     IDs must be integers.
@@ -79,7 +80,7 @@ class BitmaskTransformer(Transformer[IdType]):
         self,
         joiner: str = " & ",
         *,
-        overrides: Mapping[IdType, str] | None = None,
+        overrides: _abc.Mapping[IdType, str] | None = None,
         force_decomposition: bool = False,
         force_real_translations: bool = True,
     ) -> None:
@@ -101,10 +102,9 @@ class BitmaskTransformer(Transformer[IdType]):
 
     def update_translations(self, translations: dict[IdType, str], /) -> None:
         """Join decomposed bitmask values using the `joiner` string."""
-        ids_to_update: Iterable[IdType] = filter(self.is_decomposable, translations)
+        ids_to_update = [idx for idx in translations if self.is_decomposable(idx)]
         if not self._force:
-            ids_to_update = filterfalse(translations.__contains__, ids_to_update)
-        ids_to_update = list(ids_to_update)
+            ids_to_update = [idx for idx in ids_to_update if idx not in translations]
 
         translations.update(self._overrides)
         new_translations = {
@@ -115,7 +115,7 @@ class BitmaskTransformer(Transformer[IdType]):
         translations.update(new_translations)
         translations.update(self._overrides)
 
-    def try_add_missing_key(self, key: IdType, /, *, translations: MutableMapping[IdType, str]) -> None:
+    def try_add_missing_key(self, key: IdType, /, *, translations: _abc.MutableMapping[IdType, str]) -> None:
         """Join decomposed bitmask values using the `joiner` string."""
         bits = self.decompose_bitmask(key)
         if not bits:
@@ -125,8 +125,8 @@ class BitmaskTransformer(Transformer[IdType]):
         except KeyError:
             return
 
-    def _create_composite_translation(self, bits: list[IdType], *, translations: Mapping[IdType, str]) -> str:
-        from id_translation.offline import MagicDict
+    def _create_composite_translation(self, bits: list[IdType], *, translations: _abc.Mapping[IdType, str]) -> str:
+        from id_translation.offline import MagicDict  # noqa: PLC0415
 
         if self._force_real_translations and isinstance(translations, MagicDict):
             translations = translations.real
@@ -134,9 +134,12 @@ class BitmaskTransformer(Transformer[IdType]):
         return self._joiner.join(translations[idx] for idx in bits)
 
     def __repr__(self) -> str:
-        overrides = self._overrides
-        force_decomposition = self._force
-        return f"{type(self).__name__}({self._joiner!r}, {overrides=}, {force_decomposition=})"
+        kwargs = dict(
+            overrides=self._overrides,
+            force_decomposition=self._force,
+            force_real_translations=self._force_real_translations,
+        )
+        return f"{type(self).__name__}({self._joiner!r}, {_format_kwargs(kwargs)})"
 
     @classmethod
     def decompose_bitmask(cls, i: int, /) -> list[int]:

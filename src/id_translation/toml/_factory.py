@@ -127,7 +127,7 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
         clazz: type["Translator[NameType, SourceType, IdType]"] | None = None,
         suppress_optional_fetcher_init_errors: bool | None = None,
     ) -> None:
-        from id_translation import Translator
+        from id_translation import Translator  # noqa: PLC0415
 
         self.file = str(file)
         self.extra_fetchers = list(map(str, fetchers))

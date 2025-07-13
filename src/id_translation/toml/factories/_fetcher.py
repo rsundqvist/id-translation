@@ -8,7 +8,7 @@ from id_translation.types import IdType, SourceType
 
 def default_fetcher_factory(clazz: str, config: dict[str, Any]) -> AbstractFetcher[SourceType, IdType]:
     """Create an :class:`.AbstractFetcher` from config."""
-    from id_translation import fetching as default_module
+    from id_translation import fetching as default_module  # noqa: PLC0415
 
     cls = get_by_full_name(
         clazz,

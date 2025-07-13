@@ -16,15 +16,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * Pure Python implementation.
   * Replaces `score: pd.DataFrame` in the API; e.g. `Translator.map_scores()` return type.
   * Convert using `ScoreMatrix.to_pandas()`.
+- The `id_translation.logging` module.
+- The `mapping.matrix` module and `ScoreMatrix`.
 
 ### Changed
 - Both `pandas` and `SQLAlchemy` are now optional dependencies.
   * The `PandasFetcher` and `SqlFetcher` classes will raise if dependencies are missing
   * Moved `dio.default.PandasIO` to `dio.integration.pandas`.
 - The `MemoryFetcher` and `PlaceholderTranslations` classes now prefer `tuple` to `list`.
+- Logging has been overhauled. 
+  * Default log level for `id_translation` is now `logging.WARNING` (lower level must be set explicitly).
+  * Several key event messages have been moved to the `INFO` level.
+  * Most `DEBUG` messages are now gated behind `id_translation.logging.ENABLE_VERBOSE_LOGGING`.
+  * Several new key event messages have been added; others have been reworked.
+- Moved and renamed `mapping.support.MatchScores` to `matrix.ScoreHelper`.
+- Moved `mapping.support.enable_verbose_debug_messages()` to `id_translation.logging`.
+  * Now also sets the log level to `DEBUG` temporarily.
+- Overhauled a large number of log messages.
 
 ### Removed
 - The `dio.register_io(sort)` parameter (now always done).
+- The `mapping.support` module.
+- The `settings` module (levels are now hard-coded).
+- All module-specific `VERBOSE` flags; replaced by `id_translation.logging.ENABLE_VERBOSE_LOGGING`.
+- The `Mapping.verbose_logging` init argument.
 
 ## [0.14.1] - 2025-06-14
 

@@ -8,6 +8,7 @@ from time import perf_counter
 from typing import Any, Self, final
 
 from rics.collections.dicts import InheritedKeysDict, reverse_dict
+from rics.misc import tname
 from rics.strings import format_seconds as fmt_sec
 
 from .. import logging as _logging
@@ -681,8 +682,6 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         return f"{type(self).__name__}({sources=})"
 
     def _cls_name(self) -> str:
-        from rics.misc import tname
-
         return tname(self, include_module=True).removeprefix(__package__ + ".")
 
     def __deepcopy__(self, memo: dict[int, Any] = {}) -> Self:  # noqa: B006

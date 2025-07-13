@@ -1,18 +1,16 @@
 import logging
+from importlib.metadata import entry_points
+from time import perf_counter
 from typing import Any
 
 from rics.misc import tname
 
 from ..types import IdType, NameType, SourceType, TranslatableT
 from ._data_structure_io import DataStructureIO
-from .default import DictIO, SequenceIO, SetIO, SingleValueIO
 from .exceptions import UntranslatableTypeError
 
 AnyDataStructureIO = DataStructureIO[Any, Any, Any, Any]
-
-
-_DEFAULT_IMPLEMENTATIONS = DictIO, SetIO, SequenceIO, SingleValueIO
-_RESOLUTION_ORDER: list[type[AnyDataStructureIO]] = [*_DEFAULT_IMPLEMENTATIONS]
+_RESOLUTION_ORDER: list[type[AnyDataStructureIO]]
 LOGGER = logging.getLogger(__package__)
 
 
@@ -135,15 +133,15 @@ def load_integrations() -> None:
     Raises:
         TypeError: If an integration does not inherit from :class:`.DataStructureIO`.
     """
-    from importlib.metadata import entry_points
-    from time import perf_counter
+    from .default import DictIO, SequenceIO, SetIO, SingleValueIO  # noqa: PLC0415
 
     global _RESOLUTION_ORDER  # noqa: PLW0603
+
+    _RESOLUTION_ORDER = [DictIO, SetIO, SequenceIO, SingleValueIO]
 
     start = perf_counter()
 
     LOGGER.debug("Initializing %s integrations in group='%s'.", DataStructureIO.__name__, _ENTRYPOINT_GROUP)
-    _RESOLUTION_ORDER = [*_DEFAULT_IMPLEMENTATIONS]
 
     n_total = 0
     n_ok = 0

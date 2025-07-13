@@ -59,10 +59,10 @@ Score computations
 
     c. Finally, select the best score at each stage (from no to all heuristics) for each pair.
 
-The final output is a score matrix (type: :class:`pandas.DataFrame`), where columns are candidates and values make up
-the index.
+The final output is a :class:`.ScoreMatrix`, which has been :meth:`converted <.ScoreMatrix.to_pandas>` to an equivalent
+:class:`~pandas.DataFrame` below.
 
-.. csv-table:: Partial mapping scores for the :ref:`dvdrental` ID translation example.
+.. csv-table:: Partial mapping scores for the :ref:`dvdrental` example.
    :file: dvdrental-scores.csv
    :header-rows: 1
    :stub-columns: 1
@@ -81,7 +81,7 @@ restriction. These may be summarized as:
 * :attr:`~id_translation.mapping.Cardinality.OneToOne` = *'1:1'*: Each value and candidate may be used at most once.
 * :attr:`~id_translation.mapping.Cardinality.OneToMany` = *'1:N'*: Values have exclusive ownership of matched candidate(s).
 * :attr:`~id_translation.mapping.Cardinality.ManyToOne` = *'N:1'*: Ensure that as many values as possible are
-  *unambiguously* mapped (i.e. to a single candidate). This is the **default option** for new ``Mapper`` instances.
+  *unambiguously* mapped (i.e. to a single candidate). This is the **default** for new :class:`.Mapper` instances.
 * :attr:`~id_translation.mapping.Cardinality.ManyToMany` = *'M:N'*: All matches above the score limit are kept.
 
 In theory, ``OneToMany`` and ``ManyToOne`` are equally restrictive. During mapping however, *the goal is usually to
@@ -103,7 +103,7 @@ v1          0.0  1.0
 >>> mapper.apply(['v0', 'v1'], ['c0', 'c1']).flatten()
 {'val0': 'cand0'}
 
-Notice that `val1` was left without a match, even though it could've been assigned to `cand0` if the equally viable
+Note that `val1` was left without a match, even though it could've been assigned to `cand0` if the equally viable
 matching `val0 → cand1` had been chosen first.
 
 .. note::
@@ -116,59 +116,48 @@ Unmapped values are allowed by default. If mapping failure is not an acceptable 
 the ``Mapper`` with ``on_unmapped='raise'`` to ensure that an error is raised for unmapped values, along with
 more detailed log messages which are emitted on the error level.
 
-Mapper ``verbose``-messages
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-The ``id_translation.mapping.*.verbose`` loggers emit per-combination mapping scores when matches are made or when
-values are left without a match. Records from these loggers are always emitted on the ``DEBUG``-level.
+Verbose logging
+~~~~~~~~~~~~~~~
+The mapper can emit per-combination mapping scores when matches are made or when values are left without a match. These
+messages are gated behind :data:`~id_translation.logging.ENABLE_VERBOSE_LOGGING`.
 
-.. note::
+The messages below are from a test case in a strange world where only one kind of animal (`cardinality=1:1`) is allowed
+to have a specific number of legs.
 
-   All ``verbose`` messages are suppressed unless :attr:`.Mapper.verbose_logging` is ``True``.
-
-The messages below are from a test case in a strange world where only one kind of animal is allowed to have a specific
-number of legs.
-
-.. code-block:: python
+.. code-block:: log
     :caption: A listing of matches that were rejected in favour of the current match.
 
-    id_translation.mapping.Mapper.verbose: Accepted: 'dog' -> '4'; score=inf (short-circuit or override).
-    id_translation.mapping.Mapper.verbose: This match supersedes 7 other matches:
+    id_translation.mapping.Mapper: Accepted: 'dog' -> '4'; score=inf (short-circuit or
+      override). This match supersedes 1 other matches:
         'cat' -> '4'; score=1.000 (superseded on candidate=4).
-        'three-legged cat' -> '4'; score=0.000 < 0.9 (below threshold).
-        'human' -> '4'; score=0.000 < 0.9 (below threshold).
 
-The severity of unmapped values depends on the application. As such, the level for these kinds of messages is determined
-by the :attr:`.Mapper.on_unmapped`-attribute.
+In the case above, `dog` was selected over `cat` to because it was given first in the `values` vector. Matches that
+would not have been made regardless (e.g. score below `min_score` are not shown in the `accept`-message.
 
-.. code-block:: python
+.. code-block:: log
    :caption: Explanation of why a match was not made.
 
-    id_translation.mapping.Mapper.verbose: Could not map value='cat':
+   id_translation.mapping.Mapper: Could not map value='cat'. Rejected matches:
         'cat' -> '4'; score=1.000 (superseded on candidate=4: 'dog' -> '4'; score=inf).
         'cat' -> '0'; score=0.000 < 0.9 (below threshold).
+        'cat' -> '2'; score=0.000 < 0.9 (below threshold).
+        'cat' -> '3'; score=0.000 < 0.9 (below threshold).
 
-Even if ``on_unmapped='ignore'``, records are still emitted on the ``DEBUG``-level under the ``verbose``
-logger namespace.
+The severity of unmapped values is determined by the :attr:`.Mapper.on_unmapped` attribute. The
+:data:`~id_translation.logging.ENABLE_VERBOSE_LOGGING` flag also enables detailed output from a other loggers in the
+`mapping` namespace.
 
-Managing verbosity
-~~~~~~~~~~~~~~~~~~
-Verbose messages may be permanently enabled by initializing with ``verbose_logging=True``. To enable temporarily, use
-the :meth:`~id_translation.mapping.support.enable_verbose_debug_messages` context.
-
-.. code-block:: python
-
-   from id_translation.mapping import Mapper, support
-   with support.enable_verbose_debug_messages():
-       Mapper().apply(<values>, <candidates>)
-
-The ``Mapper`` uses this same function internally when the verbose flag is set.
-
-.. code-block:: python
+.. code-block:: log
    :caption: Messages from the scoring procedure.
 
-   id_translation.mapping.verbose.filter_functions.require_regex_match: Refuse matching for name='a': Matches pattern=re.compile('.*a.*', re.IGNORECASE).
-   id_translation.mapping.verbose.HeuristicScore: Heuristics scores for value='staff_id': ['store': 0.00 -> 0.50 (+0.50), 'payment': 0.07 -> 0.07 (+0.00), 'inventory': 0.00 -> 0.07 (+0.07), 'language': 0.00 -> 0.08 (+0.08), 'category': 0.00 -> 0.04 (+0.04), 'film': 0.05 -> 0.10 (+0.05), 'address': 0.00 -> 0.08 (+0.08), 'rental': 0.00 -> 0.08 (+0.08), 'customer_list': 0.00 -> 0.02 (+0.02), 'staff': 0.00 -> 1.00 (+1.00), 'staff_list': 0.00 -> 0.03 (+0.03), 'city': 0.00 -> 0.10 (+0.10), 'country': 0.00 -> 0.06 (+0.06), 'customer': 0.00 -> 0.04 (+0.04), 'actor': 0.00 -> 0.17 (+0.17)]
-   id_translation.mapping.verbose.filter_functions.require_regex_match: Refuse matching for name='return_date': Does not match pattern=re.compile('.*_id$', re.IGNORECASE).
+   id_translation.mapping.HeuristicScore: Heuristics scores for value='name': [
+     'last_update': 0.06 -> 0.10 (+0.03), 'first_name': 0.14 -> 0.99 (+0.85),
+     'email': 0.12 -> 0.12 (+0.00), 'address_id': -0.00 -> -0.00 (+0.00),
+     'create_date': 0.06 -> 0.14 (+0.08), 'last_name': 0.16 -> 0.38 (+0.22),
+     'store_id': -0.01 -> -0.01 (+0.00), 'active': 0.08 -> 0.08 (+0.00),
+     'customer_id': -0.01 -> -0.01 (+0.00)]
+   id_translation.mapping.filter_functions.filter_names: Refuse matching for
+     name='return_date': Does not match pattern=re.compile('.*_id$', re.IGNORECASE).
 
 The mapping procedure may emit a large amount of records in verbose mode.
 

@@ -58,7 +58,7 @@ poetry-plugin-export = ">=1.8"
 
 [tool.poetry.group.manual-extras.dependencies]
 # Extras that must be available for docs + tests go here. Doc/test-only deps go in their respective groups.
-polars = { version = "~1.30.0" }
+polars = { version = "~1.31.0" }
 dask = { version = "~2025.5.1", extras = ["dataframe"] }
 
 [tool.poetry.group.docs]
@@ -68,9 +68,11 @@ dask = { version = "~2025.5.1", extras = ["dataframe"] }
 # https://github.com/astropy/astropy/pull/12270
 sphinx = "~8.1.3"
 pydata-sphinx-theme = "~0.16.1"
-myst-parser = "~4.0.0"
-nbsphinx = "~0.9.6"
-ipython = "~8.31.0"
+myst-parser = "~4.0.1"
+nbsphinx = "~0.9.7"
+ipython = "~9.4.0"
+
+log-lexer = { path = "docs/log-lexer", develop = true }  # For .log files.
 
 [tool.poetry.group.notebooks]
 optional = true
@@ -83,26 +85,26 @@ tqdm = "*"
 [tool.poetry.group.test.dependencies]
 pytest = "^8.3.5"
 xdoctest = "^1.2.0"
-coverage = "^7.6.12"
-pytest-cov = "^6.0.0"
+coverage = "^7.9.2"
+pytest-cov = "^6.2.1"
 
 # Minio tests
-s3fs = { version = "^2025.3.0", platform = "linux" }
+s3fs = { version = "^2025.5.1", platform = "linux" }
 
 # db drivers and related dependencies
-pg8000 = "^1.31.2"
-pymssql = "==2.3.2"  # TODO(2025-05-31): 2.3.3 and above fails to install on Windows runners
-pymysql = "^1.1.1"
+pg8000 = "~1.31.2"
+pymssql = "~2.3.7"
+pymysql = "~1.1.1"
 cryptography = "*"
 
 [tool.poetry.group.devops.dependencies]
 invoke = "^2.2.0"
-mypy = "^1.16.0"
-ruff = "^0.11.13"
+mypy = "~1.16.1"
+ruff = "~0.12.3"
 
-safety = "^3.0.1"
-codespell = "^2.4.1"
-bump2version = "^1.0.1"
+safety = "~3.6.0"
+codespell = "~2.4.1"
+bump2version = "==1.0.1"
 
 [tool.ruff]
 line-length = 120
@@ -169,6 +171,7 @@ allowed-confusables = ["ℹ"]  # ℹ️INFO in docstrings
     "S311", # Standard pseudo-random generators are not suitable for cryptographic purposes
     "PLR2004", # Allow magic values
     "RUF012", # Mutable class attributes should be annotated with `typing.ClassVar`
+    "PLC0415", # `import` should be at the top-level of a file
 ]
 "tests/offline/test_placeholder_translations.py" = ["PTH123"]
 "tests/mapping/*" = ["ARG003", "ARG004", "ARG005"]

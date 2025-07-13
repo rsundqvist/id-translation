@@ -23,7 +23,7 @@ class DataStructureIO(Generic[TranslatableT, NameType, SourceType, IdType]):
 
         See :func:`.dio.register_io` for details.
         """
-        from ._resolve import register_io
+        from ._resolve import register_io  # noqa: PLC0415
 
         return register_io(cls)
 
@@ -33,7 +33,7 @@ class DataStructureIO(Generic[TranslatableT, NameType, SourceType, IdType]):
 
         See :func:`.dio.is_registered` for details.
         """
-        from ._resolve import is_registered
+        from ._resolve import is_registered  # noqa: PLC0415
 
         return is_registered(cls)
 
@@ -49,7 +49,7 @@ class DataStructureIO(Generic[TranslatableT, NameType, SourceType, IdType]):
         Raises:
             ValueError: If the implementation is not registered.
         """
-        from ._resolve import get_resolution_order
+        from ._resolve import get_resolution_order  # noqa: PLC0415
 
         try:
             return get_resolution_order(real=True).index(cls)

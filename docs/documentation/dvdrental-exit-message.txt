@@ -1,3 +1,0 @@
-Finished translation of 4 names in 'DataFrame'-type data in 36ms, using name-to-
-  source mapping: {'customer_id': 'customer', 'film_id': 'film', 'category_id':
-  'category', 'staff_id': 'staff'}.
