@@ -26,8 +26,8 @@ The ``ℹ️ INFO``-level messages emitted for a single :meth:`.Translator.trans
 .. literalinclude:: dvdrental-info-messages.log
    :language: log
 
-Since these are :ref:`🔑 key event <Key Event Records>` messages, there are corresponding entry events. The
-``'enter'``-records, however, are only emitted on the ``🪲 DEBUG`` level.
+Since these are :ref:`🔑 key event <Key Event Records>` messages, there are corresponding entry events (the messages
+above all all ``'exit'``-records). The ``'enter'``-records, however, are only emitted on the ``🪲 DEBUG`` level.
 
 .. _key-events:
 
