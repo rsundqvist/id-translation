@@ -44,6 +44,7 @@ You'll be using these a lot.
 .. autosummary::
    :toctree:
 
+   Translator.initialize_sources
    Translator.map_scores
    Translator.translated_names
 

@@ -220,6 +220,24 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             raise ValueError("Not created using Translator.from_config()")  # pragma: no cover
         return self._config_metadata
 
+    def initialize_sources(self, task_id: int | None = None, *, force: bool = False) -> Self:
+        """Perform source discovery (fetcher initialization).
+
+        This method does nothing if the ``Translator`` isn't :attr:`online`.
+
+        Args:
+            task_id: Used for logging.
+            force: If ``True``, perform full discovery even if sources are already known.
+
+        Returns:
+            Self, for chained assignment.
+        """
+        if self.online:
+            if task_id is None:
+                task_id = _logging.generate_task_id()
+            self.fetcher.initialize_sources(task_id, force=force)
+        return self
+
     def copy(self, **overrides: Unpack[CopyParams[NameType, SourceType, IdType]]) -> Self:
         """Make a copy of this :class:`.Translator`.
 
@@ -725,8 +743,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             raise ConnectionStatusError("Reverse translation cannot be performed online.")
 
         task_id = _logging.generate_task_id()
-        if self.online:
-            self.fetcher.initialize_sources(task_id)
+        self.initialize_sources(task_id)
 
         task: TranslationTask[NameType, SourceType, IdType] = TranslationTask(
             self,
@@ -812,8 +829,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             🔑 This is a key event method. See :ref:`key-events` for details.
         """
         task_id = _logging.generate_task_id()
-        if self.online:
-            self.fetcher.initialize_sources(task_id)
+        self.initialize_sources(task_id)
 
         return MappingTask(
             self,
@@ -1186,8 +1202,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             {'id': [1999, 1991], 'name': ['Sofia', 'Richard']}
         """
         task_id = _logging.generate_task_id()
-        if self.online:
-            self.fetcher.initialize_sources(task_id)
+        self.initialize_sources(task_id)
 
         return self._user_fetch(
             translatable,
