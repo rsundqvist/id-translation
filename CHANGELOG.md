@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - New convenience method `Translator.initialize_sources()`.
 
+### Fixed
+- Fixed multiple issues in the `PandasFetcher`:
+  * Fix _source_ names for some patterns.
+  * Derive a `read_function` from the `read_path_format` (instead of assuming `pandas.read_csv`) when not given.
+
 ## [0.15.0] - 2025-07-13
 
 ### Added
