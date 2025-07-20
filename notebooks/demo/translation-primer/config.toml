@@ -23,7 +23,6 @@ read_function = "read_csv"
 read_path_format = "./sources/{}.csv"
 
 [fetching.mapping]
-verbose_logging = false
 
 # ------------------------------------------------------------------------------
 # Placeholder mapping configuration. Binds actual names in sources (such as

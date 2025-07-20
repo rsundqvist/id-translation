@@ -39,7 +39,7 @@ original_name = "Original title unknown"
 # Fetching configuration.
 ################################################################################
 [fetching.PandasFetcher]
-read_path_format= "../../data-cache/clean_and_fix_ids/{}.tsv.pkl"
+read_path_format = "~/.id-translation/notebooks/cache/clean_and_fix_ids/{}.tsv.pkl"
 
 # ------------------------------------------------------------------------------
 # Placeholder mapping configuration. Binds actual names in sources (such as
