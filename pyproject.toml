@@ -92,7 +92,7 @@ pytest-cov = "~6.2.1"
 s3fs = { version = "~2025.7.0", platform = "linux" }
 
 # db drivers and related dependencies
-pg8000 = "~1.31.2"
+pg8000 = "~1.31.4"
 pymssql = "~2.3.7"
 pymysql = "~1.1.1"
 cryptography = "*"
