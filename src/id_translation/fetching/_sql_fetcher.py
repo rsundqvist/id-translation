@@ -9,7 +9,7 @@ from urllib.parse import quote_plus
 from uuid import UUID
 
 import sqlalchemy
-from rics.misc import format_kwargs, tname
+from rics.misc import format_kwargs
 from rics.strings import format_perf_counter as fmt_perf
 from sqlalchemy import BINARY, CHAR, TypeDecorator
 
@@ -346,7 +346,8 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         elif self._table_summaries:
             kwargs["sources"] = [*self._table_summaries]
 
-        return f"{tname(self)}({disconnected}{self._estr}{', ' + format_kwargs(kwargs) if kwargs else ''})"
+        pretty_kwargs = ", " + format_kwargs(kwargs, max_value_length=1024) if kwargs else ""
+        return f"{type(self).__name__}({disconnected}{self._estr}{pretty_kwargs})"
 
     @property
     def engine(self) -> sqlalchemy.engine.Engine:
