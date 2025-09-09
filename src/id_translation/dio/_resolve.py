@@ -151,7 +151,8 @@ def load_integrations() -> None:
         try:
             cls = ep.load()
         except ImportError as e:
-            LOGGER.debug("Failed to import entrypoint=%r: %r.", ep, e)
+            if LOGGER.isEnabledFor(logging.DEBUG):
+                LOGGER.debug(f"Failed to import entrypoint={ep!r}: {e!r}.")
             continue
 
         if not issubclass(cls, DataStructureIO):
