@@ -175,6 +175,7 @@ allowed-confusables = ["ℹ"]  # ℹ️INFO in docstrings
 ]
 "tests/offline/test_placeholder_translations.py" = ["PTH123"]
 "tests/mapping/*" = ["ARG003", "ARG004", "ARG005"]
+"tests/test_optional_dependencies.py" = ["ARG002"]
 
 # D102 Missing docstring in public method - Docstrings are inherited, but linters
 # can't realiably know this unless they import the code.
