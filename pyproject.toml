@@ -85,14 +85,14 @@ tqdm = "*"
 [tool.poetry.group.test.dependencies]
 pytest = "~8.4.1"
 xdoctest = "~1.2.0"
-coverage = "~7.9.2"
+coverage = "~7.10.1"
 pytest-cov = "~6.2.1"
 
 # Minio tests
 s3fs = { version = "~2025.7.0", platform = "linux" }
 
 # db drivers and related dependencies
-pg8000 = "~1.31.2"
+pg8000 = "~1.31.4"
 pymssql = "~2.3.7"
 pymysql = "~1.1.1"
 cryptography = "*"
@@ -100,7 +100,7 @@ cryptography = "*"
 [tool.poetry.group.devops.dependencies]
 invoke = "^2.2.0"
 mypy = "~1.17.0"
-ruff = "~0.12.4"
+ruff = "~0.12.7"
 
 safety = "~3.6.0"
 codespell = "~2.4.1"

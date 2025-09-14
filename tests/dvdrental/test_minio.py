@@ -1,5 +1,4 @@
 import logging
-import sys
 from pathlib import Path
 
 import pandas as pd
@@ -22,15 +21,6 @@ for name in "botocore", "s3fs", "fsspec":
 
 
 def test_pandas_fetcher(imdb_translator):
-    if sys.version_info >= (3, 12):
-        # TODO(botocore) https://github.com/boto/boto3/issues/3889
-        with pytest.warns(DeprecationWarning, match=r".*datetime.datetime.utcnow()"):
-            run(imdb_translator)
-    else:
-        run(imdb_translator)
-
-
-def run(imdb_translator):
     # Doesn't actually belong here, but requires Docker. So this is convenient.
     # with pytest.warns(DeprecationWarning, match="datetime.datetime.utcnow"):
     put_objects(imdb_translator.fetch().to_pandas())
