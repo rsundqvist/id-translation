@@ -15,7 +15,7 @@ from id_translation.types import IdTypes
 from ..conftest import ROOT, NotCloneableFetcher
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def fetchers(data: dict[str, pd.DataFrame]) -> Collection[AbstractFetcher[str, int]]:
     humans_fetcher: MemoryFetcher[str, int] = MemoryFetcher({"humans": data["humans"]})
     empty_fetcher: MemoryFetcher[str, int] = MemoryFetcher({}, optional=True)

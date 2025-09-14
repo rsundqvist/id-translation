@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix `SqlFetcher.__str__` unintentionally truncating output.
 - Fix a log message that wasn't JSON serializable.
 - Fix some documentation issues (e.g. dead links).
+- The `MultiFetcher` will now properly close children when `close()` is called.
 
 ## [0.15.1] - 2025-07-20
 

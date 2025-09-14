@@ -69,6 +69,11 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
     def online(self) -> bool:
         return all(f.online for f in self._id_to_fetcher.values())  # pragma: no cover
 
+    def close(self) -> None:
+        """Close all :attr:`child <children>` fetchers."""
+        for fetcher in self.children:
+            fetcher.close()
+
     @property
     def children(self) -> list[Fetcher[SourceType, IdType]]:
         """Return child fetchers sorted by rank."""
