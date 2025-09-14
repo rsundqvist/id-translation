@@ -95,4 +95,4 @@ All that's left now is to translate the data.
    :header-rows: 1
 
 .. _DVD Rental Sample Database:
-    https://www.postgresqltutorial.com/postgresql-getting-started/postgresql-sample-database/
+    https://neon.com/postgresql/postgresql-getting-started/postgresql-sample-database/

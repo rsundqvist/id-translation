@@ -6,7 +6,7 @@
 [![PyPI - Version](https://img.shields.io/pypi/v/id-translation.svg)](https://pypi.python.org/pypi/id-translation)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/id-translation.svg)](https://pypi.python.org/pypi/id-translation)
 [![Tests](https://github.com/rsundqvist/id-translation/workflows/tests/badge.svg)](https://github.com/rsundqvist/id-translation/actions?workflow=tests)
-[![Codecov](https://codecov.io/gh/rsundqvist/id-translation/branch/master/graph/badge.svg)](https://codecov.io/gh/rsundqvist/id-translation)
+[![Codecov](https://codecov.io/gh/rsundqvist/id-translation/branch/master/graph/badge.svg)](https://app.codecov.io/gh/rsundqvist/id-translation)
 [![Read the Docs](https://readthedocs.org/projects/id-translation/badge/)](https://id-translation.readthedocs.io/)
 [![PyPI - License](https://img.shields.io/pypi/l/id-translation.svg)](https://pypi.python.org/pypi/id-translation)
 
@@ -69,7 +69,7 @@ generated project might look like, or continue to the next section for a brief f
 - Optional and [user-extensible] integration of data types, such as [polars] and [dask].
 
 [pandas-translation]: https://id-translation.readthedocs.io/en/stable/documentation/examples/notebooks/cookbook/pandas-index.html
-[user-extensible]: https://id-translation.readthedocs.io/en/stable/api/id_translation.dio.html#user-defined-integrations
+[user-extensible]: https://id-translation.readthedocs.io/en/stable/documentation/translation-io.html#user-defined-integrations
 [polars]: https://id-translation.readthedocs.io/en/stable/api/id_translation.dio.integration.polars.html
 [dask]: https://id-translation.readthedocs.io/en/stable/api/id_translation.dio.integration.dask.html
 

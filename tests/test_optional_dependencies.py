@@ -5,7 +5,7 @@ from importlib.util import find_spec
 import pytest
 
 
-class TestBadImport:
+class TestInitializeWithoutDependency:
     def test_pandas_fetcher(self, pandas_missing):
         from id_translation.fetching import PandasFetcher
 
@@ -29,12 +29,10 @@ class TestOptionalFetchers:
         assert translator.translate(1, "source") == "1:one!"
 
     def test_pandas_without_fsspec(self, tmp_path, sqlalchemy_missing, fsspec_missing):
-        import pandas as pd
-
         from id_translation import Translator
         from id_translation.fetching import PandasFetcher
 
-        pd.DataFrame([[1, "one!"]], columns=["id", "name"]).to_json(tmp_path / "source.json")
+        tmp_path.joinpath("source.json").write_text('{"id": [1], "name": ["one!"]}')
         fetcher = PandasFetcher[int](read_path_format=str(tmp_path / "{}.json"))
 
         translator = Translator[str, str, int](fetcher)
@@ -58,9 +56,9 @@ class TestOptionalFetchers:
 
 
 class TestFloatCoercion:
-    def test_without_numpy(self, numpy_missing, monkeypatch):
-        """Numpy is used for performance reasons in a few places."""
+    """Numpy is used for performance reasons in a few places."""
 
+    def test_without_numpy(self, numpy_missing, monkeypatch):
         from id_translation import Translator
         from id_translation._tasks import TranslationTask
         from id_translation.fetching import MemoryFetcher
@@ -84,9 +82,7 @@ class TestFloatCoercion:
         assert translator.translate([1.0], "source") == ["1:one!"]
         assert calls == 1
 
-    def test_numpy(self, monkeypatch):
-        """Numpy is used for performance reasons in a few places."""
-
+    def test_with_numpy(self, monkeypatch):
         import numpy as np
 
         from id_translation import Translator
