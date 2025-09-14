@@ -12,7 +12,7 @@ Environment variables
 
    Global switch. Set to ``true`` (not recommended) to allow the :meth:`~id_translation.toml.TranslatorFactory` to
    discard `optional` fetchers that raise when imported or initialized.
-   See the `documentation </documentation/translator-config.html#optional-fetchers>`__ for details.
+   See the `documentation <../documentation/translator-config.html#optional-fetchers>`__ for details.
 
 .. envvar:: ID_TRANSLATION_VERBOSE
 

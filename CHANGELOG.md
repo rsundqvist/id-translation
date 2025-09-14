@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Fix `SqlFetcher.__str__` unintentionally truncating output.
 - Fix a log message that wasn't JSON serializable.
+- Fix some documentation issues (e.g. dead links).
 
 ## [0.15.1] - 2025-07-20
 
