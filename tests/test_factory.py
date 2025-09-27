@@ -1,4 +1,5 @@
 import logging
+import re
 from typing import Any
 
 import pytest
@@ -79,7 +80,8 @@ class TestCacheAccess:
         type = "{__name__}.{BadCacheAccess.__name__}"
         """
 
-        with pytest.raises(ConfigurationError, match="TypeError: Expected a subclass of CacheAccess"):
+        match = "TypeError: Expected an instance of 'CacheAccess', but tests.test_factory.BadCacheAccess() produced:"
+        with pytest.raises(ConfigurationError, match=re.escape(match)):
             self.create(tmp_path, cache)
 
     def test_only_one_cached(self, tmp_path):

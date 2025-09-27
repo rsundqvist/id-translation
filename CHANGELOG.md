@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Fix crash when factory functions are used in TOML config.
+
 ## [0.15.2] - 2025-09-14
 
 ### Fixed
