@@ -31,10 +31,10 @@ jobs:
           poetry build --ansi
 
       - name: Publish package on PyPI
-        uses: pypa/gh-action-pypi-publish@d417ba7e7683fa9104c42abe611c1f2c93c0727d
+        uses: pypa/gh-action-pypi-publish@ab69e431e9c9f48a3310be0a56527c679f56e04d
 
       - name: Publish package on TestPyPI
-        uses: pypa/gh-action-pypi-publish@d417ba7e7683fa9104c42abe611c1f2c93c0727d
+        uses: pypa/gh-action-pypi-publish@ab69e431e9c9f48a3310be0a56527c679f56e04d
         with:
           repository-url: https://test.pypi.org/legacy/
           attestations: false  # TODO: Might not need non-release version of the action with this?
