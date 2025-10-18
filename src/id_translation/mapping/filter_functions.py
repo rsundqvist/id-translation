@@ -6,7 +6,7 @@ from collections.abc import Iterable as _Iterable
 from typing import Any as _Any
 
 from .. import logging as _logging
-from ..types import ID
+from .. import types as _tt
 from . import exceptions
 
 
@@ -98,7 +98,7 @@ def filter_sources(
 
         The expression used filters out sources that contain the word `'metadata'`.
     """
-    if value != ID:
+    if value != _tt.ID:
         return set(candidates)
 
     function_name = filter_names.__name__

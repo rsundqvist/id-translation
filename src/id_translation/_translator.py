@@ -24,6 +24,7 @@ from rics.paths import AnyPath, any_path_to_path
 from rics.strings import format_seconds as fmt_sec
 
 from . import logging as _logging
+from . import types as tt
 from ._tasks import MappingTask, TranslationTask
 from .exceptions import ConfigurationChangedError, ConnectionStatusError, TranslationDisabledWarning
 from .fetching import Fetcher
@@ -43,7 +44,6 @@ from .toml import TranslatorFactory, meta
 from .transform.types import Transformers
 from .translator_typing import CopyParams, FetcherTypes
 from .types import (
-    ID,
     CopyTranslatable,
     DictToId,
     DictToList,
@@ -1323,10 +1323,11 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         placeholders = fmt.placeholders
         required = fmt.required_placeholders
 
-        if self._default_fmt and ID in self._default_fmt.placeholders and ID not in placeholders:
+        id = tt.ID
+        if self._default_fmt and id in self._default_fmt.placeholders and id not in placeholders:
             # Ensure that default translations can always use the ID
-            placeholders = (*placeholders, ID)
-            required = (*required, ID)
+            placeholders = (*placeholders, id)
+            required = (*required, id)
 
         if task_id is None:
             task_id = _logging.generate_task_id()

@@ -37,7 +37,10 @@ from typing import TYPE_CHECKING
 from uuid import UUID as _UUID
 
 ID: str = "id"
-"""Name of the ID placeholder."""
+"""Name of the ID placeholder.
+
+Overwriting the default value of ``'id'`` `should` work with most implementations, but is not officially supported.
+"""
 
 IdTypes = int | str | _UUID
 """Type of the value being translated into human-readable labels."""

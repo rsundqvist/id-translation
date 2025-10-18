@@ -15,10 +15,11 @@ from sqlalchemy import BINARY, CHAR, TypeDecorator
 
 from .. import _uuid_utils
 from .. import logging as _logging
+from .. import types as tt
 from ..exceptions import ConnectionStatusError
 from ..offline.types import PlaceholderTranslations
 from ..translator_typing import AbstractFetcherParams
-from ..types import ID, IdType
+from ..types import IdType
 from . import exceptions
 from ._abstract_fetcher import AbstractFetcher
 from .exceptions import FetcherWarning
@@ -475,7 +476,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         if not unmapped:
             messages.append(
                 f"This is likely caused by a bad override. "
-                f"Update or remove the override {ID!r} -> {id_column!r} from your mapping configuration."
+                f"Update or remove the override {tt.ID!r} -> {id_column!r} from your mapping configuration."
             )
         raise exceptions.UnknownPlaceholderError(" ".join(messages))
 

@@ -12,12 +12,13 @@ from rics.misc import tname
 from rics.strings import format_seconds as fmt_sec
 
 from .. import logging as _logging
+from .. import types as tt
 from ..exceptions import ConnectionStatusError
 from ..mapping import HeuristicScore, Mapper
 from ..mapping.exceptions import MappingWarning
 from ..mapping.score_functions import modified_hamming
 from ..offline.types import PlaceholdersTuple, PlaceholderTranslations, SourcePlaceholderTranslations
-from ..types import ID, IdType, SourceType
+from ..types import IdType, SourceType
 from . import exceptions
 from ._cache_access import CacheAccess
 from ._fetcher import Fetcher
@@ -233,7 +234,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         if not candidates:
             msg = f"Bad {candidates=} argument; must be a non-empty collection."
             raise TypeError(msg)
-        return self.map_placeholders(source, [ID], candidates=candidates, task_id=task_id)[ID]
+        return self.map_placeholders(source, [tt.ID], candidates=candidates, task_id=task_id)[tt.ID]
 
     @property
     def mapper(self) -> Mapper[str, str, SourceType]:
@@ -547,7 +548,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
             # The mapping is only in reverse from the Fetchers point-of-view; we're mapping back to "proper" values.
             translations.placeholders = tuple(reverse_mappings.get(p, p) for p in translations.placeholders)
 
-        translations.id_pos = translations.placeholders.index(ID)
+        translations.id_pos = translations.placeholders.index(tt.ID)
 
         unmapped_required_placeholders = required_placeholders.difference(translations.placeholders)
         if unmapped_required_placeholders:
@@ -623,9 +624,9 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         task_id: int,
         enable_uuid_heuristics: bool,
     ) -> tuple[dict[str, str] | None, FetchInstruction[SourceType, IdType]]:
-        required_placeholders.add(ID)
-        if ID not in placeholders:
-            placeholders = (ID, *placeholders)
+        required_placeholders.add(tt.ID)
+        if tt.ID not in placeholders:
+            placeholders = (tt.ID, *placeholders)
 
         wanted_to_actual = self._wanted_to_actual(source, placeholders, task_id)
 

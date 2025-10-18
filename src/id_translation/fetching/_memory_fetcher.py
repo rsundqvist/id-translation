@@ -1,9 +1,10 @@
 from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Any, Unpack
 
+from .. import types as tt
 from ..offline.types import PlaceholderTranslations, SourcePlaceholderTranslations
 from ..translator_typing import AbstractFetcherParams
-from ..types import ID, IdType, SourceType
+from ..types import IdType, SourceType
 from ._abstract_fetcher import AbstractFetcher
 from .types import FetchInstruction
 
@@ -72,7 +73,7 @@ class MemoryFetcher(AbstractFetcher[SourceType, IdType]):
                 if record[ret.id_pos] in ids  # crash on missing IDs
             )
         placeholders = tuple(ret.placeholders[i] for i in placeholder_indices)
-        id_pos = placeholders.index(ID) if ID in placeholders else -1
+        id_pos = placeholders.index(tt.ID) if tt.ID in placeholders else -1
         return PlaceholderTranslations(instr.source, placeholders, records, id_pos)
 
     def __str__(self) -> str:

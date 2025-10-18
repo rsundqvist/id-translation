@@ -10,6 +10,7 @@ import pandas as pd
 import pytest
 
 from id_translation import Translator as RealTranslator
+from id_translation import types
 from id_translation.dio.exceptions import NotInplaceTranslatableError, UntranslatableTypeError
 from id_translation.exceptions import (
     ConfigurationChangedError,
@@ -17,6 +18,7 @@ from id_translation.exceptions import (
     TooManyFailedTranslationsError,
     TranslationDisabledWarning,
 )
+from id_translation.fetching import MemoryFetcher
 from id_translation.fetching.exceptions import UnknownSourceError
 from id_translation.logging import enable_verbose_debug_messages
 from id_translation.mapping import Mapper
@@ -771,3 +773,29 @@ def test_nan_with_objects(nan_value, object_value):
 
     actual = translator.translate([nan_value, object_value], names="source")
     assert actual == [f"{nan_value}:name-of-{nan_value}", f"{object_value}:name-of-{object_value}"]
+
+
+class TestCustomIdPlaceholder:
+    def setup_class(self):
+        from _pytest.monkeypatch import MonkeyPatch
+
+        self._monkeypatch = MonkeyPatch()
+        self._monkeypatch.setattr(types, "ID", "custom_id")
+
+    def teardown_class(self):
+        self._monkeypatch.undo()
+
+    @classmethod
+    def _run(cls, fetcher):
+        actual = UnitTestTranslator(fetcher=fetcher).translate(1, "source", fmt="{custom_id}:{name}")
+        assert actual == "1:name-of-1"
+
+    def test_dummy_fetcher(self):
+        self._run(None)
+
+    def test_foo(self):
+        self._run({"source": {1: "name-of-1"}})
+
+    def test_bar(self):
+        fetcher = MemoryFetcher[str, int]({"source": {1: "name-of-1"}})
+        self._run(fetcher)

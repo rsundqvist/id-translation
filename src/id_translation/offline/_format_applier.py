@@ -3,8 +3,10 @@ from typing import TYPE_CHECKING, Any, Generic
 
 from rics.misc import tname
 
+from id_translation import types as tt
+
 from ..transform.types import Transformer
-from ..types import ID, IdType, NameType, SourceType
+from ..types import IdType, NameType, SourceType
 from ._format import Format
 from ._magic_dict import MagicDict
 from .types import PlaceholdersTuple, PlaceholderTranslations, TranslatedIds
@@ -120,7 +122,7 @@ class FormatApplier(Generic[NameType, SourceType, IdType]):
             default_fstring = partial.fstring(positional=True)
         except KeyError as e:
             raise ValueError(
-                f"All required placeholders except {{{ID}}} must be provided for {default_fmt=}:"
+                f"All required placeholders except {{{tt.ID}}} must be provided for {default_fmt=}:"
                 f" {default_fmt.required_placeholders}."
             ) from e
 
