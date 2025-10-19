@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.3] - 2025-10-19
+
 ### Fixed
 - Fix crash when factory functions are used in TOML config.
 - Fix type of `types.ID` and `Format` default constants.
@@ -450,7 +452,8 @@ cookiecutter template.
 - Switch to relative imports.
 - Fix some intersphinx issues.
 
-[Unreleased]: https://github.com/rsundqvist/id-translation/compare/v0.15.2...HEAD
+[Unreleased]: https://github.com/rsundqvist/id-translation/compare/v0.15.3...HEAD
+[0.15.3]: https://github.com/rsundqvist/id-translation/compare/v0.15.2...v0.15.3
 [0.15.2]: https://github.com/rsundqvist/id-translation/compare/v0.15.1...v0.15.2
 [0.15.1]: https://github.com/rsundqvist/id-translation/compare/v0.15.0...v0.15.1
 [0.15.0]: https://github.com/rsundqvist/id-translation/compare/v0.14.1...v0.15.0
