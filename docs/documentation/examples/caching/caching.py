@@ -9,8 +9,8 @@ This implementation provides:
     * Local cache storage using feather.
 
 This is a naive implementation whose primary purpose is to provide a concrete
-example of the CacheAccess pattern. Keep in mind that load() method will be
-called every single time that data is requested, so slow operations such as
+example of the CacheAccess pattern. Keep in mind that the load() method will
+be called every single time that data is requested, so slow operations such as
 disk reads should be used with care.
 """
 

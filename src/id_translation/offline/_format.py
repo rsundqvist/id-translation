@@ -1,5 +1,5 @@
 from collections.abc import Iterable, Mapping
-from typing import Any, Self
+from typing import Any, Literal, Self
 
 from rics.misc import tname
 
@@ -99,10 +99,10 @@ class Format:
     See the official :py:ref:`formatspec` documentation for details.
     """
 
-    DEFAULT: str = "{id}:{name}"
+    DEFAULT: Literal["{id}:{name}"] = "{id}:{name}"
     """Default translation format."""
 
-    DEFAULT_FAILED: str = "<Failed: id={id!r}>"
+    DEFAULT_FAILED: Literal["<Failed: id={id!r}>"] = "<Failed: id={id!r}>"
     """Default format for missing IDs."""
 
     def __init__(self, fmt: str) -> None:

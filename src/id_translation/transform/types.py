@@ -28,7 +28,7 @@ class Transformer(_t.Protocol[_IdType]):
         """
 
     def update_translations(self, translations: dict[_IdType, str], /) -> None:
-        """Transform a translations.
+        """Update real translations.
 
         Called by the :class:`.MagicDict` during initialization.
 

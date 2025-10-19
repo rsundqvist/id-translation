@@ -36,8 +36,9 @@ The ``metaconf.toml``-file is read as-is, without any preprocessing.
 Sections
 --------
 The only valid top-level keys are ``translator``, ``unknown_ids``, and ``fetching``. Only the ``fetching`` section is
-required, though it may be left out of the main configuration file if fetching is configured separately. Other top-level
-keys will raise a :class:`~id_translation.exceptions.ConfigurationError` if present.
+required, though it may be left out of the main configuration file if fetching is configured separately. Other
+:attr:`top-level keys <.TranslatorFactory.TOP_LEVEL_KEYS>`
+will raise a :class:`~id_translation.exceptions.ConfigurationError` if present.
 
 Section: Translator
 -------------------
@@ -290,7 +291,11 @@ For more information about the mapping procedure, please refer to the :ref:`mapp
 
 .. hint::
 
-   For difficult matches, consider using :ref:`overrides <Subsection: Overrides>` instead.
+   For difficult matches, consider using :ref:`overrides <Subsection: Overrides>` instead of match scores.
+
+.. hint::
+
+   Set :attr:`.TranslatorFactory.MAPPER_FACTORY` to use custom :class:`.Mapper` implementations.
 
 Filter functions
 ~~~~~~~~~~~~~~~~
@@ -377,7 +382,11 @@ As an example, the next snippet lets us match table columns such as `animal_id` 
 
 .. hint::
 
-   For difficult matches, consider using :ref:`overrides <Subsection: Overrides>` instead.
+   For difficult matches, consider using :ref:`overrides <Subsection: Overrides>` instead of match scores.
+
+.. hint::
+
+   Set :attr:`.TranslatorFactory.MAPPER_FACTORY` to use custom :class:`.Mapper` implementations.
 
 Subsection: Overrides
 ---------------------

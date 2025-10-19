@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Fix crash when factory functions are used in TOML config.
+- Fix type of `types.ID` and `Format` default constants.
 
 ## [0.15.2] - 2025-09-14
 

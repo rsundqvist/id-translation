@@ -36,8 +36,11 @@ from collections import abc as _cabc
 from typing import TYPE_CHECKING
 from uuid import UUID as _UUID
 
-ID: str = "id"
-"""Name of the ID placeholder."""
+ID: _t.Literal["id"] = "id"
+"""Name of the ID placeholder in the translation :class:`~.Format`.
+
+Cannot be changed (yet); see https://github.com/rsundqvist/id-translation/issues/151.
+"""
 
 IdTypes = int | str | _UUID
 """Type of the value being translated into human-readable labels."""
