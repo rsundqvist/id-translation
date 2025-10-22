@@ -90,9 +90,10 @@ class MappingTask(NamesTask[NameType, SourceType, IdType]):
 
         if LOGGER.isEnabledFor(logging.INFO):
             with_nones = {name: name_to_source.get(name) for name in self.mapper_input_names}
+            display = with_nones if LOGGER.isEnabledFor(logging.DEBUG) else name_to_source
             LOGGER.info(
                 f"Finished mapping of {len(name_to_source)}/{len(self.mapper_input_names)} names in {type_name} "
-                f"in {fmt_sec(seconds)}: {with_nones}.",
+                f"in {fmt_sec(seconds)}: {display}.",
                 extra=dict(
                     task_id=self.task_id,
                     event_key=_logging.get_event_key(self.caller.map, "exit"),
