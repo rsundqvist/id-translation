@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Log unmapped names only if `DEBUG` logging is enabled.
 - Numerous documentation fixups and changes.
 
+### Fixed
+- Fix handling when `DataStructureIO.priority < 0` is set (e.g. for `PandasIO`).
+
 ## [0.15.3] - 2025-10-19
 
 ### Fixed

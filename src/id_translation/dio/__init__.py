@@ -28,3 +28,5 @@ __all__ = [
     "register_io",
     "resolve_io",
 ]
+
+load_integrations()

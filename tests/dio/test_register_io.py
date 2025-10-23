@@ -3,10 +3,13 @@ from typing import Any, assert_type
 import pytest
 
 from id_translation import Translator
-from id_translation.dio import DataStructureIO, register_io, resolve_io
+from id_translation.dio import DataStructureIO, _resolve, is_registered, resolve_io
+from id_translation.dio.exceptions import UntranslatableTypeError
 
 
 def test_register_io():
+    assert not is_registered(DummyIO)
+    DummyIO.register()
     assert resolve_io(Data.test_object).__class__ is DummyIO
     assert resolve_io(1) is not DummyIO
 
@@ -20,13 +23,35 @@ def test_register_io():
     assert actual == Data.expected
 
 
-@pytest.fixture(autouse=True)
-def register_tmp_io():
-    from id_translation.dio import _resolve
+class TestNegativePriority:
+    def test_explicit_call_warns(self, monkeypatch, caplog):
+        assert DummyIO.is_registered() is False
 
-    register_io(DummyIO)
-    yield
-    _resolve._RESOLUTION_ORDER.remove(DummyIO)
+        monkeypatch.setattr(DummyIO, "priority", -1)
+        DummyIO.register()
+        assert DummyIO.is_registered() is False
+
+        name = _resolve._pretty_io_name(DummyIO)
+        assert caplog.messages[-1] == f"Refusing to register '{name}' since priority=-1 < 0."
+
+    def test_update_priority_after_registration(self, monkeypatch):
+        DummyIO.register()
+        assert DummyIO.is_registered() is True
+        monkeypatch.setattr(DummyIO, "priority", -1)
+        assert DummyIO.is_registered() is False
+
+        with pytest.raises(UntranslatableTypeError) as exc_info:
+            resolve_io(Data())
+
+        note = exc_info.value.__notes__[-1]
+        assert "priority < 0" in note
+        assert "disabled" in note
+        assert _resolve._pretty_io_name(DummyIO) in note
+
+
+@pytest.fixture(autouse=True)
+def register_tmp_io(monkeypatch):
+    monkeypatch.setattr(_resolve, "_RESOLUTION_ORDER", [*_resolve._RESOLUTION_ORDER])
 
 
 class Data:
@@ -40,7 +65,7 @@ class Data:
 class DummyIO(DataStructureIO[Any, str, str, int]):
     @staticmethod
     def handles_type(arg, *_args, **_kwargs):
-        return arg is Data.test_object
+        return arg is Data.test_object or arg.__class__ is Data
 
     @staticmethod
     def names(translatable):

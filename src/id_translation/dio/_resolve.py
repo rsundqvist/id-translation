@@ -40,11 +40,19 @@ def resolve_io(
     See Also:
         The :func:`register_io` function.
     """
+    eligible_disabled = None
     for io_class in _RESOLUTION_ORDER:
         if io_class.handles_type(arg):
+            if io_class.priority < 0 and eligible_disabled is None:
+                eligible_disabled = io_class
+                continue  # Users may set negative priority to disable implementations after registration.
             return _initialize(arg, io_class)
 
-    raise UntranslatableTypeError(type(arg))
+    exc = UntranslatableTypeError(type(arg))
+    if eligible_disabled is not None:
+        exc.add_note(f"Hint: Implementation '{_pretty_io_name(eligible_disabled)}' is disabled (priority < 0).")
+
+    raise exc
 
 
 def _initialize(
@@ -118,7 +126,7 @@ def is_registered(io: type[AnyDataStructureIO]) -> bool:
     Args:
         io: A :class:`.DataStructureIO` type.
     """
-    return io.priority > 0 and io in _RESOLUTION_ORDER
+    return io.priority >= 0 and io in _RESOLUTION_ORDER
 
 
 def load_integrations() -> None:
@@ -170,8 +178,6 @@ def load_integrations() -> None:
     millis = round(1000 * (perf_counter() - start))
     LOGGER.debug("Imported and registered %i/%i integrations in %i milliseconds.", n_ok, n_total, millis)
 
-
-load_integrations()
 
 if load_integrations.__doc__:
     load_integrations.__doc__ = load_integrations.__doc__.format(_ENTRYPOINT_GROUP=_ENTRYPOINT_GROUP)
