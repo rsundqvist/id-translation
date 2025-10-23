@@ -1,4 +1,4 @@
-"""Functions and classes for creating :class:`.Translator` instances from a TOML configs."""
+"""Backend for the :meth:`.Translator.from_config` method."""
 
 from . import factories, meta
 from ._factory import TranslatorFactory

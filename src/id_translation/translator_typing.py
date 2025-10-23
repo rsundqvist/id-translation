@@ -1,4 +1,4 @@
-"""Types that are specific to the :class:`id_translation.Translator` implementation."""
+"""Types that are specific to the :class:`.Translator` implementation."""
 
 import typing as _t
 from collections import abc as _abc

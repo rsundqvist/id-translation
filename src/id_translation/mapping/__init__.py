@@ -1,7 +1,4 @@
-"""Mapping implementations for matching groups of elements.
-
-For an introduction to mapping, see :ref:`mapping-primer`.
-"""
+"""Shared API of the :ref:`mapping processes <mapping-primer>` (e.g. names to sources)."""
 
 from ._cardinality import Cardinality
 from ._directional_mapping import DirectionalMapping

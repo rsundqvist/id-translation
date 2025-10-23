@@ -2,16 +2,16 @@
 
 Mapping primer
 ==============
-The main entry point for mapping tasks is the :class:`id_translation.mapping.Mapper` class.
+Mapping is performed by the :class:`~id_translation.mapping.Mapper` class. The general procedure is the same for
+the :ref:`Name-to-source <Name-to-source mapping>` and :ref:`Placeholder <Placeholder mapping>` mapping processes.
 
 .. seealso::
    If you haven't already, consider checking out the :ref:`translation-primer` before continuing.
 
-There are two principal steps involved in the mapping procedure: The :ref:`Step 1/2: Scoring procedure` (see
-:meth:`Mapper.compute_scores <id_translation.mapping.Mapper.compute_scores>`) and the subsequent :ref:`Step 2/2: Matching procedure`
-(see :meth:`Mapper.to_directional_mapping <id_translation.mapping.Mapper.to_directional_mapping>`). The two are
-automatically combined when using the :meth:`Mapper.apply <id_translation.mapping.Mapper.apply>`-function, though they
-may be invoked separately by users.
+There are two principal steps involved in the mapping procedure: The :ref:`Step 1/2: Scoring procedure`
+(:attr:`~.Mapper.compute_scores`) and the subsequent :ref:`Step 2/2: Matching procedure`
+(:attr:`~.Mapper.to_directional_mapping`). The :class:`.Translator` and :class:`.AbstractFetcher` classes use
+:meth:`.Mapper.apply`, which combines these two methods.
 
 Step 1/2: Scoring procedure
 ---------------------------

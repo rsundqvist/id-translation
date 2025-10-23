@@ -6,11 +6,21 @@ from typing import Any as _Any
 class MappingError(Exception):
     """Base exception class for all mapping-related issues."""
 
-    def __init__(self, msg: str, ref: str = "") -> None:
+    def __init__(self, msg: str, *, ref: str = "") -> None:
+        super().__init__(msg)
+
         link = "https://id-translation.readthedocs.io/en/stable/documentation/mapping-primer.html"
         if ref:
             link += f"#{ref}"
-        super().__init__(f"{msg}\n\nFor help, please refer to the {link} page.")
+        self.add_note(f"Hint: See {link} for help.")
+
+        func = "id_translation.logging.enable_verbose_debug_messages"
+        if __debug__:
+            from id_translation.logging import enable_verbose_debug_messages  # noqa: PLC0415
+
+            expected = enable_verbose_debug_messages.__module__ + "." + enable_verbose_debug_messages.__name__
+            assert func == expected  # noqa: S101
+        self.add_note(f"Hint: Use `{func}` for detailed output.")
 
 
 class UnmappedValuesError(MappingError):

@@ -152,7 +152,7 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
             LOGGER.debug(
                 f"Finished initialization {len(self._id_to_fetcher)} children and "
                 f"{len(self._source_to_id)} sources in {fmt_sec(seconds)}.",
-                extra=dict(task_id=task_id, seconds=seconds),
+                extra={"task_id": task_id, "seconds": seconds},
             )
 
     def _initialize_sources(self, task_id: int) -> dict[int, dict[SourceType, list[str]]]:

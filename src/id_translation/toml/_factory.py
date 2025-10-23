@@ -143,7 +143,7 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
 
     @property
     def metaconf(self) -> Metaconf:
-        """Returns the meta configuration instance used by this factory."""
+        """Returns the :class:`.Metaconf` used by this factory."""
         return self._metaconf
 
     def create(self) -> "Translator[NameType, SourceType, IdType]":

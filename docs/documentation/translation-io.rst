@@ -28,7 +28,8 @@ snippet below shows how the :mod:`bundled <.integration>` integrations are regis
    polars_io = "id_translation.dio.integration.polars:PolarsIO"
 
 The :func:`loader <id_translation.dio.load_integrations>` will skip the integration if calling
-:class:`EntryPoint.load() <importlib.metadata.EntryPoint>` raises an :py:class:`ImportError`.
+:class:`EntryPoint.load() <importlib.metadata.EntryPoint>` raises an :py:class:`ImportError`,
+or if the :attr:`~DataStructureIO.priority` is negative.
 
 Selection process
 -----------------

@@ -1,4 +1,4 @@
-"""Integration for insertion and extraction of IDs and translations to and from various data structures.
+"""Insertion and extraction of IDs and translations.
 
 See :doc:`/documentation/translation-io` for help.
 """

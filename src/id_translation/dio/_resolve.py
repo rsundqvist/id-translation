@@ -132,6 +132,9 @@ def load_integrations() -> None:
 
     Raises:
         TypeError: If an integration does not inherit from :class:`.DataStructureIO`.
+
+    Notes:
+        Called automatically when :mod:`id_translation` is imported.
     """
     from .default import DictIO, SequenceIO, SetIO, SingleValueIO  # noqa: PLC0415
 
