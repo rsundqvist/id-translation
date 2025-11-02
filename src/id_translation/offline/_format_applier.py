@@ -1,8 +1,6 @@
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, Generic
 
-from rics.misc import tname
-
 from ..transform.types import Transformer
 from ..types import ID, IdType, NameType, SourceType
 from ._format import Format
@@ -68,9 +66,6 @@ class FormatApplier(Generic[NameType, SourceType, IdType]):
         transformer: Transformer[IdType] | None = None,
     ) -> None:
         self._translations = translations
-        self._source = translations.source
-        self._placeholder_names = translations.placeholders
-        self._n_ids = len(translations.records)
         self._transformer = transformer
 
     def apply(
@@ -107,7 +102,8 @@ class FormatApplier(Generic[NameType, SourceType, IdType]):
 
         if placeholders is None:
             # Use as many placeholders as possible.
-            placeholders = tuple(filter(self._placeholder_names.__contains__, fmt.placeholders))
+            predicate = {*self._placeholder_names, *self._translations.placeholder_aliases}.__contains__
+            placeholders = tuple(filter(predicate, fmt.placeholders))
 
         fstring = fmt.fstring(placeholders, positional=True)
         real_translations = self._apply(fstring, placeholders)
@@ -162,8 +158,13 @@ class FormatApplier(Generic[NameType, SourceType, IdType]):
         if self._placeholder_names == placeholders:
             return {record[id_pos]: fstring.format(*record) for record in records}
         else:
+            placeholders = tuple(self._translations.placeholder_aliases.get(p, p) for p in placeholders)
             pos = tuple(map(self._placeholder_names.index, placeholders))
             return {record[id_pos]: fstring.format(*(record[i] for i in pos)) for record in records}
+
+    @property
+    def _placeholder_names(self) -> PlaceholdersTuple:
+        return self._translations.placeholders
 
     @property
     def source(self) -> SourceType:
@@ -184,6 +185,6 @@ class FormatApplier(Generic[NameType, SourceType, IdType]):
         return len(self._translations.records)
 
     def __repr__(self) -> str:
-        placeholders = tuple(self._placeholder_names)
-        source = self._source
-        return f"{tname(self)}({len(self)} IDs, {placeholders=}, {source=})"
+        placeholders = self._placeholder_names
+        source = self.source
+        return f"{self.__class__.__name__}({len(self)} IDs, {placeholders=}, {source=})"

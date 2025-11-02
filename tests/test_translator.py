@@ -771,3 +771,8 @@ def test_nan_with_objects(nan_value, object_value):
 
     actual = translator.translate([nan_value, object_value], names="source")
     assert actual == [f"{nan_value}:name-of-{nan_value}", f"{object_value}:name-of-{object_value}"]
+
+
+def test_both_wanted_and_actual_placeholder_present_in_format(imdb_translator):
+    actual = imdb_translator.translate(1, "name_basics", fmt="{id}:{nconst}:{name}")
+    assert actual == "1:1:Fred Astaire"

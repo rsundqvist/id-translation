@@ -504,7 +504,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         enable_uuid_heuristics: bool,
         ids: set[IdType] | None = None,
     ) -> PlaceholderTranslations[SourceType]:
-        placeholders = (*{*placeholders},)  # Deduplicate
+        placeholders = self._deduplicate(placeholders)
         reverse_mappings, instr = self._make_fetch_instruction(
             source,
             placeholders,
@@ -548,8 +548,10 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
             translations.placeholders = tuple(reverse_mappings.get(p, p) for p in translations.placeholders)
 
         translations.id_pos = translations.placeholders.index(ID)
+        translations.placeholder_aliases.update(reverse_mappings)
 
-        unmapped_required_placeholders = required_placeholders.difference(translations.placeholders)
+        available_placeholders = {*translations.placeholders, *translations.placeholder_aliases}
+        unmapped_required_placeholders = required_placeholders.difference(available_placeholders)
         if unmapped_required_placeholders:
             self._verify_placeholders(reverse_mappings or {}, source, unmapped_required_placeholders)
 
@@ -558,6 +560,14 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
             cache.store(instr, translations)
 
         return translations
+
+    @classmethod
+    def _deduplicate(cls, placeholders: PlaceholdersTuple) -> PlaceholdersTuple:
+        unique = []  # Hashing is slower for few elements
+        for placeholder in placeholders:
+            if placeholder not in unique:
+                unique.append(placeholder)
+        return tuple(unique)
 
     def _call_user_impl(self, instr: FetchInstruction[SourceType, IdType]) -> PlaceholderTranslations[SourceType]:
         start = perf_counter()
@@ -622,16 +632,15 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         ids: set[IdType] | None,
         task_id: int,
         enable_uuid_heuristics: bool,
-    ) -> tuple[dict[str, str] | None, FetchInstruction[SourceType, IdType]]:
+    ) -> tuple[dict[str, str], FetchInstruction[SourceType, IdType]]:
         required_placeholders.add(ID)
         if ID not in placeholders:
             placeholders = (ID, *placeholders)
 
         wanted_to_actual = self._wanted_to_actual(source, placeholders, task_id)
 
-        actual_to_wanted: dict[str, str] = reverse_dict(wanted_to_actual)
-        need_placeholder_mapping = actual_to_wanted != wanted_to_actual
-        if need_placeholder_mapping:
+        actual_to_wanted = {actual: wanted for wanted, actual in wanted_to_actual.items() if wanted != actual}
+        if actual_to_wanted:
             # We'll just map what we can here. If anything is missing it'll be caught later.
             def apply(c: Iterable[str]) -> Iterable[str]:
                 return (wanted_to_actual[p] for p in c if p in wanted_to_actual)
@@ -640,7 +649,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
             required_placeholders = set(apply(required_placeholders))
 
         return (
-            actual_to_wanted if need_placeholder_mapping else None,
+            actual_to_wanted,
             FetchInstruction(
                 source=source,
                 placeholders=placeholders,

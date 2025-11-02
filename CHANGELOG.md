@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- The `AbstractFetcher` will no longer crash when placeholder types (source and format) are mixed.
+
 ## [0.15.4] - 2025-10-25
 
 ### Changed
