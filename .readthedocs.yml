@@ -10,7 +10,7 @@ build:
     post_create_environment:
       # Installing doesn't work; the wrong target is used even with 'virtualenvs.create false'. There is a GitHub issue
       # which may be a better solution in the future: https://github.com/python-poetry/poetry/issues/1937
-      - curl -sSL https://install.python-poetry.org | POETRY_VERSION=2.1.4 python -
+      - curl -sSL https://install.python-poetry.org | POETRY_VERSION=2.2.1 python -
       - $HOME/.local/bin/poetry self add poetry-plugin-export
       - $HOME/.local/bin/poetry export --only=main,docs,manual-extras --all-extras --without-hashes --output=requirements-from-poetry.txt
       - cat requirements-from-poetry.txt
