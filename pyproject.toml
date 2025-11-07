@@ -86,7 +86,7 @@ tqdm = "*"
 [tool.poetry.group.test.dependencies]
 pytest = "~8.4.1"
 xdoctest = "~1.2.0"
-coverage = "~7.10.1"
+coverage = "~7.11.1"
 pytest-cov = "~6.2.1"
 
 # Minio tests
