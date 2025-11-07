@@ -66,6 +66,9 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
         self._names_without_ids: set[NameType] = set()
         self._event_key = event_key
 
+        self._num_ids: dict[SourceType, int] = {}
+        self._seconds = float("nan")
+
     @property
     def io_names(self) -> list[NameType]:
         """Names for which IDs should be extracted from the `translatable`."""
@@ -120,6 +123,7 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
                 stacklevel=3,
             )
 
+        self._num_ids = {source: len(ids) for source, ids in source_to_ids.items()}
         self.add_timing("extract", perf_counter() - start)
 
         return source_to_ids
@@ -163,24 +167,47 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
             ),
         )
 
+    def finished(self) -> None:
+        self._seconds = perf_counter() - self._start
+        overhead = self._seconds - sum(self._timings.values())
+        self.add_timing("overhead", overhead)
+
+        self._log_performance()
+
+    def _log_performance(self) -> None:
+        if not LOGGER.isEnabledFor(logging.DEBUG):
+            return
+
+        durations_ms = self.get_timings_ms()
+        LOGGER.debug(
+            f"Performance counters [ms]: {durations_ms}",
+            extra={"task_id": self.task_id, "durations_ms": durations_ms},
+        )
+
     def log_key_event_exit(self) -> None:
         """Emits the exit message."""
         if not LOGGER.isEnabledFor(logging.INFO):
             return
 
-        seconds = perf_counter() - self._start
-        inplace = " " if self.copy else " in-place "
+        num_ids = sum(self._num_ids.values())
+
+        in_place = "" if self.copy else "in-place "
+        ids = "1 ID" if num_ids == 1 else f"{num_ids} unique IDs"
+        names = "1 name" if len(self.names_to_translate) == 1 else f"{len(self.names_to_translate)} names"
+        msg = f"Finished {in_place}translation of {ids} ({names}) in {self.type_name} in {fmt_sec(self._seconds)}."
 
         LOGGER.info(
-            msg="Finished" + inplace + f"translation of {self.type_name} in {fmt_sec(seconds)}.",
+            msg=msg,
             extra=dict(
                 task_id=self.task_id,
                 event_key=self._event_key + ":exit",
-                seconds=seconds,
+                seconds=self._seconds,
                 # Task-specific
-                duration_ms=self.get_timings_ms(),
+                durations_ms=self.get_timings_ms(),
+                num_ids=self._num_ids,
                 online=self.caller.online,
                 translatable_type=self.full_type_name,
+                io_type="{cls.__module__}.{cls.__name__}".format(cls=type(self.io)),
                 copy=self.copy,
                 reverse=self.reverse,
                 name_to_source=self.name_to_source,
@@ -250,6 +277,7 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
                 f"for {name=} using source={source!r}. Sample IDs: {sample_ids}."
             )
             extra = {
+                "task_id": self.task_id,
                 "name_of_ids": name,
                 "source": source,
                 "n_untranslated": n_untranslated,

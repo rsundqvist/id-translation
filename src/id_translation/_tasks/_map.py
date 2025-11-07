@@ -84,7 +84,7 @@ class MappingTask(NamesTask[NameType, SourceType, IdType]):
             )
 
         result: DirectionalMapping[NameType, SourceType]
-        result = self.caller.mapper.apply(values, sources, None, self.override_function)
+        result = self.caller.mapper.apply(values, sources, None, self.override_function, task_id=self.task_id)
         name_to_source = result.flatten()
         seconds = perf_counter() - start
 
@@ -144,6 +144,7 @@ class MappingTask(NamesTask[NameType, SourceType, IdType]):
             self.mapper_input_names,
             self.caller.sources,
             override_function=self.override_function,
+            task_id=self.task_id,
         )
 
     def _format_params(self) -> str:

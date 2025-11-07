@@ -14,7 +14,7 @@ from ..types import IdType
 from ._abstract_fetcher import AbstractFetcher
 from .types import FetchInstruction
 
-PandasReadFunction = Callable[[AnyPath], pd.DataFrame]
+PandasReadFunction = Callable[[AnyPath], pd.DataFrame]  # TODO AnyPath to str
 FormatFn = Callable[[str], str]
 
 
@@ -22,8 +22,8 @@ class PandasFetcher(AbstractFetcher[str, IdType]):
     """Fetcher implementation using :class:`pandas.DataFrame` as the data format.
 
     Fetch data from serialized frames. How this is done is determined by the `read_function`. This is typically a Pandas
-    function such as :func:`pandas.read_csv` or :func:`pandas.read_parquet`, but any function that accepts a string or
-    path `source` as the first argument and returns a data frame can be used.
+    function such as :func:`pandas.read_csv` or :func:`pandas.read_parquet`, but any function that accepts a string
+    `source` as the first argument and returns a :class:`pandas.DataFrame` can be used.
 
     .. hint::
 
@@ -31,9 +31,8 @@ class PandasFetcher(AbstractFetcher[str, IdType]):
        `AbstractFileSystem.glob()`_. If resolution fails, consider overriding the :meth:`find_sources`-method.
 
     Args:
-        read_function: A Pandas `read`-function. String are resolved by :func:`~rics.misc.get_by_full_name`, using
-            ``default_module=pandas`` for convenience. Will attempt to derive from `read_path_format` if ``None``
-            (requires a string path).
+        read_function: A function ``(str) -> DataFrame``. Derive from `read_path_format` if ``None``. Strings are
+            resolved by :func:`~rics.misc.get_by_full_name` (with ``default_module=pandas``).
         read_path_format: A string on the form ``protocol://path/to/sources/{}.<ext>``, or a callable to apply
             to a source before passing them to `read_function`.
         read_function_kwargs: Additional keyword arguments for `read_function`.
@@ -94,22 +93,26 @@ class PandasFetcher(AbstractFetcher[str, IdType]):
         """
         if task_id is None:
             task_id = generate_task_id()
+
         pattern = self.format_source("*")
 
         try:
             sources = self._find_sources_fsspec(pattern)
         except ModuleNotFoundError as e:
-            self.logger.debug(f"Falling back to 'pathlib.Path': {e!r}")
+            self.logger.debug("Falling back to 'pathlib.Path': %r", e)
             sources = self._find_sources_pathlib(Path(pattern).expanduser().resolve())
+
         source_paths: dict[str, str] = {source: self.format_source(source) for source in sources}
 
         extra = {"task_id": task_id, "pattern": pattern, "source_paths": source_paths}
-        if source_paths:
-            self.logger.debug(f"Path {pattern=} matched {len(source_paths)} files: {source_paths}", extra=extra)
-            return source_paths
-        else:
+        if not source_paths:
             self.logger.warning(f"Path {pattern=} did not match any files.", extra=extra)
             return {}
+
+        if self.logger.isEnabledFor(logging.DEBUG):
+            self.logger.debug(f"Path {pattern=} matched {len(source_paths)} files: {source_paths}", extra=extra)
+
+        return source_paths
 
     def _find_sources_fsspec(self, pattern: str) -> list[str]:
         from fsspec.core import url_to_fs  # type: ignore  # noqa: PLC0415

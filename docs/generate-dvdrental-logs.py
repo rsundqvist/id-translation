@@ -23,13 +23,14 @@ from id_translation._tasks import _base_task
 ROOT = Path(__file__).parent.parent.joinpath("tests/dvdrental/")
 OUTPUT_DIR = Path(__file__).parent
 RECORDS_FILE = OUTPUT_DIR / "documentation/dvdrental-records.json"
+INFO_FILE = OUTPUT_DIR / "documentation/dvdrental-info-messages.log"
 RST_FILE = OUTPUT_DIR / "documentation/translation-logging.rst"
 
 class Random:
-    def __init__(self, x):
+    def __init__(self, _):
         pass
 
-    def randint(self, a, b):
+    def randint(self, _, __):
         return 2019_05_11
 
 _base_task.Random = Random
@@ -57,11 +58,10 @@ class JsonLogRecorder(logging.Handler):
         if not self.all_records:
             return
 
-        root = OUTPUT_DIR / "documentation"
         records = sorted(self.all_records, key=lambda d: d["created"])
         with RECORDS_FILE.open("w") as f:
             json.dump(records, f, indent=2)
-        print(f"Dumped {len(self.all_records)} records in '{root}'.")
+        print(f"Dumped {len(self.all_records)} records in '{RECORDS_FILE}'.")
 
         info_rows = []
         for record in records:
@@ -75,8 +75,8 @@ class JsonLogRecorder(logging.Handler):
                 message = "\n".join(lines)
                 info_rows.append(message)
 
-        root.joinpath("dvdrental-info-messages.log").write_text("\n\n".join(info_rows))
-        print(f"Dumped {len(info_rows)} INFO rows in '{root}'.")
+        INFO_FILE.write_text("\n\n".join(info_rows))
+        print(f"Dumped {len(info_rows)} INFO rows in '{INFO_FILE}'.")
 
         by_name = defaultdict(int)
         for record in self.all_records:

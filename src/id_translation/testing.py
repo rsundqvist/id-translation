@@ -27,7 +27,9 @@ class TestMapper(_Mapper[ValueType, ValueType, ContextType]):
         candidates: _Iterable[ValueType],
         context: ContextType | None = None,
         override_function: UserOverrideFunction[ValueType, ValueType, ContextType] | None = None,
-        **_kwargs: _Any,
+        *,
+        task_id: int | None = None,  # noqa: ARG002
+        **kwargs: _Any,  # noqa: ARG002
     ) -> _DirectionalMapping[ValueType, ValueType]:
         """Map values to themselves, unless `override_function` is given."""
         values = set(values)

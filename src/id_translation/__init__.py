@@ -21,8 +21,6 @@ Environment variables
    for details.
 """
 
-import logging as _logging
-
 from ._translator import Translator
 
 __all__ = [
@@ -31,6 +29,3 @@ __all__ = [
 ]
 
 __version__ = "0.15.4.dev1"
-
-_logging.getLogger(__name__).addHandler(_logging.NullHandler())
-del _logging

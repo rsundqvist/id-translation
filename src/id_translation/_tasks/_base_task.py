@@ -26,13 +26,14 @@ class BaseTask(Generic[NameType, SourceType, IdType]):
         self.translatable = translatable
 
         self._io: DataStructureIO[Translatable[NameType, IdType], NameType, SourceType, IdType]
-        self._io = resolve_io(translatable)
         self._start = perf_counter()
         self._task_id = generate_task_id(self._start) if task_id is None else task_id
-        self._timings: dict[str, float] = {}
 
+        self._io = resolve_io(translatable, task_id=self.task_id)
         self._type_name: str | None = None
         self._full_type_name: str | None = None
+
+        self._timings: dict[str, float] = {}
 
         if caller.online:
             caller.fetcher.initialize_sources(self.task_id)
@@ -44,7 +45,7 @@ class BaseTask(Generic[NameType, SourceType, IdType]):
 
     def get_timings_ms(self) -> dict[str, float]:
         """Retrieve timings."""
-        return {k: round(1000 * v, 1) for k, v in self._timings.items()}
+        return {k: round(1000 * v, 3) for k, v in self._timings.items()}
 
     @property
     def io(self) -> DataStructureIO[Translatable[NameType, IdType], NameType, SourceType, IdType]:

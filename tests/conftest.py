@@ -24,8 +24,27 @@ def dont_call_get(*_, **__):
 MagicDict.get = dont_call_get  # type: ignore[method-assign]
 
 
-class CheckSerializeToJson(logging.Handler):
+class VerifyRecord(logging.Handler):
     def emit(self, record: logging.LogRecord) -> None:
+        if not record.name.startswith("id_translation"):
+            return
+
+        self.should_not_log_hints(record)
+        self.should_be_json_serializable(record)
+
+    @classmethod
+    def should_not_log_hints(cls, record: logging.LogRecord) -> None:
+        message = record.getMessage()
+
+        if "ID_TRANSLATION_SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS=true" in message:
+            # This is an error-level message, but no exception is thrown. The hints aren't shown anywhere else.
+            return
+
+        if "hint" in message.lower():
+            raise AssertionError(f"{message=} contains hint")
+
+    @classmethod
+    def should_be_json_serializable(cls, record: logging.LogRecord) -> None:
         d = record.__dict__.copy()
         d.pop("exc_info", None)
         try:
@@ -35,7 +54,7 @@ class CheckSerializeToJson(logging.Handler):
             raise AssertionError(f"Record '{pretty}' not JSON serializable: '{e}'") from e
 
 
-logging.root.addHandler(CheckSerializeToJson())
+logging.root.addHandler(VerifyRecord())
 
 
 class HexFetcher(AbstractFetcher[str, int]):

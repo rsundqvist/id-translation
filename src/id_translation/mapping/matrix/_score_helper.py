@@ -82,6 +82,7 @@ class ScoreHelper(Generic[ValueType, CandidateType]):
         matrix: A :class:`.ScoreMatrix` instance.
         min_score: Minimum score to make a `value -> candidate` match.
         logger: Explicit ``Logger`` instance to use.
+        task_id: Used for logging.
     """
 
     def __init__(
@@ -89,10 +90,13 @@ class ScoreHelper(Generic[ValueType, CandidateType]):
         matrix: ScoreMatrix[ValueType, CandidateType],
         min_score: float,
         logger: logging.Logger | None = None,
+        *,
+        task_id: int | None = None,
     ) -> None:
         self._min_score = min_score
         self._matrix = matrix
         self._logger = logging.getLogger(__name__) if logger is None else logger
+        self._task_id = task_id
 
     @property
     def logger(self) -> logging.Logger:
@@ -141,7 +145,7 @@ class ScoreHelper(Generic[ValueType, CandidateType]):
             if supersedes:
                 s = "\n".join("    " + rr.explain(min_score) for rr in supersedes)
                 msg += f" This match supersedes {len(supersedes)} other matches:\n{s}"
-            logger.debug(msg)
+            logger.debug(msg, extra={"task_id": self._task_id})
 
         values = set(self._matrix.values)
         if rejections and not logging_disabled:
@@ -152,7 +156,10 @@ class ScoreHelper(Generic[ValueType, CandidateType]):
                     for reject in rejections
                     if reject.record.value == value
                 )
-                logger.debug(f"Could not map {value=}. Rejected matches:\n{value_reasons}")
+                logger.debug(
+                    f"Could not map {value=}. Rejected matches:\n{value_reasons}",
+                    extra={"task_id": self._task_id},
+                )
 
         return DirectionalMapping(
             cardinality=cardinality,

@@ -116,6 +116,9 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
             task_id: Used for logging.
             force: If ``True``, perform full discovery even if sources are already known.
 
+        See Also:
+            🔑 This is a key event method. See :ref:`key-events` for details.
+
         Notes:
             Calling this method multiple times will not recover previously discarded optional child fetchers.
         """
@@ -126,8 +129,14 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         if task_id is None:
             task_id = generate_task_id()
 
+        LOGGER.debug(
+            "Begin initialization of %i children.",
+            len(self._id_to_fetcher),
+            extra={"task_id": task_id, "event_key": get_event_key(self.initialize_sources, "enter")},
+        )
+
         fid_to_placeholders = self._initialize_sources(task_id)
-        self._source_to_id = self._make_source_to_id(fid_to_placeholders)
+        self._source_to_id = self._make_source_to_id(fid_to_placeholders, task_id)
 
         self._placeholders = {}
         for fid, source_to_placeholders in fid_to_placeholders.items():
@@ -149,10 +158,11 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
 
         if LOGGER.isEnabledFor(logging.DEBUG):
             seconds = perf_counter() - start
+            event_key = get_event_key(self.initialize_sources, "exit")
             LOGGER.debug(
                 f"Finished initialization {len(self._id_to_fetcher)} children and "
                 f"{len(self._source_to_id)} sources in {fmt_sec(seconds)}.",
-                extra={"task_id": task_id, "seconds": seconds},
+                extra={"task_id": task_id, "seconds": seconds, "event_key": event_key},
             )
 
     def _initialize_sources(self, task_id: int) -> dict[int, dict[SourceType, list[str]]]:
@@ -202,7 +212,11 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
 
         return retval
 
-    def _make_source_to_id(self, fid_to_placeholders: Mapping[int, Iterable[SourceType]]) -> dict[SourceType, int]:
+    def _make_source_to_id(
+        self,
+        fid_to_placeholders: Mapping[int, Iterable[SourceType]],
+        task_id: int,
+    ) -> dict[SourceType, int]:
         if not fid_to_placeholders:
             return {}
 
@@ -213,7 +227,7 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
             rank = self._id_to_rank[fid]
             for source in sources:
                 if source in retval:
-                    self._log_rejection(source, rank, source_ranks[source], "INITIALIZE_SOURCES")
+                    self._log_rejection(source, rank, source_ranks[source], "INITIALIZE_SOURCES", task_id)
                 else:
                     retval[source] = fid
                     source_ranks[source] = rank
@@ -272,7 +286,10 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         def fetch(fid: int) -> FetchResult[SourceType]:
             fetcher = self._id_to_fetcher[fid]
             if LOGGER.isEnabledFor(logging.DEBUG):
-                LOGGER.debug(f"Begin FETCH job for {len(tasks[fid])} sources using {self.format_child(fetcher)}.")
+                LOGGER.debug(
+                    f"Begin FETCH job for {len(tasks[fid])} sources using {self.format_child(fetcher)}.",
+                    extra={"task_id": task_id},
+                )
 
             try:
                 result = fetcher.fetch(
@@ -288,7 +305,7 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
 
         with ThreadPoolExecutor(max_workers=self.max_workers, thread_name_prefix=tname(self)) as executor:
             futures = [executor.submit(fetch, fid) for fid in tasks]
-            ans = self._gather(futures, operation="FETCH")
+            ans = self._gather(futures, operation="FETCH", task_id=task_id)
 
         if LOGGER.isEnabledFor(logging.DEBUG):
             seconds = perf_counter() - start
@@ -351,7 +368,7 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         children = self.children if sources is None else [c for c in self.children if sources.issubset(c.sources)]
         with ThreadPoolExecutor(max_workers=self.max_workers, thread_name_prefix=tname(self)) as executor:
             futures = [executor.submit(fetch_all, fetcher) for fetcher in children]
-            ans = self._gather(futures, operation="FETCH_ALL")
+            ans = self._gather(futures, operation="FETCH_ALL", task_id=task_id)
 
         if LOGGER.isEnabledFor(logging.DEBUG):
             seconds = perf_counter() - start
@@ -379,6 +396,7 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         self,
         futures: Iterable[Future[FetchResult[SourceType]]],
         operation: Operation,
+        task_id: int,
     ) -> SourcePlaceholderTranslations[SourceType]:
         ans: SourcePlaceholderTranslations[SourceType] = {}
         source_ranks: dict[SourceType, int] = {}
@@ -386,7 +404,7 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         for future in as_completed(futures):
             fid, translations = future.result()
             rank = self._id_to_rank[fid]
-            self._process_future_result(translations, rank, source_ranks, ans, operation)
+            self._process_future_result(translations, rank, source_ranks, ans, operation, task_id)
         return ans
 
     def _process_future_result(
@@ -396,30 +414,30 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         source_ranks: dict[SourceType, int],
         ans: SourcePlaceholderTranslations[SourceType],
         operation: Operation,
+        task_id: int,
     ) -> None:
         for source_translations in translations.values():
             source = source_translations.source
             other_rank = source_ranks.setdefault(source, rank)
 
             if other_rank != rank:
-                self._log_rejection(source, rank, other_rank, operation)
+                self._log_rejection(source, rank, other_rank, operation, task_id)
                 if rank > other_rank:
                     continue  # Don't save -- other rank is greater (lower-is-better).
 
             ans[source] = source_translations
 
-    def _log_rejection(self, source: SourceType, rank0: int, rank1: int, operation: Operation) -> None:
+    def _log_rejection(self, source: SourceType, rank0: int, rank1: int, operation: Operation, task_id: int) -> None:
         accepted_rank, rejected_rank = (rank0, rank1) if rank0 < rank1 else (rank1, rank0)
 
         rank_to_id = reverse_dict(self._id_to_rank)
         accepted = self.format_child(rank_to_id[accepted_rank])
         rejected = self.format_child(rank_to_id[rejected_rank])
 
+        hints = []
         if operation == "INITIALIZE_SOURCES":
-            msg = (
-                f"Discarded {source=} retrieved from {rejected} since the {accepted} already claimed same source."
-                "\nHint: Rank is determined input order at initialization."
-            )
+            msg = f"Discarded {source=} retrieved from {rejected} since the {accepted} already claimed same source."
+            hints.append("Hint: Rank is determined input order at initialization.")
             on_source_conflict = self.on_source_conflict
         elif operation == "FETCH_ALL":
             msg = (
@@ -430,20 +448,24 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         else:  # Bad Fetcher.fetch implementation; should be rare.
             fetcher = self._id_to_fetcher[rank_to_id[rejected_rank]]
             cls = tname(fetcher, include_module=True)
-            msg = (
-                f"Dropping translations for {source=} returned by the {rejected}; this source belongs to the {accepted}."
-                f"\nHint: The implementation of {cls} may be incorrect."
-            )
+            msg = f"Dropping translations for {source=} returned by the {rejected}; this source belongs to the {accepted}."
+            hints.append(f"Hint: The implementation of {cls} may be incorrect.")
             on_source_conflict = "warn"
 
+        extra = {"task_id": task_id, "source": source}
         if on_source_conflict == "raise":
-            LOGGER.error(msg)
-            raise exceptions.DuplicateSourceError(msg)
+            LOGGER.error(msg, extra=extra)
+            exc = exceptions.DuplicateSourceError(msg)
+            for hint in hints:
+                exc.add_note(hint)
+            raise exc
         if on_source_conflict == "warn":
+            LOGGER.warning(msg, extra=extra)
+
             warnings.warn(msg, exceptions.DuplicateSourceWarning, stacklevel=3)
-            LOGGER.warning(msg)
+            msg += "\n".join(hints)
         elif on_source_conflict == "ignore" and LOGGER.isEnabledFor(logging.DEBUG):
-            LOGGER.debug(msg)
+            LOGGER.debug(msg, extra=extra)
 
     def __repr__(self) -> str:
         max_workers = self.max_workers

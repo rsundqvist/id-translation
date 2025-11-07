@@ -57,14 +57,13 @@ removed, or change values depending on the ``stage`` of the event.
 
 Event-specific fields
 ~~~~~~~~~~~~~~~~~~~~~
-
 Let's take closer look at the final message. The :class:`~logging.LogRecord` contains additional information that isn't
 included in the message itself. The full ``Translator.translate:exit``-record is shown as JSON below.
 
 .. literalinclude:: dvdrental-records.json
    :caption: Translation exit event. Click :download:`here <dvdrental-records.json>` to download.
-   :lines: 9726-9769
-   :lineno-start: 9726
+   :lines: 9965-10016
+   :lineno-start: 9965
 
 About 350 messages were emitted since ``ENABLE_VERBOSE_LOGGING=True``. If we were using regular ``🪲 DEBUG``-logging,
 about 40 messages would have been emitted instead. The vast majority of the verbose messages relate to mapping and

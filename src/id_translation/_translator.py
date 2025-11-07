@@ -773,6 +773,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         ans: Translatable[NameType, str] | None = task.insert(translation_map)
 
         self._translated_names = dict(task.name_to_source)
+        task.finished()
         task.log_key_event_exit()
         return ans
 

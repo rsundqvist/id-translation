@@ -146,13 +146,10 @@ class TranslationHelper(_t.Generic[_tt.NameType, _tt.SourceType, _tt.IdType]):
         **fixed_params: Fixed parameters for :meth:`.Translator.translate`. Attempting to override these in
             :meth:`TranslationHelper.apply` will raise an error.
 
-    See Also:
-        If you are using the https://github.com/rsundqvist/id-translation-project/ template, there are several
-        namespace-functions which may be suitable :class:`.Translator` suppliers.
-
-    * {sample_functions}
-
-    Links lead to the generated documentation for the {sample_namespace} sample project.
+    Notes:
+        The https://github.com/rsundqvist/id-translation-project/ template includes functions such as
+        :func:`~big_corporation_inc.id_translation.get_singleton`, which are suitable :class:`.Translator` suppliers.
+        See the `Big Corporation Inc. <https://rsundqvist.github.io/id-translation-project/>`_ sample docs for more.
     """
 
     def __init__(
@@ -423,20 +420,8 @@ class TranslationHelper(_t.Generic[_tt.NameType, _tt.SourceType, _tt.IdType]):
 
 
 def _patch_docstrings() -> None:
-    functions = "get_singleton", "create_translator", "load_cached_translator"
-    index = "https://rsundqvist.github.io/id-translation-project/index.html"
-    template = "`{{namespace}}.id_translation.{func}() <{index}#big_corporation_inc.id_translation.{func}>`_"
-
-    cls = TranslationHelper
-
-    assert cls.__doc__, "missing docstring"  # noqa S101
-    cls.__doc__ = cls.__doc__.format(
-        sample_namespace=f"`Big Corporation Inc. <{index}>`_",
-        sample_functions="\n    * ".join(template.format(func=func, index=index) for func in functions),
-    )
-
-    dummy: TranslationHelper[str, str, str] = cls(_Translator, user_params_name="<user_params_name>")
-
+    cls = TranslationHelper[str, str, str]
+    dummy = cls(_Translator, user_params_name="<user_params_name>")
     docstrings = {
         "always_reserved": ", ".join(f"``'{key}'``" for key in ALWAYS_RESERVED),
         **dummy.make_docstrings(user_params_key="user_params"),
@@ -449,6 +434,7 @@ def _patch_docstrings() -> None:
 
 if __doc__:
     _patch_docstrings()
+    del _patch_docstrings
 
 
 if _os.environ.get("SPHINX_BUILD") == "true":  # pragma: no cover

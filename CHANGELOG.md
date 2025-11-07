@@ -7,8 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Add `extras.trace_id` to more log messages.
+- Log more statistics (e.g. performance counters and number of unique IDs translated).
+
 ### Fixed
 - The `AbstractFetcher` will no longer crash when placeholder types (source and format) are mixed.
+- The `MultiFetcher.initialize_sources()` method is now a proper key event.
+
+### Removed
+- No longer adds a `NullHandler` to root logger on import.
 
 ## [0.15.4] - 2025-10-25
 

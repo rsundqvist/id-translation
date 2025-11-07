@@ -102,6 +102,8 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
         candidates: Iterable[CandidateType],
         context: ContextType | None = None,
         override_function: UserOverrideFunction[ValueType, CandidateType, ContextType] | None = None,
+        *,
+        task_id: int | None = None,
         **kwargs: Any,
     ) -> DirectionalMapping[ValueType, CandidateType]:
         """Map values to candidates.
@@ -113,6 +115,7 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
             override_function: A callable that takes inputs ``(value, candidates, context)`` that returns either
                 ``None`` (let the regular mapping logic decide) or one of the `candidates`. How non-candidates returned
                 is handled is determined by the :attr:`on_unknown_user_override` property.
+            task_id: Used for logging.
             **kwargs: Runtime keyword arguments for score and filter functions. May be used to add information which is
                 not known when the ``Mapper`` is initialized.
 
@@ -136,12 +139,18 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
         candidates = list(candidates)
         values = list(values)
         if not (values and candidates):
-            logger.debug("Aborting since values=%r and candidates=%r in context=%r.", values, candidates, context)
+            logger.debug(
+                "Aborting since values=%r and candidates=%r in context=%r.",
+                values,
+                candidates,
+                context,
+                extra={"task_id": task_id},
+            )
             return DirectionalMapping(left_to_right={}, _verify=False, cardinality=self.cardinality)
 
-        scores = self.compute_scores(values, candidates, context, override_function, **kwargs)
+        scores = self.compute_scores(values, candidates, context, override_function, task_id=task_id, **kwargs)
 
-        dm: DirectionalMapping[ValueType, CandidateType] = self.to_directional_mapping(scores)
+        dm: DirectionalMapping[ValueType, CandidateType] = self.to_directional_mapping(scores, task_id=task_id)
 
         unmapped = scores.get_finite_values().difference(dm.left)
         if unmapped:
@@ -160,7 +169,8 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
 
             logger.debug(
                 f"Mapping with {cardinality=} completed for {values}x{candidates} in {fmt_perf(start)}."
-                f"{matches}\nMatched {len(dm.left)}/{len(values)} values with {len(dm.right)} different candidates."
+                f"{matches}\nMatched {len(dm.left)}/{len(values)} values with {len(dm.right)} different candidates.",
+                extra={"task_id": task_id},
             )
 
         return dm
@@ -188,6 +198,7 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
         candidates: Iterable[CandidateType],
         context: ContextType | None = None,
         override_function: UserOverrideFunction[ValueType, CandidateType, ContextType] | None = None,
+        task_id: int | None = None,
         **kwargs: Any,
     ) -> ScoreMatrix[ValueType, CandidateType]:
         """Compute likeness scores.
@@ -199,6 +210,7 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
             override_function: A callable that takes inputs ``(value, candidates, context)`` that returns either
                 ``None`` (let the regular mapping logic decide) or one of the `candidates`. How non-candidates returned
                 is handled is determined by the :attr:`on_unknown_user_override` property.
+            task_id: Used for logging.
             **kwargs: Runtime keyword arguments for score and filter functions. May be used to add information which is
                 not known when the ``Mapper`` is initialized.
 
@@ -230,13 +242,16 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
             return scores
 
         if logger_enabled:
-            logger.debug(f"Begin computing match scores{extra} for {values}x{candidates} using {self._score}.")
+            logger.debug(
+                f"Begin computing match scores{extra} for {values}x{candidates} using {self._score}.",
+                extra={"task_id": task_id},
+            )
 
-        unmapped_values = self._handle_overrides(scores, context, override_function)
+        unmapped_values = self._handle_overrides(scores, context, override_function, task_id)
 
         logger_enabled = _logging.ENABLE_VERBOSE_LOGGING and logger.isEnabledFor(logging.DEBUG)
         for value in unmapped_values:
-            filtered_candidates = self._apply_filters(value, candidates, context, kwargs)
+            filtered_candidates = self._apply_filters(value, candidates, context, kwargs, task_id)
             if not filtered_candidates:
                 continue
 
@@ -245,7 +260,7 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
                 scores_for_value = [(inf if value == c else -inf) for c in filtered_candidates]  # Identity match
             else:
                 if logger_enabled:
-                    logger.debug(f"Compute match scores for {value=}.")
+                    logger.debug(f"Compute match scores for {value=}.", extra={"task_id": task_id})
                 scores_for_value = self._score(value, filtered_candidates, context, **self._score_kwargs, **kwargs)
 
             for score, candidate in zip(scores_for_value, filtered_candidates, strict=True):
@@ -254,19 +269,23 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
         if (len(scores.values) > 1 or _logging.ENABLE_VERBOSE_LOGGING) and logger.isEnabledFor(logging.DEBUG):
             logger.debug(
                 f"Computed {len(scores.values)}x{len(scores.candidates)} "
-                f"match scores in {context=} in {fmt_perf(start)}:\n{scores.to_string()}"
+                f"match scores in {context=} in {fmt_perf(start)}:\n{scores.to_string()}",
+                extra={"task_id": task_id},
             )
         return scores
 
     def to_directional_mapping(
         self,
         scores: ScoreMatrix[ValueType, CandidateType],
+        *,
+        task_id: int | None = None,
     ) -> DirectionalMapping[ValueType, CandidateType]:
         """Create a ``DirectionalMapping`` from match scores.
 
         Args:
             scores: A score matrix, where ``scores.index`` are values and ``score.columns`` are treated as the
                 candidates.
+            task_id: Used for logging.
 
         Returns:
             A ``DirectionalMapping``.
@@ -274,7 +293,8 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
         See Also:
             :meth:`.ScoreHelper.to_directional_mapping`
         """
-        return ScoreHelper(scores, self._min_score, self._logger).to_directional_mapping(self.cardinality)
+        helper = ScoreHelper(scores, self._min_score, self._logger, task_id=task_id)
+        return helper.to_directional_mapping(self.cardinality)
 
     @property
     def cardinality(self) -> Cardinality | None:
@@ -309,6 +329,7 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
         scores: ScoreMatrix[ValueType, CandidateType],
         context: ContextType | None,
         override_function: UserOverrideFunction[ValueType, CandidateType, ContextType] | None,
+        task_id: int | None,
     ) -> list[ValueType]:
         applied: dict[ValueType, CandidateType] = {}
 
@@ -328,10 +349,12 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
                 scores.values,
                 scores.candidates,
                 context,
+                task_id,
             ):
                 if logger_enabled:
                     logger.debug(
-                        f"Using override {value!r} -> {override_candidate!r} returned by {override_function=}."
+                        f"Using override {value!r} -> {override_candidate!r} returned by {override_function=}.",
+                        extra={"task_id": task_id},
                     )
                 apply(value, override_candidate)
 
@@ -342,7 +365,10 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
             num_overrides = len(self._overrides) + int(override_function is not None)
             result = f"and found {len(applied)} matches={applied} in" if applied else "but none were a match for"
             done = "All values mapped by overrides. " if (not unmapped_values and applied) else ""
-            logger.debug(f"{done}Applied {num_overrides} overrides, {result} the given values={scores.values}.")
+            logger.debug(
+                f"{done}Applied {num_overrides} overrides, {result} the given values={scores.values}.",
+                extra={"task_id": task_id},
+            )
 
         return unmapped_values
 
@@ -369,6 +395,7 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
         values: Iterable[ValueType],
         candidates: Iterable[CandidateType],
         context: ContextType | None,
+        task_id: int | None,
     ) -> list[tuple[ValueType, CandidateType]]:
         candidates = set(candidates)
 
@@ -379,17 +406,22 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
             user_override = func(value, candidates, context)
             if user_override is None:
                 continue
+
             if user_override not in candidates and self.on_unknown_user_override != "keep":
-                msg = (
-                    f"The user-defined override function {func} returned an unknown candidate={user_override!r} for"
-                    f" {value=}.\nHint: Set on_unknown_user_override='keep' to use this value anyway."
-                )
+                msg = f"The user-defined override function {func} returned an unknown candidate={user_override!r} for {value=}."
+                note = "Hint: Set on_unknown_user_override='keep' to use this value anyway."
                 if self.on_unknown_user_override == "raise":
-                    logger.error(msg)
-                    raise UserMappingError(msg, value, candidates)
-                elif self.on_unknown_user_override == "warn":
-                    logger.warning(msg)
-                    warnings.warn(msg, UserMappingWarning, stacklevel=2)
+                    logger.error(msg, extra={"task_id": task_id})
+                    exc = UserMappingError(msg, value, candidates)
+                    exc.add_note(note)
+                    raise exc
+
+                assert self.on_unknown_user_override == "warn", f"bad {self.on_unknown_user_override=}"  # noqa: S101
+                logger.warning(msg, extra={"task_id": task_id})
+
+                msg += f"\n{note}"
+                warnings.warn(msg, UserMappingWarning, stacklevel=2)
+
                 continue
 
             ans.append((value, user_override))
@@ -402,6 +434,7 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
         candidates: Iterable[CandidateType],
         context: ContextType | None,
         kwargs: dict[str, Any],
+        task_id: int | None,
     ) -> set[CandidateType]:
         candidates = list(candidates)
         filtered_candidates = set(candidates)
@@ -425,7 +458,10 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
             diff = set(candidates).difference(filtered_candidates)
             removed = f"removing candidates={diff}" if diff else "but did not remove any candidates"
             done = "All candidates removed by filtering. " if not filtered_candidates else ""
-            logger.debug(f"{done}Applied {len(self._filters)} filters for {value=}, {removed}.")
+            logger.debug(
+                f"{done}Applied {len(self._filters)} filters for {value=}, {removed}.",
+                extra={"task_id": task_id},
+            )
 
         return filtered_candidates
 

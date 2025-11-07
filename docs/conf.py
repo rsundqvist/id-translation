@@ -308,6 +308,7 @@ intersphinx_mapping = {
     "numpy": ("https://numpy.org/doc/stable/", None),
     "sqlalchemy": ("https://docs.sqlalchemy.org/en/20/", None),
     "rics": (rics_docs, None),
+    "big_corporation_inc.id_translation": ("https://rsundqvist.github.io/id-translation-project/", None),
 }
 
 # -- Gallery configuration -----------------------------------------------------

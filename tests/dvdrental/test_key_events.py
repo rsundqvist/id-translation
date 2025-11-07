@@ -45,7 +45,9 @@ class TestKeyEvents:
         assert ked.is_enter is False
         assert ked.kind == "translate"
         assert ked.record is not None
-        assert ked.record.message.startswith("Finished in-place translation of 'DataFrame' in")
+        assert ked.record.message.startswith(
+            "Finished in-place translation of 1575 unique IDs (4 names) in 'DataFrame' in"
+        )
         assert ked.record.levelno == logging.INFO
 
     def test_no_nested_enter_on_same_key(self, dialect, caplog):

@@ -17,7 +17,7 @@ The default (``False``) is controlled by the :envvar:`ID_TRANSLATION_VERBOSE` va
 """
 
 LOGGER = _l.getLogger("id_translation")
-"""Root logger instance.
+"""Namespace root logger.
 
 Level is set to ``logging.WARNING=30`` by default (or ``DEBUG`` if ``ENABLE_VERBOSE_LOGGING`` is set).
 See :doc:`/documentation/translation-logging` for details.

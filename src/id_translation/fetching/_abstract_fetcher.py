@@ -161,7 +161,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
             source: The source to map placeholders for.
             placeholders: Desired :attr:`~.Format.placeholders`.
             candidates: A subset of candidates (placeholder names) in `source` to map with `placeholders`.
-            task_id: Used for logging purposes.
+            task_id: Used for logging.
 
         Returns:
             A dict ``{wanted_placeholder_name: actual_placeholder_name_in_source}``, where
@@ -201,7 +201,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
                 ),
             )
 
-        dm = self.mapper.apply(placeholders, candidates, context=source)
+        dm = self.mapper.apply(placeholders, candidates, context=source, task_id=task_id)
 
         ans: dict[str, str | None] = dm.flatten()  # type: ignore[assignment]
         for not_mapped in placeholders.difference(ans):
@@ -578,7 +578,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         logger = self.logger
         if logger.isEnabledFor(logging.DEBUG):
             logger.debug(
-                f"Begin fetching {'all' if instr.ids is None else len(instr.ids)} IDs from {source=}. Placeholders: {placeholders}",
+                f"Begin fetching {'all' if instr.ids is None else len(instr.ids)} IDs from {source=}. Placeholders: {placeholders}.",
                 extra=dict(
                     event_key=_logging.get_event_key(self.fetch_translations, "enter"),
                     source=source,

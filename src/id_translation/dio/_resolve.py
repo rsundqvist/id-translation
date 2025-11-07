@@ -25,11 +25,14 @@ Background:
 
 def resolve_io(
     arg: TranslatableT,
+    *,
+    task_id: int | None = None,
 ) -> DataStructureIO[TranslatableT, NameType, SourceType, IdType]:
     """Get an IO instance for `arg`.
 
     Args:
         arg: An argument to get IO for.
+        task_id: Used for logging.
 
     Returns:
         A data structure IO instance for `arg`.
@@ -46,7 +49,7 @@ def resolve_io(
             if io_class.priority < 0 and eligible_disabled is None:
                 eligible_disabled = io_class
                 continue  # Users may set negative priority to disable implementations after registration.
-            return _initialize(arg, io_class)
+            return _initialize(arg, io_class, task_id=task_id)
 
     exc = UntranslatableTypeError(type(arg))
     if eligible_disabled is not None:
@@ -58,11 +61,14 @@ def resolve_io(
 def _initialize(
     arg: TranslatableT,
     io_class: type[DataStructureIO[TranslatableT, NameType, SourceType, IdType]],
+    *,
+    task_id: int | None = None,
 ) -> DataStructureIO[TranslatableT, NameType, SourceType, IdType]:
     if LOGGER.isEnabledFor(logging.DEBUG):
         LOGGER.debug(
             f"Using rank-{_RESOLUTION_ORDER.index(io_class)} (priority={io_class.priority}) implementation"
-            f" '{_pretty_io_name(io_class)}' for translatable of type='{tname(arg, include_module=True)}'."
+            f" '{_pretty_io_name(io_class)}' for translatable of type='{tname(arg, include_module=True)}'.",
+            extra={"task_id": task_id},
         )
 
     return io_class()
