@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2025-11-07
+
 ### Added
 - Python `3.14` is now fully tested and supported in CI/CD.
 - Add `extras.trace_id` to more log messages.
@@ -482,7 +484,8 @@ cookiecutter template.
 - Switch to relative imports.
 - Fix some intersphinx issues.
 
-[Unreleased]: https://github.com/rsundqvist/id-translation/compare/v0.15.4...HEAD
+[Unreleased]: https://github.com/rsundqvist/id-translation/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/rsundqvist/id-translation/compare/v0.15.4...v1.0.0
 [0.15.4]: https://github.com/rsundqvist/id-translation/compare/v0.15.3...v0.15.4
 [0.15.3]: https://github.com/rsundqvist/id-translation/compare/v0.15.2...v0.15.3
 [0.15.2]: https://github.com/rsundqvist/id-translation/compare/v0.15.1...v0.15.2
