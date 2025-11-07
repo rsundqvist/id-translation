@@ -11,6 +11,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `extras.trace_id` to more log messages.
 - Log more statistics (e.g. performance counters and number of unique IDs translated).
 
+### Changed
+- The `enable_verbose_debug_messages()` function has received several improvements:
+  * Add `level` argument (default=_'verbose'_, as before).
+  * Allow using as a regular function to keep "temporary" logging config.
+  * Add temporary handler when no handlers are found.
+    * Set `use_custom_handler=True` to force.
+    * Style options: _'minimal', 'basic', 'pretty' (**default**), 'rainbow'_.
+    * Options _'pretty' & 'rainbow'_ display more information and color.
+
 ### Fixed
 - The `AbstractFetcher` will no longer crash when placeholder types (source and format) are mixed.
 - The `MultiFetcher.initialize_sources()` method is now a proper key event.
