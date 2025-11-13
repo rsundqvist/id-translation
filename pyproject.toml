@@ -87,7 +87,7 @@ tqdm = "*"
 pytest = "~8.4.1"
 xdoctest = "~1.2.0"
 coverage = "~7.11.1"
-pytest-cov = "~6.2.1"
+pytest-cov = "~7.0.0"
 
 # Minio tests
 s3fs = { version = "~2025.7.0", platform = "linux" }
