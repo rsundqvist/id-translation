@@ -60,7 +60,7 @@ poetry-plugin-export = ">=1.8"
 [tool.poetry.group.manual-extras.dependencies]
 # Extras that must be available for docs + tests go here. Doc/test-only deps go in their respective groups.
 polars = { version = "~1.31.0" }
-dask = { version = "~2025.7.0", extras = ["dataframe"] }
+dask = { version = "~2025.11.0", extras = ["dataframe"] }
 
 [tool.poetry.group.docs]
 [tool.poetry.group.docs.dependencies]
