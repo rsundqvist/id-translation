@@ -14,10 +14,10 @@ jobs:
     permissions:
       id-token: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Set up Python 3.11
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: 3.11
 
@@ -31,13 +31,13 @@ jobs:
           poetry build --ansi
 
       - name: Publish package on PyPI
-        uses: pypa/gh-action-pypi-publish@d417ba7e7683fa9104c42abe611c1f2c93c0727d
+        uses: pypa/gh-action-pypi-publish@v1.13.0
 
       - name: Publish package on TestPyPI
-        uses: pypa/gh-action-pypi-publish@d417ba7e7683fa9104c42abe611c1f2c93c0727d
+        uses: pypa/gh-action-pypi-publish@v1.13.0
         with:
           repository-url: https://test.pypi.org/legacy/
-          attestations: false  # TODO: Might not need non-release version of the action with this?
+          attestations: false  # TODO: Might not need this?
 
 
   github_release:
@@ -47,7 +47,7 @@ jobs:
     permissions: write-all
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Get version from tag
         id: tag_name
