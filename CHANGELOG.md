@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1] - 2025-11-25
+
 ### Fixed
 - The `MultiFetcher.fetch_all()` method now respects the `sources` argument.
 
@@ -487,7 +489,8 @@ cookiecutter template.
 - Switch to relative imports.
 - Fix some intersphinx issues.
 
-[Unreleased]: https://github.com/rsundqvist/id-translation/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/rsundqvist/id-translation/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/rsundqvist/id-translation/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/rsundqvist/id-translation/compare/v0.15.4...v1.0.0
 [0.15.4]: https://github.com/rsundqvist/id-translation/compare/v0.15.3...v0.15.4
 [0.15.3]: https://github.com/rsundqvist/id-translation/compare/v0.15.2...v0.15.3

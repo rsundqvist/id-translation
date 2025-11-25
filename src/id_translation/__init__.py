@@ -28,4 +28,4 @@ __all__ = [
     "__version__",  # Make MyPy happy
 ]
 
-__version__ = "1.0.0.dev1"
+__version__ = "1.0.1"
