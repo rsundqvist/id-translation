@@ -349,7 +349,7 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
                     event_key=get_event_key(self.fetch_all, "enter"),
                     placeholders=placeholders,
                     required_placeholders=required,
-                    sources=sources,
+                    sources=None if sources is None else [*sources],
                     max_workers=self.max_workers,
                     num_fetchers=len(self.children),
                     fetch_all=True,
@@ -360,6 +360,7 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
             result = fetcher.fetch_all(
                 placeholders,
                 required=required,
+                sources=None if sources is None else sources.intersection(fetcher.sources),
                 task_id=task_id,
                 enable_uuid_heuristics=enable_uuid_heuristics,
             )

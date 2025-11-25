@@ -116,6 +116,13 @@ def test_fetch_all(multi_fetcher, expected, caplog):
     raise AssertionError(f"not found: {dropped!r}")
 
 
+def test_fetch_all_with_explicit_sources(multi_fetcher, expected):
+    actual = multi_fetcher.fetch_all(sources={"humans", "big_table"})
+    assert set(actual) == {"humans", "big_table"}
+    assert actual["humans"] == expected["humans"]
+    assert actual["big_table"] == expected["big_table"]
+
+
 def test_fetch(multi_fetcher: MultiFetcher[str, int], data: dict[str, pd.DataFrame]) -> None:
     required = {"id"}
     placeholders = {"name", "is_nice"}
