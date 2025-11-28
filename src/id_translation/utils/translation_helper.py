@@ -1,5 +1,19 @@
 """Utility for single-purpose translation tasks.
 
+Typing rules
+------------
+
+Compared to :meth:`.Translator.translate`, typing is limited. Rules for :meth:`.TranslationHelper.apply`:
+
+* When ``user_params = False``, output= input.
+* When ``user_params != False``, output= ``Any`` (new variable) or same (existing variable).
+* When ``copy = False``, output= ``None``.
+
+.. warning:: When ``user_params = False``, IDs are not converted to :py:class:`str`. Type hints may be wrong.
+.. seealso:: The :envvar:`ID_TRANSLATION_DISABLED` environment variable.
+
+.. _translation-helper-examples:
+
 Examples:
     Implementing a function with a ``translate`` arg using the helper class.
 
@@ -24,9 +38,8 @@ Examples:
     Arguments provided when the helper is initialized are fixed. An exception is raised if fixed arguments overlap
     either with `user_kwargs`, or with the defaults provided as keyword-arguments to :meth:`~.TranslationHelper.apply`.
 
-    In the example below, ``names="name"`` is a fixed argument and ``fmt="{id}:{name}"`` is a default argument. The
-    `translatable` (= ``list(range(n))``) and `copy` arguments are always required, but cannot be defined as fixed
-    arguments (to allow proper :py:func:`overload <typing.overload>` typing).
+    In the example below, ``names="name"`` is a fixed argument (see the snippet above) and ``fmt="{id}:{name}"`` is a
+    default argument.
 
     >>> def example(
     ...     n: int,
@@ -40,6 +53,10 @@ Examples:
     ...         fmt="{id}:{name}",  # default - user params can override
     ...     )
     ...     return items
+
+    .. note::
+
+       The `translatable` and `copy` arguments are always required (for :py:func:`@overload <typing.overload>` typing).
 
     Let's take our new function for a spin.
 
@@ -55,9 +72,7 @@ Examples:
     >>> example(2, translate=False)
     [0, 1]
 
-    Note the output type is ``list[int]``, rather than the expected ``list[str]``, in this case.
-
-    .. seealso:: The :envvar:`ID_TRANSLATION_DISABLED` environment variable.
+    Note that the output type is ``list[int]``, rather than the expected ``list[str]``, in this case.
 
     Aside from the obvious ``true | false`` behaviour, the helper may also act on the input type.
 
@@ -129,19 +144,8 @@ ALWAYS_RESERVED = ("copy", "translatable")
 class TranslationHelper(_t.Generic[_tt.NameType, _tt.SourceType, _tt.IdType]):
     """Helper class for single-purpose translation tasks.
 
-    **Typing rules**
-
-    Compared to :meth:`.Translator.translate`, typing is limited. Rules for :meth:`.TranslationHelper.apply`:
-
-        * When ``user_params=False``, output= input.
-        * When ``user_params != False``, output= ``Any`` (new variable) or same (existing variable).
-        * When ``copy=False``, output= ``None``.
-
-    Note that ``user_params=False`` always takes precedence, as the translation process is aborted without any
-    ``Translator`` involvement.
-
     Args:
-        translator_or_factory: A callable ``() -> Translator`` or an initialized :class:`.Translator`.
+        translator_or_factory: A callable ``() -> Translator``, or an initialized :class:`.Translator`.
         user_params_name: Used for reporting errors.
         **fixed_params: Fixed parameters for :meth:`.Translator.translate`. Attempting to override these in
             :meth:`TranslationHelper.apply` will raise an error.
@@ -150,6 +154,8 @@ class TranslationHelper(_t.Generic[_tt.NameType, _tt.SourceType, _tt.IdType]):
         The https://github.com/rsundqvist/id-translation-project/ template includes functions such as
         :func:`~big_corporation_inc.id_translation.get_singleton`, which are suitable :class:`.Translator` suppliers.
         See the `Big Corporation Inc. <https://rsundqvist.github.io/id-translation-project/>`_ sample docs for more.
+
+    .. seealso:: The :ref:`Typing rules` and :ref:`Examples <translation-helper-examples>` sections.
     """
 
     def __init__(
@@ -355,14 +361,14 @@ class TranslationHelper(_t.Generic[_tt.NameType, _tt.SourceType, _tt.IdType]):
         reserved = set(self._fixed)
 
         parts = [
-            "Translation options. Set to ``False`` to disable (``True`` = use defaults).",
+            "Translation options. Set to ``False`` to disable.",
             "If :class:`dict`, use as keyword-arguments for :attr:`.Translator.translate` (raises"
             f" :py:class:`TypeError` for {len(reserved) + len(ALWAYS_RESERVED)} reserved keys).",
         ]
 
         types = [
             (str, "fmt", "see :class:`.Format`"),
-            (float, "max_fails", "where 0=disable check, 1=no missing IDs allowed"),
+            (float, "max_fails", "where 1=disable check, 0=no missing IDs allowed"),
         ]
 
         type_parts = []
@@ -419,59 +425,58 @@ class TranslationHelper(_t.Generic[_tt.NameType, _tt.SourceType, _tt.IdType]):
         }
 
 
-def _patch_docstrings() -> None:
-    cls = TranslationHelper[str, str, str]
-    dummy = cls(_Translator, user_params_name="<user_params_name>")
-    docstrings = {
-        "always_reserved": ", ".join(f"``'{key}'``" for key in ALWAYS_RESERVED),
-        **dummy.make_docstrings(user_params_key="user_params"),
-    }
-
-    for func in cls.apply, cls.make_user_params_docstring, cls.make_type_error_docstring:
-        assert func.__doc__, "missing docstring"  # noqa S101
-        func.__doc__ = func.__doc__.format_map(docstrings)
+class _AbortTranslation(Exception):  # noqa: N818
+    pass
 
 
 if __doc__:
+
+    def _patch_docstrings() -> None:
+        cls = TranslationHelper[str, str, str]
+        dummy = cls(_Translator, user_params_name="<user_params_name>")
+        docstrings = {
+            "always_reserved": ", ".join(f"``'{key}'``" for key in ALWAYS_RESERVED),
+            **dummy.make_docstrings(user_params_key="user_params"),
+        }
+
+        for func in cls.apply, cls.make_user_params_docstring, cls.make_type_error_docstring:
+            assert func.__doc__, "missing docstring"  # noqa S101
+            func.__doc__ = func.__doc__.format_map(docstrings)
+
     _patch_docstrings()
     del _patch_docstrings
 
+    if _os.environ.get("SPHINX_BUILD") == "true":  # pragma: no cover
+        helper = TranslationHelper[str, str, int](_Translator, "translate", names="name")
 
-if _os.environ.get("SPHINX_BUILD") == "true":  # pragma: no cover
-    helper = TranslationHelper[str, str, int](_Translator, "translate", names="name")
+        def example(
+            n: int,
+            *,
+            translate: UserParams[str, str, int] = True,
+        ) -> list[str]:
+            """Create and translate the first `n` integers.
 
-    def example(
-        n: int,
-        *,
-        translate: UserParams[str, str, int] = True,
-    ) -> list[str]:
-        """Create and translate the first `n` integers.
+            Docstrings for `translate` and ``TypeError`` were produced by :meth:`~.TranslationHelper.make_docstrings`.
 
-        Docstrings for `translate` and ``TypeError`` were produced by :meth:`~.TranslationHelper.make_docstrings`.
+            Args:
+                n: Number of integers to create.
+                translate: {translate}
 
-        Args:
-            n: Number of integers to create.
-            translate: {translate}
+            Raises:
+                TypeError: {type_error}
 
-        Raises:
-            TypeError: {type_error}
+            Returns:
+                A list.
+            """
+            items: list[str] = helper.apply(
+                list(range(n)),
+                copy=True,
+                user_params=translate,
+                fmt="{id}:{name}",
+            )
+            return items
 
-        Returns:
-            A list.
-        """
-        items: list[str] = helper.apply(
-            list(range(n)),
-            copy=True,
-            user_params=translate,
-            fmt="{id}:{name}",
+        example.__doc__ = example.__doc__.format(  # type: ignore[union-attr]
+            translate=helper.make_user_params_docstring(),
+            type_error=helper.make_type_error_docstring(),
         )
-        return items
-
-    example.__doc__ = example.__doc__.format(  # type: ignore[union-attr]
-        translate=helper.make_user_params_docstring(),
-        type_error=helper.make_type_error_docstring(),
-    )
-
-
-class _AbortTranslation(Exception):  # noqa: N818
-    pass

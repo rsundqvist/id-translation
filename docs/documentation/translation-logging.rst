@@ -16,8 +16,9 @@ enable additional ``🪲 DEBUG``-level messages. Use the :envvar:`ID_TRANSLATION
 
    Verbose logging may emit hundreds of messages for a single translation task!
 
-Note that `verbose` and ``🪲 DEBUG`` logging are different things; verbose logging may emit hundreds of messages where
-regular ``🪲 DEBUG`` might only emit a dozen.
+Note that `verbose` and ``🪲 DEBUG`` logging are different things; verbose logging can emit hundreds of messages in
+cases where regular ``🪲 DEBUG`` logging would only emit a dozen. Verbose messages are typically related to the
+:ref:`mapping <translation-primer>` process.
 
 Example
 -------

@@ -688,8 +688,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         See the :ref:`translation-primer` page for a detailed process description.
 
         See Also:
-            🔑 This is a key event method. Exit-events are emitted on the ``ℹ️INFO``-level if the :class:`.Translator` is
-            :attr:`.online`. Enter-events are always emitted on the ``🪲DEBUG``-level. See :ref:`key-events` for details.
+            🔑 This is a key event method. See :ref:`key-events` for details.
 
         Args:
             translatable: A data structure to translate.

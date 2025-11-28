@@ -8,6 +8,8 @@ Environment variables
 
    Global switch. When ``true``, the :meth:`Translator.translate`-method returns immediately.
 
+   .. warning:: When set, IDs are not converted to :py:class:`str`. Type hints may be wrong.
+
 .. envvar:: ID_TRANSLATION_SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS
 
    Global switch. Set to ``true`` (not recommended) to allow the :meth:`~id_translation.toml.TranslatorFactory` to
