@@ -227,7 +227,7 @@ applications that use multiple fetchers.
    # Amend the fetcher we created earlier.
    fetcher = PandasFetcher(
       read_function=read_csv,
-      read_path_format=".source/{}.csv",
+      read_path_format="./source/{}.csv",
       mapper=Mapper(smurf_score),  # Add the mapper.
    )
 
