@@ -14,7 +14,7 @@ from ..types import IdType
 from ._abstract_fetcher import AbstractFetcher
 from .types import FetchInstruction
 
-PandasReadFunction = Callable[[AnyPath], pd.DataFrame]  # TODO AnyPath to str
+PandasReadFunction = Callable[[AnyPath], pd.DataFrame]
 FormatFn = Callable[[str], str]
 
 

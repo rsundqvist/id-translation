@@ -56,7 +56,8 @@ Examples:
 
     .. note::
 
-       The `translatable` and `copy` arguments are always required (for :py:func:`@overload <typing.overload>` typing).
+       The `translatable` and `copy` arguments are always required (for :py:func:`@overload <typing.overload>` typing
+       reasons).
 
     Let's take our new function for a spin.
 

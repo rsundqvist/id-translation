@@ -1,4 +1,8 @@
-"""Functions that return a subset of candidates with which to continue the matching procedure."""
+"""Functions that return a subset of candidates with which to continue the matching procedure.
+
+Mapping of the current `value` is aborted if an empty set is returned. Functions such as :func:`filter_names` and
+:func:`filter_sources` use this to allow (or disallow) names and sources that match a given regex pattern.
+"""
 
 import logging
 import re
@@ -19,8 +23,8 @@ def filter_names(
 ) -> set[str]:
     """Filter names to translate based on `regex`.
 
-    Analogous to the built-in :py:func:`filter`-function, ``filter_names`` keep only the names that match the given
-    `regex`. This behavior may be reversed by setting the `remove` flag to ``True``.
+    Analogous to the built-in :py:func:`filter`-function, ``filter_names`` keeps only the names (`value`) that match the
+    given `regex`. This behavior may be reversed by setting the `remove` flag to ``True``.
 
     Args:
         value: A name that should be mapped one of the sources in `candidates`.
@@ -35,19 +39,18 @@ def filter_names(
     Examples:
         Ensuring that untranslatable IDs are left as-is.
 
-        >>> candidates, context = {"id", "name", "birth_date"}, None
-        >>> value = "employee_id"
+        >>> sources = {"employees", "countries", "orders"}
+        >>> name = "employee_id"
         >>> allowed = filter_names(
-        ...     value,
-        ...     candidates,
-        ...     context,
+        ...     name,
+        ...     candidates=sources,
+        ...     context=None,
         ...     regex=".*_id$",
-        ...     remove=False,  # This is the default (like the built-in filter).
         ... )
         >>> sorted(allowed)
-        ['birth_date', 'id', 'name']
+        ['countries', 'employees', 'orders']
 
-        The expression used selects names that end with `'_id'`.
+        The call above kept the `'employee_id'` name (by returning all candidate sources).
     """
     function_name = filter_names.__name__
     _check_context(function_name, context=context, want_none=True)
@@ -71,32 +74,37 @@ def filter_sources(
 ) -> set[str]:
     """Filter sources based on `regex`.
 
+    Analogous to the built-in :py:func:`filter`-function, ``filter_sources`` keeps only the sources (`context`) that
+    match the given `regex`. This behavior may be reversed by setting the `remove` flag to ``True``.
+
     Args:
-        value: Target placeholder. Return immediately if `value` != `'id'` to avoid unnecessary work.
+        value: Target placeholder.
         candidates: Available placeholders in the source named by `context`. Always ignored, exists for compatibility.
         context: The source to which the `candidates` belong.
         regex: A regex pattern. Will be matched against the `context`.
         remove: If ``True``, remove matching values.
 
     Returns:
-        The original candidates if `context` does NOT match the given `regex`. An empty set, otherwise.
+        The original candidates if `context` matches the given `regex`. An empty set, otherwise.
 
     Examples:
         Avoiding uninteresting sources (for ID translation purposes).
 
-        >>> value, candidates = "id", {"ignored"}
-        >>> context = "some_metadata_table"
+        >>> source = "some_metadata_table"
         >>> allowed = filter_sources(
         ...     "id",
-        ...     candidates,
-        ...     context,
+        ...     candidates={"id", "name", "some_other_column"},
+        ...     context=source,
         ...     regex=".*metadata.*",
         ...     remove=True,
         ... )
-        >>> len(allowed) == 0
-        True
+        >>> len(allowed)
+        0
 
-        The expression used filters out sources that contain the word `'metadata'`.
+        The call above filtered out the `'some_metadata_table'` source (by removing all candidates).
+
+    Notes:
+        Returns immediately if `value` != `'id'`, to avoid unnecessary work. The
     """
     if value != ID:
         return set(candidates)
@@ -135,12 +143,11 @@ def filter_placeholders(
     Examples:
         Removing irrelevant but possibly confusing columns.
 
-        >>> value, context = "ignored", "ignored"
-        >>> candidates = {"id", "name", "old_id", "previous_id"}
+        >>> actual_placeholders = {"id", "name", "old_id", "previous_id"}
         >>> allowed = filter_placeholders(
-        ...     value,
-        ...     candidates,
-        ...     context,
+        ...     value="ignored",
+        ...     candidates=actual_placeholders,
+        ...     context="ignored",
         ...     regex="^(old|previous).*",
         ...     remove=True,
         ... )
