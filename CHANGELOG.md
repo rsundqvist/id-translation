@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Various documentation issues.
+- Fix logged ID count in exit-message when the `Translator` is working offline.
 
 ## [1.0.1] - 2025-11-25
 

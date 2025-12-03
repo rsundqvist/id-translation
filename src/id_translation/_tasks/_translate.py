@@ -66,7 +66,7 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
         self._names_without_ids: set[NameType] = set()
         self._event_key = event_key
 
-        self._num_ids: dict[SourceType, int] = {}
+        self._num_ids: dict[SourceType, int] | None = None
         self._seconds = float("nan")
 
     @property
@@ -189,10 +189,10 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
         if not LOGGER.isEnabledFor(logging.INFO):
             return
 
-        num_ids = sum(self._num_ids.values())
+        num_ids = sum(self.num_ids.values())
 
         in_place = "" if self.copy else "in-place "
-        ids = "1 ID" if num_ids == 1 else f"{num_ids} unique IDs"
+        ids = f"{num_ids} unique ID" + ("" if num_ids == 1 else "s")
         names = "1 name" if len(self.names_to_translate) == 1 else f"{len(self.names_to_translate)} names"
         msg = f"Finished {in_place}translation of {ids} ({names}) in {self.type_name} in {fmt_sec(self._seconds)}."
 
@@ -204,7 +204,7 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
                 seconds=self._seconds,
                 # Task-specific
                 durations_ms=self.get_timings_ms(),
-                num_ids=self._num_ids,
+                num_ids=self.num_ids,
                 online=self.caller.online,
                 translatable_type=self.full_type_name,
                 io_type="{cls.__module__}.{cls.__name__}".format(cls=type(self.io)),
@@ -213,6 +213,32 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
                 name_to_source=self.name_to_source,
             ),
         )
+
+    @property
+    def num_ids(self) -> dict[SourceType, int]:
+        """Unique ID count per source."""
+        if self._num_ids is None:
+            self._num_ids = self._compute_num_ids()
+
+        return self._num_ids
+
+    def _compute_num_ids(self) -> dict[SourceType, int]:
+        """Compute number of IDs per source.
+
+        This is done by :meth:`extract_ids` when the Translator is online. ID extraction isn't needed when IDs are
+        stored offline, but we still want the counts when INFO-logging is enabled (see :meth:`log_key_event_exit`).
+        """
+        source_to_ids: dict[SourceType, set[IdType]] = defaultdict(set)
+        for name, ids in self._extract_ids().items():
+            if isinstance(ids[0], float):
+                try:  # noqa: SIM105
+                    ids, _ = self._coerce_float_to_int(ids)  # noqa: PLW2901
+                except (TypeError, ImportError):
+                    pass
+            source = self.name_to_source[name]
+            source_to_ids[source].update(ids)
+
+        return {source: len(ids) for source, ids in source_to_ids.items()}
 
     def insert(
         self, translation_map: TranslationMap[NameType, SourceType, IdType]
@@ -306,6 +332,7 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
         name_to_ids: dict[NameType, Sequence[IdType]] = self.io.extract(self.translatable, self.io_names)
 
         name_to_ids = {name: ids for name, ids in name_to_ids.items() if len(ids) > 0}
+
         if not self._names_without_ids:
             self._names_without_ids = set(self.io_names).difference(name_to_ids)
         return name_to_ids
