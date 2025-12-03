@@ -35,7 +35,7 @@ def test_fetch_all_forbidden(data):
 
 
 def test_unknown_placeholders(fetcher):
-    with pytest.raises(exceptions.UnknownPlaceholderError, match="{'number_of_legs'} not recognized"):
+    with pytest.raises(exceptions.UnknownPlaceholderError, match=r"{'number_of_legs'} not recognized"):
         fetcher.fetch([IdsToFetch("humans", set())], ("id", "number_of_legs"), {"number_of_legs"})
 
 
@@ -67,7 +67,7 @@ class TestCache:
         self._run(fetcher)
 
     def test_no_access(self):
-        with pytest.raises(CacheAccessNotAvailableError, match="documentation/examples/caching/caching.html"):
+        with pytest.raises(CacheAccessNotAvailableError, match=r"documentation/examples/caching/caching.html"):
             _ = MemoryFetcher({}).cache_access
 
     def test_clone(self, windows_hack_temp_dir):

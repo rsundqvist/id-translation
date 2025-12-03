@@ -78,7 +78,7 @@ def test_value_fstring_alias(fstring, expected_value):
 def test_value_fstring_alias_for_value(for_value, expected_value):
     args = ("VALUE", list("abc"), "context")
     if expected_value is None:
-        with pytest.raises(ValueError, match="does not contain {value}"):
+        with pytest.raises(ValueError, match=r"does not contain {value}"):
             hf.value_fstring_alias(*args, fstring="{context}", for_value=for_value)
         return
 
@@ -100,7 +100,7 @@ def test_candidate_fstring_alias(fstring, expected_candidates):
     candidates = ["CAND0", "CAND1"]
 
     if expected_candidates is None:
-        with pytest.raises(ValueError, match="does not contain {candidate}"):
+        with pytest.raises(ValueError, match=r"does not contain {candidate}"):
             hf.candidate_fstring_alias("VALUE", candidates, None, fstring=fstring, kwarg="KWARG")
         return
 

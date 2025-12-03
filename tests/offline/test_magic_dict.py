@@ -10,7 +10,7 @@ def test_get(monkeypatch):
     real = {1991: "1991:Richard", 1999: "1999:Sofia"}
     subject = MagicDict(real)
 
-    with pytest.raises(AssertionError, match="MagicDict.get is inefficient."):
+    with pytest.raises(AssertionError, match=r"MagicDict.get is inefficient."):
         subject.get(1)
 
     monkeypatch.setattr(subject, "get", lambda k, _=None: subject[k])
@@ -46,7 +46,7 @@ def test_get(monkeypatch):
 
 
 def test_bad_uuids():
-    with pytest.raises(TypeError, match="Duplicate UUIDs found."):
+    with pytest.raises(TypeError, match=r"Duplicate UUIDs found."):
         MagicDict(
             {
                 "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee": "",

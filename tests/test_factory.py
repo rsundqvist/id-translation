@@ -106,7 +106,7 @@ class TestCacheAccess:
         # Animals fetcher - not cached
         assert isinstance(fetcher_animals, AbstractFetcher)
         assert fetcher_animals._cache_access is _NOOP_CACHE_ACCESS
-        with pytest.raises(CacheAccessNotAvailableError, match="documentation/examples/caching/caching.html"):
+        with pytest.raises(CacheAccessNotAvailableError, match=r"documentation/examples/caching/caching.html"):
             _ = fetcher_animals.cache_access
 
     @staticmethod

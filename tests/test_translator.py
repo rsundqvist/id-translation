@@ -648,7 +648,7 @@ class TestTranslatedNames:
     translator = UnitTestTranslator()
 
     def test_unused(self, with_source):
-        with pytest.raises(ValueError, match="No names have been translated using this Translator."):
+        with pytest.raises(ValueError, match=r"No names have been translated using this Translator."):
             self.translator.translated_names(with_source)
 
     def test_multiple(self, with_source):
