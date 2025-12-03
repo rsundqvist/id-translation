@@ -26,12 +26,14 @@ RECORDS_FILE = OUTPUT_DIR / "documentation/dvdrental-records.json"
 INFO_FILE = OUTPUT_DIR / "documentation/dvdrental-info-messages.log"
 RST_FILE = OUTPUT_DIR / "documentation/translation-logging.rst"
 
+
 class Random:
     def __init__(self, _):
         pass
 
     def randint(self, _, __):
         return 2019_05_11
+
 
 _base_task.Random = Random
 _logging.ENABLE_VERBOSE_LOGGING = True
@@ -130,11 +132,17 @@ def handle_rst() -> None:
     start, stop = find_doc_lines()
     content = RST_FILE.read_text()
 
+    any_missing = False
+
     for part in f":lines: {start}-{stop}", f":lineno-start: {start}":
         if part in content:
             print(f"\033[92mOK:\033[0m {part=}")
         else:
             print(f"\033[31mMISSING:\033[0m {part=}")
+            any_missing = True
+
+    if any_missing:
+        print(f"  In file: \033[31m{repr(str(RST_FILE))}\033[0m")
 
 
 def find_doc_lines() -> tuple[int, int]:

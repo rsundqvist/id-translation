@@ -63,8 +63,8 @@ included in the message itself. The full ``Translator.translate:exit``-record is
 
 .. literalinclude:: dvdrental-records.json
    :caption: Translation exit event. Click :download:`here <dvdrental-records.json>` to download.
-   :lines: 9965-10016
-   :lineno-start: 9965
+   :lines: 10322-10374
+   :lineno-start: 10322
 
 About 350 messages were emitted since ``ENABLE_VERBOSE_LOGGING=True``. If we were using regular ``🪲 DEBUG``-logging,
 about 40 messages would have been emitted instead. The vast majority of the verbose messages relate to mapping and

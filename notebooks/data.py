@@ -10,8 +10,8 @@ _LOCAL_ROOT = Path.home() / ".id-translation/notebooks/cache/"
 _LOCAL_ROOT.mkdir(parents=True, exist_ok=True)
 
 
-def _fix_ids(df):
-    def integer_group(match):
+def _fix_ids(df: pd.DataFrame) -> None:
+    def integer_group(match: re.Match) -> str:
         return match.group(1)
 
     columns = _get_id_columns(df)
@@ -21,21 +21,21 @@ def _fix_ids(df):
         )
 
 
-def _get_id_columns(df):
+def _get_id_columns(df: pd.DataFrame) -> pd.DataFrame:
     return df.columns[df.columns.str.endswith("const")]
 
 
-def clean_and_fix_ids(input_path) -> pd.DataFrame:
+def clean_and_fix_ids(input_path: str) -> pd.DataFrame:
     df = load_pickle(input_path)
     _fix_ids(df)
     return df
 
 
-def load_pickle(input_path):
+def load_pickle(input_path: str):
     df = pd.read_csv(input_path, sep="\t", header=0, engine="c", low_memory=False)
     any_nan = (df == "\\N").any(axis=1) | df.isna().any(axis=1)
     df = df[~any_nan]
-    df = df.apply(pd.to_numeric)
+    df = df.convert_dtypes()
     return df
 
 

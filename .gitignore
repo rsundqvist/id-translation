@@ -1,5 +1,6 @@
 x.*
 y.*
+*.db
 codecov
 
 # Data

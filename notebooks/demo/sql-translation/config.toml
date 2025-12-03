@@ -39,9 +39,7 @@ original_name = "Original title unknown"
 # Fetching configuration.
 ################################################################################
 [fetching.SqlFetcher]
-whitelist_tables = ["name_basics", "title_basics"]
-connection_string = "postgresql+pg8000://postgres:{password}@localhost:5002/imdb"
-password = "Sofia123!"
+connection_string = "sqlite:///demo.db"
 
 # ------------------------------------------------------------------------------
 # Placeholder mapping configuration. Binds actual names in sources (such as
