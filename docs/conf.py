@@ -170,6 +170,7 @@ extensions = [
     "nbsphinx",
     "sphinx.ext.mathjax",
     "myst_parser",
+    "sphinx_llm.txt",
 ]
 autosummary_ignore_module_all = True
 autosummary_imported_members = True

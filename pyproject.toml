@@ -72,6 +72,7 @@ pydata-sphinx-theme = "~0.16.1"
 myst-parser = "~4.0.1"  # https://github.com/executablebooks/MyST-Parser/pull/1062
 nbsphinx = "~0.9.8"
 ipython = "~9.7.0"
+sphinx-llm = "~0.2.1"
 
 log-lexer = { path = "docs/log-lexer", develop = true }  # For .log files.
 
