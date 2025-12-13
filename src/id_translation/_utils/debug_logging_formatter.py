@@ -122,12 +122,12 @@ class DebugLoggingFormatter(logging.Formatter):
         if event_key := getattr(record, "event_key", ""):
             stage = event_key.rpartition(":")[2]
 
-        indent = self._indent.setdefault(task_id, 0)
+        self._indent.setdefault(task_id, 0)  # Just in case; enter should come first.
 
         if stage == "exit":
             self._indent[task_id] -= 1
 
-        indentation = self._indent_style * indent
+        indentation = self._indent_style * self._indent[task_id]
 
         if stage == "enter":
             self._indent[task_id] += 1
