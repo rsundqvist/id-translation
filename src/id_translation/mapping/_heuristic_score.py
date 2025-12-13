@@ -84,6 +84,7 @@ class HeuristicScore(Generic[ValueType, CandidateType, ContextType]):
         value: ValueType,
         candidates: Iterable[CandidateType],
         context: ContextType | None,
+        task_id: int | None = None,
         **kwargs: Any,
     ) -> Iterable[float]:
         """Apply `score_function` with heuristics and short-circuiting."""
@@ -124,7 +125,8 @@ class HeuristicScore(Generic[ValueType, CandidateType, ContextType]):
                     logger.debug(
                         f"Called {mutating} alias function {_stringify((func, func_kwargs))} in {context=}:\n    "
                         f"({h_value!r}, {h_candidates!r}) -> ({res_value_repr}, {res_candidates_repr})."
-                        f"\n    Positional penalty={positional_penalty:.3f}. Scores before penalty: {res_score_repr}."
+                        f"\n    Positional penalty={positional_penalty:.3f}. Scores before penalty: {res_score_repr}.",
+                        extra={"task_id": task_id},
                     )
 
                 if mutate:
@@ -139,7 +141,10 @@ class HeuristicScore(Generic[ValueType, CandidateType, ContextType]):
                     base_args = ", ".join([repr(h_value), repr(h_candidates), f"{context=}"])
                     extra_args = ", ".join(f"{k}={v!r}" for k, v in func_kwargs.items())
                     info = f"{tname(func)}({', '.join([base_args, extra_args])})"
-                    logger.debug(f"Short-circuit {value=} -> candidates={res!r}, triggered by {info}.")
+                    logger.debug(
+                        f"Short-circuit {value=} -> candidates={res!r}, triggered by {info}.",
+                        extra={"task_id": task_id},
+                    )
 
                 yield from (float("inf") if c in res else -float("inf") for c in h_candidates)
                 return
@@ -149,7 +154,10 @@ class HeuristicScore(Generic[ValueType, CandidateType, ContextType]):
                 f"{cand!r}: {score:.2f} -> {heuristic_score:.2f} ({heuristic_score - score:+.2f})"
                 for cand, score, heuristic_score in zip(candidates, base_score, best, strict=True)
             ]
-            logger.debug(f"Heuristics scores for {value=}: [{', '.join(changes)}]")
+            logger.debug(
+                f"Heuristics scores for {value=}: [{', '.join(changes)}]",
+                extra={"task_id": task_id},
+            )
 
         yield from best
 

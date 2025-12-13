@@ -11,10 +11,11 @@ from rics.strings import format_perf_counter as fmt_perf
 from rics.types import LiteralHelper
 
 from .. import logging as _logging
-from . import filter_functions as mf
+from . import filter_functions as ff
 from . import score_functions as sf
 from ._cardinality import Cardinality
 from ._directional_mapping import DirectionalMapping
+from ._heuristic_score import HeuristicScore
 from .exceptions import (
     BadFilterError,
     MappingError,
@@ -40,6 +41,8 @@ with warnings.catch_warnings():
     from .matrix import ScoreHelper, ScoreMatrix
 
 inf = float("inf")
+FilterFunctionArgItem = tuple[str | FilterFunction[ValueType, CandidateType, ContextType], dict[str, Any]]
+FilterFunctionWithKwargs = tuple[FilterFunction[ValueType, CandidateType, ContextType], dict[str, Any]]
 
 
 class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
@@ -67,9 +70,7 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
         self,
         score_function: str | ScoreFunction[ValueType, CandidateType, ContextType] = "disabled",
         score_function_kwargs: dict[str, Any] | None = None,
-        filter_functions: Iterable[
-            tuple[str | FilterFunction[ValueType, CandidateType, ContextType], dict[str, Any]]
-        ] = (),
+        filter_functions: Iterable[FilterFunctionArgItem[ValueType, CandidateType, ContextType]] = (),
         min_score: float = 0.90,
         overrides: dict[ValueType, CandidateType]
         | InheritedKeysDict[ContextType, ValueType, CandidateType]
@@ -90,10 +91,8 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
         self._on_unmapped = OU_HELPER.check(on_unmapped)
         self._on_unknown_user_override = OUUO_HELPER.check(on_unknown_user_override)
         self._cardinality = None if cardinality is None else Cardinality.parse(cardinality, strict=True)
-        self._filters: list[tuple[FilterFunction[ValueType, CandidateType, ContextType], dict[str, Any]]] = [
-            ((get_by_full_name(func, mf) if isinstance(func, str) else func), kwargs)
-            for func, kwargs in filter_functions
-        ]
+
+        self._filters = self._initialize_filter_functions(filter_functions)
         self._logger = logging.getLogger(__package__).getChild("Mapper")  # This will almost always be overwritten
 
     def apply(
@@ -156,7 +155,7 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
         if unmapped:
             extra = f" in {context=}" if context else ""
             candidates = set(scores.candidates)  # Includes candidates added by override logic.
-            self._report_unmapped(f"Could not map {unmapped}{extra} to any of {candidates=}.")
+            self._report_unmapped(f"Could not map {unmapped}{extra} to any of {candidates=}.", task_id=task_id)
 
         logger = self.logger
         if _logging.ENABLE_VERBOSE_LOGGING and logger.isEnabledFor(logging.DEBUG):
@@ -175,22 +174,22 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
 
         return dm
 
-    def _report_unmapped(self, msg: str) -> None:
+    def _report_unmapped(self, msg: str, task_id: int | None) -> None:
         logger = self.logger
 
         if self.on_unmapped == "raise":
             msg += "\nHint: Set on_unmapped='warn' or on_unmapped='ignore' to allow unmapped values."
-            logger.error(msg)
+            logger.error(msg, extra={"task_id": task_id})
             raise UnmappedValuesError(msg)
         elif self.on_unmapped == "warn":
-            logger.warning(msg)
+            logger.warning(msg, extra={"task_id": task_id})
             msg += (
                 "\nHint: Set on_unmapped='ignore' to hide this warning, or "
                 f"on_unmapped='raise' to raise an {UnmappedValuesError.__name__}."
             )
             warnings.warn(msg, UnmappedValuesWarning, stacklevel=3)
         elif _logging.ENABLE_VERBOSE_LOGGING:
-            logger.debug(msg)
+            logger.debug(msg, extra={"task_id": task_id})
 
     def compute_scores(
         self,
@@ -241,9 +240,13 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
                 )
             return scores
 
+        score_fn = self._score
+        if isinstance(score_fn, HeuristicScore):
+            self._score_kwargs["task_id"] = task_id
+
         if logger_enabled:
             logger.debug(
-                f"Begin computing match scores{extra} for {values}x{candidates} using {self._score}.",
+                f"Begin computing match scores{extra} for {values}x{candidates} using {score_fn}.",
                 extra={"task_id": task_id},
             )
 
@@ -261,7 +264,7 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
             else:
                 if logger_enabled:
                     logger.debug(f"Compute match scores for {value=}.", extra={"task_id": task_id})
-                scores_for_value = self._score(value, filtered_candidates, context, **self._score_kwargs, **kwargs)
+                scores_for_value = score_fn(value, filtered_candidates, context, **self._score_kwargs, **kwargs)
 
             for score, candidate in zip(scores_for_value, filtered_candidates, strict=True):
                 scores[value, candidate] = score
@@ -440,6 +443,8 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
         filtered_candidates = set(candidates)
 
         for filter_function, function_kwargs in self._filters:
+            if "task_id" in function_kwargs:
+                function_kwargs["task_id"] = task_id
             filtered_candidates = filter_function(value, filtered_candidates, context, **function_kwargs, **kwargs)
 
             not_in_original_candidates = filtered_candidates.difference(candidates)
@@ -516,6 +521,21 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
                 self._cardinality == other._cardinality,
             )
         )
+
+    @classmethod
+    def _initialize_filter_functions(
+        cls,
+        filter_functions: Iterable[FilterFunctionArgItem[ValueType, CandidateType, ContextType]],
+    ) -> list[FilterFunctionWithKwargs[ValueType, CandidateType, ContextType]]:
+        rv = []
+        for func_or_str, kwargs in filter_functions:
+            func = get_by_full_name(func_or_str, ff) if isinstance(func_or_str, str) else func_or_str
+
+            if "task_id" in getattr(func, "__annotations__", {}):
+                kwargs.setdefault("task_id", None)
+
+            rv.append((func, kwargs))
+        return rv
 
 
 OU_HELPER: LiteralHelper[OnUnmapped] = LiteralHelper(

@@ -67,7 +67,7 @@ class MappingTask(NamesTask[NameType, SourceType, IdType]):
         if names_from_user is not None and not self.mapper_input_names:
             msg = f"Translation aborted; no names to translate in {type_name}{self._format_params()}."
             warnings.warn(msg, MappingWarning, stacklevel=2)
-            LOGGER.warning(msg)
+            LOGGER.warning(msg, extra={"task_id": self.task_id})
             return {}
 
         sources = self.caller.sources
@@ -117,14 +117,14 @@ class MappingTask(NamesTask[NameType, SourceType, IdType]):
                         f"{self._format_params()}."
                     )
                     warnings.warn(msg, MappingWarning, stacklevel=2)
-                    LOGGER.warning(msg)
+                    LOGGER.warning(msg, extra={"task_id": self.task_id})
                 return {}
 
             unmapped = set(names_from_user).difference(name_to_source)
             if unmapped:
                 # Fail if any of the explicitly given names fail to map to a source.
                 msg = f"Required names {unmapped} {tail}."
-                LOGGER.error(msg)
+                LOGGER.error(msg, extra={"task_id": self.task_id})
                 raise MappingError(msg)
 
         if result.cardinality.many_right:  # pragma: no cover

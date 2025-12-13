@@ -206,7 +206,10 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
                 placeholders = fetcher.placeholders
 
                 if len(placeholders) == 0 and LOGGER.isEnabledFor(logging.WARNING):
-                    LOGGER.warning(f"Required {self.format_child(fetcher)} does not provide any sources.")
+                    LOGGER.warning(
+                        f"Required {self.format_child(fetcher)} does not provide any sources.",
+                        extra={"task_id": task_id},
+                    )
 
             retval[fid] = placeholders
 

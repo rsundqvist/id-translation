@@ -94,7 +94,10 @@ class NamesTask(BaseTask[NameType, SourceType, IdType]):
         ignore_names = self.ignore_names  # May not be combined with explicit names; checked earlier.
         names = self.extracted_names
         if LOGGER.isEnabledFor(logging.DEBUG):
-            LOGGER.debug(f"Name extraction complete. Found {names=} for {self.type_name}-type data.")
+            LOGGER.debug(
+                f"Name extraction complete. Found {names=} for {self.type_name}-type data.",
+                extra={"task_id": self.task_id},
+            )
 
         if names and ignore_names is not None:
             predicate = ignore_names if callable(ignore_names) else set(as_list(ignore_names)).__contains__

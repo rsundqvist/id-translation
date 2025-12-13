@@ -20,6 +20,8 @@ def filter_names(
     context: _Any,
     regex: str,
     remove: bool = False,
+    *,
+    task_id: int | None = None,
 ) -> set[str]:
     """Filter names to translate based on `regex`.
 
@@ -32,6 +34,7 @@ def filter_names(
         context: Should be ``None``. Always ignored, exists for compatibility.
         regex: A regex pattern. Will be matched against the `value`.
         remove: If ``True``, remove matching values.
+        task_id: Used for logging.
 
     Returns:
         The original candidates if `value` matches the given `regex`. An empty set, otherwise.
@@ -61,6 +64,7 @@ def filter_names(
         label="name",
         function_name=function_name,
         action="Do not translate",
+        task_id=task_id,
     )
     return set(candidates) if keep else set()
 
@@ -71,6 +75,8 @@ def filter_sources(
     context: _Any,
     regex: str,
     remove: bool = False,
+    *,
+    task_id: int | None = None,
 ) -> set[str]:
     """Filter sources based on `regex`.
 
@@ -83,6 +89,7 @@ def filter_sources(
         context: The source to which the `candidates` belong.
         regex: A regex pattern. Will be matched against the `context`.
         remove: If ``True``, remove matching values.
+        task_id: Used for logging.
 
     Returns:
         The original candidates if `context` matches the given `regex`. An empty set, otherwise.
@@ -117,6 +124,7 @@ def filter_sources(
         remove=remove,
         label="source",
         function_name=function_name,
+        task_id=task_id,
     )
     return set(candidates) if keep else set()
 
@@ -127,6 +135,7 @@ def filter_placeholders(
     context: _Any,
     regex: str,
     remove: bool = False,
+    task_id: int | None = None,
 ) -> set[str]:
     """Filter placeholders, as they appear in the source given by `context`, based on `regex`.
 
@@ -136,6 +145,7 @@ def filter_placeholders(
         context: The source to which the `candidates` belong.
         regex: A regex pattern. Will be matched against elements of the `candidates`.
         remove: If ``True``, remove matching values.
+        task_id: Used for logging.
 
     Returns:
         Placeholders that may be used.
@@ -164,7 +174,10 @@ def filter_placeholders(
         logger = logging.getLogger(__name__).getChild(filter_placeholders.__name__)
         if logger.isEnabledFor(logging.DEBUG):
             removed = candidates.difference(ans)
-            logger.debug(f"Discard placeholders={removed!r} in source={context!r}; matches {pattern=}.")
+            logger.debug(
+                f"Discard placeholders={removed!r} in source={context!r}; matches {pattern=}.",
+                extra={"task_id": task_id},
+            )
 
     return ans
 
@@ -184,6 +197,8 @@ def _filter_single(
     label: str,
     function_name: str,
     action: str = "Discard",
+    *,
+    task_id: int | None = None,
 ) -> bool:
     keep = (re.match(regex, string, re.IGNORECASE) is None) is remove
 
@@ -193,6 +208,9 @@ def _filter_single(
     logger = logging.getLogger(__name__).getChild(function_name)
     if logger.isEnabledFor(logging.DEBUG):
         pattern = re.compile(regex, re.IGNORECASE)
-        logger.debug(f"{action} {label}={string!r}; {'matches' if remove else 'does not match'} {pattern=}.")
+        logger.debug(
+            f"{action} {label}={string!r}; {'matches' if remove else 'does not match'} {pattern=}.",
+            extra={"task_id": task_id},
+        )
 
     return keep

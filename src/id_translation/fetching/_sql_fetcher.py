@@ -410,7 +410,10 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
 
         logger = self.logger
         if logger.isEnabledFor(logging.DEBUG):
-            logger.debug(f"Metadata for {self._estr} created in {fmt_perf(start)}.")
+            logger.debug(
+                f"Metadata for {self._estr} created in {fmt_perf(start)}.",
+                extra={"task_id": task_id},
+            )
 
         table_names = {t.name for t in metadata.tables.values()}
         tables: Collection[str]
@@ -426,7 +429,10 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
             elif self._blacklist:
                 extra = f" (blacklist: {self._blacklist})"
 
-            logger.warning(f"{self._estr}: No sources found{extra}. Available tables: {table_names}")
+            logger.warning(
+                f"{self._estr}: No sources found{extra}. Available tables: {table_names}",
+                extra={"task_id": task_id},
+            )
             return {}
 
         discarded = []

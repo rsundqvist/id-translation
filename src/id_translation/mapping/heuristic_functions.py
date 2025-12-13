@@ -164,6 +164,7 @@ def short_circuit(
     *,
     value_regex: str | _re.Pattern[str],
     target_candidate: str,
+    task_id: int | None = None,
 ) -> set[str]:
     """Short-circuit `value` to the target candidate if the target and regex conditions are met.
 
@@ -177,6 +178,7 @@ def short_circuit(
         context: Always ignored, exists for compatibility.
         value_regex: A pattern match against `value`. Case-insensitive by default.
         target_candidate: The candidate to short-circuit to.
+        task_id: Used for logging.
 
     Returns:
         A single-element set ``{target_candidate}``, iff both conditions are met. An empty set otherwise.
@@ -208,9 +210,14 @@ def short_circuit(
         pattern = _re.compile(value_regex, flags=_re.IGNORECASE) if isinstance(value_regex, str) else value_regex
         if logger.isEnabledFor(logging.DEBUG):
             if target_candidate not in candidates:
-                logger.debug(f"Short-circuiting failed for {value=}: The {target_candidate=} is an input candidate.")
+                logger.debug(
+                    f"Short-circuiting failed for {value=}: The {target_candidate=} is an input candidate.",
+                    extra={"task_id": task_id},
+                )
             else:
-                logger.debug(f"Short-circuiting failed for {value=}: Does not match {pattern=}.")
+                logger.debug(
+                    f"Short-circuiting failed for {value=}: Does not match {pattern=}.", extra={"task_id": task_id}
+                )
 
     return set()
 
