@@ -1,7 +1,7 @@
-[id_translation.fetching]: Finished initialization of 'MemoryFetcher' in 85 μs:
+[id_translation.fetching]: Finished initialization of 'MemoryFetcher' in 96 μs:
     MemoryFetcher(sources=['category'], return_all=True)
 
-[id_translation.fetching]: Finished initialization of 'SqlFetcher' in 106 ms:
+[id_translation.fetching]: Finished initialization of 'SqlFetcher' in 115 ms:
     SqlFetcher('postgresql+pg8000://postgres:***@localhost:5002/sakila',
     sources=['address', 'film', 'language', 'customer', 'country', 'staff',
     'actor', 'city'])
@@ -13,9 +13,9 @@
 [id_translation.fetching]: Finished fetching from 1 sources in 1 ms: ['category'
     x ('id', 'name') x 16/7 IDs].
 
-[id_translation.fetching]: Finished fetching from 3 sources in 13 ms:
+[id_translation.fetching]: Finished fetching from 3 sources in 15 ms:
     ['customer' x ('id', 'name', 'last_name') x 10/10 IDs], ['film' x ('id',
     'name') x 10/10 IDs], ['staff' x ('id', 'name', 'last_name') x 2/2 IDs].
 
 [id_translation.Translator]: Finished translation of 29 unique IDs (4 names) in
-    'DataFrame' in 18 ms.
+    'DataFrame' in 20 ms.

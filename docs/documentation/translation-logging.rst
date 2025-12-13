@@ -16,6 +16,10 @@ enable additional ``🪲 DEBUG``-level messages. Use the :envvar:`ID_TRANSLATION
 
    Verbose logging may emit hundreds of messages for a single translation task!
 
+.. hint::
+
+   Click `here <../_static/logging-style-rainbow.html>`__ for sample output using ``style="rainbow"``.
+
 Note that `verbose` and ``🪲 DEBUG`` logging are different things; verbose logging can emit hundreds of messages in
 cases where regular ``🪲 DEBUG`` logging would only emit a dozen. Verbose messages are typically related to the
 :ref:`mapping <translation-primer>` process.
@@ -63,8 +67,8 @@ included in the message itself. The full ``Translator.translate:exit``-record is
 
 .. literalinclude:: dvdrental-records.json
    :caption: Translation exit event. Click :download:`here <dvdrental-records.json>` to download.
-   :lines: 10322-10374
-   :lineno-start: 10322
+   :lines: 10432-10484
+   :lineno-start: 10432
 
 About 350 messages were emitted since ``ENABLE_VERBOSE_LOGGING=True``. If we were using regular ``🪲 DEBUG``-logging,
 about 40 messages would have been emitted instead. The vast majority of the verbose messages relate to mapping and
