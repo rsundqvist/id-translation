@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.3] - 2025-12-13
+
 ### Added
 - Added sample output for `enable_verbose_debug_messages(style='rainbow')` to
   [docs](https://id-translation.readthedocs.io/en/latest/_static/logging-style-rainbow.html).
@@ -504,7 +506,8 @@ cookiecutter template.
 - Switch to relative imports.
 - Fix some intersphinx issues.
 
-[Unreleased]: https://github.com/rsundqvist/id-translation/compare/v1.0.2...HEAD
+[Unreleased]: https://github.com/rsundqvist/id-translation/compare/v1.0.3...HEAD
+[1.0.3]: https://github.com/rsundqvist/id-translation/compare/v1.0.2...v1.0.3
 [1.0.2]: https://github.com/rsundqvist/id-translation/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/rsundqvist/id-translation/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/rsundqvist/id-translation/compare/v0.15.4...v1.0.0
