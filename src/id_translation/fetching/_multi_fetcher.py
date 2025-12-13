@@ -486,7 +486,7 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
     ) -> None:
         fetcher = self._id_to_fetcher[fetcher_id]
 
-        if LOGGER.isEnabledFor(logging.WARNING):
+        if LOGGER.isEnabledFor(logging.WARNING) and fetcher.sources:
             reason = "All sources found in higher-ranking fetchers"
             pretty = self.format_child(fetcher)
             LOGGER.warning(

@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- The `MultiFetcher` will no longer warn twice for required children without sources.
+
 ## [1.0.2] - 2025-12-03
 
 ### Fixed
@@ -22,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Python `3.14` is now fully tested and supported in CI/CD.
-- Add `extras.trace_id` to more log messages.
+- Add `extra.task_id` to more log messages.
 - Log more statistics (e.g. performance counters and number of unique IDs translated).
 
 ### Changed

@@ -331,19 +331,10 @@ def test_init_logging(multi_fetcher, caplog):
 
         return False
 
-    def required_empty_kept(message: str, level: int) -> bool:
-        if message.startswith("Required rank-3 fetcher SqlFetcher('sqlite://')"):
-            assert level == logging.WARNING, "required => WARNING"
-            assert message.endswith("is useless, but will be kept: All sources found in higher-ranking fetchers.")
-            return True
-
-        return False
-
     checkers = [
         discard_empty_optional,
         required_no_sources,
         optional_source_outranked,
-        required_empty_kept,
     ]
 
     index = 0
