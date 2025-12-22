@@ -34,7 +34,7 @@ def enable_verbose_debug_messages(
 
     .. hint::
 
-       Click `here <../_static/logging-style-rainbow.html>`__ for sample output using ``style="rainbow"``.
+       Click `here <../_static/logging-style-rainbow.html>`__ for verbose sample output using ``style="rainbow"``.
 
     **Styles**
 

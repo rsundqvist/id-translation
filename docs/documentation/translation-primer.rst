@@ -32,8 +32,8 @@ configuration is available in the :ref:`notebooks` section.
 
 Call diagram
 ------------
-The :class:`Translator` either performs or coordinates most task. A
-notable exception the :ref:`placeholder mapping <fetcher-mapping-motivation>` subprocess, which is
+The :class:`Translator` either performs or coordinates most tasks. A
+notable exception is the :ref:`placeholder mapping <fetcher-mapping-motivation>` subprocess, which is
 handled internally by :meth:`AbstractFetcher.map_placeholders <fetching.AbstractFetcher.map_placeholders>`.
 
 * Green indicates a :class:`Translator` member function.
@@ -50,8 +50,8 @@ A :class:`fetching.PandasFetcher` is used in the example below, meaning that
 actually :meth:`fetching translations <fetching.PandasFetcher.fetch_translations>` means reading files
 in this directory.
 
-Real applications typically use something like a :class:`SQL database <fetching.SqlFetcher>` instead. Underlying
-concepts remain the same, no matter how translation data is retrieved.
+Real applications typically use something like a :class:`~.fetching.SqlFetcher` instead. Underlying concepts remain the
+same, no matter how translation data is retrieved.
 
 Translatable data
 -----------------

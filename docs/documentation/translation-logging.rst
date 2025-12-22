@@ -18,7 +18,7 @@ enable additional ``🪲 DEBUG``-level messages. Use the :envvar:`ID_TRANSLATION
 
 .. hint::
 
-   Click `here <../_static/logging-style-rainbow.html>`__ for sample output using ``style="rainbow"``.
+   Click `here <../_static/logging-style-rainbow.html>`__ for verbose sample output using ``style="rainbow"``.
 
 Note that `verbose` and ``🪲 DEBUG`` logging are different things; verbose logging can emit hundreds of messages in
 cases where regular ``🪲 DEBUG`` logging would only emit a dozen. Verbose messages are typically related to the
@@ -26,13 +26,13 @@ cases where regular ``🪲 DEBUG`` logging would only emit a dozen. Verbose mess
 
 Example
 -------
-The ``ℹ️ INFO``-level messages emitted for a single :meth:`.Translator.translate` class.
+The ``ℹ️ INFO``-level messages emitted for a single :meth:`.Translator.translate` call.
 
 .. literalinclude:: dvdrental-info-messages.log
    :language: log
 
 Since these are :ref:`🔑 key event <Key Event Records>` messages, there are corresponding entry events (the messages
-above all all ``'exit'``-records). The ``'enter'``-records, however, are only emitted on the ``🪲 DEBUG`` level.
+above are all ``'exit'``-records). The ``'enter'``-records are emitted on the ``🪲 DEBUG`` level.
 
 .. _key-events:
 
