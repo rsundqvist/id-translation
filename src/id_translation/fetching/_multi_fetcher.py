@@ -190,7 +190,11 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
 
                 if len(placeholders) == 0:
                     if LOGGER.isEnabledFor(log_level):
-                        LOGGER.log(log_level, f"Discarding optional {self.format_child(fetcher)}: No sources.")
+                        LOGGER.log(
+                            log_level,
+                            f"Discarding optional {self.format_child(fetcher)}: No sources.",
+                            extra={"task_id": task_id},
+                        )
 
                     fetcher.close()
                     del self._id_to_rank[fid]
@@ -369,7 +373,7 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
             )
             return id(fetcher), result
 
-        children = self.children if sources is None else [c for c in self.children if sources.issubset(c.sources)]
+        children = self.children if sources is None else [c for c in self.children if sources.intersection(c.sources)]
         with ThreadPoolExecutor(max_workers=self.max_workers, thread_name_prefix=tname(self)) as executor:
             futures = [executor.submit(fetch_all, fetcher) for fetcher in children]
             ans = self._gather(futures, operation="FETCH_ALL", task_id=task_id)

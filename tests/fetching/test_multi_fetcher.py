@@ -1,6 +1,7 @@
 import logging
 from collections.abc import Collection
 from copy import deepcopy
+from itertools import combinations
 
 import pandas as pd
 import pytest
@@ -14,16 +15,20 @@ from id_translation.types import IdTypes
 
 from ..conftest import ROOT, NotCloneableFetcher
 
+ALL_SOURCES = ["animals", "big_table", "huge_table", "humans"]
+
 
 @pytest.fixture
 def fetchers(data: dict[str, pd.DataFrame]) -> Collection[AbstractFetcher[str, int]]:
-    humans_fetcher: MemoryFetcher[str, int] = MemoryFetcher({"humans": data["humans"]})
+    primary_fetcher: MemoryFetcher[str, int] = MemoryFetcher({"humans": data["humans"], "animals": data["animals"]})
     empty_fetcher: MemoryFetcher[str, int] = MemoryFetcher({}, optional=True)
-    everything_fetcher: MemoryFetcher[str, int] = MemoryFetcher(data)
+
+    data = {k: v for k, v in data.items() if k != "animals"}
+    fallback_fetcher: MemoryFetcher[str, int] = MemoryFetcher(data)
 
     with pytest.warns(FetcherWarning, match="empty"):
         sql_fetcher: SqlFetcher[int] = SqlFetcher("sqlite://", whitelist_tables=())  # No tables allowed!
-    return humans_fetcher, empty_fetcher, everything_fetcher, sql_fetcher
+    return primary_fetcher, empty_fetcher, fallback_fetcher, sql_fetcher
 
 
 @pytest.fixture
@@ -39,14 +44,14 @@ def expected(data):
 
 
 def test_sources(multi_fetcher):
-    assert sorted(multi_fetcher.sources) == ["animals", "big_table", "huge_table", "humans"]
+    assert sorted(multi_fetcher.sources) == ALL_SOURCES
 
 
 def test_sources_per_child(multi_fetcher):
     children = multi_fetcher.children
     assert len(children) == 3
-    assert children[0].sources == ["humans"]
-    assert sorted(children[1].sources) == ["animals", "big_table", "huge_table", "humans"]
+    assert children[0].sources == ["humans", "animals"]
+    assert sorted(children[1].sources) == ["big_table", "huge_table", "humans"]
     assert sorted(children[2].sources) == []
 
 
@@ -55,8 +60,9 @@ def test_source_to_child_mapping(multi_fetcher):
     assert len(children) == 3
 
     assert multi_fetcher.get_child("humans") == children[0]
-    assert children[1].sources == ["animals", "humans", "big_table", "huge_table"]
-    assert multi_fetcher.get_sources(children[1]) == ["animals", "big_table", "huge_table"]
+    assert multi_fetcher.get_child("animals") == children[0]
+    assert children[1].sources == ["humans", "big_table", "huge_table"]
+    assert multi_fetcher.get_sources(children[1]) == ["big_table", "huge_table"]
 
 
 def test_placeholders(multi_fetcher):
@@ -105,7 +111,7 @@ def test_fetch_all(multi_fetcher, expected, caplog):
 
     dropped = (
         "Dropping translations for source='humans' returned by the rank-2 fetcher "
-        "MemoryFetcher(sources=['animals', 'humans', 'big_table', 'huge_table']"
+        "MemoryFetcher(sources=['humans', 'big_table', 'huge_table']"
     )
 
     for record in caplog.records:
@@ -116,11 +122,23 @@ def test_fetch_all(multi_fetcher, expected, caplog):
     raise AssertionError(f"not found: {dropped!r}")
 
 
-def test_fetch_all_with_explicit_sources(multi_fetcher, expected):
-    actual = multi_fetcher.fetch_all(sources={"humans", "big_table"})
-    assert set(actual) == {"humans", "big_table"}
-    assert actual["humans"] == expected["humans"]
-    assert actual["big_table"] == expected["big_table"]
+@pytest.mark.parametrize(
+    "sources",
+    [
+        *combinations(ALL_SOURCES, 1),
+        *combinations(ALL_SOURCES, 2),
+        *combinations(ALL_SOURCES, 3),
+        *combinations(ALL_SOURCES, 4),
+    ],
+    ids=lambda s: " + ".join(s),
+)
+def test_fetch_all_with_explicit_sources(multi_fetcher, expected, sources):
+    sources = set(sources)
+    actual = multi_fetcher.fetch_all(sources=sources)
+    assert set(actual) == sources
+
+    for source in sources:
+        assert actual[source] == expected[source], f"{source=}"
 
 
 def test_fetch(multi_fetcher: MultiFetcher[str, int], data: dict[str, pd.DataFrame]) -> None:
@@ -136,16 +154,16 @@ def test_fetch(multi_fetcher: MultiFetcher[str, int], data: dict[str, pd.DataFra
 
 
 def test_ranks(multi_fetcher, fetchers):
-    humans_fetcher, empty_fetcher, everything_fetcher, sql_fetcher = fetchers
+    default_fetcher, empty_fetcher, fallback_fetcher, sql_fetcher = fetchers
 
     assert len(multi_fetcher.children) == 3
-    assert humans_fetcher in multi_fetcher.children
+    assert default_fetcher in multi_fetcher.children
     assert empty_fetcher not in multi_fetcher.children
-    assert everything_fetcher in multi_fetcher.children
+    assert fallback_fetcher in multi_fetcher.children
     assert sql_fetcher in multi_fetcher.children
 
-    assert multi_fetcher._id_to_rank[id(humans_fetcher)] == 0
-    assert multi_fetcher._id_to_rank[id(everything_fetcher)] == 2
+    assert multi_fetcher._id_to_rank[id(default_fetcher)] == 0
+    assert multi_fetcher._id_to_rank[id(fallback_fetcher)] == 2
     assert multi_fetcher._id_to_rank[id(sql_fetcher)] == 3
 
 
@@ -325,7 +343,7 @@ def test_init_logging(multi_fetcher, caplog):
     def optional_source_outranked(message: str, level: int) -> bool:
         if message.startswith("Discarded source='humans' retrieved from rank-2 fetcher MemoryFetcher"):
             assert level == logging.DEBUG, "optional => DEBUG"
-            assert "since the rank-0 fetcher MemoryFetcher(sources=['humans']" in message
+            assert "since the rank-0 fetcher MemoryFetcher(sources=['humans', 'animals']" in message
             assert "already claimed same source." in message
             return True
 

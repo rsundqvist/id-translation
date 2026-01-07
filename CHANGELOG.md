@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Fix `MultiFetcher.fetch_all` sometimes fetching nothing when explicit sources are given.
+- Fix some missing `extra.task_id` in log messages.
+
 ## [1.0.3] - 2025-12-13
 
 ### Added
@@ -16,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - The `MultiFetcher` will no longer warn twice for required children without sources.
 - Fix indentation in `enable_verbose_debug_messages()` messages when using `style='rainbow`.  
-- Add missing `extra.task_id` in several fverbose log messages.
+- Add missing `extra.task_id` in several verbose log messages.
 
 ## [1.0.2] - 2025-12-03
 

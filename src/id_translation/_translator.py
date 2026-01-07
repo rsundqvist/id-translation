@@ -1247,6 +1247,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                     as_list(names),
                     translation_map.sources,
                     override_function=override_function,
+                    task_id=task_id,
                 ).flatten()
         else:
             task = TranslationTask(
