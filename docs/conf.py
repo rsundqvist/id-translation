@@ -4,6 +4,8 @@ import os
 from datetime import datetime, timezone
 from zipfile import ZipFile
 
+from docutils.nodes import reference, Text
+
 if True:  # E402 hack
     os.environ["SPHINX_BUILD"] = "true"
 
@@ -13,65 +15,25 @@ if True:  # E402 hack
 # list see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 import shutil
-from importlib import import_module, metadata
+from importlib import metadata
 
-from docutils.nodes import Text, reference
+from rics._internal_support import myst_parser_markdown_doc_refs, make_toc_tree_titles_shorter
 from rics._internal_support.changelog import split_changelog
 
 import id_translation
 
-type_modules = (
-    "id_translation.types",
-    "id_translation.fetching",
-    "id_translation.fetching.types",
-    "id_translation.mapping.types",
-    # rics
-    "rics.collections.dicts",
-    "rics.collections.misc",
-)
-
-for tm in type_modules:
-    import_module(tm)
-
+myst_parser_markdown_doc_refs.patch()
+make_toc_tree_titles_shorter.patch()
 
 if not os.path.exists("api"):
     os.mkdir("api")
 shutil.copyfile("translator.rst", "api/translator.rst")
 
 
-def monkeypatch_autosummary_toc() -> None:
-    from sphinx.addnodes import toctree
-    from sphinx.ext.autosummary import Autosummary, autosummary_toc
-
-    original = Autosummary.run
-
-    def make_toc_tree_titles_shorter(self: Autosummary):
-        # tocnode['entries'] = [(".".join(docn.partition("/")[-1].split(".")[-2:]), docn) for docn in docnames]
-        toc: toctree
-        nodes = original(self)
-
-        for node in nodes:
-            if isinstance(node, autosummary_toc):
-                for toc in node.children:
-                    entries = toc["entries"]
-
-                    for i, (title, ref) in enumerate(entries):
-                        if ref.endswith("id_translation.Translator"):
-                            entries[i] = ("Translator", ref)
-                        elif title is None and ref.count(".") > 1:
-                            title = ref.partition("id_translation.")[-1]
-                            entries[i] = (title, ref)
-
-        return nodes
-
-    Autosummary.run = make_toc_tree_titles_shorter
-
-
 def callback(_app, _env, node, _contnode):  # noqa
     reftarget = node.get("reftarget")
 
     dio = {
-        "id_translation.dio.default._pandas.PandasT": "id_translation.dio.default.PandasIO",
         "id_translation.dio.default._sequence.SequenceT": "id_translation.dio.default.SequenceIO",
     }
 
@@ -83,38 +45,11 @@ def callback(_app, _env, node, _contnode):  # noqa
             ans_hax.children.append(Text(name))
             return ans_hax
 
-
-    # This doesn't actually do anything now, since autodoc_typehints = "none" (see above).
-    if reftarget in ("NameType", "SourceType", "IdType"):
-        # TODO When are they gonna fix this sh*t? Did they already..?
-        #   Special hack for factory.py, which is a public module. And for some
-        #   reason that breaks. I've no idea why :')
-        reftarget = f"id_translation.types.{reftarget}"
-
-    if reftarget == "id_translation.fetching._sql_fetcher.StatementType":
-        reftarget = "id_translation.fetching.SqlFetcher.StatementType"
-
-    if reftarget == "id_translation.mapping.support.Record":
-        ans_hax = reference(
-            refuri="id_translation.mapping.support.html#id_translation.mapping.support.MatchScores.Record",
-            reftitle="Record",
-        )
-        ans_hax.children.append(Text(reftarget.rpartition(".")[-1]))
-        return ans_hax
-
-    for m in type_modules:
-        if reftarget.startswith(m):
-            ans_hax = reference(refuri=m + ".html#" + reftarget, reftitle=reftarget)
-            ans_hax.children.append(Text(reftarget.rpartition(".")[-1]))
-            return ans_hax
-
     return None
 
 
 def setup(app):  # noqa
-    app.connect("missing-reference", callback)  # Fixes linking of typevars
-    monkeypatch_autosummary_toc()
-
+    app.connect("missing-reference", callback)
     add_custom_lexer()
 
 
@@ -161,7 +96,6 @@ rics_docs = f"https://rics.readthedocs.io/en/{'latest' if 'dev' in release else 
 # ones.
 extensions = [
     "sphinx.ext.autodoc",
-    "sphinx.ext.autodoc.typehints",
     "sphinx.ext.autosummary",
     "sphinx.ext.viewcode",
     "sphinx.ext.napoleon",
@@ -200,7 +134,7 @@ exclude_patterns = [
     ".DS_Store",
     "**.ipynb_checkpoints",
 ]
-shutil.rmtree("/tmp/example/", ignore_errors=True)  # noqa: 1S108
+# shutil.rmtree("/tmp/example/", ignore_errors=True)  # noqa: 1S108
 
 # -- Options for HTML output ---------------------------------------------------
 
@@ -284,11 +218,8 @@ html_favicon = "logo-icon.png"
 # -- Nitpicky configuration ----------------------------------------------------
 nitpicky = True
 nitpick_ignore = [
-    ("py:class", "re.Pattern"),
-    ("py:class", "module"),
 ]
 nitpick_ignore_regex = [
-    ("py:obj", r".*\.Any"),
 ]
 
 # -- Autodoc configuration -----------------------------------------------------

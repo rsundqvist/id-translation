@@ -67,19 +67,19 @@ dask = { version = "~2025.11.0", extras = ["dataframe"] }
 # duplicate object warnings for sphinx>=4
 # description: https://github.com/astropy/astropy/issues/11723
 # https://github.com/astropy/astropy/pull/12270
-sphinx = "~8.1.3"
-pydata-sphinx-theme = "~0.16.1"
-myst-parser = "~4.0.1"  # https://github.com/executablebooks/MyST-Parser/pull/1062
-nbsphinx = "~0.9.8"
-ipython = "~9.7.0"
-sphinx-llm = "~0.2.1"
+sphinx = { version = "~9.1.0", python = ">=3.12" }
+pydata-sphinx-theme = { version = "~0.16.1", python = ">=3.12" }
+myst-parser = { version = "~5.0.0", python = ">=3.12" } # https://github.com/executablebooks/MyST-Parser/issues/749
+nbsphinx = { version = "~0.9.8", python = ">=3.12" }
+ipython = { version = "~9.9.0", python = ">=3.12" }
+sphinx-llm = { version = "~0.2.1", python = ">=3.12" }
 
 log-lexer = { path = "docs/log-lexer", develop = true }  # For .log files.
 
 [tool.poetry.group.notebooks]
 optional = true
 [tool.poetry.group.notebooks.dependencies]
-jupyterlab = ">=4,<5"
+jupyterlab = "~4.5.2"
 ipywidgets = "*"
 jupyterlab-execute-time = "*"
 tqdm = "*"
