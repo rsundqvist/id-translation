@@ -100,7 +100,7 @@ cryptography = "*"
 
 [tool.poetry.group.devops.dependencies]
 invoke = "~2.2.1"
-mypy = "~1.19.0"
+mypy = "~1.19.1"
 ruff = "~0.14.7"
 
 safety = "~3.7.0"
