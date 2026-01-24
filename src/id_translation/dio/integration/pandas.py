@@ -72,24 +72,34 @@ class PandasIO(_dio.DataStructureIO[PandasT, _tt.NameType, _tt.SourceType, _tt.I
         tmap: _TranslationMap[_tt.NameType, _tt.SourceType, _tt.IdType],
         copy: bool,
     ) -> PandasT | None:
-        if not copy:
-            if isinstance(translatable, _pd.DataFrame):
-                pass  # Ok
-            elif isinstance(translatable, _pd.Series):
-                pass  # Ok, for now.   # TODO(issues/170): PDEP-6 check
-            else:
-                raise _NotInplaceTranslatableError(translatable)
-
         if isinstance(translatable, _pd.Index):
+            if not copy:
+                raise _NotInplaceTranslatableError(translatable)
             return _translate_index(translatable, names, tmap)
 
         if isinstance(translatable, _pd.DataFrame):
             return _translate_frame(translatable, names, tmap, copy)
 
         if isinstance(translatable, _pd.Series):
+            if not copy:
+                msg = cls._check_pdep_6(translatable)
+                if msg:
+                    exc = _NotInplaceTranslatableError(translatable)
+                    exc.add_note(f"Hint: {msg}")
+                    raise exc
             return _translate_series(translatable, names, tmap, copy)
 
         raise TypeError(f"This should not happen: {type(translatable)=}")  # pragma: no cover
+
+    @classmethod
+    def _check_pdep_6(cls, series: _pd.Series) -> str | None:
+        """Check if # https://pandas.pydata.org/pdeps/0006-ban-upcasting.html applies."""
+        copy = series.head(1)
+        try:
+            copy[:] = "<string>"  # See _translate_series
+            return None
+        except TypeError as e:
+            return str(e)
 
 
 def _translate_pandas_vector(
