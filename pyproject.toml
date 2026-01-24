@@ -79,7 +79,7 @@ log-lexer = { path = "docs/log-lexer", develop = true }  # For .log files.
 [tool.poetry.group.notebooks]
 optional = true
 [tool.poetry.group.notebooks.dependencies]
-jupyterlab = "~4.5.2"
+jupyterlab = "~4.5.3"
 ipywidgets = "*"
 jupyterlab-execute-time = "*"
 tqdm = "*"
