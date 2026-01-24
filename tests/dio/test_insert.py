@@ -36,7 +36,7 @@ def test_sequence_insert(ttype, translation_map):
     _test_eq(actual, ttype(UNTRANSLATED[NAME]))
 
 
-@pytest.mark.parametrize("ttype", [list, pd.Series, set])
+@pytest.mark.parametrize("ttype", [list, set])
 def test_sequence_insert_inplace(ttype, translation_map):
     actual = ttype(UNTRANSLATED[NAME])
     translatable_io: DataStructureIO[Any, str, str, str] = resolve_io(actual)
@@ -78,15 +78,16 @@ def test_large_series(translation_map, monkeypatch):
     large_series = pd.Series(large_list)
 
     list_io: DIO[int, str] = resolve_io(large_list)
-    list_io.insert(large_list, [NAME], translation_map, copy=False)
+    large_list_result = list_io.insert(large_list, [NAME], translation_map, copy=True)
     assert num_getitem_calls == len(large_list)  # Not actually needed; fewer would be nice!
 
     series_io: DIO[int, str] = resolve_io(large_series)
-    series_io.insert(large_series, [NAME], translation_map, copy=False)
+    large_series_result = series_io.insert(large_series, [NAME], translation_map, copy=True)
+    assert large_series_result is not None
     assert num_getitem_calls == len(large_list) + large_series.nunique()
 
-    assert TRANSLATED[NAME] * 1000 == large_list
-    assert large_list == large_series.to_list()
+    assert TRANSLATED[NAME] * 1000 == large_list_result
+    assert large_list_result == large_series_result.to_list()
 
 
 def _do_insert(translation_map, ttype, copy):

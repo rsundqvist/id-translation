@@ -101,15 +101,10 @@ class PlaceholderTranslations(_t.Generic[_tt.SourceType]):
             records = tuple(tuple(item) for item in data.items())
             return cls(source, (_tt.ID, "name"), records, id_pos=0)
 
-        try:
-            from pandas import DataFrame  # noqa: PLC0415
-
-            return cls.from_dataframe(source, DataFrame.from_dict(data))
-        except ImportError:
-            placeholders: tuple[str, ...] = tuple(data)  # type: ignore[arg-type]
-            records = tuple(zip(*data.values(), strict=True))
-            id_pos = placeholders.index(_tt.ID) if _tt.ID in placeholders else -1
-            return cls(source, placeholders, records, id_pos)
+        placeholders: tuple[str, ...] = tuple(data)  # type: ignore[arg-type]
+        records = tuple(zip(*data.values(), strict=True))
+        id_pos = placeholders.index(_tt.ID) if _tt.ID in placeholders else -1
+        return cls(source, placeholders, records, id_pos)
 
     @classmethod
     def _is_simple_form(cls, data: DictMakeTypes[_tt.IdType]) -> _t.TypeGuard[dict[_tt.IdType, str]]:

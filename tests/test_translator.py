@@ -490,7 +490,7 @@ def test_load_persistent_instance(tmp_path):
     assert translator.now == now
     assert translator.translate(*args) == expected
 
-    translator = UnitTestTranslator.load_persistent_instance(tmp_path, config_path, max_age="0d")
+    translator = UnitTestTranslator.load_persistent_instance(tmp_path, config_path, max_age="0 days")
     assert type(translator) is UnitTestTranslator
     assert translator.now > now
     assert translator.translate(*args) == expected
@@ -764,8 +764,8 @@ def test_simple_fetcher_dict():
     assert simple.translate([1999, 1991], names="people") == canonical.translate([1999, 1991], names="people")
 
 
-@pytest.mark.parametrize("nan_value", [None, float("nan"), np.nan])
-@pytest.mark.parametrize("object_value", ["string", UUID(int=0)])
+@pytest.mark.parametrize("nan_value", [None, float("nan"), np.nan], ids=["None", "float_nan", "numpy_nan"])
+@pytest.mark.parametrize("object_value", ["string", UUID(int=0)], ids=lambda s: type(s).__name__)
 def test_nan_with_objects(nan_value, object_value):
     translator = UnitTestTranslator()
 

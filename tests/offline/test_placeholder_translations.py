@@ -1,4 +1,5 @@
 import json
+from dataclasses import replace
 
 import pandas as pd
 import pytest
@@ -26,6 +27,7 @@ def test_from_data_frame(source):
 @pytest.mark.parametrize("source", OPTIONS)
 def test_dict_df_equal(source):
     from_df = PlaceholderTranslations.make(source, pd.read_json(PATH.format(source)))
+    from_df = replace(from_df, records=tuple(map(tuple, from_df.records)))
 
     with open(PATH.format(source)) as f:
         from_dict = PlaceholderTranslations.make(source, json.load(f))

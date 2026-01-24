@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- The `PlaceholderTranslations.from_dict()` method no longer attempts to delegate to `from_dataframe()`.
+
+### Fixed
+- Raise `NotInplaceTranslatableError` on PDEP-6 errors (e.g. when translating `pandas.Series[int]` with `copy=False`.
+
 ## [1.0.4] - 2026-01-07
 
 ### Fixed
