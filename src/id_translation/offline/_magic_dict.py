@@ -84,6 +84,7 @@ class MagicDict(MutableMapping[IdType, str]):
     """
 
     LOGGER = logging.getLogger(__package__).getChild("MagicDict")
+    """Logger used by all instances."""
 
     def __init__(
         self,
@@ -113,11 +114,11 @@ class MagicDict(MutableMapping[IdType, str]):
         """Attempt to get an actual translation.
 
         This method behaves like ``MagicDict.__getitem__``, applying all appropriate heuristics **except** for falling
-        back to the :attr:`default_value`. Returns ``None`` if the `key` cannot be mapped to a real values, like the
+        back to the :attr:`default_value`. Returns ``None`` if the `key` cannot be mapped to a real value, like the
         regular ``dict.get`` method would.
 
         To bypass the heuristics, use :attr:`real` and :meth:`dict.get` instead. Note that the backing dict may still
-        contain mappings added transformers, since the :meth:`.Transformer.update_translations` interface is called
+        contain mappings added by transformers, since the :meth:`.Transformer.update_translations` interface is called
         during initialization.
         """
         if key in self._real:
