@@ -20,9 +20,21 @@ _VectorT = _t.TypeVar("_VectorT", _pd.Series, _pd.Index)
 
 
 class PandasIO(_dio.DataStructureIO[PandasT, _tt.NameType, _tt.SourceType, _tt.IdType]):
-    """Optional IO implementation for ``pandas`` types."""
+    """Optional IO implementation for ``pandas`` types.
+
+    Args:
+        missing_as_nan: If ``True``, missing IDs will be ``NaN``. For use with :meth:`~pandas.DataFrame.dropna()`. If
+            ``False`` (the default), dummy translations such as ``<Failed: id=np.float64(nan)>`` are used instead.
+    """
 
     priority = 1999
+
+    def __init__(
+        self,
+        *,
+        missing_as_nan: bool = False,
+    ) -> None:
+        self._missing_as_nan = missing_as_nan
 
     @classmethod
     def handles_type(cls, arg: _t.Any) -> bool:
@@ -64,9 +76,8 @@ class PandasIO(_dio.DataStructureIO[PandasT, _tt.NameType, _tt.SourceType, _tt.I
 
         raise TypeError(f"This should not happen: {type(translatable)=}")  # pragma: no cover
 
-    @classmethod
     def insert(
-        cls,
+        self,
         translatable: PandasT,
         names: list[_tt.NameType],
         tmap: _TranslationMap[_tt.NameType, _tt.SourceType, _tt.IdType],
@@ -75,19 +86,19 @@ class PandasIO(_dio.DataStructureIO[PandasT, _tt.NameType, _tt.SourceType, _tt.I
         if isinstance(translatable, _pd.Index):
             if not copy:
                 raise _NotInplaceTranslatableError(translatable)
-            return _translate_index(translatable, names, tmap)
+            return self._translate_index(translatable, names, tmap)
 
         if isinstance(translatable, _pd.DataFrame):
-            return _translate_frame(translatable, names, tmap, copy)
+            return self._translate_frame(translatable, names, tmap, copy)
 
         if isinstance(translatable, _pd.Series):
             if not copy:
-                msg = cls._check_pdep_6(translatable)
+                msg = self._check_pdep_6(translatable)
                 if msg:
                     exc = _NotInplaceTranslatableError(translatable)
                     exc.add_note(f"Hint: {msg}")
                     raise exc
-            return _translate_series(translatable, names, tmap, copy)
+            return self._translate_series(translatable, names, tmap, copy)
 
         raise TypeError(f"This should not happen: {type(translatable)=}")  # pragma: no cover
 
@@ -101,95 +112,102 @@ class PandasIO(_dio.DataStructureIO[PandasT, _tt.NameType, _tt.SourceType, _tt.I
         except TypeError as e:
             return str(e)
 
+    def _translate_pandas_vector(
+        self,
+        pvt: _VectorT,
+        names: list[_tt.NameType],
+        tmap: _TranslationMap[_tt.NameType, _tt.SourceType, _tt.IdType],
+    ) -> list[str | None] | _VectorT:
+        _sequence.verify_names(len(pvt), names)
 
-def _translate_pandas_vector(
-    pvt: _VectorT,
-    names: list[_tt.NameType],
-    tmap: _TranslationMap[_tt.NameType, _tt.SourceType, _tt.IdType],
-) -> list[str | None] | _VectorT:
-    _sequence.verify_names(len(pvt), names)
+        if len(names) > 1:
+            if missing_as_nan := self._missing_as_nan:
+                if len(set(names)) == 1:
+                    return self._translate_pandas_vector(pvt, [names[0]], tmap)
 
-    if len(names) == 1:
+                msg = f"{missing_as_nan=} not supported for {names=}"
+                raise NotImplementedError(msg)
+            return _sequence.translate_sequence(pvt, names, tmap)
+
         # Optimization for single-name vectors. Faster than SequenceIO for pretty much every size.
         magic_dict = tmap[names[0]]
+        get_item = magic_dict.real.get if self._missing_as_nan else magic_dict.__getitem__
 
         mapping: dict[_tt.IdType, str | None]
         if _pd.api.types.is_numeric_dtype(pvt):
             # We don't need to cast float to int here, since hash(1.0) == hash(1). The cast in extract() is required
             # because some database drivers may complain, especially if they receive floats (especially NaN).
-            mapping = {idx: magic_dict[idx] for idx in pvt.unique()}
+            mapping = {idx: get_item(idx) for idx in pvt.unique()}
             return pvt.map(mapping)
-        else:
-            mapping = {}
-            data: list[_t.Any] = pvt.to_list()
-            for i, idx in enumerate(data):
-                if idx in mapping:
-                    value = mapping[idx]
-                else:
-                    value = magic_dict[idx]
-                    mapping[idx] = value
-                data[i] = value
+
+        mapping = {}
+        data: list[_t.Any] = pvt.to_list()
+        for i, idx in enumerate(data):
+            if idx in mapping:
+                value = mapping[idx]
+            else:
+                value = get_item(idx)
+                mapping[idx] = value
+            data[i] = value
 
         return data
-    else:
-        return _sequence.translate_sequence(pvt, names, tmap)
 
+    def _translate_index(
+        self,
+        index: PandasT,
+        names: list[_tt.NameType],
+        tmap: _TranslationMap[_tt.NameType, _tt.SourceType, _tt.IdType],
+    ) -> PandasT | None:
+        if isinstance(index, _pd.MultiIndex):
+            df = index.to_frame()
+            self._translate_frame(df, names, tmap, copy=False)
+            return _pd.MultiIndex.from_frame(df, names=index.names)
 
-def _translate_index(
-    index: PandasT,
-    names: list[_tt.NameType],
-    tmap: _TranslationMap[_tt.NameType, _tt.SourceType, _tt.IdType],
-) -> PandasT | None:
-    if isinstance(index, _pd.MultiIndex):
-        df = index.to_frame()
-        _translate_frame(df, names, tmap, copy=False)
-        return _pd.MultiIndex.from_frame(df, names=index.names)
-
-    result = _translate_pandas_vector(index, names, tmap)
-    if isinstance(result, _pd.Index):
-        return result
-    return _pd.Index(result, name=index.name, copy=False)
-
-
-def _translate_frame(
-    df: _pd.DataFrame,
-    names: list[_tt.NameType],
-    tmap: _TranslationMap[_tt.NameType, _tt.SourceType, _tt.IdType],
-    copy: bool,
-) -> _pd.DataFrame:
-    if copy:
-        df = df.copy()
-
-    original_columns = df.columns
-
-    try:
-        df.columns = _pd.RangeIndex(len(original_columns))
-        for name, int_col in zip(original_columns, df.columns, strict=True):
-            if name in names:
-                translated = _translate_pandas_vector(df[int_col], [name], tmap)
-                df[int_col] = translated
-    finally:
-        df.columns = original_columns
-
-    return df if copy else None
-
-
-def _translate_series(
-    series: _pd.Series,
-    names: list[_tt.NameType],
-    tmap: _TranslationMap[_tt.NameType, _tt.SourceType, _tt.IdType],
-    copy: bool,
-) -> _pd.Series | None:
-    result = _translate_pandas_vector(series, names, tmap)
-    if copy:
-        if isinstance(result, _pd.Series):
+        result = self._translate_pandas_vector(index, names, tmap)
+        if isinstance(result, _pd.Index):
             return result
-        return _pd.Series(result, index=series.index, name=series.name, copy=False)
+        return _pd.Index(result, name=index.name, copy=False)
 
-    with _warnings.catch_warnings():
-        _warnings.simplefilter(action="ignore", category=FutureWarning)  # TODO(issues/170): PDEP-6 check
-        series[:] = result
-    return None
+    def _translate_frame(
+        self,
+        df: _pd.DataFrame,
+        names: list[_tt.NameType],
+        tmap: _TranslationMap[_tt.NameType, _tt.SourceType, _tt.IdType],
+        copy: bool,
+    ) -> _pd.DataFrame:
+        if copy:
+            df = df.copy()
+
+        original_columns = df.columns
+
+        try:
+            df.columns = _pd.RangeIndex(len(original_columns))
+            for name, int_col in zip(original_columns, df.columns, strict=True):
+                if name in names:
+                    translated = self._translate_pandas_vector(df[int_col], [name], tmap)
+                    df[int_col] = translated
+        finally:
+            df.columns = original_columns
+
+        return df if copy else None
+
+    def _translate_series(
+        self,
+        series: _pd.Series,
+        names: list[_tt.NameType],
+        tmap: _TranslationMap[_tt.NameType, _tt.SourceType, _tt.IdType],
+        copy: bool,
+    ) -> _pd.Series | None:
+        result = self._translate_pandas_vector(series, names, tmap)
+        if copy:
+            if isinstance(result, _pd.Series):
+                return result
+            return _pd.Series(result, index=series.index, name=series.name, copy=False)
+
+        with _warnings.catch_warnings():
+            _warnings.simplefilter(action="ignore", category=FutureWarning)  # TODO(issues/170): PDEP-6 check
+            series[:] = result
+        return None
 
 
 def _float_to_int(pvt: _VectorT) -> _VectorT:

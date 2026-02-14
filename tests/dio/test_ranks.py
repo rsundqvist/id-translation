@@ -14,7 +14,12 @@ def test_ranks():
 
     records = []
     for i, dio in enumerate(order, start=1):
-        record = i, dio.priority, tname(dio, include_module=True), dio.__doc__
+        record = (
+            i,
+            dio.priority,
+            tname(dio, include_module=True),
+            dio.__doc__.partition("\n")[0],  # type: ignore[union-attr]
+        )
         records.append(record)
 
     table = pd.DataFrame.from_records(records, columns=["Rank", "Weight", "Class", "Comment"])

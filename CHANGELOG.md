@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Relevant `Translator` methods (e.g. `translate()` now accept an `io_kwargs` argument.
+- The `PandasIO` class now accepts a `missing_as_nan` argument.
 
 ### Changed
 - The `PlaceholderTranslations.from_dict()` method no longer attempts to delegate to `from_dataframe()`.

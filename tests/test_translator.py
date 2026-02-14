@@ -776,3 +776,29 @@ def test_nan_with_objects(nan_value, object_value):
 def test_both_wanted_and_actual_placeholder_present_in_format(imdb_translator):
     actual = imdb_translator.translate(1, "name_basics", fmt="{id}:{nconst}:{name}")
     assert actual == "1:1:Fred Astaire"
+
+
+class TestIoKwargs:
+    @pytest.fixture
+    def series(self) -> pd.Series:
+        return pd.Index([-1, 1]).to_series(name="positive_numbers")
+
+    def test_none(self, series, translator):
+        actual = translator.translate(series, fmt="{hex}", io_kwargs=None).to_dict()
+        assert actual == {-1: "<Failed: id=np.int64(-1)>", 1: "0x1"}
+
+    def test_io_kwargs(self, series, translator):
+        actual = translator.translate(series, fmt="{hex}", io_kwargs={"missing_as_nan": True}).to_dict()
+        assert actual == {-1: np.nan, 1: "0x1"}
+
+    def test_bad_io_kwargs(self, series, translator, caplog):
+        caplog.set_level(logging.WARNING, logger="id_translation.dio")
+
+        actual = translator.translate(series, fmt="{hex}", io_kwargs={"missig_as_nan": True}).to_dict()
+        assert actual == {-1: "<Failed: id=np.int64(-1)>", 1: "0x1"}
+
+        assert len(caplog.records) == 1
+        record = caplog.records[0]
+        assert record.msg == "Ignoring io_kwargs={'missig_as_nan': True} since PandasIO(**io_kwargs) raises TypeError."
+        assert record.io_kwargs == ["missig_as_nan"]
+        assert record.io_class == "id_translation.dio.integration.pandas.PandasIO"

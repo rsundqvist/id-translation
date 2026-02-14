@@ -10,7 +10,7 @@ Relevant methods (e.g. :meth:`.Translator.translate`) accept an `io_kwargs` argu
 the behavior of the :class:`.DataStructureIO` implementation. Exceptions raised due to invalid `io_kwargs` arguments are
 logged and suppressed.
 
-Arguments are implementation-specific.
+Arguments are implementation-specific. See :class:`~.integration.pandas.PandasIO` for an example.
 
 User-defined integrations
 -------------------------
