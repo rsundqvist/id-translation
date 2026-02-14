@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Mapping
 from importlib.metadata import entry_points
 from time import perf_counter
 from typing import Any
@@ -26,12 +27,14 @@ Background:
 def resolve_io(
     arg: TranslatableT,
     *,
+    io_kwargs: Mapping[str, Any] | None = None,
     task_id: int | None = None,
 ) -> DataStructureIO[TranslatableT, NameType, SourceType, IdType]:
     """Get an IO instance for `arg`.
 
     Args:
         arg: An argument to get IO for.
+        io_kwargs: Used to initialize the :doc:`IO implementation </documentation/translation-io>`.
         task_id: Used for logging.
 
     Returns:
@@ -49,7 +52,7 @@ def resolve_io(
             if io_class.priority < 0 and eligible_disabled is None:
                 eligible_disabled = io_class
                 continue  # Users may set negative priority to disable implementations after registration.
-            return _initialize(arg, io_class, task_id=task_id)
+            return _initialize(arg, io_class, io_kwargs, task_id=task_id)
 
     exc = UntranslatableTypeError(type(arg))
     if eligible_disabled is not None:
@@ -61,6 +64,7 @@ def resolve_io(
 def _initialize(
     arg: TranslatableT,
     io_class: type[DataStructureIO[TranslatableT, NameType, SourceType, IdType]],
+    io_kwargs: Mapping[str, Any] | None = None,
     *,
     task_id: int | None = None,
 ) -> DataStructureIO[TranslatableT, NameType, SourceType, IdType]:
@@ -70,6 +74,20 @@ def _initialize(
             f" '{_pretty_io_name(io_class)}' for translatable of type='{tname(arg, include_module=True)}'.",
             extra={"task_id": task_id},
         )
+
+    if io_kwargs:
+        try:
+            return io_class(**io_kwargs)
+        except Exception as exc:
+            LOGGER.warning(
+                f"Ignoring {io_kwargs=} since {io_class.__qualname__}(**io_kwargs) raises {type(exc).__name__}.",
+                exc_info=exc,
+                extra={
+                    "task_id": task_id,
+                    "io_class": _pretty_io_name(io_class),
+                    "io_kwargs": [*io_kwargs],
+                },
+            )
 
     return io_class()
 

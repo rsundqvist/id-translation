@@ -1,5 +1,6 @@
+from collections.abc import Mapping
 from time import perf_counter
-from typing import TYPE_CHECKING, Generic
+from typing import TYPE_CHECKING, Any, Generic
 
 from rics.misc import get_public_module
 
@@ -19,6 +20,7 @@ class BaseTask(Generic[NameType, SourceType, IdType]):
         self,
         caller: "Translator[NameType, SourceType, IdType]",
         translatable: Translatable[NameType, IdType],
+        io_kwargs: Mapping[str, Any] | None = None,
         task_id: int | None = None,
     ) -> None:
         self.caller = caller
@@ -29,7 +31,7 @@ class BaseTask(Generic[NameType, SourceType, IdType]):
         self._start = perf_counter()
         self._task_id = generate_task_id(self._start) if task_id is None else task_id
 
-        self._io = resolve_io(translatable, task_id=self.task_id)
+        self._io = resolve_io(translatable, io_kwargs=io_kwargs, task_id=self.task_id)
         self._type_name: str | None = None
         self._full_type_name: str | None = None
 

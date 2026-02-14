@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Relevant `Translator` methods (e.g. `translate()` now accept an `io_kwargs` argument.
+
 ### Changed
 - The `PlaceholderTranslations.from_dict()` method no longer attempts to delegate to `from_dataframe()`.
 

@@ -1,6 +1,7 @@
 import logging
 import warnings
-from typing import TYPE_CHECKING, Generic
+from collections.abc import Mapping
+from typing import TYPE_CHECKING, Any, Generic
 
 from rics.collections.misc import as_list
 
@@ -27,9 +28,15 @@ class NamesTask(BaseTask[NameType, SourceType, IdType]):
         names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
         ignore_names: Names[NameType] | None = None,
         override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
+        io_kwargs: Mapping[str, Any] | None = None,
         task_id: int | None = None,
     ) -> None:
-        super().__init__(caller, translatable, task_id=task_id)
+        super().__init__(
+            caller,
+            translatable,
+            io_kwargs=io_kwargs,
+            task_id=task_id,
+        )
 
         if not (names is None or ignore_names is None):
             raise ValueError(

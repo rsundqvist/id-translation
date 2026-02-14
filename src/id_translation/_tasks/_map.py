@@ -1,7 +1,8 @@
 import logging
 import warnings
+from collections.abc import Mapping
 from time import perf_counter
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from rics.strings import format_seconds as fmt_sec
 
@@ -31,6 +32,7 @@ class MappingTask(NamesTask[NameType, SourceType, IdType]):
         *,
         ignore_names: Names[NameType] | None = None,
         override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
+        io_kwargs: Mapping[str, Any] | None = None,
         task_id: int | None = None,
     ) -> None:
         super().__init__(
@@ -39,6 +41,7 @@ class MappingTask(NamesTask[NameType, SourceType, IdType]):
             names,
             ignore_names=ignore_names,
             override_function=override_function,
+            io_kwargs=io_kwargs,
             task_id=task_id,
         )
 

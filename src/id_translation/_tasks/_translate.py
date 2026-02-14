@@ -1,7 +1,7 @@
 import logging
 import warnings
 from collections import defaultdict
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from time import perf_counter
 from typing import TYPE_CHECKING, Any, get_args
 from uuid import UUID
@@ -40,6 +40,7 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
         max_fails: float = 1.0,
         reverse: bool = False,
         enable_uuid_heuristics: bool = False,
+        io_kwargs: Mapping[str, Any] | None = None,
         event_key: str,
         task_id: int | None = None,
     ) -> None:
@@ -49,6 +50,7 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
             names,
             ignore_names=ignore_names,
             override_function=override_function,
+            io_kwargs=io_kwargs,
             task_id=task_id,
         )
 

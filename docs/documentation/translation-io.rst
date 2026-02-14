@@ -4,12 +4,22 @@ The :mod:`id_translation.dio` module defines how IDs are read and written to var
 
 .. currentmodule:: id_translation.dio
 
+Runtime arguments
+-----------------
+Relevant methods (e.g. :meth:`.Translator.translate`) accept an `io_kwargs` argument, which may be used to customize
+the behavior of the :class:`.DataStructureIO` implementation. Exceptions raised due to invalid `io_kwargs` arguments are
+logged and suppressed.
+
+Arguments are implementation-specific.
+
 User-defined integrations
 -------------------------
 The purpose of creating new integrations is typically to enable translation of a new data type.
 To get started, inherit from :class:`DataStructureIO` or copy an
-:class:`existing <id_translation.dio.integration.polars>` integration. Don't forget to
+:class:`existing <.integration.polars.PolarsIO>` integration. Don't forget to
 :meth:`register <.DataStructureIO.register>` the implementation, or the :class:`.Translator` won't be able to find it.
+
+Integrations may take initialization arguments (see :ref:`Runtime arguments`), but should not require them.
 
 Automatic integration discovery
 -------------------------------
@@ -46,4 +56,4 @@ Bundled implementations have priorities in the `1000 - 1999` range (inclusive); 
    :file: io-ranks.csv
    :header-rows: 1
 
-New implementations default to ``priority=10_000`` and are therefore considered first.
+New implementations default to ``priority=10_000``, and are therefore considered first.

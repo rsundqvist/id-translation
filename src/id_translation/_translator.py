@@ -1,7 +1,7 @@
 import logging
 import pickle
 import warnings
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from copy import deepcopy
 from datetime import timedelta
 from time import perf_counter
@@ -310,6 +310,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             # Translation specification
             reverse: bool = False,
             fmt: FormatType | None = None,
+            io_kwargs: Mapping[str, Any] | None = None,
         ) -> None: ...
 
         @overload
@@ -326,6 +327,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             # Translation specification
             reverse: bool = False,
             fmt: FormatType | None = None,
+            io_kwargs: Mapping[str, Any] | None = None,
         ) -> NoReturn: ...
 
         @overload
@@ -341,6 +343,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             # Translation specification
             reverse: bool = False,
             fmt: FormatType | None = None,
+            io_kwargs: Mapping[str, Any] | None = None,
         ) -> str: ...
 
         @overload
@@ -356,6 +359,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             # Translation specification
             reverse: bool = False,
             fmt: FormatType | None = None,
+            io_kwargs: Mapping[str, Any] | None = None,
         ) -> list[str]: ...
 
         # This doesn't seem to work; nested generic type issue?
@@ -363,7 +367,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         # @overload
         # def translate(
         #     self,
-        #     translatable: List[List[IdType]],
+        #     translatable: list[list[IdType]],
         #     names: Union[NameTypes[NameType], NameToSource[NameType, SourceType]] = None,
         #     *,
         #     copy: Literal[True] = True,
@@ -373,7 +377,8 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         #     # Translation specification
         #     reverse: bool = False,
         #     fmt: FormatType | None = None,
-        # ) -> List[List[str]]:
+        #     io_kwargs: Mapping[str, Any] | None=None,
+        # ) -> list[list[str]]:
         #     ...
 
         @overload
@@ -389,6 +394,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             # Translation specification
             reverse: bool = False,
             fmt: FormatType | None = None,
+            io_kwargs: Mapping[str, Any] | None = None,
         ) -> set[str]: ...
 
         @overload
@@ -407,6 +413,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             # Translation specification
             reverse: bool = False,
             fmt: FormatType | None = None,
+            io_kwargs: Mapping[str, Any] | None = None,
         ) -> DictToId[NameType, str]: ...
 
         @overload
@@ -422,6 +429,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             # Translation specification
             reverse: bool = False,
             fmt: FormatType | None = None,
+            io_kwargs: Mapping[str, Any] | None = None,
         ) -> DictToSet[NameType, str]: ...
 
         @overload
@@ -437,6 +445,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             # Translation specification
             reverse: bool = False,
             fmt: FormatType | None = None,
+            io_kwargs: Mapping[str, Any] | None = None,
         ) -> DictToList[NameType, str]: ...
 
         @overload
@@ -452,6 +461,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             # Translation specification
             reverse: bool = False,
             fmt: FormatType | None = None,
+            io_kwargs: Mapping[str, Any] | None = None,
         ) -> DictToOneTuple[NameType, str]: ...
 
         @overload
@@ -467,6 +477,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             # Translation specification
             reverse: bool = False,
             fmt: FormatType | None = None,
+            io_kwargs: Mapping[str, Any] | None = None,
         ) -> DictToTwoTuple[NameType, str]: ...
 
         @overload
@@ -482,6 +493,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             # Translation specification
             reverse: bool = False,
             fmt: FormatType | None = None,
+            io_kwargs: Mapping[str, Any] | None = None,
         ) -> DictToThreeTuple[NameType, str]: ...
 
         @overload
@@ -497,6 +509,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             # Translation specification
             reverse: bool = False,
             fmt: FormatType | None = None,
+            io_kwargs: Mapping[str, Any] | None = None,
         ) -> DictToVarTuple[NameType, str]: ...
 
         @overload
@@ -512,6 +525,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             # Translation specification
             reverse: bool = False,
             fmt: FormatType | None = None,
+            io_kwargs: Mapping[str, Any] | None = None,
         ) -> tuple[str]: ...
 
         @overload
@@ -527,6 +541,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             # Translation specification
             reverse: bool = False,
             fmt: FormatType | None = None,
+            io_kwargs: Mapping[str, Any] | None = None,
         ) -> tuple[str, str]: ...
 
         @overload
@@ -542,6 +557,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             # Translation specification
             reverse: bool = False,
             fmt: FormatType | None = None,
+            io_kwargs: Mapping[str, Any] | None = None,
         ) -> tuple[str, str, str]: ...
 
         @overload
@@ -557,6 +573,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             # Translation specification
             reverse: bool = False,
             fmt: FormatType | None = None,
+            io_kwargs: Mapping[str, Any] | None = None,
         ) -> tuple[str, ...]: ...
 
         if ID_TRANSLATION_PANDAS_IS_TYPED:
@@ -575,6 +592,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                 # Translation specification
                 reverse: bool = False,
                 fmt: FormatType | None = None,
+                io_kwargs: Mapping[str, Any] | None = None,
             ) -> "pandas.DataFrame": ...
 
             @overload
@@ -590,6 +608,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                 # Translation specification
                 reverse: bool = False,
                 fmt: FormatType | None = None,
+                io_kwargs: Mapping[str, Any] | None = None,
             ) -> "pandas.Series[str]": ...
 
             @overload
@@ -605,6 +624,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                 # Translation specification
                 reverse: bool = False,
                 fmt: FormatType | None = None,
+                io_kwargs: Mapping[str, Any] | None = None,
             ) -> "pandas.Index[str]": ...
 
             @overload
@@ -620,6 +640,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                 # Translation specification
                 reverse: bool = False,
                 fmt: FormatType | None = None,
+                io_kwargs: Mapping[str, Any] | None = None,
             ) -> None: ...
 
             @overload
@@ -636,6 +657,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                 # Translation specification
                 reverse: bool = False,
                 fmt: FormatType | None = None,
+                io_kwargs: Mapping[str, Any] | None = None,
             ) -> NoReturn: ...
 
         @overload
@@ -650,6 +672,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             max_fails: float = 1.0,
             reverse: Literal[True] = True,
             fmt: FormatType | None = None,
+            io_kwargs: Mapping[str, Any] | None = None,
         ) -> Translatable[NameType, str]: ...
 
         @overload
@@ -664,6 +687,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             max_fails: float = 1.0,
             reverse: Literal[True] = True,
             fmt: FormatType | None = None,
+            io_kwargs: Mapping[str, Any] | None = None,
         ) -> Translatable[NameType, IdType]: ...
 
     def translate(
@@ -677,6 +701,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         max_fails: float = 1.0,
         reverse: bool = False,
         fmt: FormatType | None = None,
+        io_kwargs: Mapping[str, Any] | None = None,
     ) -> Translatable[NameType, str] | None:
         """Translate IDs to human-readable strings.
 
@@ -700,6 +725,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             max_fails: The maximum fraction of IDs for which translation may fail. 1=disabled.
             reverse: If ``True``, perform translations back to IDs. Offline mode only.
             fmt: A :class:`format string <.Format>` such as **'{id}:{name}'** use. Default is :attr:`.Translator.fmt`.
+            io_kwargs: Used to initialize the :doc:`IO implementation </documentation/translation-io>`.
 
         Returns:
             A translated copy of `translatable` if ``copy=True``, otherwise ``None``.
@@ -755,6 +781,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             max_fails=max_fails,
             reverse=reverse,
             enable_uuid_heuristics=self._enable_uuid_heuristics,
+            io_kwargs=io_kwargs,
             event_key=f"{type(self).__name__}.{self.translate.__name__}",
             task_id=task_id,
         )
@@ -805,6 +832,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         *,
         ignore_names: Names[NameType] | None = None,
         override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
+        io_kwargs: Mapping[str, Any] | None = None,
     ) -> NameToSource[NameType, SourceType]:
         """Map names to translation sources.
 
@@ -814,6 +842,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             ignore_names: Names **not** to translate, or a predicate ``(NameType) -> bool``.
             override_function: A callable ``(name, sources, ids) -> Source | None``. See
                 :meth:`Mapper.apply <.mapping.Mapper.apply>` for details.
+            io_kwargs: Used to initialize the :doc:`IO implementation </documentation/translation-io>`.
 
         Returns:
             A mapping of names to translation sources. Returns ``None`` if mapping failed.
@@ -837,6 +866,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             names,
             ignore_names=ignore_names,
             override_function=override_function,
+            io_kwargs=io_kwargs,
             task_id=task_id,
         ).name_to_source
 
@@ -847,6 +877,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         *,
         ignore_names: Names[NameType] | None = None,
         override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
+        io_kwargs: Mapping[str, Any] | None = None,
     ) -> ScoreMatrix[NameType, SourceType]:
         """Returns raw match scores for name-to-source mapping. See :meth:`map` for details."""
         return MappingTask(
@@ -855,6 +886,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             names,
             ignore_names=ignore_names,
             override_function=override_function,
+            io_kwargs=io_kwargs,
         ).compute_scores()
 
     @property
@@ -1020,6 +1052,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
         max_fails: float = 1.0,
         fmt: FormatType | None = None,
+        io_kwargs: Mapping[str, Any] | None = None,
         path: AnyPath | None = None,
     ) -> Self:
         """Retrieve and store translations in memory.
@@ -1038,6 +1071,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                 for details.
             max_fails: The maximum fraction of IDs for which translation may fail. 1=disabled.
             fmt: A :class:`format string <.Format>` such as **'{id}:{name}'** use. Default is :attr:`.Translator.fmt`.
+            io_kwargs: Used to initialize the :doc:`IO implementation </documentation/translation-io>`.
             path: If given, serialize the :class:`.Translator` to disk after retrieving data.
 
         Returns:
@@ -1055,6 +1089,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             The :meth:`restore` method.
         """
         if not self.online:
+            LOGGER.debug("Already offline.")
             return self
 
         start = perf_counter()
@@ -1081,6 +1116,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             override_function=override_function,
             max_fails=max_fails,
             fmt=fmt,
+            io_kwargs=io_kwargs,
             func=self.go_offline.__qualname__,
             task_id=task_id,
         )
@@ -1135,6 +1171,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
         max_fails: float = 1.0,
         fmt: FormatType | None = None,
+        io_kwargs: Mapping[str, Any] | None = None,
     ) -> TranslationMap[NameType, SourceType, IdType]:
         """Fetch translations.
 
@@ -1151,6 +1188,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                 for details.
             max_fails: The maximum fraction of IDs for which translation may fail. 1=disabled.
             fmt: A :class:`format string <.Format>` such as **'{id}:{name}'** use. Default is :attr:`.Translator.fmt`.
+            io_kwargs: Used to initialize the :doc:`IO implementation </documentation/translation-io>`.
 
         Returns:
             A :class:`.TranslationMap`.
@@ -1211,6 +1249,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             override_function=override_function,
             max_fails=max_fails,
             fmt=fmt,
+            io_kwargs=io_kwargs,
             func=self.fetch.__qualname__,
             task_id=task_id,
         )
@@ -1224,9 +1263,13 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
         max_fails: float = 1.0,
         fmt: FormatType | None = None,
+        io_kwargs: Mapping[str, Any] | None = None,
         func: str,
         task_id: int | None = None,
     ) -> TranslationMap[NameType, SourceType, IdType]:
+        if io_kwargs and translatable is None:
+            LOGGER.warning(f"Ignoring {io_kwargs=} since {translatable=}.")
+
         fmt = self._fmt if fmt is None else Format.parse(fmt)
 
         if translatable is None:
@@ -1258,6 +1301,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                 ignore_names=ignore_names,
                 max_fails=max_fails,
                 enable_uuid_heuristics=self._enable_uuid_heuristics,
+                io_kwargs=io_kwargs,
                 event_key=func,
                 task_id=task_id,
             )
