@@ -302,7 +302,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         if logger.isEnabledFor(logging.DEBUG):
             num_ids = {itf.source: len(itf.ids) for itf in ids_to_fetch}
             logger.debug(
-                f"Begin fetching {placeholders=} for {len(num_ids)} sources: {num_ids}.",
+                f"Begin fetching {placeholders=} for {sum(num_ids.values())} IDs from {len(num_ids)} sources: {num_ids}.",
                 extra=dict(
                     task_id=task_id,
                     event_key=_logging.get_event_key(self.fetch, "enter"),

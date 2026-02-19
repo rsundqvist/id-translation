@@ -138,5 +138,5 @@ class HasSources(_abc.ABC, _t.Generic[SourceType]):
         These are the (possibly unmapped) placeholders that may be used for translation.
 
         Returns:
-            A dict ``{source: [placeholders..]}``.
+            A dict ``{source: [placeholders, ...]}``.
         """

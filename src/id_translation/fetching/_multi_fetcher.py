@@ -317,7 +317,7 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         if LOGGER.isEnabledFor(logging.DEBUG):
             seconds = perf_counter() - start
             LOGGER.debug(
-                f"Completed FETCH jobs for {n_sources_and_fetchers} in {fmt_sec(seconds)}.",
+                f"Finished FETCH jobs for {n_sources_and_fetchers} in {fmt_sec(seconds)}.",
                 extra=dict(
                     task_id=task_id,
                     event_key=get_event_key(self.fetch, "exit"),
@@ -381,7 +381,7 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         if LOGGER.isEnabledFor(logging.DEBUG):
             seconds = perf_counter() - start
             LOGGER.debug(
-                f"Completed FETCH_ALL jobs for {len(ans)} sources using "
+                f"Finished FETCH_ALL jobs for {len(ans)} sources using "
                 f"{len(self.children)} fetchers in {fmt_sec(seconds)}.",
                 extra=dict(
                     task_id=task_id,

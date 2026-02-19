@@ -59,8 +59,8 @@ def test_series(translator, df):
         assert actual.compute().to_list() == EXPECTED[series.name]
 
 
-@pytest.mark.parametrize("series", [False, True])
-def test_inplace(translator, df, series):
-    translatable = df[df.columns[0]] if series else df
+@pytest.mark.parametrize("cls", [dd.Series, dd.DataFrame])
+def test_inplace(translator, df, cls):
+    translatable = df[df.columns[0]] if cls is dd.Series else df
     with pytest.raises(NotInplaceTranslatableError):
         translator.translate(translatable, copy=False)

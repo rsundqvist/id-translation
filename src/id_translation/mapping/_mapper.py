@@ -167,7 +167,7 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
             )
 
             logger.debug(
-                f"Mapping with {cardinality=} completed for {values}x{candidates} in {fmt_perf(start)}."
+                f"Mapping with {cardinality=} finished for {values}x{candidates} in {fmt_perf(start)}."
                 f"{matches}\nMatched {len(dm.left)}/{len(values)} values with {len(dm.right)} different candidates.",
                 extra={"task_id": task_id},
             )
