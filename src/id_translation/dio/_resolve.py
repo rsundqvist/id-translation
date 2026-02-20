@@ -1,6 +1,7 @@
 import logging
 from collections.abc import Mapping
 from importlib.metadata import entry_points
+from inspect import signature
 from time import perf_counter
 from typing import Any
 
@@ -75,10 +76,16 @@ def _initialize(
             extra={"task_id": task_id},
         )
 
+    if "task_id" in signature(io_class).parameters:
+        # We don't do this for arbitrary keys, since it would hide incorrect parameters from the caller.
+        io_kwargs = {} if io_kwargs is None else {**io_kwargs}
+        io_kwargs.setdefault("task_id", task_id)
+
     if io_kwargs:
         try:
             return io_class(**io_kwargs)
         except Exception as exc:
+            # TODO(python-3.13): Use signature(io_class).format() to pretty-print io_class.__init__ parameters.
             LOGGER.warning(
                 f"Ignoring {io_kwargs=} since {io_class.__qualname__}(**io_kwargs) raises {type(exc).__name__}.",
                 exc_info=exc,
