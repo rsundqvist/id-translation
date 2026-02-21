@@ -152,7 +152,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         self._default_fmt_placeholders, self._default_fmt = _handle_default(default_fmt, default_fmt_placeholders)
         self._enable_uuid_heuristics = enable_uuid_heuristics
 
-        self._cached_tmap: TranslationMap[NameType, SourceType, IdType] = self._to_translation_map({})
+        self._cached_tmap: TranslationMap[NameType, SourceType, IdType] | None = None
         self._fetcher: Fetcher[SourceType, IdType]
         if fetcher is None:
             self._fetcher = TestFetcher([])  # No explicit sources
@@ -172,15 +172,12 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         elif isinstance(fetcher, Fetcher):
             self._fetcher = fetcher
         elif isinstance(fetcher, dict):
-            self._cached_tmap = self._to_translation_map(
-                {source: PlaceholderTranslations.make(source, pht) for source, pht in fetcher.items()}
-            )
+            source_translations = {source: PlaceholderTranslations.make(source, pht) for source, pht in fetcher.items()}
+            self._cached_tmap = self._to_translation_map(source_translations)
         elif isinstance(fetcher, TranslationMap):
-            tmap = fetcher.copy()
-            tmap.fmt = self._fmt
-            tmap.default_fmt = self._default_fmt
-            tmap.default_fmt_placeholders = self._default_fmt_placeholders
-            self._cached_tmap = tmap
+            # Extract raw translations and "overwrite" inherited properties, such as format specs and transformers.
+            source_translations = fetcher._extract_translations()
+            self._cached_tmap = self._to_translation_map(source_translations)
         else:
             raise TypeError(type(fetcher))  # pragma: no cover
 
@@ -274,7 +271,8 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                     )
                     warnings.warn(msg, category=UserWarning, stacklevel=2)
             else:
-                fetcher = self._cached_tmap.copy()
+                fetcher = self.cache
+
             kwargs["fetcher"] = fetcher
         if "transformers" in kwargs:
             transformers = []
@@ -902,7 +900,11 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
         Placeholders shown here are the names as they appear **in the source**.
         """
-        return self._fetcher.placeholders if self.online else self._cached_tmap.placeholders
+        if self.online:
+            return self.fetcher.placeholders
+
+        assert self._cached_tmap is not None, "bad internal state"  # noqa: S101
+        return self._cached_tmap.placeholders
 
     @property
     def fmt(self) -> Format:
@@ -942,6 +944,9 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
     @property
     def cache(self) -> TranslationMap[NameType, SourceType, IdType]:
         """Return a :class:`.TranslationMap` of cached translations."""
+        if self._cached_tmap is None:
+            assert self.online, "bad internal state"  # noqa: S101
+            raise RuntimeError("No cache available. Use `go_offline()` to cache translations.")
         return self._cached_tmap
 
     @classmethod
@@ -1323,16 +1328,14 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         force_fetch: bool = False,
     ) -> TranslationMap[NameType, SourceType, IdType]:
         """Get an updated translation map."""
-        name_to_source = task.name_to_source
-        if not name_to_source:
-            return self._to_translation_map({})  # Nothing to translate.
+        if not task.name_to_source:
+            source_translations = {}  # Nothing to translate.
+        elif force_fetch or self._cached_tmap is None:
+            source_translations = self._execute_fetch(task)
+        else:
+            source_translations = self._cached_tmap._extract_translations()
 
-        translation_map = self._execute_fetch(task) if (force_fetch or not self.cache) else self.cache
-
-        translation_map.enable_uuid_heuristics = task.enable_uuid_heuristics
-        translation_map.fmt = task.fmt
-        translation_map.name_to_source = task.name_to_source  # Update
-        return translation_map
+        return self._to_translation_map(source_translations, task.fmt, task.name_to_source)
 
     @property
     def transformers(self) -> Transformers[SourceType, IdType]:
@@ -1341,7 +1344,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
     def _execute_fetch(
         self, task: TranslationTask[NameType, SourceType, IdType]
-    ) -> TranslationMap[NameType, SourceType, IdType]:
+    ) -> SourcePlaceholderTranslations[SourceType]:
         start = perf_counter()
         source_to_ids = task.extract_ids()
 
@@ -1351,11 +1354,8 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
         ids_to_fetch = [IdsToFetch(source, ids=ids) for source, ids in source_to_ids.items()]
         source_translations = self._fetch(ids_to_fetch, fmt=task.fmt, task_id=task.task_id)
-        translation_map = self._to_translation_map(source_translations, fmt=task.fmt)
-
         task.add_timing("fetch", perf_counter() - start)
-
-        return translation_map
+        return source_translations
 
     def _fetch(
         self,
@@ -1396,11 +1396,13 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         self,
         source_translations: SourcePlaceholderTranslations[SourceType],
         fmt: Format | None = None,
+        name_to_source: NameToSource[NameType, SourceType] | None = None,
     ) -> TranslationMap[NameType, SourceType, IdType]:
         return TranslationMap(
             source_translations,
             fmt=fmt or self._fmt,
             default_fmt=self._default_fmt,
+            name_to_source=name_to_source,
             default_fmt_placeholders=self._default_fmt_placeholders,
             enable_uuid_heuristics=self._enable_uuid_heuristics,
             transformers=self._transformers,

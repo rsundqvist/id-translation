@@ -13,11 +13,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - The `PlaceholderTranslations.from_dict()` method no longer attempts to delegate to `from_dataframe()`.
+- Calling `Translator.cache` on an instance without offline data will now raise `RuntimeError`.
 
 ### Fixed
 - Raise `NotInplaceTranslatableError` on PDEP-6 errors (e.g. when translating `pandas.Series[int]` with `copy=False`.
 - Various docstrings and log messages.
 - Fix `Translator.default_fmt` typehint (is never `None`).
+- Fix inconsistent behavior of `Translator` instances that were initialized with `fetcher=TranslationMap`.
 
 ## [1.0.4] - 2026-01-07
 

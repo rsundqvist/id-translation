@@ -70,6 +70,9 @@ class TranslationMap(
         """
         return {applier.source: applier.to_dict() for applier in self._format_appliers.values()}
 
+    def _extract_translations(self) -> SourcePlaceholderTranslations[SourceType]:
+        return {source: applier._translations for source, applier in self._format_appliers.items()}
+
     def to_pandas(self) -> dict[SourceType, "pandas.DataFrame"]:
         """Get the underlying data used for translations as :class:`pandas.DataFrame`.
 

@@ -203,7 +203,7 @@ def test_store_with_explicit_values(hex_fetcher):
 
     translator.go_offline(data)
     expected_num_fetches = hex_fetcher.num_fetches
-    assert sorted(translator._cached_tmap.sources) == sorted(data)
+    assert sorted(translator.cache.sources) == sorted(data)
     actual = translator.translate(data)
     assert hex_fetcher.num_fetches == expected_num_fetches
     assert actual == {
