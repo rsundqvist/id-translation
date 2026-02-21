@@ -193,3 +193,21 @@ class BitmaskTransformer(_Transformer[IdType]):
                 raise ValueError(f"Duplicate ID in record {i}/{len(records)}: {record=}")
             overrides[key] = record["override"]
         return overrides
+
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, type(self)) and (
+            self._joiner == other._joiner
+            and self._force == other._force
+            and self._overrides == other._overrides
+            and self._force_real_translations == other._force_real_translations
+        )
+
+    def __hash__(self) -> int:
+        hash_tuple = (
+            type(self),
+            self._joiner,
+            self._force,
+            tuple(sorted(self._overrides.items())),
+            self._force_real_translations,
+        )
+        return hash(hash_tuple)
