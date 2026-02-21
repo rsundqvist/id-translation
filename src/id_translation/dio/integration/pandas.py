@@ -3,28 +3,54 @@
 import typing as _t
 import warnings as _warnings
 from collections import abc as _abc
-from collections import defaultdict as _defaultdict
+from contextlib import contextmanager as _contextmanager
 
+import numpy as _np
 import pandas as _pd
 
 from id_translation import dio as _dio
 from id_translation import types as _tt
 from id_translation.dio.default import _sequence
 from id_translation.dio.exceptions import NotInplaceTranslatableError as _NotInplaceTranslatableError
+from id_translation.offline import MagicDict as _MagicDict
 from id_translation.offline import TranslationMap as _TranslationMap
 
 PandasT = _t.TypeVar("PandasT", _pd.DataFrame, _pd.Series, _pd.Index, _pd.MultiIndex)
 """Supported ``pandas`` types."""
-_VectorT = _t.TypeVar("_VectorT", _pd.Series, _pd.Index)
-"""Types with ``ndim==1``."""
+AsCategory = _t.Literal["exact", "full"]
+"""Valid `as_category` string values."""
+
+# Types with ``ndim==1``.
+_PandasVectorT = _t.TypeVar("_PandasVectorT", _pd.Series, _pd.Index)
+
+_NumpyVector = _np.ndarray[tuple[int], _np.dtype[_t.Any]]
+_ExtractArgType: _t.TypeAlias = _pd.DataFrame | _pd.Series | _pd.Index | _NumpyVector
 
 
 class PandasIO(_dio.DataStructureIO[PandasT, _tt.NameType, _tt.SourceType, _tt.IdType]):
     """Optional IO implementation for ``pandas`` types.
 
     Args:
-        missing_as_nan: If ``True``, missing IDs will be ``NaN``. For use with :meth:`~pandas.DataFrame.dropna()`. If
-            ``False`` (the default), dummy translations such as ``<Failed: id=np.float64(nan)>`` are used instead.
+        level: Column level to use as names when translating a ``DataFrame`` with ``MultiIndex`` columns. See
+            :meth:`pandas.MultiIndex.get_level_values` for details. Ignored otherwise.
+        missing_as_nan: If set, unknown IDs will be `NaN`. Grouping operations will
+            `typically drop <https://pandas.pydata.org/docs/dev/user_guide/groupby.html#na-group-handling>`_
+            `NaN` values. If ``False``, placeholders such as ``'<Failed: id=-1>'`` will be used instead.
+            Default is ``True`` if ``as_category=True``, ``False`` otherwise.
+        as_category: Set `dtype='category'` in the result. See :ref:`Categorical translation` for details.
+
+    Categorical translation
+    -----------------------
+    Setting ``as_category=True`` converts the resultant translations to a
+    `categorical <https://pandas.pydata.org/docs/user_guide/categorical.html>`_
+    data type. The returned :class:`pandas.CategoricalDtype` will be :attr:`~pandas.CategoricalDtype.ordered`, with the
+    :attr:`~pandas.CategoricalDtype.categories` set to all :attr:`real translations <.MagicDict.real>`. If
+    ``missing_as_nan=False``, the `categories` may also include placeholders.
+
+    Certain fetchers, such as the :class:`MemoryFetcher(return_all=True) <.MemoryFetcher>`, will return more IDs than
+    requested. In this case the `categories` may also include values not present in the input data. This may also happen
+    if data was prepared with :meth:`.Translator.go_offline`, or if multiple columns were :ref:`mapped <mapping-primer>`
+    to the same source.
     """
 
     priority = 1999
@@ -32,45 +58,65 @@ class PandasIO(_dio.DataStructureIO[PandasT, _tt.NameType, _tt.SourceType, _tt.I
     def __init__(
         self,
         *,
-        missing_as_nan: bool = False,
+        level: str | int = -1,
+        missing_as_nan: bool | None = None,
+        as_category: bool = False,
     ) -> None:
+        if missing_as_nan is None:
+            missing_as_nan = as_category
+
+        self._level = level
         self._missing_as_nan = missing_as_nan
+        self._as_category = as_category
 
     @classmethod
     def handles_type(cls, arg: _t.Any) -> bool:
         return isinstance(arg, (_pd.DataFrame, _pd.Series, _pd.Index))
 
-    @classmethod
-    def names(cls, translatable: PandasT) -> list[_tt.NameType] | None:
+    def names(self, translatable: PandasT) -> list[_tt.NameType] | None:
         if isinstance(translatable, _pd.DataFrame):
             columns = translatable.columns
             if isinstance(columns, _pd.MultiIndex):
-                return list(columns.get_level_values(-1))
+                with self._reraise_with_notes(translatable, "column.names", columns.names, IndexError, KeyError):
+                    return columns.unique(self._level).to_list()  # type: ignore[no-any-return]
             else:
-                return list(columns)
+                return columns.to_list()  # type: ignore[no-any-return]
 
         if isinstance(translatable, _pd.MultiIndex):
             names = [n for n in translatable.names if n is not None]
             return names or None
 
-        return None if translatable.name is None else [translatable.name]
+        name = translatable.name
+        if name is None:
+            return None
+        if isinstance(name, tuple):
+            # Produced by selecting a single column series from a MultiIndex-column frame.
+            with self._reraise_with_notes(translatable, "name", name, IndexError, TypeError):
+                name = name[self._level]  # type: ignore[index]
 
-    @classmethod
-    def extract(cls, translatable: PandasT, names: list[_tt.NameType]) -> dict[_tt.NameType, _abc.Sequence[_tt.IdType]]:
+        return [name]
+
+    def extract(
+        self,
+        translatable: PandasT,
+        names: list[_tt.NameType],
+    ) -> dict[_tt.NameType, _abc.Sequence[_tt.IdType]]:
+        if isinstance(translatable, _pd.MultiIndex):
+            translatable = translatable.to_frame(index=False, allow_duplicates=True)
+
         if isinstance(translatable, _pd.DataFrame):
-            ans = _defaultdict(list)
-            for i, name in enumerate(translatable.columns):
-                if name in names:
-                    ans[name].extend(_float_to_int(translatable.iloc[:, i]))
-            return dict(ans)
-        elif isinstance(translatable, _pd.MultiIndex):
-            # This will error on duplicate names, which is probably a good thing.
-            return {name: list(translatable.unique(name)) for name in names}
+            if isinstance(translatable.columns, _pd.MultiIndex):
+                rv: dict[_tt.NameType, _abc.Sequence[_tt.IdType]] = {}
+                level_values = translatable.columns.get_level_values(self._level)
+                for name in level_values.unique():
+                    rv[name] = _extract(translatable.loc[:, level_values == name])
+                return rv
+
+            return {name: _extract(translatable[name]) for name in names}
         elif isinstance(translatable, (_pd.Series, _pd.Index)):
             _sequence.verify_names(len(translatable), names)
-            translatable = _float_to_int(translatable)
             if len(names) == 1:
-                return {names[0]: translatable.unique().tolist()}
+                return {names[0]: _extract(translatable)}
             else:
                 return _sequence.SequenceIO.extract(translatable, names)
 
@@ -114,43 +160,41 @@ class PandasIO(_dio.DataStructureIO[PandasT, _tt.NameType, _tt.SourceType, _tt.I
 
     def _translate_pandas_vector(
         self,
-        pvt: _VectorT,
+        pvt: _PandasVectorT,
         names: list[_tt.NameType],
         tmap: _TranslationMap[_tt.NameType, _tt.SourceType, _tt.IdType],
-    ) -> list[str | None] | _VectorT:
+    ) -> list[str | None] | _PandasVectorT:
         _sequence.verify_names(len(pvt), names)
 
         if len(names) > 1:
-            if missing_as_nan := self._missing_as_nan:
-                if len(set(names)) == 1:
-                    return self._translate_pandas_vector(pvt, [names[0]], tmap)
-
+            if len(set(names)) == 1:
+                names = [names[0]]
+            elif missing_as_nan := self._missing_as_nan:
                 msg = f"{missing_as_nan=} not supported for {names=}"
                 raise NotImplementedError(msg)
-            return _sequence.translate_sequence(pvt, names, tmap)
+            elif as_category := self._as_category:
+                msg = f"{as_category=} not supported for {names=}"
+                raise NotImplementedError(msg)
+            else:
+                return _sequence.translate_sequence(pvt, names, tmap)
 
         # Optimization for single-name vectors. Faster than SequenceIO for pretty much every size.
-        magic_dict = tmap[names[0]]
-        get_item = magic_dict.real.get if self._missing_as_nan else magic_dict.__getitem__
+        magic_dict: _MagicDict[_tt.IdType] = tmap[names[0]]
+        get_item = magic_dict.real_get if self._missing_as_nan else magic_dict.__getitem__
+        mapping: dict[_tt.IdType, str | None] = {idx: get_item(idx) for idx in pvt.unique().tolist()}
 
-        mapping: dict[_tt.IdType, str | None]
-        if _pd.api.types.is_numeric_dtype(pvt):
-            # We don't need to cast float to int here, since hash(1.0) == hash(1). The cast in extract() is required
-            # because some database drivers may complain, especially if they receive floats (especially NaN).
-            mapping = {idx: get_item(idx) for idx in pvt.unique()}
-            return pvt.map(mapping)
+        rv = pvt.map(mapping)
 
-        mapping = {}
-        data: list[_t.Any] = pvt.to_list()
-        for i, idx in enumerate(data):
-            if idx in mapping:
-                value = mapping[idx]
-            else:
-                value = get_item(idx)
-                mapping[idx] = value
-            data[i] = value
+        if self._as_category:
+            translations = {*magic_dict.real.values()}
+            if not self._missing_as_nan:
+                translations.update(mapping.values())  # type: ignore[arg-type]
 
-        return data
+            categories = sorted(translations)
+            dtype = _pd.CategoricalDtype(categories, ordered=True)
+            rv = rv.astype(dtype)
+
+        return rv
 
     def _translate_index(
         self,
@@ -166,6 +210,8 @@ class PandasIO(_dio.DataStructureIO[PandasT, _tt.NameType, _tt.SourceType, _tt.I
         result = self._translate_pandas_vector(index, names, tmap)
         if isinstance(result, _pd.Index):
             return result
+
+        # This typically means we're translating multiple names.
         return _pd.Index(result, name=index.name, copy=False)
 
     def _translate_frame(
@@ -179,13 +225,18 @@ class PandasIO(_dio.DataStructureIO[PandasT, _tt.NameType, _tt.SourceType, _tt.I
             df = df.copy()
 
         original_columns = df.columns
+        columns = (
+            original_columns.get_level_values(self._level)
+            if isinstance(original_columns, _pd.MultiIndex)
+            else original_columns
+        )
+        df.columns = _pd.RangeIndex(len(original_columns))
 
         try:
-            df.columns = _pd.RangeIndex(len(original_columns))
-            for name, int_col in zip(original_columns, df.columns, strict=True):
+            for tmp_col, name in enumerate(columns):
                 if name in names:
-                    translated = self._translate_pandas_vector(df[int_col], [name], tmap)
-                    df[int_col] = translated
+                    translated = self._translate_pandas_vector(df[tmp_col], [name], tmap)
+                    df[tmp_col] = translated
         finally:
             df.columns = original_columns
 
@@ -202,13 +253,46 @@ class PandasIO(_dio.DataStructureIO[PandasT, _tt.NameType, _tt.SourceType, _tt.I
         if copy:
             if isinstance(result, _pd.Series):
                 return result
+
+            # This typically means we're translating multiple names.
             return _pd.Series(result, index=series.index, name=series.name, copy=False)
 
         with _warnings.catch_warnings():
-            _warnings.simplefilter(action="ignore", category=FutureWarning)  # TODO(issues/170): PDEP-6 check
+            # TODO: Stop suppressing this warning.
+            _warnings.simplefilter(action="ignore", category=FutureWarning)
             series[:] = result
         return None
 
+    @_contextmanager
+    def _reraise_with_notes(
+        self, translatable: PandasT, attr_name: str, attr_value: _t.Any, *exceptions: type[Exception]
+    ) -> _t.Generator[None, None, None]:
+        try:
+            yield
+        except exceptions as exc:
+            exc.add_note(f"{type(self).__name__}.level={self._level!r}")
+            exc.add_note(f"{type(translatable)}.{attr_name}={attr_value!r}")
+            raise exc from None
 
-def _float_to_int(pvt: _VectorT) -> _VectorT:
-    return pvt.dropna().astype(int) if _pd.api.types.is_float_dtype(pvt) else pvt
+
+def _extract(translatable: _ExtractArgType) -> list[_tt.IdType]:
+    """Many database drivers dislike floats, especially NaN."""
+    try:
+        unique: _NumpyVector = _np.unique(translatable, axis=None)
+    except TypeError as exc:
+        if (
+            isinstance(exc, TypeError)
+            and not isinstance(translatable, _np.ndarray)
+            and _pd.api.types.is_object_dtype(translatable.dtypes)
+        ):
+            # Last-ditch effort. Mixed dtypes will raise if not comparable (e.g., UUID/str; np.unique will sort). Cast
+            # to str is both hacky and slow, but if you're mixing dtypes you probably don't care anyway.
+            return _extract(translatable.astype(str))
+        else:
+            exc.add_note(f"{type(translatable)=}")
+            raise
+
+    if _np.issubdtype(unique.dtype, _np.floating):
+        unique = unique[_np.isfinite(unique)].astype(int)
+
+    return unique.tolist()

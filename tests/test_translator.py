@@ -558,7 +558,7 @@ def test_repeated_names(translator, ids, names, expected_untranslated):
     df.columns = names
     actual = translator.translate(df)
     for i in expected_untranslated:
-        assert actual.iloc[0, i] == f"<Failed: id=np.int64({ids[i]})>"
+        assert actual.iloc[0, i] == f"<Failed: id={ids[i]}>"
 
 
 def test_temporary_translate_fmt(translator, monkeypatch):
@@ -797,7 +797,7 @@ class TestIoKwargs:
 
     def test_none(self, series, translator):
         actual = translator.translate(series, fmt="{hex}", io_kwargs=None).to_dict()
-        assert actual == {-1: "<Failed: id=np.int64(-1)>", 1: "0x1"}
+        assert actual == {-1: "<Failed: id=-1>", 1: "0x1"}
 
     def test_io_kwargs(self, series, translator):
         actual = translator.translate(series, fmt="{hex}", io_kwargs={"missing_as_nan": True}).to_dict()
@@ -807,7 +807,7 @@ class TestIoKwargs:
         caplog.set_level(logging.WARNING, logger="id_translation.dio")
 
         actual = translator.translate(series, fmt="{hex}", io_kwargs={"missig_as_nan": True}).to_dict()
-        assert actual == {-1: "<Failed: id=np.int64(-1)>", 1: "0x1"}
+        assert actual == {-1: "<Failed: id=-1>", 1: "0x1"}
 
         assert len(caplog.records) == 1
         record = caplog.records[0]

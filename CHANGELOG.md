@@ -9,14 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Relevant `Translator` methods (e.g. `translate()` now accept an `io_kwargs` argument.
-- The `PandasIO` class now accepts a `missing_as_nan` argument.
+  * Valid *io_kwargs* depend on the IO type (e.g. `PandasIO`).
+  * Invalid *io_kwargs* arguments are logged and suppressed.
+- Added optional `PandasIO` class args: `level`, `missing_as_nan`, and `as_categories`. See
+  [PandasIO](https://id-translation.readthedocs.io/en/latest/api/id_translation.dio.integration.pandas.html#id_translation.dio.integration.pandas.PandasIO)
+  for details.
 
 ### Changed
 - The `PlaceholderTranslations.from_dict()` method no longer attempts to delegate to `from_dataframe()`.
 - Calling `Translator.cache` on an instance without offline data will now raise `RuntimeError`.
+- The `PandasIO` class now returns builtin types (e.g. `int` instead of `numpy.int64`).
 
 ### Fixed
 - Raise `NotInplaceTranslatableError` on PDEP-6 errors (e.g. when translating `pandas.Series[int]` with `copy=False`.
+- Fix `pandas.DataFrame` translation when columns are `pandas.MultiIndex`.
 - Various docstrings and log messages.
 - Fix `Translator.default_fmt` typehint (is never `None`).
 - Fix inconsistent behavior of `Translator` instances that were initialized with `fetcher=TranslationMap`.
