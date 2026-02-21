@@ -1,6 +1,6 @@
 import pytest
 
-from id_translation.offline import Format, FormatApplier
+from id_translation.offline import Format, FormatApplier, MagicDict
 from id_translation.offline.types import PlaceholderTranslations
 
 
@@ -14,6 +14,7 @@ def test_no_explicit_placeholders(fmt):
     applier = FormatApplier[str, str, int](translations)
 
     ans = applier(fmt, default_fmt=Format(""))
+    assert isinstance(ans, MagicDict)
     assert ans == {1: "3 1: baz=1", 2: "4 2: baz=2"}
 
 
@@ -27,4 +28,5 @@ def test_explicit_placeholders(fmt):
         placeholders=("foo", "id"),
         default_fmt_placeholders={"baz": "default-baz", "foo": "default-baz"},
     )
+    assert isinstance(ans, MagicDict)
     assert ans == {1: "3 1", 2: "4 2"}

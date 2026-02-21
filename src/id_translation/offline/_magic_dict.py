@@ -29,7 +29,7 @@ class MagicDict(MutableMapping[IdType, str]):
 
         >>> magic = MagicDict({1999: "Sofia", 1991: "Richard"})
 
-        Iteration, equality, and length are based on the :attr:`real`  values.
+        Iteration, equality (``__eq__``), and length are based on the :attr:`real`  values.
 
         >>> magic
         {1999: 'Sofia', 1991: 'Richard'}

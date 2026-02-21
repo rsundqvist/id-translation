@@ -148,8 +148,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
     ) -> None:
         self._transformers = {} if transformers is None else transformers
 
-        self._fmt = fmt if isinstance(fmt, Format) else Format(fmt)
-        self._default_fmt_placeholders: InheritedKeysDict[SourceType, str, Any] | None
+        self._fmt = Format.parse(fmt)
         self._default_fmt_placeholders, self._default_fmt = _handle_default(default_fmt, default_fmt_placeholders)
         self._enable_uuid_heuristics = enable_uuid_heuristics
 
@@ -186,7 +185,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             raise TypeError(type(fetcher))  # pragma: no cover
 
         self._mapper: Mapper[NameType, SourceType, None] = mapper or Mapper()
-        self._mapper.logger = logging.getLogger("id_translation.Translator.map")
+        self._mapper.logger = LOGGER.getChild("map")
 
         self._config_metadata: meta.ConfigMetadata | None = None
         self._translated_names: NameToSource[NameType, SourceType] | None = None
@@ -911,7 +910,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         return self._fmt
 
     @property
-    def default_fmt(self) -> Format | None:
+    def default_fmt(self) -> Format:
         """Alternative translation :class:`.Format`, used for unknown IDs."""
         return self._default_fmt
 

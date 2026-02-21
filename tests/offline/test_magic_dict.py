@@ -15,8 +15,9 @@ def test_get(monkeypatch):
 
     monkeypatch.setattr(subject, "get", lambda k, _=None: subject[k])
 
-    # __eq__
+    # __eq__: Based on Mapping.__eq__
     assert subject == real
+    assert subject.real == real
     assert dict(subject) == real
 
     # __contains__

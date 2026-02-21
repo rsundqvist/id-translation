@@ -21,9 +21,6 @@ class FormatApplier(Generic[NameType, SourceType, IdType]):
         translations: A :class:`~.PlaceholderTranslations` object returned by fetchers.
         transformer: Initialized :class:`.Transformer` instance.
 
-    Raises:
-        ValueError: If `default` is given and any placeholder names are missing.
-
     Examples:
         Basic usage.
 
