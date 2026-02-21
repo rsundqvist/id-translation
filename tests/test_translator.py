@@ -22,6 +22,7 @@ from id_translation.logging import enable_verbose_debug_messages
 from id_translation.mapping import Mapper
 from id_translation.mapping.exceptions import MappingError, MappingWarning, UserMappingError
 from id_translation.toml.meta import _config_metadata
+from id_translation.transform import BitmaskTransformer
 
 from .conftest import ROOT, NotCloneableFetcher
 
@@ -366,6 +367,17 @@ def test_copy_with_override(imdb_translator):
 
     copy1 = imdb_translator.copy(fmt="{name}")
     assert copy1.translate(data) == {"nconst": ["Fred Astaire", "James Dean"]}
+
+
+def test_copy_with_transformers(imdb_translator):
+    assert imdb_translator.transformers == {}
+
+    copy0 = imdb_translator.copy(transformers={"source": BitmaskTransformer()})
+
+    copy1 = copy0.copy()
+    assert copy0.transformers == copy1.transformers
+    assert id(copy0.transformers) != id(copy1.transformers)
+    assert id(copy0.transformers["source"]) != id(copy1.transformers["source"])
 
 
 def test_no_names(translator):

@@ -247,49 +247,47 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         Notes:
             User types are copied using :func:`copy.deepcopy`.
         """
+        cls = type(self)
+
         kwargs: dict[str, Any] = {
             "fmt": self.fmt,
             "default_fmt": self.default_fmt,
+            "default_fmt_placeholders": self._default_fmt_placeholders,
             "enable_uuid_heuristics": self.enable_uuid_heuristics,
             **overrides,
         }
 
-        if "mapper" not in kwargs:  # pragma: no cover
+        if "mapper" not in kwargs:
             kwargs["mapper"] = self.mapper.copy()
-        if "default_fmt_placeholders" not in kwargs:
-            kwargs["default_fmt_placeholders"] = self._default_fmt_placeholders
+
         if "fetcher" not in kwargs:
-            fetcher: Fetcher[SourceType, IdType] | TranslationMap[NameType, SourceType, IdType]
             if self.online:
-                fetcher = self.fetcher
                 try:
-                    fetcher = deepcopy(fetcher)
+                    kwargs["fetcher"] = deepcopy(self.fetcher)
                 except TypeError as e:
                     msg = (
                         f"Failed to clone fetcher (TypeError: {e}). Caller instance will be reused."
-                        "\nHnt: To suppress this warning: Translator.copy(fetcher=Translator.fetcher)"
+                        f"\nHint: To suppress this warning: {cls.__name__}.copy(fetcher={cls.__name__}.fetcher)"
                     )
                     warnings.warn(msg, category=UserWarning, stacklevel=2)
+                    kwargs["fetcher"] = self.fetcher
             else:
-                fetcher = self.cache
+                kwargs["fetcher"] = self.cache
 
-            kwargs["fetcher"] = fetcher
-        if "transformers" in kwargs:
-            transformers = []
-            for t in self.transformers:
-                try:
-                    tc = deepcopy(t)
-                    transformers.append(tc)
-                except TypeError as e:
-                    msg = (
-                        f"Failed to clone {t!r}. (TypeError: {e}). Caller instance will be reused."
-                        "\nHint: To suppress this warning: Translator.copy(transformers=Translator.transformers)"
-                    )
-                    warnings.warn(msg, category=UserWarning, stacklevel=2)
-                    transformers = [*self.transformers]
-            kwargs["transformers"] = transformers
+        if "transformers" not in kwargs:
+            try:
+                kwargs["transformers"] = {
+                    source: deepcopy(transformer) for source, transformer in self.transformers.items()
+                }
+            except TypeError as e:
+                msg = (
+                    f"Failed to clone transformers (TypeError: {e}). Caller instance will be reused."
+                    f"\nHint: To suppress this warning: {cls.__name__}.copy(transformers={cls.__name__}.transformers)"
+                )
+                warnings.warn(msg, category=UserWarning, stacklevel=2)
+                kwargs["transformers"] = self.transformers
 
-        return type(self)(**kwargs)
+        return cls(**kwargs)
 
     if TYPE_CHECKING:
 
