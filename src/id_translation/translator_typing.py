@@ -56,13 +56,14 @@ class MapParams(_t.TypedDict, _t.Generic[_tt.NameType, _tt.SourceType, _tt.IdTyp
     names: _tt.NameTypes[_tt.NameType] | None
     ignore_names: _tt.Names[_tt.NameType] | None
     override_function: _UserOverrideFunction[_tt.NameType, _tt.SourceType, None] | None
+    io_kwargs: _abc.Mapping[str, _t.Any] | None
 
 
 class UniqueCopyParams(_t.TypedDict, _t.Generic[_tt.NameType, _tt.SourceType, _tt.IdType], total=False):
     """Arguments of :meth:`.Translator.copy` that do not overlap with :class:`AllTranslateParams`."""
 
-    fetcher: FetcherTypes[_tt.NameType, _tt.SourceType, _tt.IdType]
-    mapper: _Mapper[_tt.NameType, _tt.SourceType, None]
+    fetcher: FetcherTypes[_tt.NameType, _tt.SourceType, _tt.IdType] | None
+    mapper: _Mapper[_tt.NameType, _tt.SourceType, None] | None
     default_fmt: _ot.FormatType
     default_fmt_placeholders: _MakeType[_tt.SourceType, str, _t.Any] | None
     enable_uuid_heuristics: bool
@@ -125,6 +126,7 @@ class TranslateParams(_t.TypedDict, _t.Generic[_tt.NameType, _tt.SourceType, _tt
     max_fails: float
     reverse: bool
     fmt: _ot.FormatType | None
+    io_kwargs: _abc.Mapping[str, _t.Any] | None
 
 
 class AllTranslateParams(TranslateParams[_tt.NameType, _tt.SourceType, _tt.IdType], total=False):
@@ -141,7 +143,9 @@ class FetchParams(_t.TypedDict, _t.Generic[_tt.NameType, _tt.SourceType, _tt.IdT
     names: _tt.NameTypes[_tt.NameType] | _tt.NameToSource[_tt.NameType, _tt.SourceType] | None
     ignore_names: _tt.Names[_tt.NameType] | None
     override_function: _UserOverrideFunction[_tt.NameType, _tt.SourceType, None] | None
+    max_fails: float
     fmt: _ot.FormatType | None
+    io_kwargs: _abc.Mapping[str, _t.Any] | None
 
 
 CacheMissReasonType = _t.Literal["metadata-missing", "metadata-changed", "too-old"]
