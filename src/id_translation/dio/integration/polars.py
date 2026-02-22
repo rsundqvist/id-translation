@@ -100,7 +100,7 @@ class PolarsIO(_dio.DataStructureIO[PolarsT, str, _tt.SourceType, _tt.IdType]):
         This method is never called when ``fast=True``.
 
         Returns:
-            A series which does _not_ use the ``polars.Object`` dtype. No changes are made if any other dtype is used.
+            A series which does *not* use the ``polars.Object`` dtype. No changes are made if any other dtype is used.
         """
         if series.dtype != _pl.Object:
             return series

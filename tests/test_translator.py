@@ -197,7 +197,7 @@ def test_store_with_explicit_values(hex_fetcher):
         hex_fetcher, fmt="{hex}", default_fmt="{id} not known", mapper=Mapper(on_unmapped="ignore")
     )
 
-    with pytest.raises(MappingError) as e, pytest.warns(UserWarning) as w:
+    with pytest.raises(MappingError) as e, pytest.warns(MappingWarning) as w:
         translator.go_offline(data, ignore_names=data)
         assert "No names left" in str(w)
         assert "not store" in str(e)

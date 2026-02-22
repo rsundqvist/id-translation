@@ -19,7 +19,7 @@ from typing import (
 from rics.collections.dicts import InheritedKeysDict, MakeType
 from rics.collections.misc import as_list
 from rics.env.read import read_bool
-from rics.misc import get_public_module, tname
+from rics.misc import tname
 from rics.paths import AnyPath, any_path_to_path
 from rics.strings import format_seconds as fmt_sec
 
@@ -944,7 +944,8 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         """Return a :class:`.TranslationMap` of cached translations."""
         if self._cached_tmap is None:
             assert self.online, "bad internal state"  # noqa: S101
-            raise RuntimeError("No cache available. Use `go_offline()` to cache translations.")
+            msg = f"No cache available. Use f`{self.go_offline.__qualname__}` to cache translations."
+            raise RuntimeError(msg)
         return self._cached_tmap
 
     @classmethod
@@ -1105,9 +1106,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                     event_key=_logging.get_event_key(self.go_offline, "enter"),
                     # Task-specific
                     path=None if path is None else str(path),
-                    translatable_type=None
-                    if translatable is None
-                    else get_public_module(type(translatable), resolve_reexport=True, include_name=True),
+                    translatable_type=None if translatable is None else tname(translatable, include_module=True),
                 ),
             )
 
@@ -1140,9 +1139,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                     event_key=_logging.get_event_key(self.go_offline, "serialize"),
                     # Task-specific
                     path=str(path),
-                    translatable_type=None
-                    if translatable is None
-                    else get_public_module(type(translatable), resolve_reexport=True, include_name=True),
+                    translatable_type=None if translatable is None else tname(translatable, include_module=True),
                 ),
             )
 
@@ -1156,9 +1153,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                     seconds=seconds,
                     # Task-specific
                     path=None if path is None else str(path),
-                    translatable_type=None
-                    if translatable is None
-                    else get_public_module(type(translatable), resolve_reexport=True, include_name=True),
+                    translatable_type=None if translatable is None else tname(translatable, include_module=True),
                 ),
             )
 
@@ -1298,7 +1293,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             task = TranslationTask(
                 self,
                 translatable,
-                self._fmt,
+                fmt,
                 names,
                 ignore_names=ignore_names,
                 max_fails=max_fails,

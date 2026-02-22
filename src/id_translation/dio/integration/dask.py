@@ -101,7 +101,7 @@ def translate_partition(
     tmap: _TranslationMap[str, _tt.SourceType, _tt.IdType],
     part_io: PartitionIO[PartitionT, _tt.SourceType, _tt.IdType],
 ) -> PartitionT:
-    """Translation a single Dask partition."""
+    """Translate a single Dask partition."""
     if isinstance(part, _pd.DataFrame):
         part_io.insert(part, names, tmap, copy=False)
         return part

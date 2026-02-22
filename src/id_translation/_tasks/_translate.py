@@ -264,11 +264,7 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
         return result if copy else None
 
     def verify(self, tmap: TranslationMap[NameType, SourceType, IdType]) -> None:
-        """Verify translations.
-
-        Performs translation with pre-defined formats, counting the number of IDs which are (and aren't) known to the
-        translation map.
-        """
+        """Verify translations using :meth:`.MagicDict.real_contains`."""
         max_fails = self.max_fails
         if not (max_fails < 1.0 or LOGGER.isEnabledFor(logging.DEBUG)):
             return
