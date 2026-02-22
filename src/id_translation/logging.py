@@ -32,16 +32,15 @@ def enable_verbose_debug_messages(
 ) -> _t.ContextManager[None]:
     """Enable verbose logging. May be used as a context.
 
-    .. hint::
-
-       Click `here <../_static/logging-style-rainbow.html>`__ for verbose sample output using ``style="rainbow"``.
-
     **Styles**
 
     * **minimal**: Nothing but the logged message itself.
     * **basic**: Adds logger name and level.
-    * **pretty**: Adds basic color and task ID (e.g. ``🍏 0x2b92``). Mark stage (``enter=🚀, exit=✅``).
-    * **rainbow**: Indent based on stage. Full-color syntax highlighting for strings and keywords.
+    * **pretty**: Adds basic color and task ID (e.g. ``🍏 0x2b92``). Mark stage (``enter=🚀, exit=✅``). Sample output:
+      `info <../_static/logging/info-pretty.html>`_, `debug <../_static/logging/debug-pretty.html>`_,
+      `verbose <../_static/logging/verbose-pretty.html>`_.
+    * **rainbow**: Indent based on stage (requires ``level="verbose"``). Full-color syntax highlighting for strings and
+      keywords. Sample output: `debug <../_static/logging/debug-rainbow.html>`_, `verbose <../_static/logging/verbose-rainbow.html>`_.
 
     Args:
         level: Log level. If `'verbose'` (default), set :attr:`ENABLE_VERBOSE_LOGGING` to ``True``.

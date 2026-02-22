@@ -1,19 +1,17 @@
 import logging
-from datetime import datetime
 import os
+import subprocess
+import tempfile
+from contextlib import redirect_stdout
+from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
-from contextlib import redirect_stdout
-
 import sqlalchemy
 
-from id_translation.logging import enable_verbose_debug_messages
-from id_translation._utils import debug_logging_formatter
 from id_translation import Translator
-from tempfile import TemporaryDirectory
-import subprocess
-
+from id_translation._utils import debug_logging_formatter
+from id_translation.logging import enable_verbose_debug_messages
 
 
 class TempFormatter(debug_logging_formatter.DebugLoggingFormatter):
@@ -36,8 +34,6 @@ ROOT = Path(__file__).parent.parent.joinpath("tests/dvdrental/")
 
 
 def main():
-    enable_verbose_debug_messages(style="rainbow")
-
     os.environ["DVDRENTAL_PASSWORD"] = "Sofia123!"
     os.environ["DVDRENTAL_CONNECTION_STRING"] = "postgresql+pg8000://postgres:{password}@localhost:5002/sakila"
 
@@ -57,23 +53,37 @@ def main():
     pd.testing.assert_frame_equal(df, expected)
 
 
-if __name__ == "__main__":
-    out_path = Path(__file__).parent.joinpath("_static/logging-style-rainbow.html")
+def write_logs(level, style, tmpdir):
+    out_path = Path(__file__).parent.joinpath(f"_static/logging/{level}-{style}.html")
 
-    with TemporaryDirectory() as tmpdir:
-        tmpdir = Path(tmpdir)
-        with tmpdir.joinpath("logs.txt").open("w") as f, redirect_stdout(f):
-            main()
+    tmp_file = tmpdir.joinpath(f"logs-{level}-{style}.txt")
+    with (
+        tmp_file.open("w") as f,
+        redirect_stdout(f),
+        enable_verbose_debug_messages(level=level, style=style),
+    ):
+        main()
 
         # sudo apt install colorized-logs
         # ansi2html --title='My title' --no-wrap --white < /tmp/logs.txt > logs.txt.html
         args = [
             "ansi2html",
-            "--title=Verbose logging output",
+            f"--title={style} @ {level.upper()}",
             "--no-wrap",
             "--white",  # Dark made isn't supported (by me), so need for two versions.
         ]
-        output = subprocess.check_output(args, input=tmpdir.joinpath("logs.txt").read_bytes())
+        output = subprocess.check_output(args, input=tmp_file.read_bytes())
+        out_path.write_bytes(output)
 
-    out_path.write_bytes(output)
     print(f"\033[92mUpdated: '{out_path}'\033[0m")
+
+
+if __name__ == "__main__":
+    root = Path(tempfile.gettempdir()) / "id-translation/generate-rainbow-logs.py"
+    root.mkdir(exist_ok=True, parents=True)
+    write_logs("verbose", "rainbow", root)
+    write_logs("debug", "rainbow", root)
+
+    write_logs("verbose", "pretty", root)
+    write_logs("debug", "pretty", root)
+    write_logs("info", "pretty", root)

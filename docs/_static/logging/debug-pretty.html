@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>pretty @ DEBUG</title>
+<style type="text/css">
+body {background-color: white;}
+pre {
+	font-weight: normal;
+	color: #000;
+}
+b {font-weight: normal}
+b.BOLD {color: #000;font-weight:bold}
+b.ITA {font-style: italic}
+b.UND {text-decoration: underline}
+b.STR {text-decoration: line-through}
+b.UNDSTR {text-decoration: underline line-through}
+b.BLK {color: #000000}
+b.RED {color: #800000}
+b.GRN {color: #008000}
+b.YEL {color: #806000}
+b.BLU {color: #000080}
+b.MAG {color: #800080}
+b.CYN {color: #008080}
+b.WHI {color: #808080}
+b.HIK {color: #000000}
+b.HIR {color: #ff0000}
+b.HIG {color: #00ff00}
+b.HIY {color: #cccc00}
+b.HIB {color: #0000ff}
+b.HIM {color: #ff00ff}
+b.HIC {color: #00ffff}
+b.HIW {color: #ffffff}
+b.BBLK {background-color: #000000}
+b.BRED {background-color: #800000}
+b.BGRN {background-color: #008000}
+b.BYEL {background-color: #806000}
+b.BBLU {background-color: #000080}
+b.BMAG {background-color: #800080}
+b.BCYN {background-color: #008080}
+b.BWHI {background-color: #808080}
+</style>
+</head>
+<body>
+<pre>[<b class=GRN>🍏 0x4c8a</b>] [<b style="color:#cccc00;">20:30:00</b><b class=YEL>.001528</b>] [DEBUG] [🚀 <b class=BLU>MultiFetcher.initialize_sources</b>] Begin initialization of <b class=MAG>2</b> children.
+[<b class=GRN>🍏 0x4c8a</b>] [<b style="color:#cccc00;">20:30:00</b><b class=YEL>.001644</b>] [INFO] [✅ <b class=BLU>MemoryFetcher.initialize_sources</b>] Finished initialization of 'MemoryFetcher' in <b class=MAG>3</b> μs: MemoryFetcher(sources=['category'], return_all=True)
+[<b class=GRN>🍏 0x4c8a</b>] [<b style="color:#cccc00;">20:30:00</b><b class=YEL>.071723</b>] [DEBUG] [<b class=WHI>id_translation.fetching</b>] Metadata for 'postgresql+pg<b class=MAG>8000</b>://postgres:***@localhost:<b class=MAG>5002</b>/sakila' created in <b class=MAG>70</b> ms.
+[<b class=GRN>🍏 0x4c8a</b>] [<b style="color:#cccc00;">20:30:00</b><b class=YEL>.072792</b>] [INFO] [✅ <b class=BLU>SqlFetcher.initialize_sources</b>] Finished initialization of 'SqlFetcher' in <b class=MAG>71</b> ms: SqlFetcher('postgresql+pg<b class=MAG>8000</b>://postgres:***@localhost:<b class=MAG>5002</b>/sakila', sources=['address', 'film', 'language', 'customer', 'country', 'staff', 'actor', 'city'])
+[<b class=GRN>🍏 0x4c8a</b>] [<b style="color:#cccc00;">20:30:00</b><b class=YEL>.072865</b>] [DEBUG] [✅ <b class=BLU>MultiFetcher.initialize_sources</b>] Finished initialization <b class=MAG>2</b> children and <b class=MAG>9</b> sources in <b class=MAG>71</b> ms.
+[<b style="color:#cccc00;">🎃 0xc0c9</b>] [<b style="color:#cccc00;">20:30:00</b><b class=YEL>.208977</b>] [DEBUG] [<b class=WHI>id_translation.dio</b>] Using rank<b class=MAG>-0</b> (priority=<b class=MAG>1999</b>) implementation 'id_translation.dio.integration.pandas.PandasIO' for translatable of type='pandas.DataFrame'.
+[<b style="color:#cccc00;">🎃 0xc0c9</b>] [<b style="color:#cccc00;">20:30:00</b><b class=YEL>.209183</b>] [DEBUG] [🚀 <b class=BLU>Translator.translate</b>] Begin translation of 'DataFrame'-type data. Names to translate: Derive based on type.
+[<b style="color:#cccc00;">🎃 0xc0c9</b>] [<b style="color:#cccc00;">20:30:00</b><b class=YEL>.209249</b>] [DEBUG] [<b class=WHI>id_translation.Translator</b>] Name extraction complete. Found names=['customer_id', 'film_id', 'category_id', 'staff_id', 'rental_date', 'return_date'] for 'DataFrame'-type data.
+[<b style="color:#cccc00;">🎃 0xc0c9</b>] [<b style="color:#cccc00;">20:30:00</b><b class=YEL>.209293</b>] [DEBUG] [🚀 <b class=BLU>Translator.map</b>] Begin name-to-source mapping of names=['customer_id', 'film_id', 'category_id', 'staff_id', 'rental_date', 'return_date'] in 'DataFrame' against sources=['category', 'address', 'film', 'language', 'customer', 'country', 'staff', 'actor', 'city'].
+[<b style="color:#cccc00;">🎃 0xc0c9</b>] [<b style="color:#cccc00;">20:30:00</b><b class=YEL>.210815</b>] [DEBUG] [<b class=WHI>id_translation.Translator.map</b>] Computed <b class=MAG>6x9</b> match scores in context=None in <b class=MAG>153</b> μs:
+candidates   category  address  film  language  customer  country  staff  actor  city
+values                                                                               
+customer_id      <b class=MAG>0.12</b>     <b class=MAG>0.06</b> <b class=MAG>-0.00</b>     <b class=MAG>-0.00</b>      <b class=MAG>1.00</b>    <b class=MAG>-0.01</b>  <b class=MAG>-0.01</b>   <b class=MAG>0.04</b> <b class=MAG>-0.01</b>
+film_id         <b class=MAG>-0.00</b>     <b class=MAG>0.00</b>  <b class=MAG>1.00</b>     <b class=MAG>-0.00</b>     <b class=MAG>-0.00</b>    <b class=MAG>-0.01</b>  <b class=MAG>-0.01</b>  <b class=MAG>-0.01</b>  <b class=MAG>0.24</b>
+category_id      <b class=MAG>1.00</b>     <b class=MAG>0.00</b> <b class=MAG>-0.00</b>      <b class=MAG>0.12</b>      <b class=MAG>0.12</b>     <b class=MAG>0.14</b>  <b class=MAG>-0.01</b>  <b class=MAG>-0.01</b>  <b class=MAG>0.04</b>
+staff_id        <b class=MAG>-0.00</b>     <b class=MAG>0.00</b>  <b class=MAG>0.05</b>      <b class=MAG>0.05</b>     <b class=MAG>-0.00</b>    <b class=MAG>-0.01</b>   <b class=MAG>0.99</b>  <b class=MAG>-0.01</b> <b class=MAG>-0.01</b>
+rental_date      <b class=MAG>-inf</b>     <b class=MAG>-inf</b>  <b class=MAG>-inf</b>      <b class=MAG>-inf</b>      <b class=MAG>-inf</b>     <b class=MAG>-inf</b>   <b class=MAG>-inf</b>   <b class=MAG>-inf</b>  <b class=MAG>-inf</b>
+return_date      <b class=MAG>-inf</b>     <b class=MAG>-inf</b>  <b class=MAG>-inf</b>      <b class=MAG>-inf</b>      <b class=MAG>-inf</b>     <b class=MAG>-inf</b>   <b class=MAG>-inf</b>   <b class=MAG>-inf</b>  <b class=MAG>-inf</b>
+[<b style="color:#cccc00;">🎃 0xc0c9</b>] [<b style="color:#cccc00;">20:30:00</b><b class=YEL>.211001</b>] [INFO] [✅ <b class=BLU>Translator.map</b>] Finished mapping of <b class=MAG>4/6</b> names in 'DataFrame' in <b class=MAG>2</b> ms: {'customer_id': 'customer', 'film_id': 'film', 'category_id': 'category', 'staff_id': 'staff', 'rental_date': None, 'return_date': None}.
+[<b style="color:#cccc00;">🎃 0xc0c9</b>] [<b style="color:#cccc00;">20:30:00</b><b class=YEL>.211264</b>] [DEBUG] [🚀 <b class=BLU>MultiFetcher.fetch</b>] Dispatch FETCH jobs for <b class=MAG>4</b> sources using <b class=MAG>2</b> different fetchers on <b class=MAG>2</b> threads.
+[<b style="color:#cccc00;">🎃 0xc0c9</b>] [<b style="color:#cccc00;">20:30:00</b><b class=YEL>.211508</b>] [DEBUG] [<b class=WHI>id_translation.fetching.MultiFetcher</b>] Begin FETCH job for <b class=MAG>3</b> sources using rank<b class=MAG>-1</b> fetcher SqlFetcher('postgresql+pg<b class=MAG>8000</b>://postgres:***@localhost:<b class=MAG>5002</b>/sakila', sources=['address', 'film', 'language', 'customer', 'country', 'staff', 'actor', 'city']) at <b class=MAG>0x74426fad36f0</b>.
+[<b style="color:#cccc00;">🎃 0xc0c9</b>] [<b style="color:#cccc00;">20:30:00</b><b class=YEL>.211625</b>] [DEBUG] [🚀 <b class=BLU>SqlFetcher.fetch</b>] Begin fetching placeholders=('id', 'name', 'last_name') for <b class=MAG>22</b> IDs from <b class=MAG>3</b> sources: {'staff': <b class=MAG>2</b>, 'customer': <b class=MAG>10</b>, 'film': <b class=MAG>10</b>}.
+[<b style="color:#cccc00;">🎃 0xc0c9</b>] [<b style="color:#cccc00;">20:30:00</b><b class=YEL>.211684</b>] [DEBUG] [🚀 <b class=BLU>SqlFetcher.map_placeholders</b>] Begin mapping of wanted placeholders={'last_name', 'id', 'name'} to actual placeholders={'staff_id', 'first_name', 'address_id', 'username', 'picture', 'email', 'password', 'store_id', 'active', 'last_name', 'last_update'} for source='staff'.
+[<b style="color:#cccc00;">🎃 0xc0c9</b>] [<b style="color:#cccc00;">20:30:00</b><b class=YEL>.213365</b>] [DEBUG] [<b class=WHI>id_translation.fetching.map</b>] Computed <b class=MAG>3x11</b> match scores in context='staff' in <b class=MAG>131</b> μs:
+candidates  staff_id  first_name  address_id  username  picture  email  password  store_id  active  last_name  last_update
+values                                                                                                                    
+last_name       <b class=MAG>-inf</b>        <b class=MAG>-inf</b>        <b class=MAG>-inf</b>      <b class=MAG>-inf</b>     <b class=MAG>-inf</b>   <b class=MAG>-inf</b>      <b class=MAG>-inf</b>      <b class=MAG>-inf</b>    <b class=MAG>-inf</b>        <b class=MAG>inf</b>         <b class=MAG>-inf</b>
+id              <b class=MAG>0.99</b>       <b class=MAG>-0.00</b>        <b class=MAG>0.16</b>     <b class=MAG>-0.00</b>     <b class=MAG>0.06</b>   <b class=MAG>0.12</b>      <b class=MAG>0.24</b>      <b class=MAG>0.61</b>    <b class=MAG>0.04</b>      <b class=MAG>-0.01</b>        <b class=MAG>-0.01</b>
+name            <b class=MAG>0.00</b>        <b class=MAG>0.99</b>        <b class=MAG>0.02</b>      <b class=MAG>0.20</b>     <b class=MAG>0.06</b>   <b class=MAG>0.18</b>      <b class=MAG>0.03</b>     <b class=MAG>-0.01</b>    <b class=MAG>0.08</b>       <b class=MAG>0.37</b>         <b class=MAG>0.09</b>
+[<b style="color:#cccc00;">🎃 0xc0c9</b>] [<b style="color:#cccc00;">20:30:00</b><b class=YEL>.213885</b>] [DEBUG] [✅ <b class=BLU>SqlFetcher.map_placeholders</b>] Finished placeholder mapping for source='staff': {'last_name': 'last_name', 'name': 'first_name', 'id': 'staff_id'}.
+[<b style="color:#cccc00;">🎃 0xc0c9</b>] [<b style="color:#cccc00;">20:30:00</b><b class=YEL>.213958</b>] [DEBUG] [🚀 <b class=BLU>SqlFetcher.fetch_translations</b>] Begin fetching <b class=MAG>2</b> IDs from source='staff'. Placeholders: ('staff_id', 'first_name', 'last_name').
+[<b style="color:#cccc00;">🎃 0xc0c9</b>] [<b style="color:#cccc00;">20:30:00</b><b class=YEL>.214696</b>] [DEBUG] [<b class=WHI>id_translation.fetching.MultiFetcher</b>] Begin FETCH job for <b class=MAG>1</b> sources using rank<b class=MAG>-0</b> fetcher MemoryFetcher(sources=['category'], return_all=True) at <b class=MAG>0x74426f9a2650</b>.
+[<b style="color:#cccc00;">🎃 0xc0c9</b>] [<b style="color:#cccc00;">20:30:00</b><b class=YEL>.214788</b>] [DEBUG] [🚀 <b class=BLU>MemoryFetcher.fetch</b>] Begin fetching placeholders=('id', 'name', 'last_name') for <b class=MAG>7</b> IDs from <b class=MAG>1</b> sources: {'category': <b class=MAG>7</b>}.
+[<b style="color:#cccc00;">🎃 0xc0c9</b>] [<b style="color:#cccc00;">20:30:00</b><b class=YEL>.214839</b>] [DEBUG] [🚀 <b class=BLU>MemoryFetcher.map_placeholders</b>] Begin mapping of wanted placeholders={'last_name', 'id', 'name'} to actual placeholders={'id', 'name'} for source='category'.
+[<b style="color:#cccc00;">🎃 0xc0c9</b>] [<b style="color:#cccc00;">20:30:00</b><b class=YEL>.215789</b>] [DEBUG] [<b class=WHI>id_translation.fetching.map</b>] Computed <b class=MAG>3x2</b> match scores in context='category' in <b class=MAG>32</b> μs:
+candidates   id  name
+values               
+last_name  <b class=MAG>0.00</b>  <b class=MAG>0.17</b>
+id          <b class=MAG>inf</b>  <b class=MAG>-inf</b>
+name       <b class=MAG>-inf</b>   <b class=MAG>inf</b>
+[<b style="color:#cccc00;">🎃 0xc0c9</b>] [<b style="color:#cccc00;">20:30:00</b><b class=YEL>.215976</b>] [DEBUG] [✅ <b class=BLU>MemoryFetcher.map_placeholders</b>] Finished placeholder mapping for source='category': {'id': 'id', 'name': 'name', 'last_name': None}.
+[<b style="color:#cccc00;">🎃 0xc0c9</b>] [<b style="color:#cccc00;">20:30:00</b><b class=YEL>.216046</b>] [DEBUG] [🚀 <b class=BLU>MemoryFetcher.fetch_translations</b>] Begin fetching <b class=MAG>7</b> IDs from source='category'. Placeholders: ('id', 'name', 'last_name').
+[<b style="color:#cccc00;">🎃 0xc0c9</b>] [<b style="color:#cccc00;">20:30:00</b><b class=YEL>.216087</b>] [DEBUG] [✅ <b class=BLU>MemoryFetcher.fetch_translations</b>] Finished fetching <b class=MAG>16</b> IDs from source='category' in <b class=MAG>42</b> μs. Placeholders: ('id', 'name').
+[<b style="color:#cccc00;">🎃 0xc0c9</b>] [<b style="color:#cccc00;">20:30:00</b><b class=YEL>.216136</b>] [INFO] [✅ <b class=BLU>MemoryFetcher.fetch</b>] Finished fetching from <b class=MAG>1</b> sources in <b class=MAG>1</b> ms: ['category' x ('id', 'name') x <b class=MAG>16/7</b> IDs].
+[<b style="color:#cccc00;">🎃 0xc0c9</b>] [<b style="color:#cccc00;">20:30:00</b><b class=YEL>.217380</b>] [DEBUG] [✅ <b class=BLU>SqlFetcher.fetch_translations</b>] Finished fetching <b class=MAG>2</b> IDs from source='staff' in <b class=MAG>3</b> ms. Placeholders: ('staff_id', 'first_name', 'last_name').
+[<b style="color:#cccc00;">🎃 0xc0c9</b>] [<b style="color:#cccc00;">20:30:00</b><b class=YEL>.217463</b>] [DEBUG] [🚀 <b class=BLU>SqlFetcher.map_placeholders</b>] Begin mapping of wanted placeholders={'last_name', 'id', 'name'} to actual placeholders={'customer_id', 'first_name', 'address_id', 'activebool', 'email', 'store_id', 'active', 'last_name', 'create_date', 'last_update'} for source='customer'.
+[<b style="color:#cccc00;">🎃 0xc0c9</b>] [<b style="color:#cccc00;">20:30:00</b><b class=YEL>.218809</b>] [DEBUG] [<b class=WHI>id_translation.fetching.map</b>] Computed <b class=MAG>3x10</b> match scores in context='customer' in <b class=MAG>120</b> μs:
+candidates  customer_id  first_name  address_id  activebool  email  store_id  active  last_name  create_date  last_update
+values                                                                                                                   
+last_name          <b class=MAG>-inf</b>        <b class=MAG>-inf</b>        <b class=MAG>-inf</b>        <b class=MAG>-inf</b>   <b class=MAG>-inf</b>      <b class=MAG>-inf</b>    <b class=MAG>-inf</b>        <b class=MAG>inf</b>         <b class=MAG>-inf</b>         <b class=MAG>-inf</b>
+id                 <b class=MAG>0.99</b>       <b class=MAG>-0.00</b>        <b class=MAG>0.16</b>        <b class=MAG>0.09</b>   <b class=MAG>0.12</b>      <b class=MAG>0.36</b>    <b class=MAG>0.04</b>      <b class=MAG>-0.01</b>         <b class=MAG>0.07</b>         <b class=MAG>0.16</b>
+name               <b class=MAG>0.00</b>        <b class=MAG>0.99</b>       <b class=MAG>-0.00</b>       <b class=MAG>-0.00</b>   <b class=MAG>0.12</b>     <b class=MAG>-0.01</b>    <b class=MAG>0.08</b>       <b class=MAG>0.38</b>         <b class=MAG>0.14</b>         <b class=MAG>0.09</b>
+[<b style="color:#cccc00;">🎃 0xc0c9</b>] [<b style="color:#cccc00;">20:30:00</b><b class=YEL>.218938</b>] [DEBUG] [✅ <b class=BLU>SqlFetcher.map_placeholders</b>] Finished placeholder mapping for source='customer': {'last_name': 'last_name', 'name': 'first_name', 'id': 'customer_id'}.
+[<b style="color:#cccc00;">🎃 0xc0c9</b>] [<b style="color:#cccc00;">20:30:00</b><b class=YEL>.218997</b>] [DEBUG] [🚀 <b class=BLU>SqlFetcher.fetch_translations</b>] Begin fetching <b class=MAG>10</b> IDs from source='customer'. Placeholders: ('customer_id', 'first_name', 'last_name').
+[<b style="color:#cccc00;">🎃 0xc0c9</b>] [<b style="color:#cccc00;">20:30:00</b><b class=YEL>.221355</b>] [DEBUG] [✅ <b class=BLU>SqlFetcher.fetch_translations</b>] Finished fetching <b class=MAG>10</b> IDs from source='customer' in <b class=MAG>2</b> ms. Placeholders: ('customer_id', 'first_name', 'last_name').
+[<b style="color:#cccc00;">🎃 0xc0c9</b>] [<b style="color:#cccc00;">20:30:00</b><b class=YEL>.221443</b>] [DEBUG] [🚀 <b class=BLU>SqlFetcher.map_placeholders</b>] Begin mapping of wanted placeholders={'last_name', 'id', 'name'} to actual placeholders={'title', 'special_features', 'description', 'language_id', 'rating', 'replacement_cost', 'original_language_id', 'rental_rate', 'release_year', 'rental_duration', 'fulltext', 'film_id', 'length', 'last_update'} for source='film'.
+[<b style="color:#cccc00;">🎃 0xc0c9</b>] [<b style="color:#cccc00;">20:30:00</b><b class=YEL>.223089</b>] [DEBUG] [<b class=WHI>id_translation.fetching.map</b>] Computed <b class=MAG>3x14</b> match scores in context='film' in <b class=MAG>146</b> μs:
+candidates  title  special_features  description  language_id  rating  replacement_cost  original_language_id  rental_rate  release_year  rental_duration  fulltext  film_id  length  last_update
+values                                                                                                                                                                                           
+last_name    <b class=MAG>0.04</b>             <b class=MAG>-0.00</b>        <b class=MAG>-0.00</b>        <b class=MAG>-0.00</b>   <b class=MAG>-0.01</b>              <b class=MAG>0.06</b>                 <b class=MAG>-0.01</b>         <b class=MAG>0.10</b>          <b class=MAG>0.07</b>            <b class=MAG>-0.01</b>     <b class=MAG>-0.01</b>    <b class=MAG>-0.01</b>    <b class=MAG>0.03</b>         <b class=MAG>0.07</b>
+id          <b class=MAG>-0.00</b>              <b class=MAG>0.01</b>         <b class=MAG>0.02</b>         <b class=MAG>0.10</b>    <b class=MAG>0.10</b>             <b class=MAG>-0.01</b>                  <b class=MAG>0.05</b>        <b class=MAG>-0.01</b>         <b class=MAG>-0.01</b>             <b class=MAG>0.02</b>      <b class=MAG>0.23</b>     <b class=MAG>0.98</b>   <b class=MAG>-0.01</b>         <b class=MAG>0.00</b>
+name          <b class=MAG>inf</b>              <b class=MAG>-inf</b>         <b class=MAG>-inf</b>         <b class=MAG>-inf</b>    <b class=MAG>-inf</b>              <b class=MAG>-inf</b>                  <b class=MAG>-inf</b>         <b class=MAG>-inf</b>          <b class=MAG>-inf</b>             <b class=MAG>-inf</b>      <b class=MAG>-inf</b>     <b class=MAG>-inf</b>    <b class=MAG>-inf</b>         <b class=MAG>-inf</b>
+[<b style="color:#cccc00;">🎃 0xc0c9</b>] [<b style="color:#cccc00;">20:30:00</b><b class=YEL>.223260</b>] [DEBUG] [✅ <b class=BLU>SqlFetcher.map_placeholders</b>] Finished placeholder mapping for source='film': {'name': 'title', 'id': 'film_id', 'last_name': None}.
+[<b style="color:#cccc00;">🎃 0xc0c9</b>] [<b style="color:#cccc00;">20:30:00</b><b class=YEL>.223307</b>] [DEBUG] [🚀 <b class=BLU>SqlFetcher.fetch_translations</b>] Begin fetching <b class=MAG>10</b> IDs from source='film'. Placeholders: ('film_id', 'title').
+[<b style="color:#cccc00;">🎃 0xc0c9</b>] [<b style="color:#cccc00;">20:30:00</b><b class=YEL>.225296</b>] [DEBUG] [✅ <b class=BLU>SqlFetcher.fetch_translations</b>] Finished fetching <b class=MAG>10</b> IDs from source='film' in <b class=MAG>2</b> ms. Placeholders: ('film_id', 'title').
+[<b style="color:#cccc00;">🎃 0xc0c9</b>] [<b style="color:#cccc00;">20:30:00</b><b class=YEL>.225383</b>] [INFO] [✅ <b class=BLU>SqlFetcher.fetch</b>] Finished fetching from <b class=MAG>3</b> sources in <b class=MAG>14</b> ms: ['staff' x ('id', 'name', 'last_name') x <b class=MAG>2/2</b> IDs], ['customer' x ('id', 'name', 'last_name') x <b class=MAG>10/10</b> IDs], ['film' x ('id', 'name') x <b class=MAG>10/10</b> IDs].
+[<b style="color:#cccc00;">🎃 0xc0c9</b>] [<b style="color:#cccc00;">20:30:00</b><b class=YEL>.225606</b>] [DEBUG] [✅ <b class=BLU>MultiFetcher.fetch</b>] Finished FETCH jobs for <b class=MAG>4</b> sources using <b class=MAG>2</b> different fetchers in <b class=MAG>14</b> ms.
+[<b style="color:#cccc00;">🎃 0xc0c9</b>] [<b style="color:#cccc00;">20:30:00</b><b class=YEL>.227411</b>] [DEBUG] [<b class=WHI>id_translation.Translator</b>] Performance counters [ms]: {'map': <b class=MAG>1.758</b>, 'extract': <b class=MAG>0.187</b>, 'fetch': <b class=MAG>14.618</b>, 'verify': <b class=MAG>0.315</b>, 'insert': <b class=MAG>1.379</b>, 'overhead': <b class=MAG>0.475</b>}
+[<b style="color:#cccc00;">🎃 0xc0c9</b>] [<b style="color:#cccc00;">20:30:00</b><b class=YEL>.227481</b>] [INFO] [✅ <b class=BLU>Translator.translate</b>] Finished translation of <b class=MAG>29</b> unique IDs (<b class=MAG>4</b> names) in 'DataFrame' in <b class=MAG>19</b> ms.
+</pre>
+</body>
+</html>

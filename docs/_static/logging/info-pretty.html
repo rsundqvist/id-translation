@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>pretty @ INFO</title>
+<style type="text/css">
+body {background-color: white;}
+pre {
+	font-weight: normal;
+	color: #000;
+}
+b {font-weight: normal}
+b.BOLD {color: #000;font-weight:bold}
+b.ITA {font-style: italic}
+b.UND {text-decoration: underline}
+b.STR {text-decoration: line-through}
+b.UNDSTR {text-decoration: underline line-through}
+b.BLK {color: #000000}
+b.RED {color: #800000}
+b.GRN {color: #008000}
+b.YEL {color: #806000}
+b.BLU {color: #000080}
+b.MAG {color: #800080}
+b.CYN {color: #008080}
+b.WHI {color: #808080}
+b.HIK {color: #000000}
+b.HIR {color: #ff0000}
+b.HIG {color: #00ff00}
+b.HIY {color: #cccc00}
+b.HIB {color: #0000ff}
+b.HIM {color: #ff00ff}
+b.HIC {color: #00ffff}
+b.HIW {color: #ffffff}
+b.BBLK {background-color: #000000}
+b.BRED {background-color: #800000}
+b.BGRN {background-color: #008000}
+b.BYEL {background-color: #806000}
+b.BBLU {background-color: #000080}
+b.BMAG {background-color: #800080}
+b.BCYN {background-color: #008080}
+b.BWHI {background-color: #808080}
+</style>
+</head>
+<body>
+<pre>[<b class=GRN>🍏 0xedb5</b>] [<b style="color:#cccc00;">20:30:00</b><b class=YEL>.001726</b>] [INFO] [✅ <b class=BLU>MemoryFetcher.initialize_sources</b>] Finished initialization of 'MemoryFetcher' in <b class=MAG>3</b> μs: MemoryFetcher(sources=['category'], return_all=True)
+[<b class=GRN>🍏 0xedb5</b>] [<b style="color:#cccc00;">20:30:00</b><b class=YEL>.069950</b>] [INFO] [✅ <b class=BLU>SqlFetcher.initialize_sources</b>] Finished initialization of 'SqlFetcher' in <b class=MAG>68</b> ms: SqlFetcher('postgresql+pg<b class=MAG>8000</b>://postgres:***@localhost:<b class=MAG>5002</b>/sakila', sources=['address', 'film', 'language', 'customer', 'country', 'staff', 'actor', 'city'])
+[<b style="color:#cccc00;">🎃 0xb547</b>] [<b style="color:#cccc00;">20:30:00</b><b class=YEL>.206043</b>] [INFO] [✅ <b class=BLU>Translator.map</b>] Finished mapping of <b class=MAG>4/6</b> names in 'DataFrame' in <b class=MAG>259</b> μs: {'staff_id': 'staff', 'customer_id': 'customer', 'category_id': 'category', 'film_id': 'film'}.
+[<b style="color:#cccc00;">🎃 0xb547</b>] [<b style="color:#cccc00;">20:30:00</b><b class=YEL>.208088</b>] [INFO] [✅ <b class=BLU>MemoryFetcher.fetch</b>] Finished fetching from <b class=MAG>1</b> sources in <b class=MAG>97</b> μs: ['category' x ('id', 'name') x <b class=MAG>16/7</b> IDs].
+[<b style="color:#cccc00;">🎃 0xb547</b>] [<b style="color:#cccc00;">20:30:00</b><b class=YEL>.216468</b>] [INFO] [✅ <b class=BLU>SqlFetcher.fetch</b>] Finished fetching from <b class=MAG>3</b> sources in <b class=MAG>10</b> ms: ['staff' x ('id', 'name', 'last_name') x <b class=MAG>2/2</b> IDs], ['customer' x ('id', 'name', 'last_name') x <b class=MAG>10/10</b> IDs], ['film' x ('id', 'name') x <b class=MAG>10/10</b> IDs].
+[<b style="color:#cccc00;">🎃 0xb547</b>] [<b style="color:#cccc00;">20:30:00</b><b class=YEL>.218377</b>] [INFO] [✅ <b class=BLU>Translator.translate</b>] Finished translation of <b class=MAG>29</b> unique IDs (<b class=MAG>4</b> names) in 'DataFrame' in <b class=MAG>13</b> ms.
+</pre>
+</body>
+</html>
