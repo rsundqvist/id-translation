@@ -14,11 +14,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added optional `PandasIO` class args: `level`, `missing_as_nan`, and `as_categories`. See
   [PandasIO](https://id-translation.readthedocs.io/en/latest/api/id_translation.dio.integration.pandas.html#id_translation.dio.integration.pandas.PandasIO)
   for details.
+- Added optional `DaskIO` class args: `missing_as_nan` and `as_categories`.
 
 ### Changed
 - The `PlaceholderTranslations.from_dict()` method no longer attempts to delegate to `from_dataframe()`.
 - Calling `Translator.cache` on an instance without offline data will now raise `RuntimeError`.
 - The `PandasIO` class now returns builtin types (e.g. `int` instead of `numpy.int64`).
+- Refactor `DaskIO` implementation; now uses a more efficient strategy based on `map_partitions()`.
 
 ### Fixed
 - Raise `NotInplaceTranslatableError` on PDEP-6 errors (e.g. when translating `pandas.Series[int]` with `copy=False`.

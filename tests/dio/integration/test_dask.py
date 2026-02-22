@@ -1,6 +1,7 @@
 from uuid import UUID
 
 import dask.dataframe as dd
+import numpy as np
 import pytest
 
 from id_translation import Translator
@@ -21,6 +22,11 @@ EXPECTED = {
     "uuids": ["00000001:uuid-one", "00000002:uuid-two", "<Failed: id='000003e8-0000-0000-0000-000000000000'>"],
     "ints": ["0:int-zero", "1:int-one", "<Failed: id=1000>"],
     "strs": ["zero!:str-zero", "one!:str-one", "<Failed: id='one thousand!'>"],
+}
+EXPECTED_CAT = {
+    "uuids": ["00000001:uuid-one", "00000002:uuid-two", np.nan],
+    "ints": ["0:int-zero", "1:int-one", np.nan],
+    "strs": ["zero!:str-zero", "one!:str-one", np.nan],
 }
 
 
@@ -49,14 +55,39 @@ def df(data: dict[str, dict[IdTypes, str]]) -> dd.DataFrame:
 def test_dataframe(translator, df):
     actual: dd.DataFrame = translator.translate(df)
     assert isinstance(actual, dd.DataFrame)
+
+    df = actual.compute()
+    assert df.dtypes.to_dict() == {"uuids": "str", "ints": "str", "strs": "str"}
     assert actual.compute().to_dict(orient="list") == EXPECTED
+
+
+def test_dataframe_cat(translator, df):
+    actual: dd.DataFrame = translator.translate(df, io_kwargs={"as_category": True})
+    assert isinstance(actual, dd.DataFrame)
+
+    df = actual.compute()
+    assert df.dtypes.to_dict() == {"uuids": "category", "ints": "category", "strs": "category"}
+    assert df.to_dict(orient="list") == EXPECTED_CAT
 
 
 def test_series(translator, df):
     for _, series in df.items():  # noqa: PERF102
         actual: dd.Series = translator.translate(series)
         assert isinstance(actual, dd.Series)
-        assert actual.compute().to_list() == EXPECTED[series.name]
+
+        pd_series = actual.compute()
+        assert pd_series.dtype == "str"
+        assert pd_series.to_list() == EXPECTED[series.name]
+
+
+def test_series_cat(translator, df):
+    for _, series in df.items():  # noqa: PERF102
+        actual: dd.Series = translator.translate(series, io_kwargs={"as_category": True})
+        assert isinstance(actual, dd.Series)
+
+        pd_series = actual.compute()
+        assert pd_series.dtype == "category"
+        assert pd_series.to_list() == EXPECTED_CAT[series.name]
 
 
 @pytest.mark.parametrize("cls", [dd.Series, dd.DataFrame])
