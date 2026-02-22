@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   [PandasIO](https://id-translation.readthedocs.io/en/latest/api/id_translation.dio.integration.pandas.html#id_translation.dio.integration.pandas.PandasIO)
   for details.
 - Added optional `DaskIO` class args: `missing_as_nan` and `as_categories`.
+- Added optional `PolarsIO` class arg: `fast=False`. Sacrifices flexibility (always) for speed (sometimes).
 
 ### Changed
 - The `PlaceholderTranslations.from_dict()` method no longer attempts to delegate to `from_dataframe()`.

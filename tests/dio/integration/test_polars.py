@@ -60,3 +60,29 @@ def test_series(translator, df, column):
     series = df[column]
     actual: pl.Series = translator.translate(series)
     assert actual.to_list() == EXPECTED[series.name]
+
+
+def test_dataframe_fast(translator):
+    translator = Translator[str, str, IdTypes](
+        fetcher={
+            "uuids": {str(to_uuid(1)): "uuid-one", str(to_uuid(2)): "uuid-two"},
+            "ints": {0: "int-zero", 1: "int-one"},
+            "strs": {"zero!": "str-zero", "one!": "str-one"},
+        },
+        fmt="{id!s:.8}:{name}",
+    )
+
+    data: dict[str, list[object]] = {
+        "uuids": [str(to_uuid(1)), str(to_uuid(2)), str(to_uuid(1000))],
+        "ints": [0, 1, 1000],
+        "strs": ["zero!", "one!", "one thousand!"],
+    }
+    df = pl.from_dict(data)
+
+    actual: pl.DataFrame = translator.translate(df, copy=True, io_kwargs={"fast": True})
+    assert isinstance(actual, pl.DataFrame)
+    assert actual.to_dict(as_series=False) == {
+        "uuids": ["00000001:uuid-one", "00000002:uuid-two", ""],
+        "ints": ["0:int-zero", "1:int-one", ""],
+        "strs": ["zero!:str-zero", "one!:str-one", ""],
+    }
