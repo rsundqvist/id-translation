@@ -5,8 +5,11 @@ from uuid import UUID
 import pytest
 
 import id_translation.translator_typing as tt
+from id_translation import Translator
+from id_translation.fetching import AbstractFetcher
 
 from .conftest import TypedTranslator, UnionDict, make_translatable
+from .validate_func_annotations import validate_func_annotations
 
 
 def test_map():
@@ -184,3 +187,19 @@ def test_docs():
         assert docstring is not None
         for func in functions:  # type: ignore[attr-defined]
             assert template.format(func=func) in docstring
+
+
+@pytest.mark.parametrize(
+    "func,typed_dict",
+    [
+        (Translator.__init__, tt.CopyParams),
+        (Translator.map, tt.MapParams),
+        (Translator.map_scores, tt.MapParams),
+        (Translator.fetch, tt.FetchParams),
+        (Translator.translate, tt.AllTranslateParams),
+        (AbstractFetcher.__init__, tt.AbstractFetcherParams),
+    ],
+    ids=lambda v: v.__qualname__.replace(".", "-"),
+)
+def test_annotations(func, typed_dict):
+    validate_func_annotations(func, typed_dict, fail_fast=False)
