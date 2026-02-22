@@ -11,25 +11,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Relevant `Translator` methods (e.g. `translate()` now accept an `io_kwargs` argument.
   * Valid *io_kwargs* depend on the IO type (e.g. `PandasIO`).
   * Invalid *io_kwargs* arguments are logged and suppressed.
-- Added optional `PandasIO` class args: `level`, `missing_as_nan`, and `as_categories`. See
-  [PandasIO](https://id-translation.readthedocs.io/en/latest/api/id_translation.dio.integration.pandas.html#id_translation.dio.integration.pandas.PandasIO)
+- Added `io_kwargs` to `PandasIO`, `DaskIO` and `PolarsIO`. The default behavior has not changed.
+  * `PandasIO`: added ***level=-1***, ***missing_as_nan=False***, and ***as_categories=False***. See
+  [PandasIO](https://id-translation.readthedocs.io/en/stable/api/id_translation.dio.integration.pandas.html#id_translation.dio.integration.pandas.PandasIO)
   for details.
-- Added optional `DaskIO` class args: `missing_as_nan` and `as_categories`.
-- Added optional `PolarsIO` class arg: `fast=False`. Sacrifices flexibility (always) for speed (sometimes).
+  * `DaskIO`: added ***missing_as_nan=False*** and ***as_categories=False***. Similar to `PandasIO`.
+  * `PolarsIO`: added ***fast=False***; sacrifices flexibility (always) for speed (sometimes).
 
 ### Changed
 - The `PlaceholderTranslations.from_dict()` method no longer attempts to delegate to `from_dataframe()`.
 - Calling `Translator.cache` on an instance without offline data will now raise `RuntimeError`.
-- The `PandasIO` class now returns builtin types (e.g. `int` instead of `numpy.int64`).
-- Refactor `DaskIO` implementation; now uses a more efficient strategy based on `map_partitions()`.
+- The `PandasIO.extract()` method now returns builtin types (e.g. `int` instead of `numpy.int64`).
+- Refactor `DaskIO.insert()`; now uses a more efficient strategy based on `map_partitions()`.
 
 ### Fixed
 - Raise `NotInplaceTranslatableError` on PDEP-6 errors (e.g. when translating `pandas.Series[int]` with `copy=False`.
 - Fix `pandas.DataFrame` translation when columns are `pandas.MultiIndex`.
-- Various docstrings and log messages.
 - Fix `Translator.default_fmt` typehint (is never `None`).
 - Fix inconsistent behavior of `Translator` instances that were initialized with `fetcher=TranslationMap`.
 - Fix `Translator.copy()` handling of transformers.
+- Various docstrings and log messages.
 
 ## [1.0.4] - 2026-01-07
 
@@ -299,7 +300,7 @@ maintain. Concrete implementations for things like caching are being dropped and
 - Added new utility `utils.translation_helper.TranslationHelper`.
 - Added several new `TypedDict` types to `translator_typing`.
 - Added `Translator.translate` overloads. Catch-all overload for `reverse=True`.
-- Added many new in-line examples to class, function and module docstrings. Updated and corrected or clarified several 
+- Added many new in-line examples to class, function, and module docstrings. Updated and corrected or clarified several 
   docstrings which were poorly worded or outdated. 
 
 ### Changed
