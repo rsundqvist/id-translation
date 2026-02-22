@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Fix multiple issues in `id_translation.translator_typing`.
+- Various documentation issues.
 
 ## [1.1.0] - 2026-02-22
 
@@ -47,7 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Added sample output for `enable_verbose_debug_messages(style='rainbow')` to
-  [docs](https://id-translation.readthedocs.io/en/latest/_static/logging-style-rainbow.html).
+  [docs](https://id-translation.readthedocs.io/en/stable/_static/logging/verbose-rainbow.html).
 
 ### Fixed
 - The `MultiFetcher` will no longer warn twice for required children without sources.

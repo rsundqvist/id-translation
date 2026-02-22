@@ -35,7 +35,7 @@ def resolve_io(
 
     Args:
         arg: An argument to get IO for.
-        io_kwargs: Used to initialize the :doc:`IO implementation </documentation/translation-io>`.
+        io_kwargs: Keyword arguments for the IO class (e.g. :class:`~id_translation.dio.integration.pandas.PandasIO`).
         task_id: Used for logging.
 
     Returns:

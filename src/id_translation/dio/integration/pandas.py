@@ -17,8 +17,6 @@ from id_translation.offline import TranslationMap as _TranslationMap
 
 PandasT = _t.TypeVar("PandasT", _pd.DataFrame, _pd.Series, _pd.Index, _pd.MultiIndex)
 """Supported ``pandas`` types."""
-AsCategory = _t.Literal["exact", "full"]
-"""Valid `as_category` string values."""
 
 # Types with ``ndim==1``.
 _PandasVectorT = _t.TypeVar("_PandasVectorT", _pd.Series, _pd.Index)

@@ -720,7 +720,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             max_fails: The maximum fraction of IDs for which translation may fail. 1=disabled.
             reverse: If ``True``, perform translations back to IDs. Offline mode only.
             fmt: A :class:`format string <.Format>` such as **'{id}:{name}'** use. Default is :attr:`.Translator.fmt`.
-            io_kwargs: Used to initialize the :doc:`IO implementation </documentation/translation-io>`.
+            io_kwargs: Keyword arguments for the IO class (e.g. :class:`~id_translation.dio.integration.pandas.PandasIO`).
 
         Returns:
             A translated copy of `translatable` if ``copy=True``, otherwise ``None``.
@@ -837,7 +837,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             ignore_names: Names **not** to translate, or a predicate ``(NameType) -> bool``.
             override_function: A callable ``(name, sources, ids) -> Source | None``. See
                 :meth:`Mapper.apply <.mapping.Mapper.apply>` for details.
-            io_kwargs: Used to initialize the :doc:`IO implementation </documentation/translation-io>`.
+            io_kwargs: Keyword arguments for the IO class (e.g. :class:`~id_translation.dio.integration.pandas.PandasIO`).
 
         Returns:
             A mapping of names to translation sources. Returns ``None`` if mapping failed.
@@ -1073,7 +1073,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                 for details.
             max_fails: The maximum fraction of IDs for which translation may fail. 1=disabled.
             fmt: A :class:`format string <.Format>` such as **'{id}:{name}'** use. Default is :attr:`.Translator.fmt`.
-            io_kwargs: Used to initialize the :doc:`IO implementation </documentation/translation-io>`.
+            io_kwargs: Keyword arguments for the IO class (e.g. :class:`~id_translation.dio.integration.pandas.PandasIO`).
             path: If given, serialize the :class:`.Translator` to disk after retrieving data.
 
         Returns:
@@ -1190,7 +1190,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                 for details.
             max_fails: The maximum fraction of IDs for which translation may fail. 1=disabled.
             fmt: A :class:`format string <.Format>` such as **'{id}:{name}'** use. Default is :attr:`.Translator.fmt`.
-            io_kwargs: Used to initialize the :doc:`IO implementation </documentation/translation-io>`.
+            io_kwargs: Keyword arguments for the IO class (e.g. :class:`~id_translation.dio.integration.pandas.PandasIO`).
 
         Returns:
             A :class:`.TranslationMap`.
