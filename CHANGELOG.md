@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-02-22
+
 ### Added
 - Relevant `Translator` methods (e.g. `translate()` now accept an `io_kwargs` argument.
   * Valid *io_kwargs* depend on the IO type (e.g. `PandasIO`).
@@ -537,7 +539,8 @@ cookiecutter template.
 - Switch to relative imports.
 - Fix some intersphinx issues.
 
-[Unreleased]: https://github.com/rsundqvist/id-translation/compare/v1.0.4...HEAD
+[Unreleased]: https://github.com/rsundqvist/id-translation/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/rsundqvist/id-translation/compare/v1.0.4...v1.1.0
 [1.0.4]: https://github.com/rsundqvist/id-translation/compare/v1.0.3...v1.0.4
 [1.0.3]: https://github.com/rsundqvist/id-translation/compare/v1.0.2...v1.0.3
 [1.0.2]: https://github.com/rsundqvist/id-translation/compare/v1.0.1...v1.0.2
