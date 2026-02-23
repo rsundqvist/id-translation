@@ -20,7 +20,7 @@ from id_translation.exceptions import (
 from id_translation.fetching.exceptions import UnknownSourceError
 from id_translation.logging import enable_verbose_debug_messages
 from id_translation.mapping import Mapper
-from id_translation.mapping.exceptions import MappingError, MappingWarning, UserMappingError
+from id_translation.mapping.exceptions import MappingWarning, UnmappedExplicitNamesError, UserMappingError
 from id_translation.toml.meta import _config_metadata
 from id_translation.transform import BitmaskTransformer
 
@@ -118,8 +118,8 @@ def test_online(translator, copy):
     _translate(translator.copy() if copy else translator)
 
 
-def test_mapping_error(translator):
-    with pytest.raises(MappingError):
+def test_unmapped_explict_names_error(translator):
+    with pytest.raises(UnmappedExplicitNamesError):
         translator.map(0, names="unknown")
 
 

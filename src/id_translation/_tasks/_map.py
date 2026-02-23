@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any
 from rics.strings import format_seconds as fmt_sec
 
 from .. import logging as _logging
-from ..mapping.exceptions import MappingError, MappingWarning
+from ..mapping.exceptions import MappingError, MappingWarning, UnmappedExplicitNamesError
 from ..mapping.matrix import ScoreMatrix
 from ..mapping.types import UserOverrideFunction
 from ..types import IdType, Names, NameToSource, NameType, NameTypes, SourceType, Translatable
@@ -126,9 +126,10 @@ class MappingTask(NamesTask[NameType, SourceType, IdType]):
             unmapped = set(names_from_user).difference(name_to_source)
             if unmapped:
                 # Fail if any of the explicitly given names fail to map to a source.
-                msg = f"Required names {unmapped} {tail}."
+                msg = f"Explicit names {unmapped} {tail}."
+                # Sort of redundant (since we're about to raise), but useful for providing the `task_id` for tracing.
                 LOGGER.error(msg, extra={"task_id": self.task_id})
-                raise MappingError(msg)
+                raise UnmappedExplicitNamesError(msg, names=names_from_user, unmapped=unmapped)
 
         if result.cardinality.many_right:  # pragma: no cover
             for value, candidates in result.left_to_right.items():

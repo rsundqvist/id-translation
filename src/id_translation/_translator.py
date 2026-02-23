@@ -742,7 +742,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         Raises:
             UntranslatableTypeError: If ``type(translatable)`` cannot be translated.
             MissingNamesError: If `names` are not given and cannot be derived from `translatable`.
-            MappingError: If any required (explicitly given) names fail to map to a source.
+            UnmappedExplicitNamesError: If any required (explicitly given) names fail to map to a source.
             MappingError: If name-to-source mapping is ambiguous.
             ValueError: If `max_fails` is not a valid fraction.
             TooManyFailedTranslationsError: If translation fails for more than `max_fails` of IDs.
@@ -844,7 +844,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
         Raises:
             MissingNamesError: If `names` are not given and cannot be derived from `translatable`.
-            MappingError: If any required (explicitly given) names fail to map to a source.
+            UnmappedExplicitNamesError: If any required (explicitly given) names fail to map to a source.
             MappingError: If name-to-source mapping is ambiguous.
             UserMappingError: If `override_function` returns a source which is not known, and
                 ``mapper.on_unknown_user_override != 'ignore'``.

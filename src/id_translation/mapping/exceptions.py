@@ -27,6 +27,18 @@ class UnmappedValuesError(MappingError):
     """Raised when there are unmapped values left after filtering and on_unmapped='raise'."""
 
 
+class UnmappedExplicitNamesError(MappingError):  # TODO(2.0.0): Inherit from UnmappedValuesError.
+    """Raised when names explicitly provided by the user could not be mapped."""
+
+    def __init__(self, msg: str, *, names: list[_Any], unmapped: set[_Any]) -> None:
+        super().__init__(msg)
+        self.names = names
+        self.unmapped = unmapped
+
+        self.add_note("Note: This error is NOT controlled by the `Mapper.on_unmapped` property.")
+        self.add_note(f"Hint: Remove {len(unmapped)} unmapped name(s) from the provided {names=} to continue.")
+
+
 class ScoringDisabledError(MappingError):
     """Indicates that the scoring logic has been disabled. Raised by :func:`.score_functions.disabled`."""
 

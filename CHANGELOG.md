@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Raise new `UnmappedExplicitNamesError` (before: generic `MappingError`) for unmapped user-provided names.
+
 ### Fixed
 - Fix multiple issues in `id_translation.translator_typing`.
 - Various documentation issues.
