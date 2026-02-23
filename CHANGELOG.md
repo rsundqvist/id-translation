@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Raise new `UnmappedExplicitNamesError` (before: generic `MappingError`) for unmapped user-provided names.
 
+### Changed
+- Methods `Translator.go_offline()` and `fetch()` no longer raise when no derived names are mapped when called with data.
+
 ### Fixed
 - Fix multiple issues in `id_translation.translator_typing`.
 - Various documentation issues.

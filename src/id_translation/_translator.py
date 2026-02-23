@@ -29,7 +29,6 @@ from .exceptions import ConfigurationChangedError, ConnectionStatusError, Transl
 from .fetching import Fetcher
 from .fetching.types import IdsToFetch
 from .mapping import Mapper
-from .mapping.exceptions import MappingError
 from .mapping.matrix import ScoreMatrix
 from .mapping.types import UserOverrideFunction
 from .offline import Format, TranslationMap
@@ -1302,15 +1301,8 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                 event_key=func,
                 task_id=task_id,
             )
-            if not task.name_to_source:
-                msg = f"No names in the {tname(translatable, prefix_classname=True)!r}-type data were mapped."
-                raise MappingError(msg)
 
             translation_map = self._get_updated_tmap(task, force_fetch=True)
-            if LOGGER.isEnabledFor(logging.DEBUG):
-                not_fetched = set(self.fetcher.sources).difference(translation_map.sources)
-                LOGGER.debug(f"Available sources {not_fetched} were not fetched.")
-
             task.verify(translation_map)
 
         return translation_map

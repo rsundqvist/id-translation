@@ -17,6 +17,7 @@ from id_translation.exceptions import (
     TooManyFailedTranslationsError,
     TranslationDisabledWarning,
 )
+from id_translation.fetching import MemoryFetcher
 from id_translation.fetching.exceptions import UnknownSourceError
 from id_translation.logging import enable_verbose_debug_messages
 from id_translation.mapping import Mapper
@@ -197,11 +198,6 @@ def test_store_with_explicit_values(hex_fetcher):
         hex_fetcher, fmt="{hex}", default_fmt="{id} not known", mapper=Mapper(on_unmapped="ignore")
     )
 
-    with pytest.raises(MappingError) as e, pytest.warns(MappingWarning) as w:
-        translator.go_offline(data, ignore_names=data)
-        assert "No names left" in str(w)
-        assert "not store" in str(e)
-
     translator.go_offline(data)
     expected_num_fetches = hex_fetcher.num_fetches
     assert sorted(translator.cache.sources) == sorted(data)
@@ -220,6 +216,23 @@ def test_store_with_explicit_values(hex_fetcher):
         "positive_numbers": ["5 not known", "6 not known"],
         "negative_numbers": ["-100 not known", "-6 not known"],
     }
+
+
+def test_go_fetch_without_mapped_names_returns_empty_translations():
+    translator = UnitTestTranslator(
+        MemoryFetcher(data={"source": {1: "one"}}),
+        mapper=Mapper(score_function_kwargs={"strict": False}),
+    )
+
+    with pytest.warns(MappingWarning, match="Translation aborted; none of the derived names"):
+        tmap = translator.fetch({"not-source": 1})
+    assert tmap.sources == []
+
+    with pytest.warns(MappingWarning, match="Translation aborted; none of the derived names"):
+        translator.go_offline({"not-source": 1})
+    assert translator.cache.sources == []
+
+    assert id(tmap) != id(translator.cache)
 
 
 def test_mapping_nothing_to_translate(translator):
@@ -244,6 +257,13 @@ def test_explicit_name_ignored(translator):
     with pytest.raises(ValueError) as e:
         translator.map(0, names=[], ignore_names="")
     assert "Required names" in str(e)
+
+
+# def test_foo(translator):
+#
+#    assert len(w) == 1
+#    assert "No names left to translate" in str(w.list[0].message)
+#    assert "removed by ignore_names=" in str(w.list[0].message)
 
 
 def test_complex_default(hex_fetcher):
