@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Fix multiple issues in `id_translation.translator_typing`.
+- Fix `enable_verbose_debug_messages()` handling of "regular" level arguments (e.g. `logging.INFO`).
 - Various documentation issues.
 
 ## [1.1.0] - 2026-02-22

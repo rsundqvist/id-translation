@@ -25,7 +25,7 @@ if LOGGER.level == _l.NOTSET:
 
 
 def enable_verbose_debug_messages(
-    level: _t.Literal["verbose", "debug", "info", "warning"] = "verbose",
+    level: _t.Literal["verbose", "debug", "info", "warning"] | int | str = "verbose",
     *,
     use_custom_handler: bool | _t.Literal["auto"] = "auto",
     style: _t.Literal["minimal", "basic", "pretty", "rainbow"] = "pretty",
@@ -69,17 +69,20 @@ def enable_verbose_debug_messages(
     """
     global ENABLE_VERBOSE_LOGGING  # noqa: PLW0603
 
-    if level.lower() == "verbose":
+    verbose = False
+    if isinstance(level, int):
+        if _l.NOTSET < level < _l.DEBUG:
+            verbose = True
+        level = _l._levelToName.get(level, level)
+    elif level.lower() == "verbose":
         level = "debug"
         verbose = True
-    else:
-        verbose = False
 
     verbose_before = ENABLE_VERBOSE_LOGGING
     level_before = LOGGER.level
     propagate_before = LOGGER.propagate
 
-    LOGGER.setLevel(_l._nameToLevel[level.upper()])
+    LOGGER.setLevel(level.upper() if isinstance(level, str) else level)
     ENABLE_VERBOSE_LOGGING = verbose
 
     if use_custom_handler == "auto" and not LOGGER.hasHandlers():
