@@ -31,3 +31,8 @@ __all__ = [
 ]
 
 __version__ = "1.1.0.dev1"
+
+from .dio import load_integrations
+
+load_integrations()
+del load_integrations

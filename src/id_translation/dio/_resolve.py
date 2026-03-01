@@ -161,7 +161,7 @@ def is_registered(io: type[AnyDataStructureIO]) -> bool:
 
 
 def load_integrations() -> None:
-    """Discover, load and register entrypoint integrations.
+    """Discover, load, and register entrypoint integrations.
 
     Reset the registry, then load entrypoints in the
     :const:`{_ENTRYPOINT_GROUP!r} <id_translation.dio.ENTRYPOINT_GROUP>`
@@ -193,6 +193,11 @@ def load_integrations() -> None:
         try:
             cls = ep.load()
         except ImportError as e:
+            # TODO(2.0.0): ModuleNotFoundError only -- change docs above + rst as well!
+            if "circular import" in str(e):
+                e.add_note(f"entrypoint={ep!r}")
+                raise
+
             if LOGGER.isEnabledFor(logging.DEBUG):
                 LOGGER.debug(f"Failed to import entrypoint={ep!r}: {e!r}.")
             continue
