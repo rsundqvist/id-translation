@@ -36,8 +36,6 @@ class DaskIO(_DataStructureIO[DaskT, str, _tt.SourceType, _tt.IdType]):
         Combining ``missing_as_nan=False`` with ``as_category=True`` can be unpredictable in distributed contexts.
     """
 
-    priority = 1980
-
     def __init__(
         self,
         *,
@@ -48,6 +46,8 @@ class DaskIO(_DataStructureIO[DaskT, str, _tt.SourceType, _tt.IdType]):
             missing_as_nan=missing_as_nan,
             as_category=as_category,
         )
+
+    priority = 1980
 
     @property
     def partition_io(self) -> PartitionIO[_t.Any, _tt.SourceType, _tt.IdType]:

@@ -4,7 +4,7 @@ import os
 from datetime import datetime, timezone
 from zipfile import ZipFile
 
-from docutils.nodes import reference, Text
+from docutils.nodes import Text, reference
 
 if True:  # E402 hack
     os.environ["SPHINX_BUILD"] = "true"
@@ -17,7 +17,7 @@ if True:  # E402 hack
 import shutil
 from importlib import metadata
 
-from rics._internal_support import myst_parser_markdown_doc_refs, make_toc_tree_titles_shorter
+from rics._internal_support import make_toc_tree_titles_shorter, myst_parser_markdown_doc_refs
 from rics._internal_support.changelog import split_changelog
 
 import id_translation
@@ -58,8 +58,8 @@ def add_custom_lexer():
 
     The lexer itself doesn't make (much) sense.
     """
-    from sphinx.highlighting import lexers
     from log_lexer import LogLexer
+    from sphinx.highlighting import lexers
 
     lexers["log"] = LogLexer()
 

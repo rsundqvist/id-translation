@@ -91,7 +91,9 @@ def test_series_cat(translator, df):
 
 
 @pytest.mark.parametrize("cls", [dd.Series, dd.DataFrame])
-def test_inplace(translator, df, cls):
+def test_inplace_raises(translator, df, cls):
     translatable = df[df.columns[0]] if cls is dd.Series else df
+    assert isinstance(translatable, cls)
+
     with pytest.raises(NotInplaceTranslatableError):
         translator.translate(translatable, copy=False)

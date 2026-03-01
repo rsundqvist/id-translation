@@ -1264,7 +1264,8 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         task_id: int | None = None,
     ) -> TranslationMap[NameType, SourceType, IdType]:
         if io_kwargs and translatable is None:
-            LOGGER.warning(f"Ignoring {io_kwargs=} since {translatable=}.")
+            # TODO(2.0.0): raise.
+            LOGGER.warning(f"Ignoring {io_kwargs=} since {translatable=}.", extra={"task_id": task_id})
 
         fmt = self._fmt if fmt is None else Format.parse(fmt)
 

@@ -43,7 +43,7 @@ PATTERN_TO_COLOR: tuple[tuple[str, Color], ...] = (
     # Numerics
     (r"(?:0x)[abcdef\d]+", Color.magenta),  # Hex string
     (r"(?:0b)[01]+", Color.magenta),  # Bin string
-    (r"[+-]?\d+(?:.\d+)?", Color.magenta),  # Numbers; includes things like 3.2 or 3x2.
+    (r"[+-]?\d+(?:.\d+)?", Color.magenta),  # Numbers; includes things like 3.2 or 12x34 (matrix shapes).
     (r"[+-]?(?:NaN|inf|∞)", Color.magenta),  # Infinity/NaN
     # Misc
     ("None|True|False", Color.gray),  # Constants
@@ -89,10 +89,9 @@ class DebugLoggingFormatter(logging.Formatter):
             ("🪻", Color.magenta),
             ("🐳", Color.blue),
         ]
-
         shuffle(self._task_id_styles)
-        self._task_id_style: dict[int, tuple[str, Color]] = {}
 
+        self._task_id_style: dict[int, tuple[str, Color]] = {}
         self._lock = Lock()
 
     def formatMessage(self, record: logging.LogRecord) -> str:  # noqa: N802

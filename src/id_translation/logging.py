@@ -99,7 +99,10 @@ def enable_verbose_debug_messages(
         else:
             from ._utils.debug_logging_formatter import DebugLoggingFormatter  # noqa: PLC0415
 
-            formatter = DebugLoggingFormatter(less=style == "pretty", indent_style=".." if verbose else "")
+            formatter = DebugLoggingFormatter(
+                less=style == "pretty",
+                indent_style=".." if verbose else "",
+            )
 
         handler = _l.StreamHandler(stdout)
         handler.setFormatter(formatter)

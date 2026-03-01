@@ -46,7 +46,7 @@ class MagicDict(MutableMapping[IdType, str]):
 
         **Differences from the built-in dict**
 
-        Methods ``__getitem__`` and ``__contains__`` never fail or return False. Using a default with ``get`` will
+        Methods ``__getitem__`` and ``__contains__`` never fail or return ``False``. Using a default with ``get`` will
         generate a value rather than using the provided default.
 
         >>> magic[1999]
@@ -138,7 +138,7 @@ class MagicDict(MutableMapping[IdType, str]):
 
     @property
     def default_value(self) -> str:
-        """Return the default string value to return for unknown keys, if any."""
+        """Return the default string value to return for unknown keys."""
         return self._default
 
     def _try_stringify(self, key: IdType) -> Any:

@@ -51,8 +51,6 @@ class PandasIO(_dio.DataStructureIO[PandasT, _tt.NameType, _tt.SourceType, _tt.I
     to the same source.
     """
 
-    priority = 1999
-
     def __init__(
         self,
         *,
@@ -66,6 +64,8 @@ class PandasIO(_dio.DataStructureIO[PandasT, _tt.NameType, _tt.SourceType, _tt.I
         self._level = level
         self._missing_as_nan = missing_as_nan
         self._as_category = as_category
+
+    priority = 1999
 
     @classmethod
     def handles_type(cls, arg: _t.Any) -> bool:
