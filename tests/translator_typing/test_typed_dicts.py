@@ -172,8 +172,9 @@ def test_copy():
     assert translator.enable_uuid_heuristics is False
 
 
-def test_docs():
+def test_typed_dict_docstring_contains_relevant_methods():
     types = {
+        tt.ExtractNamesParams: [TypedTranslator.extract_names],
         tt.MapParams: [TypedTranslator.map_scores, TypedTranslator.map],
         tt.FetchParams: [TypedTranslator.fetch, TypedTranslator.go_offline],
         tt.AllTranslateParams: [TypedTranslator.translate],
@@ -186,13 +187,14 @@ def test_docs():
         docstring = typed_dict.__doc__
         assert docstring is not None
         for func in functions:  # type: ignore[attr-defined]
-            assert template.format(func=func) in docstring
+            assert template.format(func=func) in docstring, f"{typed_dict.__name__}: {func.__qualname__}"
 
 
 @pytest.mark.parametrize(
     "func,typed_dict",
     [
         (Translator.__init__, tt.CopyParams),
+        (Translator.extract_names, tt.ExtractNamesParams),
         (Translator.map, tt.MapParams),
         (Translator.map_scores, tt.MapParams),
         (Translator.fetch, tt.FetchParams),

@@ -40,27 +40,6 @@ might look like.
    License <LICENSE>
    changelog/index
 
-Basic usage
------------
-Using the :meth:`.Translator.translate` method.
-
-.. code-block::
-
-   tr = Translator(...)
-   df = pd.DataFrame([[1, 1904]], columns=["animals", "people"])
-   tr.translate(df, fmt="{id}:{name}[, nice={is_nice}]", copy=False)
-
-The `fmt` argument is optional, but ``copy=False`` is not since the default is ``True``. Let's look at the result:
-
-.. code-block::
-
-   print(df)
-                  animals     people
-   0  1:Morris, nice=True  1904:Fred
-
-This is a simplified version of an :ref:`example <translator-docstring-example>` from the :class:`.Translator` class
-documentation. See the :doc:`API reference <api/id_translation>` for more.
-
 Shortcuts
 ---------
 Click an image below to get started, or use the top navigation bar.

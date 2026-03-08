@@ -36,8 +36,8 @@ You'll be using these a lot.
    :toctree:
 
    Translator.map
-   Translator.translate
    Translator.fetch
+   Translator.translate
 
 .. rubric:: Related methods
 
@@ -45,6 +45,7 @@ You'll be using these a lot.
    :toctree:
 
    Translator.initialize_sources
+   Translator.extract_names
    Translator.map_scores
    Translator.translated_names
 

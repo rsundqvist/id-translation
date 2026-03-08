@@ -24,8 +24,8 @@ from rics.paths import AnyPath, any_path_to_path
 from rics.strings import format_seconds as fmt_sec
 
 from . import logging as _logging
-from ._tasks import MappingTask, TranslationTask
-from .exceptions import ConfigurationChangedError, ConnectionStatusError, TranslationDisabledWarning
+from ._tasks import MappingTask, NamesTask, TranslationTask
+from .exceptions import ConfigurationChangedError, ConnectionStatusError, MissingNamesError, TranslationDisabledWarning
 from .fetching import Fetcher
 from .fetching.types import IdsToFetch
 from .mapping import Mapper
@@ -700,9 +700,10 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         """Translate IDs to human-readable strings.
 
         Simplified process:
-            1. The :attr:`map` method performs name-to-source mapping (see :class:`~.DirectionalMapping`).
-            2. The :attr:`fetch` method extracts IDs to translate and retrieves data (see :class:`.TranslationMap`).
-            3. Finally, the :attr:`translate` method applies the translations and returns to the caller.
+            1. The :meth:`extract_names` method derives names of the `translatable` to translate (if needed).
+            2. The :meth:`map` method performs name-to-source mapping (see :class:`~.DirectionalMapping`).
+            3. The :meth:`fetch` method extracts IDs to translate and retrieves data (see :class:`.TranslationMap`).
+            4. Finally, the ``translate()`` method (i.e. this one) applies the translations and returns to the caller.
 
         See the :ref:`translation-primer` page for a detailed process description.
 
@@ -819,6 +820,62 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             raise ValueError("No names have been translated using this Translator.")
         return dict(self._translated_names) if with_source else list(self._translated_names)
 
+    @overload
+    def extract_names(
+        self,
+        translatable: Translatable[NameType, IdType],
+        *,
+        ignore_names: Names[NameType] | None = None,
+        io_kwargs: Mapping[str, Any] | None = None,
+        raising: Literal[False] = False,
+    ) -> list[NameType] | None: ...
+
+    @overload
+    def extract_names(
+        self,
+        translatable: Translatable[NameType, IdType],
+        *,
+        ignore_names: Names[NameType] | None = None,
+        io_kwargs: Mapping[str, Any] | None = None,
+        raising: Literal[True],
+    ) -> list[NameType]: ...
+
+    def extract_names(
+        self,
+        translatable: Translatable[NameType, IdType],
+        *,
+        ignore_names: Names[NameType] | None = None,
+        io_kwargs: Mapping[str, Any] | None = None,
+        raising: bool = False,
+    ) -> list[NameType] | None:
+        """Extract names in `translatable`.
+
+        Perform name extraction. The `names` are the first input to the :meth:`~id_translation.Translator.map` method,
+        with the second being the :attr:`~id_translation.Translator.sources`. Does not call :meth:`initialize_sources`.
+
+        Args:
+            translatable: A data structure to map names for.
+            ignore_names: Names **not** to translate, or a predicate ``(NameType) -> bool``.
+            io_kwargs: Keyword arguments for the IO class (e.g. :class:`~id_translation.dio.integration.pandas.PandasIO`).
+            raising: If ``False`` (the default), return ``None`` instead of raising :class:`.MissingNamesError` when
+                name extraction fails.
+
+        Returns:
+            Names to map to sources.
+
+        Raises:
+            MissingNamesError: If `names` cannot be derived (only when ``raising=True``).
+        """
+        task = NamesTask(self, translatable, ignore_names=ignore_names, io_kwargs=io_kwargs)
+
+        if raising:
+            return task.mapper_input_names
+
+        try:
+            return task.mapper_input_names
+        except MissingNamesError:
+            return None
+
     def map(
         self,
         translatable: Translatable[NameType, IdType],
@@ -850,6 +907,9 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
         See Also:
             🔑 This is a key event method. See :ref:`key-events` for details.
+
+        See Also:
+            The :meth:`~id_translation.Translator.extract_names` method.
         """
         task_id = _logging.generate_task_id()
         self.initialize_sources(task_id)

@@ -124,6 +124,36 @@ def test_unmapped_explict_names_error(translator):
         translator.map(0, names="unknown")
 
 
+class TestExtractNames:
+    @pytest.mark.parametrize(
+        "ignore_names, expected",
+        [
+            (None, ["dict-key"]),
+            ([], ["dict-key"]),
+            (["some-string"], ["dict-key"]),
+        ],
+    )
+    def test_ok(self, translator, ignore_names, expected):
+        data = {"dict-key": 0}
+        actual = translator.extract_names(data, ignore_names=ignore_names)
+        assert actual == expected
+
+    def test_warning_returns_empty_list(self, translator):
+        data = {"dict-key": 0}
+        with pytest.warns(MappingWarning, match="No names left to translate.") as w:
+            actual = translator.extract_names(data, ignore_names=["dict-key"])
+        assert actual == []
+        assert len(w.list) == 1
+
+    def test_raising_true(self, translator):
+        with pytest.raises(MissingNamesError, match=r"Failed to derive names for 'int'-type data."):
+            translator.extract_names(1, raising=True)
+
+    def test_raising_false(self, translator):
+        actual = translator.extract_names(1, raising=False)
+        assert actual is None
+
+
 def _translate(translator):
     ans = translator.translate({"positive_numbers": [-1, 0, 1, 2], "negative_numbers": [-1, 0]})
     assert ans == {
@@ -256,14 +286,8 @@ def test_all_name_ignored(translator):
 def test_explicit_name_ignored(translator):
     with pytest.raises(ValueError) as e:
         translator.map(0, names=[], ignore_names="")
-    assert "Required names" in str(e)
-
-
-# def test_foo(translator):
-#
-#    assert len(w) == 1
-#    assert "No names left to translate" in str(w.list[0].message)
-#    assert "removed by ignore_names=" in str(w.list[0].message)
+    assert "Explicit names" in str(e)
+    assert "cannot be used with ignore_names=" in str(e)
 
 
 def test_complex_default(hex_fetcher):

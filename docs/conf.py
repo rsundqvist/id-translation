@@ -236,11 +236,14 @@ autodoc_default_options = {
 # -- Intersphinx configuration -------------------------------------------------
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3/", None),
-    "pandas": ("http://pandas.pydata.org/pandas-docs/stable/", None),
     "numpy": ("https://numpy.org/doc/stable/", None),
     "sqlalchemy": ("https://docs.sqlalchemy.org/en/20/", None),
     "rics": (rics_docs, None),
     "big_corporation_inc.id_translation": ("https://rsundqvist.github.io/id-translation-project/", None),
+    # Integrations
+    "pandas": ("http://pandas.pydata.org/pandas-docs/stable/", None),
+    "polars": ("https://docs.pola.rs/api/python/stable/", None),
+    "dask": ("https://docs.dask.org/en/latest/", None),
 }
 
 # -- Gallery configuration -----------------------------------------------------

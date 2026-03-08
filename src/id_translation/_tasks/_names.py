@@ -40,7 +40,7 @@ class NamesTask(BaseTask[NameType, SourceType, IdType]):
 
         if not (names is None or ignore_names is None):
             raise ValueError(
-                f"Required {names=} cannot be used with {ignore_names=}."
+                f"Explicit {names=} cannot be used with {ignore_names=}."
                 f"\nHint: Set names=None to use automatic name extraction with user-defined ignored names."
             )
 

@@ -49,6 +49,15 @@ class AbstractFetcherParams(_t.TypedDict, _t.Generic[_tt.SourceType, _tt.IdType]
     cache_access: _CacheAccess[_tt.SourceType, _tt.IdType] | None
 
 
+class ExtractNamesParams(_t.TypedDict, _t.Generic[_tt.NameType, _tt.SourceType, _tt.IdType], total=False):
+    """Arguments of :meth:`.Translator.extract_names`."""
+
+    translatable: _t.Required[_tt.Translatable[_tt.NameType, _tt.IdType]]
+    ignore_names: _tt.Names[_tt.NameType] | None
+    io_kwargs: _abc.Mapping[str, _t.Any] | None
+    raising: bool
+
+
 class MapParams(_t.TypedDict, _t.Generic[_tt.NameType, _tt.SourceType, _tt.IdType], total=False):
     """Arguments of :meth:`.Translator.map` and :meth:`.Translator.map_scores`."""
 
