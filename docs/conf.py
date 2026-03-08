@@ -244,6 +244,7 @@ intersphinx_mapping = {
     "pandas": ("http://pandas.pydata.org/pandas-docs/stable/", None),
     "polars": ("https://docs.pola.rs/api/python/stable/", None),
     "dask": ("https://docs.dask.org/en/latest/", None),
+    "ray": ("https://docs.ray.io/en/latest/", None),
 }
 
 # -- Gallery configuration -----------------------------------------------------

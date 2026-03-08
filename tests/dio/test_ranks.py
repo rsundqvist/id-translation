@@ -44,7 +44,7 @@ def annotations(monkeypatch: pytest.MonkeyPatch) -> Iterator[dict[AnyIoType, str
     per_cls: dict[AnyIoType, list[str]] = {}
 
     all_ios = _resolve._get_repository().all_ios
-    assert len(all_ios) == 8
+    assert len(all_ios) == 9
 
     for io_class in all_ios:
         anns = per_cls[io_class] = []

@@ -21,10 +21,15 @@ class DataStructureIO(Generic[TranslatableT, NameType, SourceType, IdType]):
     def register(cls) -> None:
         """Register this implementation for all :class:`.Translator` instances.
 
+        .. note::
+
+           Forces positive :attr:`priority` for the class.
+
         See :func:`.dio.register_io` for details.
         """
         from ._resolve import register_io  # noqa: PLC0415
 
+        cls.priority = abs(cls.priority)
         return register_io(cls)
 
     @classmethod
