@@ -80,6 +80,6 @@ class MemoryFetcher(AbstractFetcher[SourceType, IdType]):
             def __repr__(self) -> str:
                 return "<no sources>"
 
-        sources = self.sources if self.sources else NoSources()
+        sources = self.sources or NoSources()
         return_all = self.return_all
         return f"{type(self).__name__}({sources=}, {return_all=})"

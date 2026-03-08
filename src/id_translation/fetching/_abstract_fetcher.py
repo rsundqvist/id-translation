@@ -687,7 +687,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
             def __repr__(self) -> str:
                 return "<no sources>"
 
-        sources = self.sources if self.sources else NoSources()
+        sources = self.sources or NoSources()
         return f"{type(self).__name__}({sources=})"
 
     def _cls_name(self) -> str:

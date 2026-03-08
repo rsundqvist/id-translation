@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Methods `Translator.go_offline()` and `fetch()` no longer raise when no derived names are mapped when called with data.
 - Delay `load_integrations()` until first use.
+- Switch to `uv` (including build backend).
 
 ### Fixed
 - Fix multiple issues in `id_translation.translator_typing`.

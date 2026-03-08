@@ -1,58 +1,31 @@
 """Nox sessions."""
 
-import os
 import platform
-import tempfile
-from typing import Any
 
 import nox
 from nox.sessions import Session
 
+nox.options.default_venv_backend = "uv"
 nox.options.sessions = ["tests", "mypy"]
 python_versions = ["3.11", "3.12", "3.13", "3.14"]
 
 
-def install_with_constraints(session: Session, *args: str, **kwargs: Any) -> None:
-    """Install packages constrained by Poetry's lock file.
-
-    This function is a wrapper for nox.sessions.Session.install. It
-    invokes pip to install packages inside of the session's virtualenv.
-    Additionally, pip is passed a constraints file generated from
-    Poetry's lock file, to ensure that the packages are pinned to the
-    versions specified in poetry.lock. This allows you to manage the
-    packages as Poetry development dependencies.
-
-    Args:
-        session: The Session object.
-        args: Command-line arguments for pip.
-        kwargs: Additional keyword arguments for Session.install.
-    """
-    with tempfile.NamedTemporaryFile(delete=False) as requirements:
-        session.run(
-            "poetry",
-            "export",
-            "--without-hashes",
-            f"--output={requirements.name}",
-            external=True,
-        )
-        session.install("-r", requirements.name, *args, **kwargs)
-
-    sqlalchemy_version = os.environ.get("SQLALCHEMY_VERSION")
-    if sqlalchemy_version:
-        session.install(f"sqlalchemy{sqlalchemy_version}")
-
-
-def install_with_project_extras(session: Session) -> None:
-    """Install the project using poetry."""
-    session.run_always("poetry", "install", "--no-interaction", "--all-extras", external=True)
+def install(session: Session) -> None:
+    """Install the project using uv."""
+    session.run_install(
+        "uv",
+        "sync",
+        f"--python={session.virtualenv.location}",
+        env={"UV_PROJECT_ENVIRONMENT": session.virtualenv.location},
+    )
+    session.run_always("uv", "sync", "--active", "--all-extras", external=True)
     session.install(".")
 
 
 @nox.session(python=python_versions)
 def tests(session: Session) -> None:
     """Run the test suite."""
-    install_with_project_extras(session)
-    install_with_constraints(session, "invoke", "pytest", "xdoctest", "coverage", "pytest-cov")
+    install(session)
     try:
         session.run(
             "inv",
@@ -69,21 +42,20 @@ def tests(session: Session) -> None:
 @nox.session
 def coverage(session: Session) -> None:
     """Produce the coverage report."""
+    install(session)
     args = session.posargs if session.posargs and len(session._runner.manifest) == 1 else []
-    install_with_constraints(session, "invoke", "coverage")
     session.run("inv", "coverage", *args)
 
 
 @nox.session(python=python_versions)
 def mypy(session: Session) -> None:
     """Type-check using mypy."""
-    install_with_project_extras(session)
-    install_with_constraints(session, "invoke", "mypy")
+    install(session)
     session.run("inv", "mypy")
 
 
 @nox.session(python="3.11")
 def safety(session: Session) -> None:
     """Scan dependencies for insecure packages."""
-    install_with_constraints(session, "invoke", "safety")
+    install(session)
     session.run("inv", "safety")

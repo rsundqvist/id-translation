@@ -14,11 +14,11 @@ which demonstrates the (desired) usage.
 ## Getting started
 Follow these steps to begin local development.
 
-1. **Installing [Poetry](https://python-poetry.org/docs/)**
+1. **Installing [uv](https://docs.astral.sh/uv/getting-started/installation/)**
    
-   See [poetry.lock](https://github.com/rsundqvist/id-translation/blob/master/poetry.lock) for the version used.
+   See [uv.lock](https://github.com/rsundqvist/rics/blob/master/uv.lock) for the version used.
    ```bash
-   curl -sSL https://install.python-poetry.org/ | python -
+   curl -LsSf https://astral.sh/uv/install.sh | sh
    ```
 
 2. **Installing the project**
@@ -28,7 +28,7 @@ Follow these steps to begin local development.
    ```bash
    git clone git@github.com:rsundqvist/id-translation.git
    cd id-translation
-   poetry install --all-extras
+   uv sync
    ```
    
    Generating documentation has a few dependencies which may need to be installed
@@ -39,11 +39,6 @@ Follow these steps to begin local development.
    ```
    
 3. **Verify installation (optional)**
-   
-   Start the [test databases](https://hub.docker.com/r/rsundqvist/sakila-preload).
-   ```bash
-   ./run-docker-dvdrental.sh
-   ```
 
    Run all invocations.
    ```bash
@@ -57,10 +52,7 @@ Relying on GitHub actions for new CI/CD features is quite slow. An alternative i
 docs). For example, running
 
 ```shell
-act -j tests --matrix python-version:3.12
+act -j tests
 ```
 
-will execute the [tests](https://github.com/rsundqvist/id-translation/blob/master/.github/workflows/tests.yml) workflow.
-
-## Branching point
-Branched from [rics@v1.0.0](https://github.com/rsundqvist/rics/tree/v1.0.0).
+will execute the [tests](https://github.com/rsundqvist/rics/blob/master/.github/workflows/tests.yml) workflow.

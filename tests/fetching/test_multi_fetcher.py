@@ -130,7 +130,7 @@ def test_fetch_all(multi_fetcher, expected, caplog):
         *combinations(ALL_SOURCES, 3),
         *combinations(ALL_SOURCES, 4),
     ],
-    ids=lambda s: " + ".join(s),
+    ids=" + ".join,
 )
 def test_fetch_all_with_explicit_sources(multi_fetcher, expected, sources):
     sources = set(sources)
