@@ -62,6 +62,7 @@ manual-extras = [
     "polars~=1.38.1",
     "dask[dataframe]~=2026.1.2",
     "pyarrow ~= 23.0.1",
+    "ray ~= 2.55.1",
 ]
 docs = [
     "sphinx~=9.1.0 ; python_version >= '3.12'",
@@ -178,6 +179,7 @@ allowed-confusables = ["ℹ"]  # ℹ️INFO in docstrings
 "tests/offline/test_placeholder_translations.py" = ["PTH123"]
 "tests/mapping/*" = ["ARG003", "ARG004", "ARG005"]
 "tests/test_optional_dependencies.py" = ["ARG002"]
+"tests/dio/integration/test_ray.py" = ["E402"]
 
 # D102 Missing docstring in public method - Docstrings are inherited, but linters
 # can't realiably know this unless they import the code.
