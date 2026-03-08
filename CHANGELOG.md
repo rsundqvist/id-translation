@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Methods `Translator.go_offline()` and `fetch()` no longer raise when no derived names are mapped when called with data.
 - Delay `load_integrations()` until first use.
+- Explicit `DataStructureIO.register()` now forces non-negative priority (no change to entrypoint integrations).
 - Switch to `uv` (including build backend).
 
 ### Fixed

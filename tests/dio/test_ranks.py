@@ -6,7 +6,8 @@ import pandas as pd
 import pytest
 from rics.misc import tname
 
-from id_translation.dio import _repository, get_resolution_order
+from id_translation.dio import _repository, _resolve, get_resolution_order
+from id_translation.dio._repository import AnyIoType
 
 
 @pytest.mark.skipif(sys.platform != "linux", reason="linux only")
@@ -39,10 +40,10 @@ def test_ranks(annotations):
 
 
 @pytest.fixture
-def annotations(monkeypatch: pytest.MonkeyPatch) -> Iterator[dict[_repository.AnyIoType, str]]:
-    per_cls: dict[_repository.AnyIoType, list[str]] = {}
+def annotations(monkeypatch: pytest.MonkeyPatch) -> Iterator[dict[AnyIoType, str]]:
+    per_cls: dict[AnyIoType, list[str]] = {}
 
-    all_ios = _repository.get_repository().all_ios
+    all_ios = _resolve._get_repository().all_ios
     assert len(all_ios) == 7
 
     for io_class in all_ios:
@@ -56,6 +57,6 @@ def annotations(monkeypatch: pytest.MonkeyPatch) -> Iterator[dict[_repository.An
         monkeypatch.setattr(io_class, "priority", abs(io_class.priority))
 
     tmp_repo = _repository.Repository(ios=all_ios, load_integrations=False, load_defaults=False)
-    monkeypatch.setattr(_repository, "_INSTANCE", tmp_repo)
+    monkeypatch.setattr(_resolve, "_INSTANCE", tmp_repo)
 
     yield {k: " ".join(v) for k, v in per_cls.items()}

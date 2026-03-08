@@ -2,7 +2,6 @@ import logging
 from collections.abc import Iterable, Mapping
 from importlib.metadata import entry_points
 from inspect import signature
-from threading import Lock
 from time import perf_counter
 from typing import Any
 
@@ -25,19 +24,6 @@ Background:
 """
 
 _LOGGER = logging.getLogger(__package__)
-
-_INSTANCE_LOCK = Lock()
-_INSTANCE: "Repository | None" = None
-
-
-def get_repository(*, reset: bool = False) -> "Repository":
-    global _INSTANCE  # noqa: PLW0603
-
-    with _INSTANCE_LOCK:
-        if reset or _INSTANCE is None:
-            _INSTANCE = Repository()
-
-    return _INSTANCE
 
 
 class Repository:

@@ -3,13 +3,23 @@ from typing import Any, assert_type
 import pytest
 
 from id_translation import Translator
-from id_translation.dio import ENTRYPOINT_GROUP, DataStructureIO, _repository, is_registered, pretty_io_name, resolve_io
+from id_translation.dio import (
+    ENTRYPOINT_GROUP,
+    DataStructureIO,
+    _repository,
+    _resolve,
+    is_registered,
+    pretty_io_name,
+    register_io,
+    resolve_io,
+)
 from id_translation.dio.exceptions import UntranslatableTypeError
 
 
 def test_entrypoint_groups():
     assert ENTRYPOINT_GROUP == "id_translation.dio"
     assert _repository.ENTRYPOINT_GROUP == ENTRYPOINT_GROUP
+    assert _resolve.ENTRYPOINT_GROUP == ENTRYPOINT_GROUP  # type: ignore[attr-defined]
 
 
 def test_register_io():
@@ -33,7 +43,7 @@ class TestNegativePriority:
         assert DummyIO.is_registered() is False
 
         monkeypatch.setattr(DummyIO, "priority", -1)
-        DummyIO.register()
+        register_io(DummyIO)  # Class method forces positive priority
         assert DummyIO.is_registered() is False
 
         assert caplog.messages[-1] == f"Registered '{pretty_io_name(DummyIO)}' with priority={DummyIO.priority} < 0."
@@ -55,7 +65,7 @@ class TestNegativePriority:
 
 @pytest.fixture(autouse=True)
 def register_tmp_io(monkeypatch):
-    monkeypatch.setattr(_repository, "_INSTANCE", None)
+    monkeypatch.setattr(_resolve, "_INSTANCE", None)
 
 
 class Data:
