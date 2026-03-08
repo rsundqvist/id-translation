@@ -65,12 +65,13 @@ generated project might look like, or continue to the next section for a brief f
 ## Supported types
 - Supported ID types: `int`, `string`, and `UUID`. Optional heuristics for UUID-like strings.
 - Supports translation of built-in collections: `list`, `dict`, `set`, `tuple`.
-- Supports translation of [pandas types][pandas-translation], including `pandas.MultiIndex` types.
-- Optional and [user-extensible] integration of data types, such as [polars] and [dask].
+- Supports translation of [pandas types][pandas], including `pandas.MultiIndex` types.
+- Optional and [user-extensible] integration of data types, such as [polars], [pyarrow], and [dask].
 
-[pandas-translation]: https://id-translation.readthedocs.io/en/stable/documentation/examples/notebooks/cookbook/pandas-index.html
+[pandas]: https://id-translation.readthedocs.io/en/stable/documentation/examples/notebooks/cookbook/pandas-index.html
 [user-extensible]: https://id-translation.readthedocs.io/en/stable/documentation/translation-io.html#user-defined-integrations
 [polars]: https://id-translation.readthedocs.io/en/stable/api/id_translation.dio.integration.polars.html
+[pyarrow]: https://id-translation.readthedocs.io/en/stable/api/id_translation.dio.integration.pyarrow.html
 [dask]: https://id-translation.readthedocs.io/en/stable/api/id_translation.dio.integration.dask.html
 
 # Installation

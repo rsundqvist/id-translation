@@ -53,12 +53,15 @@ Changelog = "https://github.com/rsundqvist/id-translation/blob/master/CHANGELOG.
 pandas_io = "id_translation.dio.integration.pandas:PandasIO"
 dask_io = "id_translation.dio.integration.dask:DaskIO"
 polars_io = "id_translation.dio.integration.polars:PolarsIO"
+arrow_io = "id_translation.dio.integration.pyarrow:ArrowIO"
+ray_io = "id_translation.dio.integration.ray:RayIO"
 
 [dependency-groups]
 manual-extras = [
     # Extras that must be available for docs + tests go here. Doc/test-only deps go in their respective groups.
     "polars~=1.38.1",
     "dask[dataframe]~=2026.1.2",
+    "pyarrow ~= 23.0.1",
 ]
 docs = [
     "sphinx~=9.1.0 ; python_version >= '3.12'",
