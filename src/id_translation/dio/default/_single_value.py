@@ -8,6 +8,8 @@ from id_translation.types import IdType, NameType, SourceType
 from .._data_structure_io import DataStructureIO
 from ..exceptions import NotInplaceTranslatableError
 
+# TODO(2.0.0): Rename to ScalarIO
+
 
 class SingleValueIO(DataStructureIO[IdType, NameType, SourceType, IdType]):
     """IO implementation for ``int``, ``str`` and ``UUID`` types."""

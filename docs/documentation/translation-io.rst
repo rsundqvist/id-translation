@@ -57,3 +57,8 @@ Bundled implementations have priorities in the `1000 - 1999` range (inclusive); 
    :header-rows: 1
 
 New implementations default to ``priority=10_000``, and are therefore considered first.
+
+.. rubric:: Footnotes
+
+.. [#automatic] Registered automatically if dependencies are installed.
+.. [#explicit] Requires explicit :meth:`~DataStructureIO.register` call.

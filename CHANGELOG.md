@@ -9,10 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Raise new `UnmappedExplicitNamesError` (before: generic `MappingError`) for unmapped user-provided names.
+- Add `dio.pretty_io_name()` function.
 
 ### Changed
 - Methods `Translator.go_offline()` and `fetch()` no longer raise when no derived names are mapped when called with data.
-- Delay `load_integrations()` until `id_translation` is fully initialized (to prevent circular imports).
+- Delay `load_integrations()` until first use.
 
 ### Fixed
 - Fix multiple issues in `id_translation.translator_typing`.

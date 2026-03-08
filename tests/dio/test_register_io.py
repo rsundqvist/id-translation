@@ -3,8 +3,13 @@ from typing import Any, assert_type
 import pytest
 
 from id_translation import Translator
-from id_translation.dio import DataStructureIO, _resolve, is_registered, resolve_io
+from id_translation.dio import ENTRYPOINT_GROUP, DataStructureIO, _repository, is_registered, pretty_io_name, resolve_io
 from id_translation.dio.exceptions import UntranslatableTypeError
+
+
+def test_entrypoint_groups():
+    assert ENTRYPOINT_GROUP == "id_translation.dio"
+    assert _repository.ENTRYPOINT_GROUP == ENTRYPOINT_GROUP
 
 
 def test_register_io():
@@ -31,8 +36,7 @@ class TestNegativePriority:
         DummyIO.register()
         assert DummyIO.is_registered() is False
 
-        name = _resolve._pretty_io_name(DummyIO)
-        assert caplog.messages[-1] == f"Refusing to register '{name}' since priority=-1 < 0."
+        assert caplog.messages[-1] == f"Registered '{pretty_io_name(DummyIO)}' with priority={DummyIO.priority} < 0."
 
     def test_update_priority_after_registration(self, monkeypatch):
         DummyIO.register()
@@ -44,14 +48,14 @@ class TestNegativePriority:
             resolve_io(Data())
 
         note = exc_info.value.__notes__[-1]
-        assert "priority < 0" in note
+        assert "(priority=-1 < 0)" in note
         assert "disabled" in note
-        assert _resolve._pretty_io_name(DummyIO) in note
+        assert pretty_io_name(DummyIO) in note
 
 
 @pytest.fixture(autouse=True)
 def register_tmp_io(monkeypatch):
-    monkeypatch.setattr(_resolve, "_RESOLUTION_ORDER", [*_resolve._RESOLUTION_ORDER])
+    monkeypatch.setattr(_repository, "_INSTANCE", None)
 
 
 class Data:

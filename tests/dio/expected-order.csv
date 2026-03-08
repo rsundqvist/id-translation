@@ -1,7 +1,7 @@
 Rank,Weight,Class,Comment
-1,1999,:class:`~id_translation.dio.integration.pandas.PandasIO`,Optional IO implementation for ``pandas`` types.
-2,1990,:class:`~id_translation.dio.integration.polars.PolarsIO`,Optional IO implementation for ``polars`` types.
-3,1980,:class:`~id_translation.dio.integration.dask.DaskIO`,Optional IO implementation for ``dask`` types.
+1,1999,:class:`~id_translation.dio.integration.pandas.PandasIO` [#automatic]_,Optional IO implementation for ``pandas`` types.
+2,1990,:class:`~id_translation.dio.integration.polars.PolarsIO` [#automatic]_,Optional IO implementation for ``polars`` types.
+3,1980,:class:`~id_translation.dio.integration.dask.DaskIO` [#automatic]_,Optional IO implementation for ``dask`` types.
 4,1500,:class:`~id_translation.dio.default.SingleValueIO`,"IO implementation for ``int``, ``str`` and ``UUID`` types."
 5,1100,:class:`~id_translation.dio.default.SequenceIO`,"IO implementation for ``list``, ``tuple`` and  ``numpy.array`` types."
 6,1010,:class:`~id_translation.dio.default.SetIO`,IO implementation for ``set`` types.

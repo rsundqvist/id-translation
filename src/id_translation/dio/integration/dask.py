@@ -47,7 +47,7 @@ class DaskIO(_DataStructureIO[DaskT, str, _tt.SourceType, _tt.IdType]):
             as_category=as_category,
         )
 
-    priority = 1980
+    priority = 1980  # TODO(2.0.0): Require explicit register()
 
     @property
     def partition_io(self) -> PartitionIO[_t.Any, _tt.SourceType, _tt.IdType]:
