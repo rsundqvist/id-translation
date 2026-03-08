@@ -62,6 +62,9 @@ manual-extras = [
     "polars~=1.38.1",
     "dask[dataframe]~=2026.1.2",
     "pyarrow ~= 23.0.1",
+    # https://github.com/ray-project/ray/issues/56434 - Support Python 3.14
+    # ray = { version = "~2.55.0", extras = ["data", "default"] } # can't install on python==3.14 + breaks on pandas3
+    "ray == 3.0.0.dev0; python_version >= '3.13' and python_version < '3.15' and sys_platform == 'linux'",
 ]
 docs = [
     "sphinx~=9.1.0 ; python_version >= '3.12'",
@@ -98,6 +101,14 @@ devops = [
     "codespell~=2.4.1",
     "bump2version==1.0.1",
 ]
+
+# TODO(ray) remove
+[[tool.uv.sources.ray]]
+url = "https://s3-us-west-2.amazonaws.com/ray-wheels/master/6f1ceb3105cbf11dbc593308f4165ddce7cad0c1/ray-3.0.0.dev0-cp314-cp314-manylinux2014_x86_64.whl"
+marker = "python_full_version >= '3.14' and python_full_version < '3.15' and sys_platform == 'linux'"
+[[tool.uv.sources.ray]]
+url = "https://s3-us-west-2.amazonaws.com/ray-wheels/master/6f1ceb3105cbf11dbc593308f4165ddce7cad0c1/ray-3.0.0.dev0-cp313-cp313-manylinux2014_x86_64.whl"
+marker = "python_full_version >= '3.13' and python_full_version < '3.14' and sys_platform == 'linux'"
 
 [tool.uv]
 default-groups = [
