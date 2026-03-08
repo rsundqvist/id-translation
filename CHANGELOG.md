@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-03-08
+
 ### Added
 - Raise new `UnmappedExplicitNamesError` (before: generic `MappingError`) for unmapped user-provided names.
 - Add `dio.pretty_io_name()` function.
@@ -557,7 +559,8 @@ cookiecutter template.
 - Switch to relative imports.
 - Fix some intersphinx issues.
 
-[Unreleased]: https://github.com/rsundqvist/id-translation/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/rsundqvist/id-translation/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/rsundqvist/id-translation/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/rsundqvist/id-translation/compare/v1.0.4...v1.1.0
 [1.0.4]: https://github.com/rsundqvist/id-translation/compare/v1.0.3...v1.0.4
 [1.0.3]: https://github.com/rsundqvist/id-translation/compare/v1.0.2...v1.0.3
