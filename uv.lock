@@ -1071,7 +1071,7 @@ wheels = [
 
 [[package]]
 name = "id-translation"
-version = "1.2.0"
+version = "1.2.0.dev1"
 source = { editable = "." }
 dependencies = [
     { name = "rics" },
