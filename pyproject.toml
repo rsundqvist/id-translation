@@ -60,7 +60,7 @@ ray_io = "id_translation.dio.integration.ray:RayIO"
 manual-extras = [
     # Extras that must be available for docs + tests go here. Doc/test-only deps go in their respective groups.
     "polars~=1.38.1",
-    "dask[dataframe]~=2026.1.2",
+    "dask[dataframe]>=2026.1.2,<2026.4.0",
     "pyarrow ~= 23.0.1",
 ]
 docs = [
