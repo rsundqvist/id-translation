@@ -22,10 +22,10 @@ jobs:
         run: uv build
 
       - name: Publish package on PyPI
-        uses: pypa/gh-action-pypi-publish@v1.13.0
+        uses: pypa/gh-action-pypi-publish@v1.14.0
 
       - name: Publish package on TestPyPI
-        uses: pypa/gh-action-pypi-publish@v1.13.0
+        uses: pypa/gh-action-pypi-publish@v1.14.0
         with:
           repository-url: https://test.pypi.org/legacy/
           attestations: false  # TODO: Might not need this?
