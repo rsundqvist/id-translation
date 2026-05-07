@@ -41,6 +41,8 @@ FetcherTypes: _t.TypeAlias = (
 class AbstractFetcherParams(_t.TypedDict, _t.Generic[_tt.SourceType, _tt.IdType], total=False):
     """Keyword arguments for the :class:`.AbstractFetcher` base class."""
 
+    # TODO(2.0.0): move to fetching.typing submodule? Or _abstract_fetcher.py + expose in __init__.py?
+
     mapper: _Mapper[str, str, _tt.SourceType] | None
     allow_fetch_all: bool
     selective_fetch_all: bool

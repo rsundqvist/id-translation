@@ -113,7 +113,7 @@ class Format:
         """Apply the format.
 
         Args:
-            **placeholders: Formats to use in the finals string.
+            **placeholders: Values to use for formatting.
 
         Returns:
             Formatting using `placeholders`.

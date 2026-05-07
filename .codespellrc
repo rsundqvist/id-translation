@@ -1,5 +1,5 @@
 [codespell]
-ignore-words-list = ans,socio-economic
+ignore-words-list = ans,VIE
 
 summary = true
 skip = *.json,*.ipynb,*.inv

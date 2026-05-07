@@ -18,7 +18,7 @@ from .offline.types import (
 from .types import ID, IdType, SourceType
 
 
-class TestMapper(_Mapper[ValueType, ValueType, ContextType]):
+class TestMapper(_Mapper[ValueType, ValueType, ContextType]):  # TODO(2.0.0): Bad type args?
     """Dummy ``Mapper`` implementation."""
 
     def apply(

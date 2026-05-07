@@ -151,5 +151,6 @@ dmypy.json
 
 # PyCharm
 .idea/*
+.junie/
 
 !.idea/runConfigurations
