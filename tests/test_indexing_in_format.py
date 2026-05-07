@@ -1,7 +1,4 @@
-"""Test indexing in Format.
-
-TODO(2.0.0): https://github.com/rsundqvist/id-translation/issues/413
-"""
+"""Test indexing in Format."""
 
 import pytest
 
@@ -11,27 +8,27 @@ from id_translation import Translator
 @pytest.mark.parametrize(
     "fmt, expected",
     [
-        ("{obj}", "Obj()"),
+        ("{obj}", "Dummy()"),
         ("{obj.int}", "123"),
         ("{obj.float}", "3.21"),
         ("{obj.bool}", "True"),
         ("{obj.str}", "string"),
+        ("{obj.Dummy}", "Dummy()"),
     ],
 )
 def test_basic(fmt, expected, translator):
     _run(expected, fmt, translator)
 
 
-@pytest.mark.xfail(strict=True)
 class TestDirectIndex:
     @pytest.mark.parametrize(
         "fmt, expected",
         [
-            # TestIndex
             ("{obj[int]}", "123"),
             ("{obj[float]}", "3.21"),
             ("{obj[bool]}", "True"),
             ("{obj[str]}", "string"),
+            ("{obj[Dummy]}", "Dummy()"),
         ],
     )
     def test_str(self, fmt, expected, translator):
@@ -44,13 +41,13 @@ class TestDirectIndex:
             ("{obj[1]}", "3.21"),
             ("{obj[2]}", "True"),
             ("{obj[3]}", "string"),
+            ("{obj[4]}", "Dummy()"),
         ],
     )
     def test_int(self, fmt, expected, translator):
         _run(expected, fmt, translator)
 
 
-@pytest.mark.xfail(strict=True)
 class TestAttributeIndex:
     @pytest.mark.parametrize(
         "fmt, expected",
@@ -78,7 +75,7 @@ class TestAttributeIndex:
 
 
 def _run(expected, fmt, translator):
-    actual = fmt.format(obj=Obj())
+    actual = fmt.format(obj=Dummy())
     assert actual == expected, "built-in string failed"
 
     actual = translator.translate(0, names="source")
@@ -87,14 +84,15 @@ def _run(expected, fmt, translator):
 
 @pytest.fixture
 def translator(fmt):
-    data = {"source": {"id": [0], "obj": [Obj()]}}
+    data = {"source": {"id": [0], "obj": [Dummy()]}}
     return Translator(data, fmt=fmt)
 
 
-class Obj:
+class Dummy:
     def __init__(self):
-        self.sequence = [123, 3.21, True, "string"]
+        self.sequence = [123, 3.21, True, "string", self]
         self.mapping = {type(v).__name__: v for v in self.sequence}
+        self.this = self
 
     def __getattr__(self, name):
         return self.mapping[name]

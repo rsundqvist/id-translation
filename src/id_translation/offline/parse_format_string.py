@@ -180,9 +180,23 @@ class Element:
                 raise ValueError(msg)
 
             if field_name:
-                placeholder, _, attribute = field_name.partition(".")
+                # Determine root placeholder and the attribute-formatting suffix.
+                dot_idx = field_name.find(".")
+                br_idx = field_name.find("[")
+                if dot_idx != -1 and (br_idx == -1 or dot_idx < br_idx):
+                    # dot comes before any bracket -> 'obj.attr...'
+                    placeholder = field_name[:dot_idx]
+                    attribute_fmt = field_name[dot_idx + 1 :]
+                elif br_idx != -1:
+                    # bracket comes first -> 'obj[index]...'
+                    placeholder = field_name[:br_idx]
+                    attribute_fmt = field_name[br_idx:]
+                else:
+                    placeholder = field_name
+                    attribute_fmt = ""
+
                 formatting_parts = _get_formatting_parts(
-                    attribute=attribute, conversion=conversion, format_spec=format_spec
+                    attribute=attribute_fmt, conversion=conversion, format_spec=format_spec
                 )
 
                 if placeholder in defaults:
@@ -224,8 +238,15 @@ def _get_formatting_parts(
     format_spec: str | None,
 ) -> _abc.Iterable[str]:
     if attribute:
-        yield "."
-        yield attribute
+        # If the attribute starts with '[' it already contains indexing and possibly
+        # further chained attribute access (e.g. '[4].bool'). Yield it as-is.
+        if attribute.startswith("["):
+            yield attribute
+        else:
+            # Otherwise, render as attribute access; keep any embedded indexing intact
+            # (e.g. 'mapping[int].child' becomes '.mapping[int].child').
+            yield "."
+            yield attribute
     if conversion is not None:
         yield "!"
         yield conversion
@@ -256,10 +277,21 @@ def get_elements(fmt: str) -> list[Element]:  # noqa: PLR0912
     open_idx = 0 if in_optional_block else -1
     prev_idx = int(in_optional_block)
 
+    in_field = False
     for idx in range(int(in_optional_block), len(fmt)):
         char = fmt[idx]
         next_char = fmt[idx + 1] if idx + 1 < len(fmt) else None
-        is_delimiter_char = char in (_START, _END)
+        prev_char = fmt[idx - 1] if idx - 1 >= 0 else None
+
+        # Track whether we are inside a format field because '[' and ']' inside
+        # a field (e.g. '{obj[0]}') must not be treated as optional-block delimiters.
+        if char == "{" and next_char != "{":
+            in_field = True
+        elif char == "}" and prev_char != "}":
+            in_field = False
+
+        is_delimiter_char = (char in (_START, _END)) and not in_field
+
         if next_char == char and is_delimiter_char:
             same_count += 1
         else:

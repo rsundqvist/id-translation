@@ -8,7 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
-- Fix multiple crashes related to placeholder attributes and aliasing
+- Fix multiple crashes related to placeholder attributes and aliasing.
+- Fix indexing in formats, e.g. `Format("{my_list[0]}")` or `Format("{obj.my_dict[key]}}")`.
 
 ## [1.2.0] - 2026-03-08
 

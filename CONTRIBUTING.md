@@ -64,4 +64,4 @@ mysql+pymysql://root:Sofia123!@localhost:5001/sakila
 postgresql+pg8000://postgres:Sofia123!@localhost:5002/sakila
 mssql+pymssql://sa:Sofia123!@localhost:5003/sakila
 ```
-Run [run-docker-dvdrental.sh](run-docker-dvdrental.sh) to launch local test databases.
+Run `run-docker-dvdrental.sh` to launch local test databases.
