@@ -158,12 +158,19 @@ class TranslationMap(
         fmt = Format.parse(fmt)
         default_fmt = self._default_fmt if default_fmt is None else Format.parse(default_fmt)
         source = self.name_to_source.get(name_or_source, name_or_source)  # type: ignore
-        translations: MagicDict[IdType] = self._format_appliers[source](
-            fmt,
-            default_fmt=default_fmt,
-            default_fmt_placeholders=self.default_fmt_placeholders.get(source),
-            enable_uuid_heuristics=self.enable_uuid_heuristics,
-        )
+        applier = self._format_appliers[source]
+
+        try:
+            translations: MagicDict[IdType] = applier.apply(
+                fmt,
+                default_fmt=default_fmt,
+                default_fmt_placeholders=self.default_fmt_placeholders.get(source),
+                enable_uuid_heuristics=self.enable_uuid_heuristics,
+            )
+        except Exception as e:
+            e.add_note(f"{name_or_source=}")
+            e.add_note(f"{source=}")
+            raise
 
         return (
             MagicDict(

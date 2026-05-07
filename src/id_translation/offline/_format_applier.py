@@ -98,9 +98,10 @@ class FormatApplier(Generic[NameType, SourceType, IdType]):
         assert isinstance(default_fmt, Format), f"invalid {default_fmt=}"  # noqa: S101
 
         if placeholders is None:
-            # Use as many placeholders as possible.
-            predicate = {*self._placeholder_names, *self._translations.placeholder_aliases}.__contains__
-            placeholders = tuple(filter(predicate, fmt.placeholders))
+            # Use as many placeholders as possible, including aliases.
+            tmp = {*self._placeholders}
+            tmp.update(actual for actual, wanted in self._translations.placeholder_aliases.items() if wanted in tmp)
+            placeholders = tuple(filter(tmp.__contains__, fmt.placeholders))
 
         fstring = fmt.fstring(placeholders, positional=True)
         real_translations = self._apply(fstring, placeholders)
@@ -152,15 +153,15 @@ class FormatApplier(Generic[NameType, SourceType, IdType]):
         """
         id_pos, records = self._translations.id_pos, self._translations.records
 
-        if self._placeholder_names == placeholders:
+        if self._placeholders == placeholders:
             return {record[id_pos]: fstring.format(*record) for record in records}
         else:
             placeholders = tuple(self._translations.placeholder_aliases.get(p, p) for p in placeholders)
-            pos = tuple(map(self._placeholder_names.index, placeholders))
+            pos = tuple(map(self._placeholders.index, placeholders))
             return {record[id_pos]: fstring.format(*(record[i] for i in pos)) for record in records}
 
     @property
-    def _placeholder_names(self) -> PlaceholdersTuple:
+    def _placeholders(self) -> PlaceholdersTuple:
         return self._translations.placeholders
 
     @property
@@ -171,7 +172,7 @@ class FormatApplier(Generic[NameType, SourceType, IdType]):
     @property
     def placeholders(self) -> list[str]:
         """List of placeholder names; see :attr:`.PlaceholderTranslations.placeholders`."""
-        return list(self._translations.placeholders)
+        return list(self._placeholders)
 
     @property
     def transformer(self) -> Transformer[IdType] | None:
@@ -182,6 +183,6 @@ class FormatApplier(Generic[NameType, SourceType, IdType]):
         return len(self._translations.records)
 
     def __repr__(self) -> str:
-        placeholders = self._placeholder_names
+        placeholders = self._placeholders
         source = self.source
         return f"{self.__class__.__name__}({len(self)} IDs, {placeholders=}, {source=})"
