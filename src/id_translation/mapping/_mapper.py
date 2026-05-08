@@ -11,6 +11,7 @@ from rics.strings import format_perf_counter as fmt_perf
 from rics.types import LiteralHelper
 
 from .. import logging as _logging
+from .._utils.emit_warning import emit_warning
 from . import filter_functions as ff
 from . import score_functions as sf
 from ._cardinality import Cardinality
@@ -39,6 +40,7 @@ from .types import (
 with warnings.catch_warnings():
     warnings.simplefilter("ignore", category=UserWarning)
     from .matrix import ScoreHelper, ScoreMatrix
+
 
 inf = float("inf")
 FilterFunctionArgItem = tuple[str | FilterFunction[ValueType, CandidateType, ContextType], dict[str, Any]]
@@ -187,7 +189,7 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
                 "\nHint: Set on_unmapped='ignore' to hide this warning, or "
                 f"on_unmapped='raise' to raise an {UnmappedValuesError.__name__}."
             )
-            warnings.warn(msg, UnmappedValuesWarning, stacklevel=3)
+            emit_warning(msg, UnmappedValuesWarning)
         elif _logging.ENABLE_VERBOSE_LOGGING:
             logger.debug(msg, extra={"task_id": task_id})
 
@@ -423,7 +425,7 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
                 logger.warning(msg, extra={"task_id": task_id})
 
                 msg += f"\n{note}"
-                warnings.warn(msg, UserMappingWarning, stacklevel=2)
+                emit_warning(msg, UserMappingWarning)
 
                 continue
 

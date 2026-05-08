@@ -1,10 +1,10 @@
 import logging
-import warnings
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, Generic
 
 from rics.collections.misc import as_list
 
+from .._utils.emit_warning import emit_warning
 from ..mapping.exceptions import MappingWarning
 
 if TYPE_CHECKING:
@@ -111,11 +111,10 @@ class NamesTask(BaseTask[NameType, SourceType, IdType]):
             names = [name for name in names if not predicate(name)]
 
             if not names:
-                warnings.warn(
+                emit_warning(
                     f"No names left to translate. All derived names={self.extracted_names} in the {self.type_name}-type"
                     f" data where removed by ignore_names={ignore_names}.",
                     category=MappingWarning,
-                    stacklevel=3,
                 )
 
         return names

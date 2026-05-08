@@ -1,5 +1,4 @@
 import logging
-import warnings
 from abc import abstractmethod
 from collections.abc import Iterable, Sequence
 from contextlib import contextmanager
@@ -12,6 +11,7 @@ from rics.misc import tname
 from rics.strings import format_seconds as fmt_sec
 
 from .. import logging as _logging
+from .._utils.emit_warning import emit_warning
 from ..exceptions import ConnectionStatusError
 from ..mapping import HeuristicScore, Mapper
 from ..mapping.exceptions import MappingWarning
@@ -53,11 +53,10 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
     ) -> None:
         self._mapper: Mapper[str, str, SourceType] = mapper or Mapper(**self.default_mapper_kwargs())
         if self._mapper.on_unmapped == "raise":
-            warnings.warn(
+            emit_warning(
                 "Using on_unmapped='raise' will treat optional placeholders as "
                 "required placeholders during normal operation.",
                 category=MappingWarning,
-                stacklevel=2,
             )
 
         self._allow_fetch_all: bool = allow_fetch_all

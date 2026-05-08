@@ -143,7 +143,8 @@ class TestExtractNames:
         with pytest.warns(MappingWarning, match="No names left to translate.") as w:
             actual = translator.extract_names(data, ignore_names=["dict-key"])
         assert actual == []
-        assert len(w.list) == 1
+        assert len(w) == 1
+        assert w[0].filename == __file__
 
     def test_raising_true(self, translator):
         with pytest.raises(MissingNamesError, match=r"Failed to derive names for 'int'-type data."):
@@ -268,7 +269,9 @@ def test_go_fetch_without_mapped_names_returns_empty_translations():
 def test_mapping_nothing_to_translate(translator):
     with pytest.warns(MappingWarning) as w:
         translator.map({"strange-name": [1, 2, 3]})
+
     assert len(w) == 1
+    assert w[0].filename == __file__
     assert "aborted; none of the derived names" in str(w[0])
     assert "['strange-name']" in str(w[0])
 
@@ -278,6 +281,7 @@ def test_all_name_ignored(translator):
         translator.translate(pd.Series(name="name"), ignore_names="name")
     assert len(w) == 1
 
+    assert w[0].filename == __file__
     mapping_warning = str(w[0].message)
     assert "derived names=['name']" in mapping_warning
     assert "ignore_names=['name']" in mapping_warning

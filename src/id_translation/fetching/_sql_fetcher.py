@@ -1,5 +1,4 @@
 import logging
-import warnings
 from collections.abc import Collection, Iterable
 from copy import deepcopy
 from dataclasses import dataclass
@@ -15,6 +14,7 @@ from sqlalchemy import BINARY, CHAR, TypeDecorator
 
 from .. import _uuid_utils
 from .. import logging as _logging
+from .._utils.emit_warning import emit_warning
 from ..exceptions import ConnectionStatusError
 from ..offline.types import PlaceholderTranslations
 from ..translator_typing import AbstractFetcherParams
@@ -112,7 +112,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
             if len(self._whitelist) == 0:
                 msg = f"Got empty 'whitelist_tables' argument. No tables will be available to {self}."
                 self.logger.getChild("sql").warning(msg)
-                warnings.warn(msg, category=FetcherWarning, stacklevel=2)
+                emit_warning(msg, category=FetcherWarning)
 
     def _create_engine(
         self,
@@ -398,10 +398,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
             if "{password}" in connection_string:
                 connection_string = connection_string.format(password=quote_plus(password))
             else:
-                warnings.warn(
-                    "A password was specified, but the connection string does not have a {password} key.",
-                    stacklevel=3,
-                )
+                emit_warning("A password was specified, but the connection string does not have a {password} key.")
         return connection_string
 
     def _get_summaries(self, task_id: int) -> dict[str, TableSummary[IdType]]:

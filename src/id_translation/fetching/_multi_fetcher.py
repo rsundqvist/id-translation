@@ -1,5 +1,4 @@
 import logging
-import warnings
 from collections.abc import Iterable, Mapping
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from copy import deepcopy
@@ -12,6 +11,7 @@ from rics.misc import tname
 from rics.strings import format_seconds as fmt_sec
 from rics.types import LiteralHelper
 
+from .._utils.emit_warning import emit_warning
 from ..logging import generate_task_id, get_event_key
 from ..offline.types import SourcePlaceholderTranslations
 from ..types import IdType, SourceType
@@ -154,7 +154,7 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
             self._handle_all_sources_outranked(task_id, fetcher_id=fid, discarded=discarded)
 
         if not self._id_to_fetcher:
-            warnings.warn("No fetchers. See log output for more information.", UserWarning, stacklevel=1)
+            emit_warning("No fetchers. See log output for more information.")
 
         if LOGGER.isEnabledFor(logging.DEBUG):
             seconds = perf_counter() - start
@@ -470,7 +470,7 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         if on_source_conflict == "warn":
             LOGGER.warning(msg, extra=extra)
 
-            warnings.warn(msg, exceptions.DuplicateSourceWarning, stacklevel=3)
+            emit_warning(msg, exceptions.DuplicateSourceWarning)
             msg += "\n".join(hints)
         elif on_source_conflict == "ignore" and LOGGER.isEnabledFor(logging.DEBUG):
             LOGGER.debug(msg, extra=extra)

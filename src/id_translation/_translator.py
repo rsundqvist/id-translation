@@ -1,6 +1,5 @@
 import logging
 import pickle
-import warnings
 from collections.abc import Iterable, Mapping
 from copy import deepcopy
 from datetime import timedelta
@@ -25,6 +24,7 @@ from rics.strings import format_seconds as fmt_sec
 
 from . import logging as _logging
 from ._tasks import MappingTask, NamesTask, TranslationTask
+from ._utils.emit_warning import emit_warning
 from .exceptions import ConfigurationChangedError, ConnectionStatusError, MissingNamesError, TranslationDisabledWarning
 from .fetching import Fetcher
 from .fetching.types import IdsToFetch
@@ -156,18 +156,12 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         if fetcher is None:
             self._fetcher = TestFetcher([])  # No explicit sources
             if mapper:  # pragma: no cover
-                warnings.warn(
-                    f"Mapper instance {mapper} given; consider creating a TestFetcher([sources..])-instance manually.",
-                    UserWarning,
-                    stacklevel=2,
+                emit_warning(
+                    f"Mapper instance {mapper} given; consider creating a TestFetcher([sources..])-instance manually."
                 )
             else:
                 mapper = TestMapper()
-            warnings.warn(
-                "No fetcher given. Translation data will be automatically generated.",
-                UserWarning,
-                stacklevel=2,
-            )
+            emit_warning("No fetcher given. Translation data will be automatically generated.")
         elif isinstance(fetcher, Fetcher):
             self._fetcher = fetcher
         elif isinstance(fetcher, dict):
@@ -268,7 +262,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                         f"Failed to clone fetcher (TypeError: {e}). Caller instance will be reused."
                         f"\nHint: To suppress this warning: {cls.__name__}.copy(fetcher={cls.__name__}.fetcher)"
                     )
-                    warnings.warn(msg, category=UserWarning, stacklevel=2)
+                    emit_warning(msg, category=UserWarning)
                     kwargs["fetcher"] = self.fetcher
             else:
                 kwargs["fetcher"] = self.cache
@@ -283,7 +277,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                     f"Failed to clone transformers (TypeError: {e}). Caller instance will be reused."
                     f"\nHint: To suppress this warning: {cls.__name__}.copy(transformers={cls.__name__}.transformers)"
                 )
-                warnings.warn(msg, category=UserWarning, stacklevel=2)
+                emit_warning(msg, category=UserWarning)
                 kwargs["transformers"] = self.transformers
 
         return cls(**kwargs)
@@ -756,7 +750,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         if read_bool(ID_TRANSLATION_DISABLED):
             message = f"Translation aborted; {ID_TRANSLATION_DISABLED} is set."
             LOGGER.warning(message)
-            warnings.warn(message, category=TranslationDisabledWarning, stacklevel=2)
+            emit_warning(message, category=TranslationDisabledWarning)
             return translatable if copy else None  # Return unchanged; breaks typing.
 
         if self.online and reverse:  # pragma: no cover

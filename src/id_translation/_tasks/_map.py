@@ -1,5 +1,4 @@
 import logging
-import warnings
 from collections.abc import Mapping
 from time import perf_counter
 from typing import TYPE_CHECKING, Any
@@ -7,6 +6,7 @@ from typing import TYPE_CHECKING, Any
 from rics.strings import format_seconds as fmt_sec
 
 from .. import logging as _logging
+from .._utils.emit_warning import emit_warning
 from ..mapping.exceptions import MappingError, MappingWarning, UnmappedExplicitNamesError
 from ..mapping.matrix import ScoreMatrix
 from ..mapping.types import UserOverrideFunction
@@ -69,7 +69,7 @@ class MappingTask(NamesTask[NameType, SourceType, IdType]):
 
         if names_from_user is not None and not self.mapper_input_names:
             msg = f"Translation aborted; no names to translate in {type_name}{self._format_params()}."
-            warnings.warn(msg, MappingWarning, stacklevel=2)
+            emit_warning(msg, MappingWarning)
             LOGGER.warning(msg, extra={"task_id": self.task_id})
             return {}
 
@@ -119,7 +119,7 @@ class MappingTask(NamesTask[NameType, SourceType, IdType]):
                         f" in the {type_name}-type data could be mapped to available {sources=}"
                         f"{self._format_params()}."
                     )
-                    warnings.warn(msg, MappingWarning, stacklevel=2)
+                    emit_warning(msg, MappingWarning)
                     LOGGER.warning(msg, extra={"task_id": self.task_id})
                 return {}
 

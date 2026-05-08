@@ -1,5 +1,4 @@
 import logging
-import warnings
 from collections import defaultdict
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from time import perf_counter
@@ -10,6 +9,7 @@ from rics.misc import tname
 from rics.strings import format_seconds as fmt_sec
 
 from .. import _uuid_utils
+from .._utils.emit_warning import emit_warning
 from ..exceptions import TooManyFailedTranslationsError
 from ..mapping.types import UserOverrideFunction
 from ..offline import Format, TranslationMap
@@ -118,11 +118,10 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
 
         if num_coerced > 100:  # pragma: no cover  # noqa: PLR2004
             types = f"({', '.join(t.__name__ for t in get_args(IdTypes))})"
-            warnings.warn(
+            emit_warning(
                 f"To ensure proper fetcher operation, {num_coerced} float-type IDs have been coerced to int. "
                 f"Enforcing supported data types {types} for IDs in your {self.type_name}-data may improve performance."
                 f" Affected names ({len(float_names)}): {float_names}.",
-                stacklevel=3,
             )
 
         self._num_ids = {source: len(ids) for source, ids in source_to_ids.items()}
