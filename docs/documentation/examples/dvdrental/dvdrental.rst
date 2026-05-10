@@ -16,10 +16,6 @@ Using Docker, start the database by running:
 
 For details about this image, see https://hub.docker.com/r/rsundqvist/sakila-preload.
 
-.. literalinclude:: dvdrental.py
-   :start-at: # Credentials
-   :lines: 1-3
-
 Query
 -----
 .. literalinclude:: query.sql
@@ -82,8 +78,6 @@ Date columns should not be translated, so let's make sure.
        'staff_id': 'staff',
    }
 
-Result
-------
 All that's left now is to translate the data.
 
 .. literalinclude:: dvdrental.py

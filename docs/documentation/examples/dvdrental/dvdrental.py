@@ -10,13 +10,13 @@ This will launch a postgres instance with data already loaded. For more informat
     https://hub.docker.com/r/rsundqvist/sakila-preload.
     https://id-translation.readthedocs.io/en/stable/documentation/examples/dvdrental.html
 """
+
 import os
 import sys
 
 import pandas
 import rics
 import sqlalchemy
-
 from id_translation import Translator
 
 rics.configure_stuff()

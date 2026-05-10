@@ -137,7 +137,7 @@ to one source each.
      score_function = HeuristicScore("equality", heuristics=["like_database_table"])
 
 * Mapping `bitten_by → animals`. This is an impossible mapping without high-level understanding of the context. Using
-  and `override` is the best solution in this case.
+  an `override` is the best solution in this case.
 
   .. code-block:: python
 

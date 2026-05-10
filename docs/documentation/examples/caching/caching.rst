@@ -130,7 +130,7 @@ When going offline, the ``Translator`` will store translation data in-memory as 
 
 By definition, a translator that is offline does not have a fetcher attached. The effects of this can be seen above: The
 cache was updated, but it wasn't loaded again for the :meth:`~.Translator.translate` call. There is no way to reconnect
-an offline ``Translator``, so this instance will be limited to using it's :attr:`~.Translator.cache` until it is destroyed.
+an offline ``Translator``, so this instance will be limited to using its :attr:`~.Translator.cache` until it is destroyed.
 
 Of course, deleting the ``MyCacheAccess`` instance doesn't remove the files on disk.
 

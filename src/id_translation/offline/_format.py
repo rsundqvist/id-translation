@@ -8,7 +8,7 @@ from .types import PlaceholdersTuple
 
 
 class Format:
-    """Format specification for translations strings.
+    """Format specification for translation strings.
 
     Translation formats are similar to regular f-strings, with two important exceptions:
 
@@ -158,7 +158,7 @@ class Format:
         Returns:
             A partially formatted fstring.
         """
-        new_fmt, _placeholders = parse_format_string.Element.parse_block(self._fmt, defaults=defaults)
+        new_fmt = parse_format_string.Element.parse_block(self._fmt, defaults=defaults).parsed_block
         cls = type(self)
         return cls(new_fmt)
 
