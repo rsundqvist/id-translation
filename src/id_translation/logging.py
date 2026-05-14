@@ -23,6 +23,14 @@ See :doc:`/documentation/translation-logging` for details.
 if LOGGER.level == _l.NOTSET:
     LOGGER.setLevel(_l.DEBUG if ENABLE_VERBOSE_LOGGING else _l.WARNING)
 
+EMIT_LOGGED_WARNINGS: bool = True
+"""Set to ``False`` to disable warnings that are emitted as logs.
+
+Log messages whose level is set in configuration are often repeated as as specific warning type. For example, setting
+:attr:`on_unmapped='warn' <.Mapper.on_unmapped>` will emit both a :class:`~.UnmappedValuesWarning` and a logger message.
+When ``EMIT_LOGGED_WARNINGS=False``, the ``UnmappedValuesWarning`` is suppressed.
+"""
+
 
 def enable_verbose_debug_messages(
     level: _t.Literal["verbose", "debug", "info", "warning"] | int | str = "verbose",
@@ -68,6 +76,7 @@ def enable_verbose_debug_messages(
         Custom handlers emit to standard out.
     """
     global ENABLE_VERBOSE_LOGGING  # noqa: PLW0603
+    global EMIT_LOGGED_WARNINGS  # noqa: PLW0603
 
     verbose = False
     if isinstance(level, int):
@@ -81,9 +90,11 @@ def enable_verbose_debug_messages(
     verbose_before = ENABLE_VERBOSE_LOGGING
     level_before = LOGGER.level
     propagate_before = LOGGER.propagate
+    emit_logged_warnings_before = EMIT_LOGGED_WARNINGS
 
     LOGGER.setLevel(level.upper() if isinstance(level, str) else level)
     ENABLE_VERBOSE_LOGGING = verbose
+    EMIT_LOGGED_WARNINGS = False
 
     if use_custom_handler == "auto" and not LOGGER.hasHandlers():
         use_custom_handler = True
@@ -112,9 +123,11 @@ def enable_verbose_debug_messages(
     def undo() -> None:
         """Restore original state."""
         global ENABLE_VERBOSE_LOGGING  # noqa: PLW0603
+        global EMIT_LOGGED_WARNINGS  # noqa: PLW0603
 
         LOGGER.setLevel(level_before)
         ENABLE_VERBOSE_LOGGING = verbose_before
+        EMIT_LOGGED_WARNINGS = emit_logged_warnings_before
 
         if handler:
             LOGGER.propagate = propagate_before

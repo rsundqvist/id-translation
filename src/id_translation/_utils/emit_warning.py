@@ -1,5 +1,7 @@
 """Utilities for emitting warnings with accurate stack levels."""
 
+from id_translation import logging as _logging
+
 _USER_PREFIXES: set[str] = set()
 
 
@@ -8,8 +10,15 @@ def add_skip_file_prefix(path: str) -> None:
     _USER_PREFIXES.add(path)
 
 
-def emit_warning(msg: str, category: type[Warning] = UserWarning) -> None:
+def emit_warning(
+    msg: str,
+    category: type[Warning] = UserWarning,
+    logged: bool = False,
+) -> None:
     """Emit warning with automatic stack level."""
+    if logged and not _logging.EMIT_LOGGED_WARNINGS:
+        return
+
     import sys  # noqa: PLC0415
     from warnings import warn  # noqa: PLC0415
 

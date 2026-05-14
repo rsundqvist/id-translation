@@ -750,7 +750,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         if read_bool(ID_TRANSLATION_DISABLED):
             message = f"Translation aborted; {ID_TRANSLATION_DISABLED} is set."
             LOGGER.warning(message)
-            emit_warning(message, category=TranslationDisabledWarning)
+            emit_warning(message, category=TranslationDisabledWarning, logged=True)
             return translatable if copy else None  # Return unchanged; breaks typing.
 
         if self.online and reverse:  # pragma: no cover

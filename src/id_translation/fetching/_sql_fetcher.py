@@ -111,8 +111,8 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
 
             if len(self._whitelist) == 0:
                 msg = f"Got empty 'whitelist_tables' argument. No tables will be available to {self}."
-                self.logger.getChild("sql").warning(msg)
-                emit_warning(msg, category=FetcherWarning)
+                self.logger.getChild("sql").warning(msg)  # TODO(2.0.0): Remove getChild.
+                emit_warning(msg, category=FetcherWarning, logged=True)
 
     def _create_engine(
         self,

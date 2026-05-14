@@ -69,7 +69,7 @@ class MappingTask(NamesTask[NameType, SourceType, IdType]):
 
         if names_from_user is not None and not self.mapper_input_names:
             msg = f"Translation aborted; no names to translate in {type_name}{self._format_params()}."
-            emit_warning(msg, MappingWarning)
+            emit_warning(msg, MappingWarning, logged=True)
             LOGGER.warning(msg, extra={"task_id": self.task_id})
             return {}
 
@@ -119,7 +119,7 @@ class MappingTask(NamesTask[NameType, SourceType, IdType]):
                         f" in the {type_name}-type data could be mapped to available {sources=}"
                         f"{self._format_params()}."
                     )
-                    emit_warning(msg, MappingWarning)
+                    emit_warning(msg, MappingWarning, logged=True)
                     LOGGER.warning(msg, extra={"task_id": self.task_id})
                 return {}
 

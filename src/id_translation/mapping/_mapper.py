@@ -189,7 +189,7 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
                 "\nHint: Set on_unmapped='ignore' to hide this warning, or "
                 f"on_unmapped='raise' to raise an {UnmappedValuesError.__name__}."
             )
-            emit_warning(msg, UnmappedValuesWarning)
+            emit_warning(msg, UnmappedValuesWarning, logged=True)
         elif _logging.ENABLE_VERBOSE_LOGGING:
             logger.debug(msg, extra={"task_id": task_id})
 
@@ -425,7 +425,7 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
                 logger.warning(msg, extra={"task_id": task_id})
 
                 msg += f"\n{note}"
-                emit_warning(msg, UserMappingWarning)
+                emit_warning(msg, UserMappingWarning, logged=True)
 
                 continue
 

@@ -469,9 +469,7 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
             raise exc
         if on_source_conflict == "warn":
             LOGGER.warning(msg, extra=extra)
-
-            emit_warning(msg, exceptions.DuplicateSourceWarning)
-            msg += "\n".join(hints)
+            emit_warning(msg + "\n" + "\n".join(hints), exceptions.DuplicateSourceWarning, logged=True)
         elif on_source_conflict == "ignore" and LOGGER.isEnabledFor(logging.DEBUG):
             LOGGER.debug(msg, extra=extra)
 
