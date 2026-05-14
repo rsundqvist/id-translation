@@ -63,7 +63,7 @@ def test_select_where(ids_to_fetch, expected, query_match, sql_fetcher, monkeypa
     assert ans == tuple((e,) for e in expected)
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def sql_fetcher(connection_string):
     fetcher = SqlFetcher(connection_string)
     assert sorted(fetcher.sources) == ["animals", "big_table", "huge_table", "humans"]  # Forces initialization
@@ -71,7 +71,7 @@ def sql_fetcher(connection_string):
     fetcher.close()
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def connection_string(data, windows_hack_temp_dir):
     db_file = windows_hack_temp_dir / "sql-fetcher-data"
     db_file.mkdir(parents=True, exist_ok=True)

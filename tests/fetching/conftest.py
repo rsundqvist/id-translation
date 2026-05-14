@@ -17,7 +17,7 @@ def data() -> dict[str, pd.DataFrame]:
     }
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def windows_hack_temp_dir():
     with TemporaryDirectory(ignore_cleanup_errors=True) as tmpdir:
         yield Path(tmpdir)
