@@ -24,6 +24,7 @@ def fetch_translations(data, return_all):
         "humans",
         placeholders=("name",),
         required=set(),
+        placeholder_attributes={},
         ids={1999},
         task_id=-1,
         enable_uuid_heuristics=False,

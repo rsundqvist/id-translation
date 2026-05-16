@@ -1405,6 +1405,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
     ) -> SourcePlaceholderTranslations[SourceType]:
         fmt = fmt or self._fmt
         placeholders = fmt.placeholders
+        placeholder_attributes = fmt.placeholder_attributes
         required = fmt.required_placeholders
 
         if self._default_fmt and ID in self._default_fmt.placeholders and ID not in placeholders:
@@ -1419,6 +1420,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             return self.fetcher.fetch_all(
                 placeholders,
                 required=required,
+                placeholder_attributes=placeholder_attributes,
                 sources=ids_or_sources,
                 task_id=task_id,
                 enable_uuid_heuristics=self._enable_uuid_heuristics,
@@ -1428,6 +1430,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                 ids_or_sources,
                 placeholders,
                 required=required,
+                placeholder_attributes=placeholder_attributes,
                 task_id=task_id,
                 enable_uuid_heuristics=self._enable_uuid_heuristics,
             )

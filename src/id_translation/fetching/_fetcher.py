@@ -2,7 +2,7 @@ from abc import abstractmethod
 from collections.abc import Iterable
 from typing import Generic
 
-from ..offline.types import SourcePlaceholderTranslations
+from ..offline.types import PlaceholderAttributes, SourcePlaceholderTranslations
 from ..types import HasSources, IdType, SourceType
 from .types import IdsToFetch
 
@@ -57,6 +57,7 @@ class Fetcher(Generic[SourceType, IdType], HasSources[SourceType]):
         placeholders: Iterable[str] = (),
         *,
         required: Iterable[str] = (),
+        placeholder_attributes: PlaceholderAttributes | None = None,
         task_id: int | None = None,
         enable_uuid_heuristics: bool = False,
     ) -> SourcePlaceholderTranslations[SourceType]:
@@ -66,6 +67,7 @@ class Fetcher(Generic[SourceType, IdType], HasSources[SourceType]):
             ids_to_fetch: An iterable of :class:`.IdsToFetch`.
             placeholders: All desired placeholders in preferred order.
             required: Placeholders that must be included in the response.
+            placeholder_attributes: Attributes that will be accessed for each placeholder.
             task_id: Used for logging.
             enable_uuid_heuristics: Improves matching when :py:class:`~uuid.UUID`-like IDs are in use.
 
@@ -92,6 +94,7 @@ class Fetcher(Generic[SourceType, IdType], HasSources[SourceType]):
         placeholders: Iterable[str] = (),
         *,
         required: Iterable[str] = (),
+        placeholder_attributes: PlaceholderAttributes | None = None,
         sources: set[SourceType] | None = None,
         task_id: int | None = None,
         enable_uuid_heuristics: bool = False,
@@ -101,6 +104,7 @@ class Fetcher(Generic[SourceType, IdType], HasSources[SourceType]):
         Args:
             placeholders: All desired placeholders in preferred order.
             required: Placeholders that must be included in the response.
+            placeholder_attributes: Attributes that will be accessed for each placeholder.
             sources: A subset of sources to fetch. Unknown sources are ignored. Set to ``None`` to fetch all sources.
             task_id: Used for logging.
             enable_uuid_heuristics: Improves matching when :py:class:`~uuid.UUID`-like IDs are in use.

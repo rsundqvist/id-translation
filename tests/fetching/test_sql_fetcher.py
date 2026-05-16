@@ -35,7 +35,7 @@ def test_select_where_fetch_all(sql_fetcher, monkeypatch):
         return actual
 
     monkeypatch.setattr(sql_fetcher, "select_where", select_where)
-    instr: FetchInstruction[str, int] = FetchInstruction("huge_table", ("id",), {"id"}, None, -1, False)
+    instr: FetchInstruction[str, int] = FetchInstruction("huge_table", ("id",), {"id"}, {}, None, -1, False)
     ans = sql_fetcher.fetch_translations(instr).records
     assert ans == tuple((e,) for e in range(1000))
 
@@ -58,7 +58,7 @@ def test_select_where(ids_to_fetch, expected, query_match, sql_fetcher, monkeypa
         return actual
 
     monkeypatch.setattr(sql_fetcher, "select_where", select_where)
-    instr = FetchInstruction("huge_table", ("id",), {"id"}, set(ids_to_fetch), -1, False)
+    instr = FetchInstruction("huge_table", ("id",), {"id"}, {}, set(ids_to_fetch), -1, False)
     ans = sql_fetcher.fetch_translations(instr).records
     assert ans == tuple((e,) for e in expected)
 

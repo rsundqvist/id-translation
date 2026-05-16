@@ -13,7 +13,7 @@ from rics.types import LiteralHelper
 
 from .._utils.emit_warning import emit_warning
 from ..logging import generate_task_id, get_event_key
-from ..offline.types import SourcePlaceholderTranslations
+from ..offline.types import PlaceholderAttributes, SourcePlaceholderTranslations
 from ..types import IdType, SourceType
 from . import AbstractFetcher, Fetcher, exceptions
 from .types import IdsToFetch, Operation
@@ -247,6 +247,7 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         placeholders: Iterable[str] = (),
         *,
         required: Iterable[str] = (),
+        placeholder_attributes: PlaceholderAttributes | None = None,
         task_id: int | None = None,
         enable_uuid_heuristics: bool = False,
     ) -> SourcePlaceholderTranslations[SourceType]:
@@ -303,6 +304,7 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
                     tasks[fid],
                     placeholders,
                     required=required,
+                    placeholder_attributes=placeholder_attributes,
                     task_id=task_id,
                     enable_uuid_heuristics=enable_uuid_heuristics,
                 )
@@ -336,6 +338,7 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         placeholders: Iterable[str] = (),
         *,
         required: Iterable[str] = (),
+        placeholder_attributes: PlaceholderAttributes | None = None,
         sources: set[SourceType] | None = None,
         task_id: int | None = None,
         enable_uuid_heuristics: bool = False,
@@ -356,6 +359,7 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
                     event_key=get_event_key(self.fetch_all, "enter"),
                     placeholders=placeholders,
                     required_placeholders=required,
+                    placeholder_attributes=placeholder_attributes,
                     sources=None if sources is None else [*sources],
                     max_workers=self.max_workers,
                     num_fetchers=len(self.children),
@@ -367,6 +371,7 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
             result = fetcher.fetch_all(
                 placeholders,
                 required=required,
+                placeholder_attributes=placeholder_attributes,
                 sources=None if sources is None else sources.intersection(fetcher.sources),
                 task_id=task_id,
                 enable_uuid_heuristics=enable_uuid_heuristics,
