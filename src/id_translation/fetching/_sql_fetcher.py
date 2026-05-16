@@ -182,6 +182,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         return select.where(id_column.in_(ids))
 
     def fetch_translations(self, instr: FetchInstruction[str, IdType]) -> PlaceholderTranslations[str]:
+        """Fetch translations for an SQL source."""
         ts = self._table_summaries[instr.source]
 
         if instr.fetch_all and not ts.fetch_all_permitted:  # pragma: no cover

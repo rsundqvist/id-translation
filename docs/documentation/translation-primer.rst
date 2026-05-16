@@ -202,6 +202,10 @@ found in the source.
 All placeholder names also match exactly, except for the ``'animal_id'`` placeholder in the ``'animals'`` source. The
 easiest solution is to use an override. However, as this kind of naming is common, a more generic solution makes sense.
 
+.. hint::
+
+   This is a simplified version of the bundled :func:`~.smurf_columns` heuristic.
+
 .. code-block:: python
    :caption: A custom :attr:`~mapping.types.AliasFunction` heuristic to turn ``'animal_id'`` into just ``'id'``.
 

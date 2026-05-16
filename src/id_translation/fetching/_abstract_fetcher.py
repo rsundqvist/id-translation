@@ -26,7 +26,18 @@ from .types import FetchInstruction, IdsToFetch
 
 
 class AbstractFetcher(Fetcher[SourceType, IdType]):
-    """Base class for retrieving translations from an external source.
+    """Common base class.
+
+    The ``AbstractFetcher`` implements common utility for use by more specialized fetchers. It provides functions such
+    as `mapping <../documentation/translation-primer.html#placeholder-mapping>`__ and validation of the relevant
+    :attr:`~.Format.placeholders`. It also adds extensive logging and scaffolding for the
+    :ref:`caching <caching_example>` API, as well as a handful of other features.
+
+    Abstract methods:
+        * :meth:`_initialize_sources`: First-time initialization. Called once per instance.
+        * :meth:`fetch_translations`: Retrieve translation data based on a :class:`.FetchInstruction`.
+
+    All bundled fetchers (except the :class:`MultiFetcher`) inherit from this class.
 
     Args:
         mapper: A :class:`.Mapper` instance used to adapt placeholder names in sources to wanted names, i.e.
@@ -37,7 +48,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         identifiers: A collection of hierarchical identifiers. If given, element zero
             of the `identifiers` is added to the :attr:`logger` name for the fetcher.
         optional: If ``True``, this fetcher may be discarded if source/placeholder-enumeration fails in multi-fetcher
-            mode.
+            mode. Optional fetchers should not raise before :meth`_initialize_sources` is called.
         cache_access: A :class:`.CacheAccess` instance. Defaults to a NOOP-implementation (i.e. always fetch new data).
     """
 
@@ -115,7 +126,32 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
 
     @abstractmethod
     def _initialize_sources(self, task_id: int) -> dict[SourceType, list[str]]:
-        """Perform a full (re) discovery of sources and placeholders."""
+        """Perform a full (re) discovery of sources and placeholders.
+
+        The returned placeholders should not be mapped, i.e. the actual names in the source (e.g. a database column)
+        should be used. Placeholder mapping is performed by the ``AbstractFetcher`` before :meth:`fetch_translations`
+        is called.
+
+        .. important::
+
+           Runtime errors should be raised here, **not** in the ``__init__`` method.
+
+        If discovery fails (e.g. because the target database is not accessible), the exception should be raised here.
+        The :class:`.MultiFetcher` will suppress exceptions [#f1]_ raised by :attr:`optional` children.
+
+        Args:
+            task_id: Used for logging.
+
+        Returns:
+            A dict ``{source: [placeholder_names, ...]}``.
+
+        See Also:
+            The :envvar:`ID_TRANSLATION_SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS` variable.
+
+        .. rubric:: Footnotes
+
+        .. [#f1] The log level is configurable using the `fetcher_discarded_log_level` parameter.
+        """
 
     @final
     @property
@@ -477,15 +513,22 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
     def fetch_translations(self, instr: FetchInstruction[SourceType, IdType]) -> PlaceholderTranslations[SourceType]:
         """Retrieve placeholder translations from the source.
 
+        The :class:`.FetchInstruction` will use the names returned by :meth:`._initialize_sources`; the
+        ``AbstractFetcher`` is responsible for mapping in both directions. This method is **not** called if
+        translations are returned by the :meth:`.CacheAccess.load` method.
+
+        .. note::
+
+           This method is called sequentially once per source.
+
+        If the :attr:`IDs <.FetchInstruction.ids>` of the instruction are ``None``, the fetcher should retrieve data for
+        as many IDs as possible. Use :attr:`allow_fetch_all` to disallow.
+
         Args:
-            instr: A single :class:`.FetchInstruction` for IDs to fetch. If IDs is ``None``, the fetcher should
-                retrieve data for as many IDs as possible.
+            instr: A single :class:`.FetchInstruction` instance.
 
         Returns:
-            Placeholder translation elements.
-
-        Raises:
-            UnknownPlaceholderError: If the placeholder is unknown to the fetcher.
+            A single :class:`.PlaceholderTranslations` instance.
 
         See Also:
             🔑 This is a key event method. See :ref:`key-events` for details.

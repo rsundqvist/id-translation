@@ -21,6 +21,7 @@ from rics._internal_support import make_toc_tree_titles_shorter, myst_parser_mar
 from rics._internal_support.changelog import split_changelog
 
 import id_translation
+from id_translation.fetching import AbstractFetcher
 
 myst_parser_markdown_doc_refs.patch()
 make_toc_tree_titles_shorter.patch()
@@ -48,8 +49,15 @@ def callback(_app, _env, node, _contnode):  # noqa
     return None
 
 
+def skip_member(app, what, name, obj, skip, options):
+    if obj is AbstractFetcher._initialize_sources:
+        return False
+    return skip or name.startswith("_")
+
+
 def setup(app):  # noqa
     app.connect("missing-reference", callback)
+    app.connect("autodoc-skip-member", skip_member)
     add_custom_lexer()
 
 

@@ -136,6 +136,7 @@ class PandasFetcher(AbstractFetcher[str, IdType]):
         return {source: self.read(path).columns.tolist() for source, path in self._source_paths.items()}
 
     def fetch_translations(self, instr: FetchInstruction[str, IdType]) -> PlaceholderTranslations[str]:
+        """Fetch translations from a filesystem source."""
         return PlaceholderTranslations.make(
             instr.source,
             self.read(self._source_paths[instr.source]),
