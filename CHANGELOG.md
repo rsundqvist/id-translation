@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Links in warnings and exceptions now to the current version in the docs (instead of the _'stable'_ version).
+- Raise `DataStructureIOError` instead of generic `ValueError` in `DataStructureIO.get_rank()` for unregistered types.
 
 ## [1.2.1] - 2026-05-09
 

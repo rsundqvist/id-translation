@@ -6,6 +6,7 @@ from typing import Any, ClassVar, Generic
 
 from ..offline import TranslationMap
 from ..types import IdType, NameType, SourceType, TranslatableT
+from .exceptions import DataStructureIOError
 
 
 class DataStructureIO(Generic[TranslatableT, NameType, SourceType, IdType]):
@@ -54,12 +55,9 @@ class DataStructureIO(Generic[TranslatableT, NameType, SourceType, IdType]):
         try:
             return get_resolution_order(real=True).index(cls)
         except ValueError:
-            msg = (
-                f"Not registered: {cls.__name__}"
-                f"\nHint: Use {cls.register.__qualname__}() to register this implementation."
-                "\nHint: https://id-translation.readthedocs.io/en/stable/api/id_translation.dio.html#user-defined-integrations"
-            )
-            raise ValueError(msg) from None
+            exc = DataStructureIOError(f"Not registered: {cls.__name__}")
+            exc.add_note(f"Hint: Use {cls.register.__qualname__}() to register this implementation.")
+            raise exc from None
 
     @classmethod
     @abstractmethod
