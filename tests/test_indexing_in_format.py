@@ -3,6 +3,31 @@
 import pytest
 
 from id_translation import Translator
+from id_translation.offline import Format
+
+
+@pytest.mark.parametrize(
+    "fmt, expected",
+    [
+        ("{obj[int]}", {"obj": {"[int]"}}),
+        ("{obj[0]}", {"obj": {"[0]"}}),
+        ("{obj.mapping[int]}", {"obj": {"mapping[int]"}}),
+        ("{obj.sequence[0]}", {"obj": {"sequence[0]"}}),
+        ("{obj[str]!r:.5}", {"obj": {"[str]"}}),
+        ("{obj[3]!r:.5}", {"obj": {"[3]"}}),
+        ("{obj.mapping[int]!r}", {"obj": {"mapping[int]"}}),
+        ("{obj.sequence[0]!r}", {"obj": {"sequence[0]"}}),
+        # Deep nesting.
+        ("{obj.Dummy.mapping[Dummy].Dummy.bool}", {"obj": {"Dummy.mapping[Dummy].Dummy.bool"}}),
+        ("{obj.sequence[4].mapping[Dummy].Dummy}", {"obj": {"sequence[4].mapping[Dummy].Dummy"}}),
+        # Multiple paths.
+        ("{obj.Dummy.bool} | {obj[4].bool} | {obj[0]}", {"obj": {"Dummy.bool", "[4].bool", "[0]"}}),
+    ],
+)
+def test_placeholder_attributes(fmt, expected, translator):
+    assert fmt.format(obj=Dummy()) == Format(fmt).format(obj=Dummy()), "str/Format mismatch"
+    assert Format(fmt).placeholder_attributes == expected
+    translator.translate(0, names="source", max_fails=0.0)
 
 
 @pytest.mark.parametrize(
