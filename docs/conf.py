@@ -217,10 +217,8 @@ html_favicon = "logo-icon.png"
 
 # -- Nitpicky configuration ----------------------------------------------------
 nitpicky = True
-nitpick_ignore = [
-]
-nitpick_ignore_regex = [
-]
+nitpick_ignore = []
+nitpick_ignore_regex = []
 
 # -- Autodoc configuration -----------------------------------------------------
 autodoc_typehints = "none"

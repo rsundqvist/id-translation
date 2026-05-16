@@ -247,9 +247,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         if cache_access is not _NOOP_CACHE_ACCESS:
             return cache_access
 
-        link = "https://id-translation.readthedocs.io/en/stable/documentation/examples/caching/caching.html"
-        msg = f"{self} does not have a `CacheAccess`.\nHint: {link}"
-        raise CacheAccessNotAvailableError(msg)
+        raise CacheAccessNotAvailableError(f"{self} does not have a `CacheAccess`.")
 
     @property
     def online(self) -> bool:

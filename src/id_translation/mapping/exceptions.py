@@ -9,7 +9,9 @@ class MappingError(Exception):
     def __init__(self, msg: str, *, ref: str = "") -> None:
         super().__init__(msg)
 
-        link = "https://id-translation.readthedocs.io/en/stable/documentation/mapping-primer.html"
+        from id_translation._utils import DOC_LINK  # noqa: PLC0415
+
+        link = DOC_LINK + "documentation/mapping-primer.html"
         if ref:
             link += f"#{ref}"
         self.add_note(f"Hint: See {link} for help.")

@@ -250,9 +250,11 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
         return retval, transformers
 
     def _log_optional_fetcher_init_error(self, exception: BaseException, fetcher_file: str) -> None:
+        from id_translation._utils import DOC_LINK  # noqa: PLC0415
+
         value = getenv(SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS)
         env = f"{SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS}={value}"
-        url = "https://id-translation.readthedocs.io/en/stable/documentation/translator-config.html#optional-fetchers"
+        url = DOC_LINK + "documentation/translator-config.html#optional-fetchers"
         self.logger.exception(
             f"Discarded optional fetcher in file '{fetcher_file}': {exception!r}."
             f"\nHint: Discarded since `optional=true` and `{env}`."

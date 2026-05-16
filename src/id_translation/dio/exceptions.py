@@ -6,11 +6,13 @@ from typing import Any as _Any
 class DataStructureIOError(TypeError):
     """Base class for IO exceptions."""
 
-    _url = "https://id-translation.readthedocs.io/en/stable/api/id_translation.dio.html#user-defined-integrations"
-
     def __init__(self, msg: str) -> None:
         super().__init__(msg)
-        self.add_note(f"Hint: {self._url}")
+
+        from id_translation._utils import DOC_LINK  # noqa: PLC0415
+
+        url = DOC_LINK + "api/id_translation.dio.html#user-defined-integrations"
+        self.add_note(f"Hint: {url}")
 
 
 class UntranslatableTypeError(DataStructureIOError):

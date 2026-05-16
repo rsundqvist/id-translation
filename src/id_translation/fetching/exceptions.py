@@ -62,3 +62,11 @@ class DuplicateSourceError(FetcherError):
 
 class CacheAccessNotAvailableError(FetcherError):
     """Raised when calling :attr:`.AbstractFetcher.cache_access` on an instance that is not cached."""
+
+    def __init__(self, msg: str) -> None:
+        super().__init__(msg)
+
+        from id_translation._utils import DOC_LINK  # noqa: PLC0415
+
+        link = DOC_LINK + "documentation/examples/caching/caching.html"
+        self.add_note(f"Hint: {link}")
