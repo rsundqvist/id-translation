@@ -272,6 +272,12 @@ with ZipFile(f"{root}/dvdrental.zip", "w") as archive:
     archive.write(f"{root}/sql-fetcher.toml", "dvdrental/sql-fetcher.toml")
     archive.write(f"{root}/translation.toml", "dvdrental/translation.toml")
 
+root = "documentation/examples/orm"
+with ZipFile(f"{root}/orm.zip", "w") as archive:
+    archive.write(f"{root}/main.py", "orm/main.py")
+    archive.write(f"{root}/orm_fetcher.py", "orm/orm_fetcher.py")
+    archive.write(f"{root}/dvdrental_models.py", "orm/dvdrental_models.py")
+
 
 def show_first_argument_in_docs():
     from id_translation.toml import TranslatorFactory
