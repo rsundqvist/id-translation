@@ -27,6 +27,8 @@ class FetchInstruction(_t.Generic[_tt.SourceType, _tt.IdType]):
     """All desired placeholders in preferred order."""
     required: set[str]
     """Placeholders that must be included in the response."""
+    placeholder_attributes: _ot.PlaceholderAttributes
+    """See :attr:`.Format.placeholder_attributes` for details."""
     ids: set[_tt.IdType] | None
     """Unique IDs to fetch translations for."""
     task_id: int

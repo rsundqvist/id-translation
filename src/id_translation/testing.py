@@ -10,6 +10,9 @@ from .mapping import DirectionalMapping as _DirectionalMapping
 from .mapping import Mapper as _Mapper
 from .mapping.types import ContextType, UserOverrideFunction, ValueType
 from .offline.types import (
+    PlaceholderAttributes as _PlaceholderAttributes,
+)
+from .offline.types import (
     PlaceholderTranslations as _PlaceholderTranslations,
 )
 from .offline.types import (
@@ -77,6 +80,7 @@ class TestFetcher(_Fetcher[SourceType, IdType]):
         placeholders: _Iterable[str] = (),
         *,
         required: _Iterable[str] = (),  # noqa: ARG002
+        placeholder_attributes: _PlaceholderAttributes | None = None,  # noqa: ARG002
         task_id: int | None = None,  # noqa: ARG002
         enable_uuid_heuristics: bool = False,  # noqa: ARG002
     ) -> _SourcePlaceholderTranslations[SourceType]:
@@ -100,6 +104,7 @@ class TestFetcher(_Fetcher[SourceType, IdType]):
         placeholders: _Iterable[str] = (),
         *,
         required: _Iterable[str] = (),
+        placeholder_attributes: _PlaceholderAttributes | None = None,
         sources: set[SourceType] | None = None,
         task_id: int | None = None,
         enable_uuid_heuristics: bool = False,

@@ -16,7 +16,12 @@ from ..exceptions import ConnectionStatusError
 from ..mapping import HeuristicScore, Mapper
 from ..mapping.exceptions import MappingWarning
 from ..mapping.score_functions import modified_hamming
-from ..offline.types import PlaceholdersTuple, PlaceholderTranslations, SourcePlaceholderTranslations
+from ..offline.types import (
+    PlaceholderAttributes,
+    PlaceholdersTuple,
+    PlaceholderTranslations,
+    SourcePlaceholderTranslations,
+)
 from ..types import ID, IdType, SourceType
 from . import exceptions
 from ._cache_access import CacheAccess
@@ -320,6 +325,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         ids_to_fetch: Iterable[IdsToFetch[SourceType, IdType]],
         placeholders: Iterable[str] = (),
         required: Iterable[str] = (),
+        placeholder_attributes: PlaceholderAttributes | None = None,
         task_id: int | None = None,
         enable_uuid_heuristics: bool = False,
     ) -> SourcePlaceholderTranslations[SourceType]:
@@ -341,6 +347,9 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
                     event_key=_logging.get_event_key(self.fetch, "enter"),
                     placeholders=placeholders,
                     required_placeholders=tuple(required_placeholders),
+                    placeholder_attributes={p: sorted(attrs) for p, attrs in placeholder_attributes.items()}
+                    if placeholder_attributes
+                    else None,
                     num_ids=num_ids,
                     fetch_all=False,
                 ),
@@ -351,6 +360,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
                 itf.source,
                 placeholders,
                 required_placeholders=required_placeholders,
+                placeholder_attributes=placeholder_attributes,
                 ids=itf.ids,
                 task_id=task_id,
                 enable_uuid_heuristics=enable_uuid_heuristics,
@@ -386,6 +396,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         placeholders: Iterable[str] = (),
         *,
         required: Iterable[str] = (),
+        placeholder_attributes: PlaceholderAttributes | None = None,
         sources: set[SourceType] | None = None,
         task_id: int | None = None,
         enable_uuid_heuristics: bool = False,
@@ -410,6 +421,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
                     event_key=_logging.get_event_key(self.fetch_all, "enter"),
                     placeholders=placeholders,
                     required_placeholders=tuple(required_placeholders),
+                    placeholder_attributes=placeholder_attributes,
                     wanted_sources=wanted,
                     num_ids=None,
                     fetch_all=True,
@@ -420,6 +432,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
             rv = self._fetch_all(
                 tuple(placeholders),
                 required_placeholders=set(required),
+                placeholder_attributes=placeholder_attributes,
                 wanted_sources=sources,
                 task_id=task_id,
                 enable_uuid_heuristics=enable_uuid_heuristics,
@@ -450,6 +463,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         self,
         placeholders: PlaceholdersTuple,
         required_placeholders: set[str],
+        placeholder_attributes: PlaceholderAttributes | None,
         wanted_sources: set[SourceType] | None,
         task_id: int,
         enable_uuid_heuristics: bool,
@@ -481,6 +495,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
                 source,
                 placeholders or (*self.placeholders[source],),
                 required_placeholders=required_placeholders,
+                placeholder_attributes=placeholder_attributes,
                 task_id=task_id,
                 enable_uuid_heuristics=enable_uuid_heuristics,
             )
@@ -540,6 +555,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         placeholders: PlaceholdersTuple,
         *,
         required_placeholders: set[str],
+        placeholder_attributes: PlaceholderAttributes | None,
         task_id: int,
         enable_uuid_heuristics: bool,
         ids: set[IdType] | None = None,
@@ -549,6 +565,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
             source,
             placeholders,
             required_placeholders=required_placeholders,
+            placeholder_attributes=placeholder_attributes,
             ids=ids,
             task_id=task_id,
             enable_uuid_heuristics=enable_uuid_heuristics,
@@ -669,6 +686,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         source: SourceType,
         placeholders: PlaceholdersTuple,
         required_placeholders: set[str],
+        placeholder_attributes: PlaceholderAttributes | None,
         ids: set[IdType] | None,
         task_id: int,
         enable_uuid_heuristics: bool,
@@ -678,6 +696,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
             placeholders = (ID, *placeholders)
 
         wanted_to_actual = self._wanted_to_actual(source, placeholders, task_id)
+        placeholder_attributes = self._placeholder_attributes(wanted_to_actual, placeholder_attributes, placeholders)
 
         actual_to_wanted = {actual: wanted for wanted, actual in wanted_to_actual.items() if wanted != actual}
         if actual_to_wanted:
@@ -694,11 +713,34 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
                 source=source,
                 placeholders=placeholders,
                 required=required_placeholders,
+                placeholder_attributes=placeholder_attributes,
                 ids=None if ids is None else set(ids),
                 task_id=task_id,
                 enable_uuid_heuristics=enable_uuid_heuristics,
             ),
         )
+
+    @classmethod
+    def _placeholder_attributes(
+        cls,
+        wanted_to_actual: dict[str, str],
+        attributes: PlaceholderAttributes | None,
+        placeholders: PlaceholdersTuple,
+    ) -> PlaceholderAttributes:
+        if attributes is None:
+            return {}
+
+        # Remap keys in the placeholder attributes dict. The user may mix-and-match real and remapped placeholders, so
+        # the target attributes have to be merged.
+
+        rv: PlaceholderAttributes = {}
+        for wanted in placeholders:
+            actual = wanted_to_actual.get(wanted, wanted)
+            merged = [*attributes.get(actual, ()), *attributes.get(wanted, ())]
+            if merged:
+                rv.setdefault(actual, set()).update(merged)
+
+        return rv
 
     def _wanted_to_actual(
         self, source: SourceType, wanted_placeholders: Iterable[str], task_id: int | None = None
