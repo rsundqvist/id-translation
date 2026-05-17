@@ -6,7 +6,18 @@ _USER_PREFIXES: set[str] = set()
 
 
 def add_skip_file_prefix(path: str) -> None:
-    """Register a file path prefix to be skipped during warning emission."""
+    """Add a path to skip in warnings.
+
+    Useful e.g. for internal libraries that are based on the https://github.com/rsundqvist/id-translation-project/
+    template.
+
+    Args:
+        path: Path to add.
+
+    See Also:
+         * The :attr:`~id_translation.logging.EMIT_LOGGED_WARNINGS` attribute.
+         * The :py:func:`warnings.warn(skip_file_prefixes=...) <warnings.warn>` function.
+    """
     _USER_PREFIXES.add(path)
 
 

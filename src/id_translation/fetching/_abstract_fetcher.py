@@ -55,6 +55,9 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         optional: If ``True``, this fetcher may be discarded if source/placeholder-enumeration fails in multi-fetcher
             mode. Optional fetchers should not raise before :meth`_initialize_sources` is called.
         cache_access: A :class:`.CacheAccess` instance. Defaults to a NOOP-implementation (i.e. always fetch new data).
+
+    See Also:
+        See the :ref:`🚀 examples page <orm_example>` for an implementation example.
     """
 
     def __init__(
@@ -133,9 +136,9 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
     def _initialize_sources(self, task_id: int) -> dict[SourceType, list[str]]:
         """Perform a full (re) discovery of sources and placeholders.
 
-        The returned placeholders should not be mapped, i.e. the actual names in the source (e.g. a database column)
-        should be used. Placeholder mapping is performed by the ``AbstractFetcher`` before :meth:`fetch_translations`
-        is called.
+        The actual names used by the underlying system (e.g. a database) should be returned. The required mapping
+        operations are performed automatically when :meth:`fetch_translations` is invoked. The :meth:`id_column` method
+        may be used by implementations that must resolve a primary ID column as part of the initialization process.
 
         .. important::
 
