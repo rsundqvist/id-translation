@@ -14,6 +14,7 @@ if _t.TYPE_CHECKING:
 FormatType = _t.Union[str, "Format"]
 
 PlaceholdersTuple = tuple[str, ...]
+PlaceholderAttributes = dict[str, set[str]]
 TranslatedIds = dict[_tt.IdType, str]  # {id: translation}
 
 DictMakeTypes = _t.Mapping[str, _Sequence[_t.Any]] | _t.Mapping[_tt.IdType, str]

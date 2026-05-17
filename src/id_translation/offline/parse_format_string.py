@@ -2,6 +2,7 @@
 
 import collections.abc as _abc
 from dataclasses import dataclass as _dataclass
+from dataclasses import field as _field
 from string import Formatter as _Formatter
 from typing import Any as _Any
 from typing import NamedTuple as _NamedTuple
@@ -19,6 +20,12 @@ class ParseBlockResult(_NamedTuple):
     """Processed parts of the block."""
     placeholders: list[str]
     """Names of the :attr:`.Format.placeholders` in `parsed_block`, in the order in which they appear."""
+    placeholder_attributes: list[str | None]
+    """Tuples ``(placeholder, attribute)`` in order.
+
+    Placeholder attribute access and/or indexing per :attr:`placeholders` element. Will be ``None`` elements that use
+    neither.
+    """
 
 
 class MalformedOptionalBlockError(ValueError):
@@ -79,6 +86,12 @@ class Element:
     """Flag indicating whether the element may be excluded."""
     positional_part: str
     """Return a positional version of the `part` attribute."""
+    placeholder_attributes: list[tuple[str, str]] = _field(default_factory=list)
+    """A list of tuples ``[(placeholder, attribute), ..]``.
+
+    Order matches :attr:`placeholders`, excluding placeholders without attribute access (i.e., there the "values" will
+    never be blank). This is essentially a ``dict`` with possible repeated keys.
+    """
 
     @classmethod
     def make(cls, fmt: str, in_optional_block: bool) -> "Element":
@@ -94,10 +107,16 @@ class Element:
         block = fmt
         fmt = block.replace("[[", "[").replace("]]", "]")
 
-        positional_part, placeholders = cls.parse_block(fmt)
+        positional_part, placeholders, attributes = cls.parse_block(fmt)
         is_optional = placeholders and in_optional_block
 
-        return Element(fmt, placeholders, required=not is_optional, positional_part=positional_part)
+        return Element(
+            fmt,
+            placeholders,
+            required=not is_optional,
+            positional_part=positional_part,
+            placeholder_attributes=[(p, a) for p, a in zip(placeholders, attributes, strict=True) if a],
+        )
 
     @classmethod
     def parse_block(cls, block: str, defaults: _abc.Mapping[str, _Any] | None = None) -> ParseBlockResult:
@@ -117,7 +136,7 @@ class Element:
             When `defaults` are ``None``, placeholder names are stripped from the
             :attr:`~.ParseBlockResult.parsed_block`.
 
-            >>> block, placeholders = Element.parse_block("{id!s:.8}:{name!r}")
+            >>> block, placeholders, _ = Element.parse_block("{id!s:.8}:{name!r}")
             >>> print(f"{block=} has {placeholders=}")
             block='{!s:.8}:{!r}' has placeholders=['id', 'name']
 
@@ -132,7 +151,7 @@ class Element:
             When `defaults` are given, all placeholders in the `block` which are present in the `defaults` are replaced
             with ``defaults[field_name]`` in the :attr:`~.ParseBlockResult.parsed_block`.
 
-            >>> block, placeholders = Element.parse_block(
+            >>> block, placeholders, _ = Element.parse_block(
             ...     "{id!s:.8}:{name!r}",
             ...     defaults={"name": "Morran Borran"},
             ... )
@@ -163,6 +182,7 @@ class Element:
 
         parts = []
         placeholders = []
+        attributes = []
 
         # Optional block backtracking
         replaced_parts_index = []
@@ -171,7 +191,8 @@ class Element:
         formatter = _Formatter()
 
         for literal_text, field_name, format_spec, conversion in formatter.parse(block):
-            parts.append(literal_text.replace("{", "{{").replace("}", "}}"))
+            if literal_text:
+                parts.append(literal_text.replace("{", "{{").replace("}", "}}"))
 
             if field_name == "":
                 msg = f"Bad {block=}; anonymous fields are not permitted."
@@ -180,24 +201,11 @@ class Element:
                 raise ValueError(msg)
 
             if field_name:
-                # Determine root placeholder and the attribute-formatting suffix.
-                dot_idx = field_name.find(".")
-                br_idx = field_name.find("[")
-                if dot_idx != -1 and (br_idx == -1 or dot_idx < br_idx):
-                    # dot comes before any bracket -> 'obj.attr...'
-                    placeholder = field_name[:dot_idx]
-                    attribute_fmt = field_name[dot_idx + 1 :]
-                elif br_idx != -1:
-                    # bracket comes first -> 'obj[index]...'
-                    placeholder = field_name[:br_idx]
-                    attribute_fmt = field_name[br_idx:]
-                else:
-                    placeholder = field_name
-                    attribute_fmt = ""
+                placeholder, attribute = cls._parse_field_name(field_name)
+                if placeholder not in defaults:
+                    attributes.append(attribute or None)
 
-                formatting_parts = _get_formatting_parts(
-                    attribute=attribute_fmt, conversion=conversion, format_spec=format_spec
-                )
+                formatting_parts = _get_formatting_parts(attribute, conversion=conversion, format_spec=format_spec)
 
                 if placeholder in defaults:
                     replaced_parts_index.append(len(parts))
@@ -215,7 +223,26 @@ class Element:
                     parts.extend(formatting_parts)
                     parts.append("}")
 
-        return ParseBlockResult("".join(parts), placeholders=placeholders)
+        return ParseBlockResult("".join(parts), placeholders=placeholders, placeholder_attributes=attributes)
+
+    @classmethod
+    def _parse_field_name(cls, field_name: str) -> tuple[str, str]:
+        # Determine root placeholder and the attribute-formatting suffix.
+        dot_idx = field_name.find(".")
+        br_idx = field_name.find("[")
+
+        if dot_idx != -1 and (br_idx == -1 or dot_idx < br_idx):
+            # dot comes before any bracket -> 'obj.attr...'
+            attr = field_name[dot_idx + 1 :].strip()
+            return field_name[:dot_idx], attr
+
+        if br_idx != -1:
+            # bracket comes first -> 'obj[index]...'
+            attr = field_name[br_idx:].strip()
+            return field_name[:br_idx], attr
+
+        # No indexing or attribute access.
+        return field_name, ""
 
 
 def _get_delimiter_index(part: str, *, start: bool) -> int | None:
@@ -232,8 +259,8 @@ def _get_delimiter_index(part: str, *, start: bool) -> int | None:
 
 
 def _get_formatting_parts(
-    *,
     attribute: str | None,
+    *,
     conversion: str | None,
     format_spec: str | None,
 ) -> _abc.Iterable[str]:

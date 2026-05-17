@@ -3,8 +3,8 @@ from typing import Any, Literal, Self
 
 from rics.misc import tname
 
-from . import parse_format_string
-from .types import PlaceholdersTuple
+from .parse_format_string import Element, get_elements
+from .types import PlaceholderAttributes, PlaceholdersTuple
 
 
 class Format:
@@ -107,7 +107,7 @@ class Format:
 
     def __init__(self, fmt: str) -> None:
         self._fmt = fmt
-        self._elements: list[parse_format_string.Element] = parse_format_string.get_elements(fmt)
+        self._elements: list[Element] = get_elements(fmt)
 
     def format(self, **placeholders: Any) -> str:
         """Apply the format.
@@ -143,7 +143,7 @@ class Format:
         return self._make_fstring(placeholders, positional=positional)
 
     def _make_fstring(self, placeholders: Iterable[str], positional: bool) -> str:
-        def predicate(e: parse_format_string.Element) -> bool:
+        def predicate(e: Element) -> bool:
             return e.required or set(placeholders).issuperset(e.placeholders)
 
         return "".join(e.positional_part if positional else e.part for e in filter(predicate, self._elements))
@@ -158,7 +158,7 @@ class Format:
         Returns:
             A partially formatted fstring.
         """
-        new_fmt = parse_format_string.Element.parse_block(self._fmt, defaults=defaults).parsed_block
+        new_fmt = Element.parse_block(self._fmt, defaults=defaults).parsed_block
         cls = type(self)
         return cls(new_fmt)
 
@@ -180,6 +180,48 @@ class Format:
         return self._extract_placeholders(self._elements)
 
     @property
+    def placeholder_attributes(self) -> PlaceholderAttributes:
+        """Attribute access paths per placeholder.
+
+        .. note::
+
+           Includes indexing operations. See the :ref:`🚀 examples page
+           <orm_example>` for usage.
+
+        Returns:
+            A dict ``{placeholder: {attribute, ...}}``.
+
+        Examples:
+            Basic attribute access.
+
+            >>> fmt = "{id}:{name} | {id.__class__} | {name.__class__.does_not_exist}"
+            >>> Format(fmt).placeholder_attributes
+            {'id': {'__class__'}, 'name': {'__class__.does_not_exist'}}
+
+            The ``Format`` does not validate properties, so this will raise an :class:`AttributeError` when translation
+            strings are created.
+
+            Nested attributes and mixed indexing.
+
+            >>> fmt = "{user.name.first} {user.address[zip]} {items[0].name}"
+            >>> {k: sorted(v) for k, v in Format(fmt).placeholder_attributes.items()}
+            {'user': ['address[zip]', 'name.first'], 'items': ['[0].name']}
+
+            Multiple indexes and deeper nesting.
+
+            >>> fmt = "{a[0][1]} {b.c[2].d}"
+            >>> {k: sorted(v) for k, v in Format(fmt).placeholder_attributes.items()}
+            {'a': ['[0][1]'], 'b': ['c[2].d']}
+
+            As seen above, indexing on the placeholder itself adds a level to the attribute path.
+        """
+        rv: PlaceholderAttributes = {}
+        for e in self._elements:
+            for placeholder, attribute in e.placeholder_attributes:
+                rv.setdefault(placeholder, set()).add(attribute)
+        return rv
+
+    @property
     def required_placeholders(self) -> PlaceholdersTuple:
         """All required placeholders in the order in which they appear."""
         return self._extract_placeholders(filter(lambda e: e.required, self._elements))
@@ -190,7 +232,7 @@ class Format:
         return self._extract_placeholders(filter(lambda e: not e.required, self._elements))
 
     @staticmethod
-    def _extract_placeholders(elements: Iterable[parse_format_string.Element]) -> PlaceholdersTuple:
+    def _extract_placeholders(elements: Iterable[Element]) -> PlaceholdersTuple:
         ans = []
         for e in elements:
             ans.extend(e.placeholders)

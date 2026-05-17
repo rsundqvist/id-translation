@@ -27,13 +27,23 @@ from id_translation.offline.parse_format_string import BadDelimiterError, Elemen
         (
             "{{id}}, {id}",
             [
-                Element(part="{{id}}, {id}", placeholders=["id"], required=True, positional_part="{{id}}, {}"),
+                Element(
+                    part="{{id}}, {id}",
+                    placeholders=["id"],
+                    required=True,
+                    positional_part="{{id}}, {}",
+                ),
             ],
         ),
         (
             "[{optional-id}] [literal-angle-brackets]",
             [
-                Element(part="{optional-id}", placeholders=["optional-id"], required=False, positional_part="{}"),
+                Element(
+                    part="{optional-id}",
+                    placeholders=["optional-id"],
+                    required=False,
+                    positional_part="{}",
+                ),
                 Element(part=" ", placeholders=[], required=True, positional_part=" "),
                 Element(
                     part="[literal-angle-brackets]",
@@ -77,9 +87,24 @@ from id_translation.offline.parse_format_string import BadDelimiterError, Elemen
                     required=True,
                     positional_part="{}:{}",
                 ),
-                Element(part=" '{nickname}'", placeholders=["nickname"], required=False, positional_part=" '{}'"),
-                Element(part=", age {age}", placeholders=["age"], required=False, positional_part=", age {}"),
-                Element(part=".", placeholders=[], required=True, positional_part="."),
+                Element(
+                    part=" '{nickname}'",
+                    placeholders=["nickname"],
+                    required=False,
+                    positional_part=" '{}'",
+                ),
+                Element(
+                    part=", age {age}",
+                    placeholders=["age"],
+                    required=False,
+                    positional_part=", age {}",
+                ),
+                Element(
+                    part=".",
+                    placeholders=[],
+                    required=True,
+                    positional_part=".",
+                ),
             ],
         ),
         (
@@ -190,3 +215,12 @@ def test_improper_brackets(fmt, i, msg):
 def test_positional_fmt():
     with pytest.raises(ValueError, match="anonymous fields are not permitted"):
         get_elements("{}:{}")
+
+
+def test_parse_block_omits_attributes_for_defaulted_placeholders():
+    """ai/codex: Found by AI review."""
+    block = Element.parse_block("{id}:{name.first}:{age}", defaults={"id": 1})
+
+    assert block.parsed_block == "1:{name.first}:{age}"
+    assert block.placeholders == ["name", "age"]
+    assert block.placeholder_attributes == ["first", None]
