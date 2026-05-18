@@ -7,7 +7,8 @@ from rics.strings import format_seconds as fmt_sec
 
 from .. import logging as _logging
 from .._utils.emit_warning import emit_warning
-from ..mapping.exceptions import MappingError, MappingWarning, UnmappedExplicitNamesError
+from ..exceptions import TranslationAbortedWarning
+from ..mapping.exceptions import MappingError, UnmappedExplicitNamesError
 from ..mapping.matrix import ScoreMatrix
 from ..mapping.types import UserOverrideFunction
 from ..types import IdType, Names, NameToSource, NameType, NameTypes, SourceType, Translatable
@@ -68,9 +69,10 @@ class MappingTask(NamesTask[NameType, SourceType, IdType]):
         names_from_user = self.names_from_user
 
         if names_from_user is not None and not self.mapper_input_names:
-            msg = f"Translation aborted; no names to translate in {type_name}{self._format_params()}."
-            emit_warning(msg, MappingWarning, logged=True)
-            LOGGER.warning(msg, extra={"task_id": self.task_id})
+            emit_warning(
+                f"Translation aborted; no names to translate in {type_name}{self._format_params()}.",
+                TranslationAbortedWarning,
+            )
             return {}
 
         sources = self.caller.sources
@@ -114,13 +116,11 @@ class MappingTask(NamesTask[NameType, SourceType, IdType]):
             if names_from_user is None:
                 # We're only concerned with mapping here. The NamesTask manages the no-names-at-all case.
                 if self.mapper_input_names:
-                    msg = (
-                        f"Translation aborted; none of the derived names {self.mapper_input_names}"
-                        f" in the {type_name}-type data could be mapped to available {sources=}"
-                        f"{self._format_params()}."
+                    emit_warning(
+                        f"Translation aborted; none of the derived names {self.mapper_input_names} in the "
+                        f"{type_name}-type data could be mapped to available {sources=}{self._format_params()}.",
+                        TranslationAbortedWarning,
                     )
-                    emit_warning(msg, MappingWarning, logged=True)
-                    LOGGER.warning(msg, extra={"task_id": self.task_id})
                 return {}
 
             unmapped = set(names_from_user).difference(name_to_source)

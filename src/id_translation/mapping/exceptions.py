@@ -88,7 +88,7 @@ class MappingWarning(UserWarning):
 
 
 class UnmappedValuesWarning(MappingWarning):
-    """Raised when there are unmapped values left after filtering and on_unmapped='raise'."""
+    """Raised when there are unmapped values left after filtering and on_unmapped='warn'."""
 
 
 class UserMappingWarning(MappingWarning):

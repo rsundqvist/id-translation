@@ -31,8 +31,18 @@ class TranslationWarning(UserWarning):
     """Base class for translation warnings."""
 
 
+class TranslationAbortedWarning(TranslationWarning):
+    """Translation was aborted.
+
+    Emitted when no derived names are mapped to sources.
+    """
+
+
 class TranslationDisabledWarning(TranslationWarning):
-    """Translation is globally disabled."""
+    """Translation is globally disabled.
+
+    Emitted when :envvar:`ID_TRANSLATION_DISABLED` is set.
+    """
 
 
 _simplefilter("once", category=TranslationDisabledWarning)

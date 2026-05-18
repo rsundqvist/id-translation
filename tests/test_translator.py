@@ -15,6 +15,7 @@ from id_translation.exceptions import (
     ConfigurationChangedError,
     MissingNamesError,
     TooManyFailedTranslationsError,
+    TranslationAbortedWarning,
     TranslationDisabledWarning,
 )
 from id_translation.fetching import MemoryFetcher
@@ -255,11 +256,11 @@ def test_go_fetch_without_mapped_names_returns_empty_translations():
         mapper=Mapper(score_function_kwargs={"strict": False}),
     )
 
-    with pytest.warns(MappingWarning, match="Translation aborted; none of the derived names"):
+    with pytest.warns(TranslationAbortedWarning, match="Translation aborted; none of the derived names"):
         tmap = translator.fetch({"not-source": 1})
     assert tmap.sources == []
 
-    with pytest.warns(MappingWarning, match="Translation aborted; none of the derived names"):
+    with pytest.warns(TranslationAbortedWarning, match="Translation aborted; none of the derived names"):
         translator.go_offline({"not-source": 1})
     assert translator.cache.sources == []
 
@@ -267,7 +268,7 @@ def test_go_fetch_without_mapped_names_returns_empty_translations():
 
 
 def test_mapping_nothing_to_translate(translator):
-    with pytest.warns(MappingWarning) as w:
+    with pytest.warns(TranslationAbortedWarning) as w:
         translator.map({"strange-name": [1, 2, 3]})
 
     assert len(w) == 1
@@ -699,7 +700,7 @@ class TestDictNames:
             self.translate("", names={"nconst": None})
 
     def test_no_names(self):
-        with pytest.warns(MappingWarning, match="aborted.*override_function=UserArgument"):
+        with pytest.warns(TranslationAbortedWarning, match="aborted.*override_function=UserArgument"):
             assert self.translate({"nconst": [1, 15]}, names={}) == {"nconst": [1, 15]}
 
 
