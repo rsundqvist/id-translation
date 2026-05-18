@@ -4,6 +4,7 @@ import typing as _t
 from collections import abc as _abc
 
 from rics.collections.dicts import MakeType as _MakeType
+from rics.paths import AnyPath as _AnyPath
 
 from . import types as _tt
 from .fetching import CacheAccess as _CacheAccess
@@ -148,7 +149,7 @@ class AllTranslateParams(TranslateParams[_tt.NameType, _tt.SourceType, _tt.IdTyp
 
 
 class FetchParams(_t.TypedDict, _t.Generic[_tt.NameType, _tt.SourceType, _tt.IdType], total=False):
-    """All arguments of :meth:`.Translator.fetch` and :meth:`.Translator.go_offline`."""
+    """All arguments of :meth:`.Translator.fetch`."""
 
     translatable: _tt.Translatable[_tt.NameType, _tt.IdType] | None
     names: _tt.NameTypes[_tt.NameType] | _tt.NameToSource[_tt.NameType, _tt.SourceType] | None
@@ -157,6 +158,13 @@ class FetchParams(_t.TypedDict, _t.Generic[_tt.NameType, _tt.SourceType, _tt.IdT
     max_fails: float
     fmt: _ot.FormatType | None
     io_kwargs: _abc.Mapping[str, _t.Any] | None
+
+
+class GoOfflineParams(FetchParams[_tt.NameType, _tt.SourceType, _tt.IdType], total=False):
+    """All arguments of :meth:`.Translator.go_offline`."""
+
+    raise_if_offline: bool
+    path: _AnyPath | None
 
 
 CacheMissReasonType = _t.Literal["metadata-missing", "metadata-changed", "too-old"]

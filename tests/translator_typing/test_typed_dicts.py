@@ -176,7 +176,8 @@ def test_typed_dict_docstring_contains_relevant_methods():
     types = {
         tt.ExtractNamesParams: [TypedTranslator.extract_names],
         tt.MapParams: [TypedTranslator.map_scores, TypedTranslator.map],
-        tt.FetchParams: [TypedTranslator.fetch, TypedTranslator.go_offline],
+        tt.FetchParams: [TypedTranslator.fetch],
+        tt.GoOfflineParams: [TypedTranslator.go_offline],
         tt.AllTranslateParams: [TypedTranslator.translate],
         tt.CopyParams: [TypedTranslator.copy],
     }
@@ -198,6 +199,7 @@ def test_typed_dict_docstring_contains_relevant_methods():
         (Translator.map, tt.MapParams),
         (Translator.map_scores, tt.MapParams),
         (Translator.fetch, tt.FetchParams),
+        (Translator.go_offline, tt.GoOfflineParams),
         (Translator.translate, tt.AllTranslateParams),
         (AbstractFetcher.__init__, tt.AbstractFetcherParams),
     ],

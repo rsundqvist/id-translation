@@ -1109,6 +1109,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         max_fails: float = 1.0,
         fmt: FormatType | None = None,
         io_kwargs: Mapping[str, Any] | None = None,
+        raise_if_offline: bool = False,
         path: AnyPath | None = None,
     ) -> Self:
         """Retrieve and store translations in memory.
@@ -1128,6 +1129,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             max_fails: The maximum fraction of IDs for which translation may fail. 1=disabled.
             fmt: A :class:`format string <.Format>` such as **'{id}:{name}'** use. Default is :attr:`.Translator.fmt`.
             io_kwargs: Keyword arguments for the IO class (e.g. :class:`~id_translation.dio.integration.pandas.PandasIO`).
+            raise_if_offline: If ``True``, raise instead of silently returning when the ``Translator`` is already offline.
             path: If given, serialize the :class:`.Translator` to disk after retrieving data.
 
         Returns:
@@ -1145,6 +1147,9 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             The :meth:`restore` method.
         """
         if not self.online:
+            # TODO(2.0.0): Set default raise_if_offline=True
+            if raise_if_offline:
+                raise ConnectionStatusError("Cannot fetch new translations.")
             LOGGER.debug("Already offline.")
             return self
 
