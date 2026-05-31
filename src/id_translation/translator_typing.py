@@ -163,7 +163,6 @@ class FetchParams(_t.TypedDict, _t.Generic[_tt.NameType, _tt.SourceType, _tt.IdT
 class GoOfflineParams(FetchParams[_tt.NameType, _tt.SourceType, _tt.IdType], total=False):
     """All arguments of :meth:`.Translator.go_offline`."""
 
-    raise_if_offline: bool
     path: _AnyPath | None
 
 

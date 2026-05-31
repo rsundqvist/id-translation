@@ -47,8 +47,9 @@ def enable_verbose_debug_messages(
     * **pretty**: Adds basic color and task ID (e.g. ``🍏 0x2b92``). Mark stage (``enter=🚀, exit=✅``). Sample output:
       `info <../_static/logging/info-pretty.html>`_, `debug <../_static/logging/debug-pretty.html>`_,
       `verbose <../_static/logging/verbose-pretty.html>`_.
-    * **rainbow**: Indent based on stage (requires ``level="verbose"``). Full-color syntax highlighting for strings and
-      keywords. Sample output: `debug <../_static/logging/debug-rainbow.html>`_, `verbose <../_static/logging/verbose-rainbow.html>`_.
+    * **rainbow**: Full-color syntax highlighting for strings and keywords. Indent based on stage if
+      ``level="verbose"``. Sample output: `debug <../_static/logging/debug-rainbow.html>`_,
+      `verbose <../_static/logging/verbose-rainbow.html>`_.
 
     Args:
         level: Log level. If `'verbose'` (default), set :attr:`ENABLE_VERBOSE_LOGGING` to ``True``.
