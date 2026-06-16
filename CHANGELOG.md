@@ -24,6 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * No longer emitted as logs.
 - Emit `FutureWarning` in `Translator.go_offline()` when already offline.
 
+### Fixed
+- Fixed exit event keys in `AbstractFetcher.fetch_all()` and `Translator.go_offline()`.
+
 ## [1.2.1] - 2026-05-09
 
 ### Fixed

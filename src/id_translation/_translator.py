@@ -1209,7 +1209,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                 f"Went offline with {len(translation_map.sources)} sources in {fmt_sec(seconds)}: {translation_map}.",
                 extra=dict(
                     task_id=task_id,
-                    event_key=_logging.get_event_key(self.go_offline, "enter"),
+                    event_key=_logging.get_event_key(self.go_offline, "exit"),
                     seconds=seconds,
                     # Task-specific
                     path=None if path is None else str(path),

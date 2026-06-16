@@ -35,7 +35,7 @@ class TableSummary(Generic[IdType]):
     name: str
     """Name of the table."""
     columns: sqlalchemy.sql.ColumnCollection[str, Any]
-    """A flag indicating that the FETCH_ALL-operation is permitted for this table."""
+    """The columns of the table."""
     fetch_all_permitted: bool
     """A flag indicating that the FETCH_ALL-operation is permitted for this table."""
     id_column: sqlalchemy.Column[IdType]
@@ -512,7 +512,9 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         metadata.reflect(self.engine, only=self._whitelist, views=self._reflect_views)
         return metadata
 
-    def __deepcopy__(self, memo: dict[int, Any] = {}) -> Self:  # noqa: B006
+    def __deepcopy__(self, memo: dict[int, Any] | None = None) -> Self:
+        if memo is None:
+            memo = {}
         cls = self.__class__
         result = cls.__new__(cls)
         memo[id(self)] = result

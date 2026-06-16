@@ -10,6 +10,10 @@ from ..types import SourceType as _SourceType
 class Transformer(_t.Protocol[_IdType]):
     """Transformation API type.
 
+    .. warning::
+
+       The :meth:`update_ids`-method is **not** called when the :class:`.Translator` is working offline.
+
     Transformers are persistent entities owned by a single :class:`.Translator` instance. See the
     :class:`.BitmaskTransformer` for a concrete example.
     """
@@ -18,10 +22,6 @@ class Transformer(_t.Protocol[_IdType]):
         """Transform a source-to-ids mapping dict.
 
         Called just before IDs are fetched from the source.
-
-        .. note::
-
-           Not called when the :class:`.Translator` is working offline.
 
         Args:
             ids: A collection of IDs from the `source`.

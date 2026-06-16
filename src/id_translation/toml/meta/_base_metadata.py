@@ -67,7 +67,7 @@ class BaseMetadata(ABC):
             created=raw.pop("created").isoformat(),
         )
         kwargs.update(self._to_dict(raw))
-        assert not raw, f"Not serialized: {raw}."  # noqa:  S101
+        assert not raw, f"Not serialized: {raw}."  # noqa: S101
         return kwargs
 
     def to_json(self) -> str:
@@ -86,7 +86,7 @@ class BaseMetadata(ABC):
         )
         kwargs.update(cls._deserialize(raw))
 
-        assert not raw, f"Not deserialized: {raw}."  # noqa:  S101
+        assert not raw, f"Not deserialized: {raw}."  # noqa: S101
         return cls(**kwargs)
 
     def use_cached(

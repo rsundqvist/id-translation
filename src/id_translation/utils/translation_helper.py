@@ -441,7 +441,7 @@ if __doc__:
         }
 
         for func in cls.apply, cls.make_user_params_docstring, cls.make_type_error_docstring:
-            assert func.__doc__, "missing docstring"  # noqa S101
+            assert func.__doc__, "missing docstring"  # noqa: S101
             func.__doc__ = func.__doc__.format_map(docstrings)
 
     _patch_docstrings()

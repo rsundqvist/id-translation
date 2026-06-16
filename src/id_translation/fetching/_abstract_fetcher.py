@@ -450,7 +450,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
                 f"{len(self.sources)} sources in {fmt_sec(seconds)}: {pretty}.",
                 extra=dict(
                     task_id=task_id,
-                    event_key=_logging.get_event_key(self.fetch, "exit"),
+                    event_key=_logging.get_event_key(self.fetch_all, "exit"),
                     seconds=seconds,
                     sources=[*rv],
                     placeholders_returned={source: len(pht.placeholders) for source, pht in rv.items()},
@@ -778,7 +778,9 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
     def _cls_name(self) -> str:
         return tname(self, include_module=True).removeprefix(__package__ + ".")
 
-    def __deepcopy__(self, memo: dict[int, Any] = {}) -> Self:  # noqa: B006
+    def __deepcopy__(self, memo: dict[int, Any] | None = None) -> Self:
+        if memo is None:
+            memo = {}
         cls = self.__class__
         result = cls.__new__(cls)
         memo[id(self)] = result

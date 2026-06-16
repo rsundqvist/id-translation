@@ -525,7 +525,9 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         e.add_note(note)
         raise e
 
-    def __deepcopy__(self, memo: dict[int, Any] = {}) -> Self:  # noqa: B006
+    def __deepcopy__(self, memo: dict[int, Any] | None = None) -> Self:
+        if memo is None:
+            memo = {}
         cls = self.__class__
         result = cls.__new__(cls)
         memo[id(self)] = result
