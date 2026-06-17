@@ -73,6 +73,7 @@ def disabled(
     value: ValueType,
     candidates: _Iterable[CandidateType],
     context: ContextType | None,
+    # TODO(2.0.0): pos-only/kw-only split.
     strict: bool = True,
 ) -> _Iterable[float]:
     """Special value to indicate that scoring logic has been disabled.

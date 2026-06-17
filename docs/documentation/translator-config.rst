@@ -137,7 +137,7 @@ a :class:`~id_translation.fetching.MemoryFetcher` would be created by adding a `
      - Some fetchers types redefine or ignore this key.
    * - selective_fetch_all
      - :py:class:`bool`
-     - Sources without required keys are are not fetched.
+     - Sources without required keys are not fetched.
      -
    * - identifiers
      - :py:class:`Sequence[str] <typing.Sequence>`
@@ -156,7 +156,7 @@ The keys listed above are for the :class:`~id_translation.fetching.AbstractFetch
 TOML configuration must inherit. Additional parameters vary based on the chosen implementation. See the
 :mod:`id_translation.fetching` module for choices.
 
-The ``AbstractFetcher`` uses a  a :class:`~id_translation.mapping.Mapper` to bind actual
+The ``AbstractFetcher`` uses a :class:`~id_translation.mapping.Mapper` to bind actual
 :attr:`placeholder <id_translation.types.HasSources.placeholders>` names in
 :attr:`~id_translation.types.HasSources.sources` to desired
 :attr:`placeholder names <id_translation.offline.Format.placeholders>` requested by the calling ``Translator`` instance.

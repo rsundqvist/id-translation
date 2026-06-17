@@ -3,9 +3,8 @@
 Logging
 =======
 All messages are emitted by :mod:`id_translation` namespace loggers. The `id_translation` namespace uses the
-``logging.WARNING`` log level (similar to
-`SQLAlchemy <https://docs.sqlalchemy.org/en/14/core/engines.html#configuring-logging>`__).
-To enable logs at the ``ℹ️ INFO`` level and below, you must explicitly configure the log level.
+``logging.WARNING`` log level (similar to :ref:`SQLAlchemy <sqlalchemy:dbengine_logging>`). To enable logs at the
+``ℹ️ INFO`` level and below, you must explicitly configure the log level.
 
 Verbose logging
 ---------------
@@ -75,7 +74,7 @@ about 40 messages would have been emitted instead. The vast majority of the verb
 fetcher initialization.
 
 .. code-block:: python
-   :caption: Dummy version of the code that produced the the records.
+   :caption: Dummy version of the code that produced the records.
 
    from logging import basicConfig, DEBUG
    from id_translation import Translator

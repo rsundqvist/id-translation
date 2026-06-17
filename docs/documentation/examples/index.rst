@@ -1,6 +1,6 @@
 Examples
 ========
-Examples demonstrating various use case for the library.
+Examples demonstrating various use cases for the library.
 
 .. toctree::
    :hidden:

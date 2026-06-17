@@ -18,6 +18,7 @@ def filter_names(
     value: str,
     candidates: _Iterable[str],
     context: _Any,
+    # TODO(2.0.0): pos-only/kw-only split.
     regex: str,
     remove: bool = False,
     *,
@@ -73,6 +74,7 @@ def filter_sources(
     value: str,
     candidates: _Iterable[str],
     context: _Any,
+    # TODO(2.0.0): pos-only/kw-only split.
     regex: str,
     remove: bool = False,
     *,
@@ -133,6 +135,7 @@ def filter_placeholders(
     value: str,  # noqa: ARG001
     candidates: _Iterable[str],
     context: _Any,
+    # TODO(2.0.0): pos-only/kw-only split.
     regex: str,
     remove: bool = False,
     task_id: int | None = None,

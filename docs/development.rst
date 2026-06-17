@@ -1,6 +1,6 @@
 Development
 ===========
-This page gathers resources used to develop this library.fsdfds
+This page gathers resources used to develop this library.
 
 .. toctree::
    :hidden:
