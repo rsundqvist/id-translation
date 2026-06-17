@@ -54,7 +54,7 @@ def _new_translator() -> Translator[str, str, int]:
 @pytest.fixture(autouse=True)
 def _require_gil_disabled() -> None:
     """Skip (per test) if the GIL is enabled at runtime, even on a free-threaded build."""
-    if sys._is_gil_enabled():  # 3.13+
+    if sys.version_info >= (3, 13) and sys._is_gil_enabled():
         pytest.skip("GIL re-enabled at runtime (incompatible C extension?); execution would be serialized.")
 
 

@@ -106,15 +106,12 @@ def spelling(c: Context) -> None:
 
 
 @task
-def safety(c: Context) -> None:
-    """Run safety."""
-    _run(
-        c,
-        "uv export --format=requirements.txt --no-hashes | uv run safety check --stdin --full-report",
-    )
+def audit(c: Context) -> None:
+    """Audit dependencies for known vulnerabilities."""
+    _run(c, "uv audit --preview-features audit-command")
 
 
-@task(pre=[safety, call(flake8, check=True), call(format_, check=True), spelling])
+@task(pre=[audit, call(flake8, check=True), call(format_, check=True), spelling])
 def lint(_: Context) -> None:
     """Run all linting."""
 

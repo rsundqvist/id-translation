@@ -71,10 +71,10 @@ jobs:
         shell: bash
         run: uv run nox --force-color -s tests-${{ matrix.python-version }}
 
-      - name: Run safety check
+      - name: Run audit
         if: matrix.python-version == '3.11' && matrix.os == 'Ubuntu'
         shell: bash
-        run: uv run nox --force-color -s safety
+        run: uv run nox --force-color -s audit
 
       - name: Upload coverage data
         uses: actions/upload-artifact@v7

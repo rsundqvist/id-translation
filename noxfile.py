@@ -22,13 +22,22 @@ def install(session: Session) -> None:
     session.install(".")
 
 
+def run_invoke(session: Session, *args: str, env: dict[str, str] | None = None) -> None:
+    """Run an ``inv`` task with the session venv as uv's project environment.
+
+    Without this, the inner ``uv run`` calls in ``tasks.py`` default to ``.venv`` and ignore the
+    ``VIRTUAL_ENV`` that nox sets to the session venv, emitting a mismatch warning.
+    """
+    session.run("inv", *args, env={"UV_PROJECT_ENVIRONMENT": session.virtualenv.location, **(env or {})})
+
+
 @nox.session(python=python_versions)
 def tests(session: Session) -> None:
     """Run the test suite."""
     install(session)
     try:
-        session.run(
-            "inv",
+        run_invoke(
+            session,
             "tests",
             env={
                 "COVERAGE_FILE": f".coverage.{platform.system()}.{platform.python_version()}",
@@ -56,18 +65,18 @@ def coverage(session: Session) -> None:
     """Produce the coverage report."""
     install(session)
     args = session.posargs if session.posargs and len(session._runner.manifest) == 1 else []
-    session.run("inv", "coverage", *args)
+    run_invoke(session, "coverage", *args)
 
 
 @nox.session(python=python_versions)
 def mypy(session: Session) -> None:
     """Type-check using mypy."""
     install(session)
-    session.run("inv", "mypy")
+    run_invoke(session, "mypy")
 
 
 @nox.session(python="3.11")
-def safety(session: Session) -> None:
-    """Scan dependencies for insecure packages."""
+def audit(session: Session) -> None:
+    """Audit dependencies for known vulnerabilities."""
     install(session)
-    session.run("inv", "safety")
+    run_invoke(session, "audit")

@@ -93,7 +93,6 @@ devops = [
     "invoke~=2.2.1",
     "mypy~=1.19.1",
     "ruff~=0.15.5",
-    "safety~=3.7.0",
     "codespell~=2.4.1",
     "bump2version==1.0.1",
 ]
