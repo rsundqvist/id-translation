@@ -84,6 +84,26 @@ jobs:
           if-no-files-found: "error"
           include-hidden-files: true
 
+  free-threading:
+    needs: linting
+    name: Free-threaded / 3.14t
+    runs-on: ubuntu-latest
+    # Non-blocking: exercises the no-GIL build to surface data races without gating merges.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up free-threaded Python 3.14t with uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: '3.14t'
+
+      - name: Install nox
+        run: uv tool install nox
+
+      - name: Run free-threaded race tests with nox
+        run: nox --force-color -s free_threading
+
   coverage:
     needs: tests
     runs-on: ubuntu-latest

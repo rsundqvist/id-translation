@@ -39,6 +39,18 @@ def tests(session: Session) -> None:
             session.notify("coverage")
 
 
+@nox.session(python="3.14t")
+def free_threading(session: Session) -> None:
+    """Run the free-threaded (GIL-less) race tests on a Py_GIL_DISABLED build.
+
+    Not part of the default sessions: requires a free-threaded interpreter (``3.14t``). Uses a
+    minimal dependency set instead of the full ``--all-extras`` sync of the ``tests`` session, since
+    several test/DB extras (e.g. ``pymssql``) have no free-threaded wheels yet.
+    """
+    session.install(".[fetching]", "pytest")
+    session.run("pytest", "tests/test_free_threading.py", env={"PYTHON_GIL": "0"})
+
+
 @nox.session
 def coverage(session: Session) -> None:
     """Produce the coverage report."""
