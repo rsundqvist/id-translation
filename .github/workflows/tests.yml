@@ -88,8 +88,9 @@ jobs:
     needs: linting
     name: Free-threaded / 3.14t
     runs-on: ubuntu-latest
-    # Non-blocking: exercises the no-GIL build to surface data races without gating merges.
-    continue-on-error: true
+    # Non-blocking: exercises the no-GIL build to surface data races without gating merges. We use
+    # step-level continue-on-error (not job-level) so the job stays green and doesn't emit a
+    # "job failed" notification; a failing race test is re-surfaced as a warning in the run summary.
     steps:
       - uses: actions/checkout@v6
 
@@ -102,7 +103,13 @@ jobs:
         run: uv tool install nox
 
       - name: Run free-threaded race tests with nox
+        id: free_threading
+        continue-on-error: true
         run: nox --force-color -s free_threading
+
+      - name: Flag race-test outcome
+        if: steps.free_threading.outcome == 'failure'
+        run: echo "⚠️ Free-threaded race tests failed (non-gating) — a no-GIL data race surfaced; see the job logs." >> "$GITHUB_STEP_SUMMARY"
 
   coverage:
     needs: tests
