@@ -178,7 +178,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         self._mapper.logger = LOGGER.getChild("map")
 
         self._config_metadata: meta.ConfigMetadata | None = None
-        self._translated_names: NameToSource[NameType, SourceType] | None = None
+        self._translated_names: tuple[int, NameToSource[NameType, SourceType]] | None = None
 
     @classmethod
     def from_config(
@@ -787,7 +787,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
         ans: Translatable[NameType, str] | None = task.insert(translation_map)
 
-        self._translated_names = dict(task.name_to_source)
+        self._translated_names = (task_id, dict(task.name_to_source))
         task.finished()
         task.log_key_event_exit()
         return ans
@@ -809,10 +809,15 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
         Raises:
             ValueError: If no names have been translated using this :class:`.Translator`.
+
+        Notes:
+            🧵 This method is not thread safe. See :ref:`thread-safety` for details.
         """
         if self._translated_names is None:
             raise ValueError("No names have been translated using this Translator.")
-        return dict(self._translated_names) if with_source else list(self._translated_names)
+        task_id, name_to_source = self._translated_names
+        LOGGER.debug(f"Returning names translated by task with {task_id=}.", extra=dict(task_id=task_id))
+        return dict(name_to_source) if with_source else list(name_to_source)
 
     @overload
     def extract_names(
@@ -1021,8 +1026,6 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
           way that it is no longer equivalent configuration used to create the original :class:`.Translator`. For
           details, see :class:`~.toml.meta.ConfigMetadata`.
 
-        .. warning:: This method is **not** thread safe.
-
         Args:
             cache_dir: Root directory where the cached translator and associated metadata is stored.
             config_path: Path to the main TOML configuration file.
@@ -1038,6 +1041,9 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
         Raises:
             ConfigurationChangedError: If the configuration has changed and ``on_config_mismatch='raise'``.
+
+        Notes:
+            🧵 This method is not thread safe. See :ref:`thread-safety` for details.
 
         See Also:
              The :meth:`from_config` method, which will read the `config_path`.
@@ -1111,11 +1117,11 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         io_kwargs: Mapping[str, Any] | None = None,
         path: AnyPath | None = None,
     ) -> Self:
-        """Retrieve and store translations in memory.
+        """Retrieve and :attr:`.cache` translations in memory.
 
         .. warning::
 
-           The translator will be disconnected. No new translations may be fetched after this method returns.
+           The :attr:`.fetcher` will be destroyed.
 
         Subsequent calls to this method will return immediately.
 
@@ -1138,11 +1144,15 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             MappingError: If :meth:`map` fails (only when `translatable` is given).
 
         Notes:
+            🧵 This method is not thread safe. See :ref:`thread-safety` for details.
+
             The :class:`.Translator` is guaranteed to be :func:`~rics.misc.serializable` once offline. Fetchers often
             aren't as they require things like database connections to function.
 
         See Also:
-            The :meth:`restore` method.
+            🔑 This is a key event method. See :ref:`key-events` for details.
+
+            The :meth:`restore` method (when `path` is set).
         """
         if not self.online:
             # TODO(2.0.0): raise

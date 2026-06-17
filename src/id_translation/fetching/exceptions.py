@@ -8,6 +8,25 @@ class FetcherWarning(RuntimeWarning):
     """Base class for ``Fetcher`` warnings."""
 
 
+class ConcurrentOperationWarning(FetcherWarning):
+    """A thread-unsafe ``Fetcher`` operation was entered from multiple threads at once.
+
+    Args:
+        operation: The thread-unsafe operation that was entered concurrently.
+        cls: Class of the emitting implementation, e.q. `SqlFetcher`.
+    """
+
+    def __init__(
+        self,
+        operation: str,
+        *,
+        cls: str,
+    ) -> None:
+        self.operation = operation
+        self.cls = cls
+        super().__init__(f"Concurrent operation detected in {cls}.{operation}().")
+
+
 class FetcherError(RuntimeError):
     """Base class for ``Fetcher`` exceptions."""
 

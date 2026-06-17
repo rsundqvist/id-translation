@@ -22,7 +22,7 @@ def add_skip_file_prefix(path: str) -> None:
 
 
 def emit_warning(
-    msg: str,
+    msg: str | Warning,
     category: type[Warning] = UserWarning,
     logged: bool = False,
 ) -> None:

@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add SQLAlchemy ORM fetcher example.
 - Add the `add_skip_file_prefix()` function to control warning stack levels.
 - Add `translator_typing.GoOfflineParams` typed dict.
+- Add `ConcurrentOperationWarning` and light-weight detection in relevant `AbstractFetcher` methods. Also added 🧵 notes
+  to docstrings and updated the concurrency call-sites table.
 
 ### Changed
 - Links in warnings and exceptions now link to the current version in the docs (instead of the _'stable'_ version).

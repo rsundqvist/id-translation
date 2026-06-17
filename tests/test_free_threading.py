@@ -162,7 +162,7 @@ def test_concurrent_io_resolution(offline_translator: Translator[str, str, int])
 
 @pytest.mark.xfail(
     strict=True,
-    raises=AssertionError,
+    raises=BaseExceptionGroup,
     reason="Shared Translator._translated_names race (_translator.py:790); xfail flips to a failure once fixed.",
 )
 def test_concurrent_translated_names_is_consistent(offline_translator: Translator[str, str, int]) -> None:

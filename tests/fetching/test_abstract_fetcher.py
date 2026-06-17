@@ -1,4 +1,5 @@
 import re
+import threading
 from copy import deepcopy
 from pathlib import Path
 
@@ -176,6 +177,54 @@ class TestBadImplementation:
 class BadFetcher(AbstractFetcher[str, int]):
     def _initialize_sources(self, _):
         return None
+
+    def fetch_translations(self, instr):
+        raise NotImplementedError
+
+
+def test_concurrent_initialize_sources_warns():
+    """Most likely site (I think?) where id-translation-project users might run into this."""
+
+    fetcher = BlockingFetcher()
+    errors: list[BaseException] = []
+
+    def call() -> None:
+        try:
+            fetcher.initialize_sources()
+        except BaseException as e:
+            errors.append(e)
+
+    first = threading.Thread(target=call, name="first")
+    first.start()
+    assert fetcher.entered.wait(timeout=5), f"{first=} did not enter"
+
+    # The first thread is now stuck in the critical section. The second thread
+    # should detect this and emit a warning.
+
+    second = threading.Thread(target=call, name="second")
+    second.start()
+    second.join(timeout=5)
+
+    fetcher.release.set()  # Allow the first thread to continue.
+    first.join(timeout=5)
+
+    assert len(errors) == 1
+    warning = errors[0]
+    assert isinstance(warning, exceptions.ConcurrentOperationWarning)
+    assert warning.operation == "initialize_sources"
+    assert warning.cls.endswith("test_abstract_fetcher.BlockingFetcher")
+
+
+class BlockingFetcher(AbstractFetcher[str, int]):
+    def __init__(self) -> None:
+        super().__init__()
+        self.entered = threading.Event()
+        self.release = threading.Event()
+
+    def _initialize_sources(self, _):
+        self.entered.set()
+        assert self.release.wait(timeout=5)
+        return {}
 
     def fetch_translations(self, instr):
         raise NotImplementedError

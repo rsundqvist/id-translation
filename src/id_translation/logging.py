@@ -74,6 +74,8 @@ def enable_verbose_debug_messages(
         The changes aren't automatically undone if a regular function call is used.
 
     Notes:
+        🧵 This method is not thread safe. See :ref:`thread-safety` for details.
+
         Custom handlers emit to standard out.
     """
     global ENABLE_VERBOSE_LOGGING  # noqa: PLW0603

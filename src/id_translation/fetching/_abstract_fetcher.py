@@ -1,6 +1,7 @@
 import logging
+import threading
 from abc import abstractmethod
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Iterator, Sequence
 from contextlib import contextmanager
 from copy import deepcopy
 from time import perf_counter
@@ -91,6 +92,8 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
 
         self._placeholders: dict[SourceType, list[str]] | None = None
 
+        self._active_operations: dict[str, int] = {}
+
         if cache_access is None:
             cache_access = _NOOP_CACHE_ACCESS
         else:
@@ -116,7 +119,9 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
                 ),
             )
 
-        self._placeholders = self._initialize_sources(task_id)
+        with self._detect_concurrent_access("initialize_sources"):
+            self._placeholders = self._initialize_sources(task_id)
+
         if self._placeholders is None:
             msg = f"Call to {self._cls_name()}.{self.initialize_sources.__name__}() failed."
             raise RuntimeError(msg)
@@ -507,7 +512,21 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         return source_translations
 
     @contextmanager
-    def _fetch_all_mapping_context(self):  # type: ignore  # noqa
+    def _detect_concurrent_access(self, operation: str) -> Iterator[None]:
+        current = threading.get_ident()
+
+        contender = self._active_operations.get(operation)
+        if contender is not None and contender != current:
+            emit_warning(exceptions.ConcurrentOperationWarning(operation, cls=self._cls_name()))
+
+        self._active_operations[operation] = current
+        try:
+            yield
+        finally:
+            self._active_operations.pop(operation, None)
+
+    @contextmanager
+    def _fetch_all_mapping_context(self) -> Iterator[None]:
         original_mapper = self._mapper
 
         on_unmapped = "ignore"
@@ -521,11 +540,12 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
                 f"Using Mapper.{on_unmapped=} until the current {self.fetch_all.__qualname__}-operation"
                 f" finishes, since {selective_fetch_all=}."
             )
-        self._mapper = self._mapper.copy(on_unmapped=on_unmapped)
-        try:
-            yield
-        finally:
-            self._mapper = original_mapper
+        with self._detect_concurrent_access("fetch_all"):
+            self._mapper = self._mapper.copy(on_unmapped=on_unmapped)
+            try:
+                yield
+            finally:
+                self._mapper = original_mapper
 
     @abstractmethod
     def fetch_translations(self, instr: FetchInstruction[SourceType, IdType]) -> PlaceholderTranslations[SourceType]:
