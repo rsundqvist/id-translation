@@ -1,0 +1,41 @@
+[project]
+name = "id-translation-benchmark"
+version = "0.1.0"
+description = "Benchmark suite for `id-translation`, focused on large datasets with vectorized types."
+authors = [{ name = "Richard Sundqvist", email = "richard.sundqvist@live.se" }]
+license = { text = "MIT" }
+readme = "README.md"
+requires-python = ">=3.11"
+
+dependencies = [
+    "id-translation",
+    "rics >= 5.1.0",          # MultiCaseTimer / to_dataframe / get_best.
+    "pandas >= 2.0.3",
+    "polars >= 1.41.0",       # join/replace_strict perf; see FINDINGS.md.
+    "numpy",
+    "click >= 8.1",           # CLI for the benchmark + CI entry points.
+]
+
+[project.optional-dependencies]
+plot = [
+    "rics[plotting]",         # seaborn + matplotlib for plot_run.
+    "seaborn",
+]
+
+[dependency-groups]
+dev = ["pytest~=9.0.2"]
+
+[project.scripts]
+id-translation-benchmark = "id_translation_benchmark.cli:main"
+
+[tool.uv.sources]
+# Benchmark the working copy, not a released wheel.
+id-translation = { path = "..", editable = true }
+
+[build-system]
+requires = ["uv_build>=0.11.0,<0.12.0"]
+build-backend = "uv_build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

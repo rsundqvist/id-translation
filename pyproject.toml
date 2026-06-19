@@ -191,6 +191,7 @@ max-line-length = 150
 
 [tool.pytest]
 [tool.pytest.ini_options]
+testpaths = ["tests"]
 filterwarnings = [
     "error",
     "ignore::pytest.PytestUnraisableExceptionWarning",

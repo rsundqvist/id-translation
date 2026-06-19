@@ -1,0 +1,9 @@
+# Benchmark outputs and local env.
+results/
+*.png
+*.csv
+pytest.log
+.pytest_cache/
+__pycache__/
+.venv/
+uv.lock
