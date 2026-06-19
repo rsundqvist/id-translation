@@ -1,0 +1,4 @@
+# Per-release benchmark history (one v<version>.json per release) is generated here by CI.
+# Generate it on a *consistent* environment (the CI runner), not locally — raw timings are
+# machine-specific and a mixed-environment baseline produces spurious regressions.
+# Backfill: run the `benchmark` workflow via workflow_dispatch with `backfill=true`.
