@@ -1,0 +1,163 @@
+name: benchmark
+
+# Performance tracking for `Translator.translate` on large, vectorized data.
+#
+# * pull_request / push      -> measure current code, render a report vs the latest recorded release.
+# * push tag v*              -> record this release's data point to benchmark/history/ (committed to default branch).
+#
+# The report is **report-only**: regressions are flagged in the job summary (and PR comment) but never fail the
+# job — GitHub-hosted runners are too noisy for a hard performance gate.
+
+on:
+  workflow_dispatch:
+    inputs:
+      backfill:
+        description: "Backfill per-release history (runs each release in an isolated env, commits to default branch)."
+        type: boolean
+        default: false
+      backfill_min:
+        description: "Minimum version to backfill."
+        type: string
+        default: "0.13.0"
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'benchmark/**'
+      - '.github/workflows/benchmark.yml'
+  push:
+    branches:
+      - master
+      - main
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write        # commit history JSON on release
+  pull-requests: write   # post the report as a PR comment
+
+env:
+  POLARS_SKIP_CPU_CHECK: true
+  PYTHONPATH: benchmark/src
+
+jobs:
+  benchmark:
+    name: Benchmark + report
+    if: github.event.inputs.backfill != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0   # need the default branch + history for committing on release
+
+      - name: Set up Python 3.14 with uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: '3.14'
+
+      - name: Install the project
+        run: uv sync --locked --all-extras
+
+      - name: Run benchmark unit tests
+        working-directory: benchmark
+        run: uv run pytest
+
+      - name: Resolve run metadata
+        id: meta
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            echo "version=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run benchmark + render report
+        shell: bash
+        run: |
+          uv run python -m id_translation_benchmark.ci \
+            ${{ steps.meta.outputs.version && format('--version {0} --save', steps.meta.outputs.version) || '' }} \
+            --report-file benchmark/report.md
+
+      - name: Comment report on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('benchmark/report.md', 'utf8');
+            const marker = '<!-- id-translation-benchmark -->';
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const { data: comments } = await github.rest.issues.listComments({ owner, repo, issue_number });
+            const existing = comments.find(c => c.body && c.body.includes(marker));
+            const payload = `${marker}\n${body}`;
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body: payload });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body: payload });
+            }
+
+      - name: Commit history on release
+        if: steps.meta.outputs.release == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          file="benchmark/history/v${{ steps.meta.outputs.version }}.json"
+          branch="${{ github.event.repository.default_branch }}"
+          # The JSON was written into the (tag) working tree; switch to the default branch and persist it there.
+          git fetch origin "${branch}"
+          git switch "${branch}"
+          git add "${file}"
+          if git diff --cached --quiet; then
+            echo "No history change to commit."
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git commit -m "benchmark: record history for v${{ steps.meta.outputs.version }}"
+          git push origin "${branch}"
+
+      - name: Upload report artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: benchmark-report
+          path: benchmark/report.md
+          if-no-files-found: error
+
+  backfill:
+    name: Backfill release history
+    if: github.event.inputs.backfill == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+
+      # Backfill stays on 3.11 to maximize historical coverage: old releases pin pandas/polars/numpy versions that
+      # may lack 3.14 wheels and would otherwise be skipped. Going-forward release baselines are recorded on 3.14
+      # (see the `benchmark` job), so there is a one-time interpreter seam between backfilled and live history.
+      - name: Set up Python 3.11 with uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: '3.11'
+
+      - name: Backfill history (isolated env per release)
+        shell: bash
+        # The script only needs stdlib; it shells out to `uv run --isolated` per release.
+        run: uv run --no-project python benchmark/scripts/backfill.py --min "${{ github.event.inputs.backfill_min }}"
+
+      - name: Commit history
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add benchmark/history/v*.json
+          if git diff --cached --quiet; then
+            echo "No history change to commit."
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git commit -m "benchmark: backfill release history"
+          git push origin HEAD:"${{ github.event.repository.default_branch }}"
