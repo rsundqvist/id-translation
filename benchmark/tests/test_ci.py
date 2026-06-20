@@ -46,17 +46,23 @@ def test_build_history_has_schema():
 
 
 def test_compare_states():
-    base = _doc("1.0.0", [
-        _rec(id_type="int", ms=100.0),
-        _rec(id_type="str", ms=100.0),
-        _rec(id_type="uuid-str", ms=100.0),
-    ])
-    cur = _doc("1.1.0", [
-        _rec(id_type="int", ms=200.0),       # regressed (2x)
-        _rec(id_type="str", ms=50.0),        # improved
-        _rec(id_type="uuid-str", ms=105.0),  # same (within noise)
-        _rec(id_type="int", cardinality="high", ms=7.0),  # new key
-    ])
+    base = _doc(
+        "1.0.0",
+        [
+            _rec(id_type="int", ms=100.0),
+            _rec(id_type="str", ms=100.0),
+            _rec(id_type="uuid-str", ms=100.0),
+        ],
+    )
+    cur = _doc(
+        "1.1.0",
+        [
+            _rec(id_type="int", ms=200.0),  # regressed (2x)
+            _rec(id_type="str", ms=50.0),  # improved
+            _rec(id_type="uuid-str", ms=105.0),  # same (within noise)
+            _rec(id_type="int", cardinality="high", ms=7.0),  # new key
+        ],
+    )
     states = {d.key: d.state for d in compare(cur, base)}
     assert states[("pandas.Series", "int", "low", 1000)] == "regressed"
     assert states[("pandas.Series", "str", "low", 1000)] == "improved"

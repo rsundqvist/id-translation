@@ -26,15 +26,23 @@ from .suite import run
 )
 @click.option("--version", default=None, help="Label for this run (default: installed id_translation version).")
 @click.option("--save", is_flag=True, help="Persist the run to <history-dir>/v<version>.json.")
-@click.option("--history-dir", type=click.Path(file_okay=False, path_type=Path), default=HISTORY_DIR,
-              show_default=True)
+@click.option("--history-dir", type=click.Path(file_okay=False, path_type=Path), default=HISTORY_DIR, show_default=True)
 @click.option("--sizes", type=int, multiple=True, help="Row counts (repeatable; default: history config).")
-@click.option("--budget", type=float, default=1.0, show_default=True,
-              help="Timing budget (seconds) per candidate. The history config uses a single size, so the whole "
-                   "budget goes to it; raise it for steadier numbers.")
+@click.option(
+    "--budget",
+    type=float,
+    default=1.0,
+    show_default=True,
+    help="Timing budget (seconds) per candidate. The history config uses a single size, so the whole "
+    "budget goes to it; raise it for steadier numbers.",
+)
 @click.option("--repeat", type=int, default=3, show_default=True)
-@click.option("--report-file", type=click.Path(dir_okay=False, path_type=Path), default=None,
-              help="Also write the Markdown report here.")
+@click.option(
+    "--report-file",
+    type=click.Path(dir_okay=False, path_type=Path),
+    default=None,
+    help="Also write the Markdown report here.",
+)
 @click.option("--no-progress", is_flag=True)
 def main(
     version: str | None,
@@ -69,7 +77,7 @@ def main(
 def _emit(markdown: str, report_file: Path | None) -> None:
     summary = os.environ.get("GITHUB_STEP_SUMMARY")
     if summary:
-        with open(summary, "a", encoding="utf-8") as fh:
+        with Path(summary).open("a", encoding="utf-8") as fh:
             fh.write(markdown + "\n")
     if report_file:
         report_file.parent.mkdir(parents=True, exist_ok=True)

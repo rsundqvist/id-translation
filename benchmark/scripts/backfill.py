@@ -34,9 +34,7 @@ def _version_key(v: str) -> tuple[int, ...]:
 
 
 def released_versions(minimum: str) -> list[str]:
-    tags = subprocess.run(
-        ["git", "tag"], cwd=REPO_DIR, capture_output=True, text=True, check=True
-    ).stdout.split()
+    tags = subprocess.run(["git", "tag"], cwd=REPO_DIR, capture_output=True, text=True, check=True).stdout.split()
     versions = [t.lstrip("v") for t in tags if t.startswith("v")]
     floor = _version_key(minimum)
     return sorted({v for v in versions if _version_key(v) >= floor}, key=_version_key)
@@ -50,18 +48,25 @@ def run_one(
     sizes: list[int] | None,
     history_dir: Path | None = None,
 ) -> bool:
-    cmd = [
-        "uv", "run", "--isolated", "--no-project", "--python", python,
-        "--with", f"id-translation=={version}",
-        "--with", "pandas", "--with", "polars", "--with", "numpy",
-        "python", "-m", "id_translation_benchmark.ci",
-        "--version", version, "--save",
-        "--budget", str(budget), "--no-progress",
+    # Spin up an isolated, ephemeral env with the target release pinned alongside the suite's runtime deps...
+    deps = (f"id-translation=={version}", "pandas", "polars", "numpy")
+    uv_run = ["uv", "run", "--isolated", "--no-project", f"--python={python}", *(f"--with={dep}" for dep in deps)]
+
+    # ...then run the *current* benchmark harness inside it, recording this version's data point.
+    harness = [
+        "python",
+        "-m",
+        "id_translation_benchmark.ci",
+        f"--version={version}",
+        "--save",
+        "--no-progress",
+        f"--budget={budget}",
     ]
     if history_dir:
-        cmd += ["--history-dir", str(history_dir)]
-    for size in sizes or ():
-        cmd += ["--sizes", str(size)]
+        harness.append(f"--history-dir={history_dir}")
+    harness += [f"--sizes={size}" for size in sizes or ()]
+
+    cmd = [*uv_run, *harness]
 
     print(f"\n===== backfill v{version} =====", flush=True)
     proc = subprocess.run(
@@ -70,6 +75,7 @@ def run_one(
         env={"PYTHONPATH": str(SRC_DIR), "POLARS_SKIP_CPU_CHECK": "true", "PATH": _path()},
         capture_output=True,
         text=True,
+        check=False,  # Non-zero is expected (old releases may not install); handled via returncode below.
     )
     if proc.returncode == 0:
         print(f"  ✓ v{version}")
@@ -98,11 +104,20 @@ def _path() -> str:
     help="Python version for the ephemeral envs. Older releases pin deps that may lack newer-Python wheels, so "
     "3.11 maximizes historical coverage. Live release baselines are recorded on the latest supported Python.",
 )
-@click.option("--budget", type=float, default=1.0, show_default=True,
-              help="Timing budget (seconds) per candidate, forwarded to each release's run.")
+@click.option(
+    "--budget",
+    type=float,
+    default=1.0,
+    show_default=True,
+    help="Timing budget (seconds) per candidate, forwarded to each release's run.",
+)
 @click.option("--sizes", type=int, multiple=True, help="Row counts (repeatable).")
-@click.option("--history-dir", type=click.Path(file_okay=False, path_type=Path), default=None,
-              help="Override the history output directory.")
+@click.option(
+    "--history-dir",
+    type=click.Path(file_okay=False, path_type=Path),
+    default=None,
+    help="Override the history output directory.",
+)
 def main(
     minimum: str,
     versions: tuple[str, ...],

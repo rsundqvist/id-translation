@@ -12,13 +12,21 @@ Examples::
     python -m id_translation_benchmark --suite all --plot
 """
 
+from __future__ import annotations
+
 from pathlib import Path
+from typing import TYPE_CHECKING, cast
 
 import click
 
 from .backends import BASELINE, VECTORIZED
 from .data import ID_TYPES
 from .suite import CARDINALITIES, Candidate, Config, default_candidates, run
+
+if TYPE_CHECKING:
+    import pandas as pd
+
+    from .data import IdType
 
 
 def _cardinalities(choice: str) -> dict[str, int | None]:
@@ -49,29 +57,35 @@ def _configs(
     *,
     suite: str,
     sizes: list[int] | None,
-    id_types: list[str],
+    id_types: list[IdType],
     cardinality: str,
     budget: float,
     repeat: int,
-    stratify: bool,
     quick: bool,
 ) -> dict[str, Config]:
     cardinalities = _cardinalities(cardinality)
-    common = dict(
-        cardinalities=cardinalities,
-        id_types=id_types,
-        time_per_candidate=budget,
-        repeat=repeat,
-        stratify_by_size=stratify,
-    )
     if quick:
-        return {"quick": Config(sizes=sizes or [1_000, 50_000], time_per_candidate=0.3, repeat=2,
-                                cardinalities=cardinalities, id_types=id_types, stratify_by_size=stratify)}
+        return {
+            "quick": Config(
+                sizes=sizes or [1_000, 50_000],
+                time_per_candidate=0.3,
+                repeat=2,
+                cardinalities=cardinalities,
+                id_types=id_types,
+            )
+        }
 
     groups = _groups()
     selected = ["vectorized", "builtins"] if suite == "all" else [suite]
     return {
-        name: Config(candidates=candidates, sizes=sizes or default_sizes, **common)
+        name: Config(
+            candidates=candidates,
+            sizes=sizes or default_sizes,
+            cardinalities=cardinalities,
+            id_types=id_types,
+            time_per_candidate=budget,
+            repeat=repeat,
+        )
         for name in selected
         for candidates, default_sizes in [groups[name]]
     }
@@ -109,16 +123,21 @@ def _configs(
     show_default=True,
     help="'low' (~1k distinct), 'high' (all distinct), or 'both'.",
 )
-@click.option("--budget", type=float, default=2.0, show_default=True,
-              help="Timing budget (seconds) per candidate. With --stratify (default) it applies per candidate per "
-                   "size; otherwise it is shared across the whole data grid, so adding variants gives each one less "
-                   "time. Raise it for steadier numbers.")
-@click.option("--stratify/--no-stratify", default=True, show_default=True,
-              help="Calibrate the timing iteration count per size, so small sizes aren't under-sampled (hence noisy) "
-                   "when measured alongside large ones. No-op on a rics without stratify support.")
+@click.option(
+    "--budget",
+    type=float,
+    default=2.0,
+    show_default=True,
+    help="Timing budget (seconds) per candidate and size. Raise it for steadier numbers.",
+)
 @click.option("--repeat", type=int, default=3, show_default=True)
-@click.option("--output", type=click.Path(file_okay=False, path_type=Path), default=Path("results"),
-              show_default=True, help="Directory for CSV (and plot) output.")
+@click.option(
+    "--output",
+    type=click.Path(file_okay=False, path_type=Path),
+    default=Path("results"),
+    show_default=True,
+    help="Directory for CSV (and plot) output.",
+)
 @click.option("--plot", is_flag=True, help="Write plots (requires the 'plot' extra: seaborn).")
 @click.option("--no-progress", is_flag=True)
 @click.option("--quick", is_flag=True, help="Tiny, fast run for smoke-testing the suite itself.")
@@ -128,7 +147,6 @@ def main(
     id_types: tuple[str, ...],
     cardinality: str,
     budget: float,
-    stratify: bool,
     repeat: int,
     output: Path,
     plot: bool,
@@ -143,11 +161,10 @@ def main(
     configs = _configs(
         suite=suite,
         sizes=list(sizes) or None,
-        id_types=list(id_types),
+        id_types=cast("list[IdType]", list(id_types)),
         cardinality=cardinality,
         budget=budget,
         repeat=repeat,
-        stratify=stratify,
         quick=quick,
     )
     frames = []
@@ -174,16 +191,14 @@ def main(
         _plot(results, output)
 
 
-def _summarize(results):
+def _summarize(results: pd.DataFrame) -> pd.DataFrame:
     """Best (min) time per backend x data variant, pivoted for readability."""
     keys = ["n", "id_type", "cardinality", "backend"]
     best = results.groupby(keys, sort=True)["Time [ms]"].min().reset_index()
-    return best.pivot_table(
-        index=["n", "id_type", "cardinality"], columns="backend", values="Time [ms]"
-    ).round(3)
+    return best.pivot_table(index=["n", "id_type", "cardinality"], columns="backend", values="Time [ms]").round(3)
 
 
-def _plot(results, output: Path) -> None:
+def _plot(results: pd.DataFrame, output: Path) -> None:
     try:
         import matplotlib
 
