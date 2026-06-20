@@ -7,7 +7,7 @@ enough to assert exactly. Run with ``pytest`` from the ``benchmark/`` directory.
 import pytest
 
 from id_translation_benchmark.backends import BACKENDS
-from id_translation_benchmark.data import SOURCE, ID_TYPES, make_ids, unique_ids
+from id_translation_benchmark.data import ID_TYPES, SOURCE, make_ids, unique_ids
 from id_translation_benchmark.payload import build_payload
 from id_translation_benchmark.suite import Config, run
 

@@ -13,15 +13,8 @@ from id_translation import Translator
 
 @cache
 def version() -> str:
+    """The installed ``id_translation`` version string."""
     return id_translation.__version__
-
-
-@cache
-def supports_stratify() -> bool:
-    """``MultiCaseTimer.run(..., stratify=...)`` exists (calibrates ``number`` per stratum, not per candidate)."""
-    from rics.performance import MultiCaseTimer  # noqa: PLC0415
-
-    return "stratify" in inspect.signature(MultiCaseTimer.run).parameters
 
 
 @cache
@@ -38,11 +31,11 @@ def supports_enable_uuid_heuristics() -> bool:
 
 @cache
 def available_backends() -> set[str]:
-    """Backend names whose dependency imports and whose DIO is registered for the installed version."""
-    from .backends import BACKENDS  # noqa: PLC0415
+    """Backend names whose third-party dependency can be imported in the installed environment."""
+    from .backends import BACKENDS
 
     available: set[str] = set()
-    for name, backend in BACKENDS.items():
+    for name in BACKENDS:
         module = name.split(".", 1)[0]
         if module in {"pandas", "polars"}:
             try:

@@ -61,7 +61,7 @@ def make_ids(n: int, *, n_unique: int | None, id_type: IdType) -> np.ndarray:
     return _as_id_type(pool, id_type)
 
 
-def unique_ids(ids: np.ndarray) -> list:
+def unique_ids(ids: np.ndarray) -> list[object]:
     """Return the distinct IDs in ``ids`` as a plain list (the fetcher's universe)."""
     # pandas/np unique sorts; order is irrelevant for the translation map.
     return list(dict.fromkeys(ids.tolist()))

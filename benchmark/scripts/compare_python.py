@@ -46,12 +46,24 @@ def _label(docs: list[dict[str, Any]]) -> str:
     help=__doc__,
     context_settings={"help_option_names": ["-h", "--help"], "max_content_width": 120},
 )
-@click.option("--old", type=click.Path(exists=True, file_okay=False, path_type=Path), required=True,
-              help="History dir for the baseline interpreter.")
-@click.option("--new", type=click.Path(exists=True, file_okay=False, path_type=Path), required=True,
-              help="History dir for the new interpreter.")
-@click.option("--out", type=click.Path(dir_okay=False, path_type=Path), default=None,
-              help="Write the Markdown report here (also printed).")
+@click.option(
+    "--old",
+    type=click.Path(exists=True, file_okay=False, path_type=Path),
+    required=True,
+    help="History dir for the baseline interpreter.",
+)
+@click.option(
+    "--new",
+    type=click.Path(exists=True, file_okay=False, path_type=Path),
+    required=True,
+    help="History dir for the new interpreter.",
+)
+@click.option(
+    "--out",
+    type=click.Path(dir_okay=False, path_type=Path),
+    default=None,
+    help="Write the Markdown report here (also printed).",
+)
 def main(old: Path, new: Path, out: Path | None) -> None:
     old_docs = load_all(old)
     new_docs = load_all(new)
@@ -73,7 +85,9 @@ def main(old: Path, new: Path, out: Path | None) -> None:
     only_old = sorted(set(old) - set(new), key=_version_key)
     only_new = sorted(set(new) - set(old), key=_version_key)
     if only_old:
-        lines.append(f"> Only on {old_py} (no {new_py} wheels / install failed): {', '.join('v' + v for v in only_old)}")
+        lines.append(
+            f"> Only on {old_py} (no {new_py} wheels / install failed): {', '.join('v' + v for v in only_old)}"
+        )
     if only_new:
         lines.append(f"> Only on {new_py}: {', '.join('v' + v for v in only_new)}")
 

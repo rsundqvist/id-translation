@@ -16,18 +16,22 @@ _KEY = ("candidate", "id_type", "cardinality", "n")
 
 @dataclass(frozen=True)
 class Delta:
-    key: tuple
+    """One candidate's current timing versus its baseline (if any)."""
+
+    key: tuple[object, ...]
     current: float
     baseline: float | None
 
     @property
     def ratio(self) -> float | None:
+        """Current / baseline, or ``None`` when there is no usable baseline."""
         if self.baseline is None or self.baseline == 0:
             return None
         return self.current / self.baseline
 
     @property
     def state(self) -> str:
+        """Classify the delta as ``new``/``regressed``/``improved``/``same``."""
         r = self.ratio
         if r is None:
             return "new"
@@ -38,7 +42,7 @@ class Delta:
         return "same"
 
 
-def _index(doc: dict[str, Any]) -> dict[tuple, float]:
+def _index(doc: dict[str, Any]) -> dict[tuple[object, ...], float]:
     return {tuple(rec[k] for k in _KEY): rec["ms"] for rec in doc["results"]}
 
 
@@ -52,6 +56,7 @@ def compare(current: dict[str, Any], baseline: dict[str, Any] | None) -> list[De
 
 
 def to_markdown(current: dict[str, Any], baseline: dict[str, Any] | None) -> str:
+    """Render ``current`` (vs an optional ``baseline``) as a Markdown report."""
     deltas = compare(current, baseline)
     regressions = [d for d in deltas if d.state == "regressed"]
 
@@ -64,8 +69,9 @@ def to_markdown(current: dict[str, Any], baseline: dict[str, Any] | None) -> str
     lines.append("")
 
     if regressions:
-        lines.append(f"> ⚠️ **{len(regressions)} regression(s) ≥ {int((REGRESS_RATIO - 1) * 100)}%** "
-                     "(report-only — not gating).")
+        lines.append(
+            f"> ⚠️ **{len(regressions)} regression(s) ≥ {int((REGRESS_RATIO - 1) * 100)}%** (report-only — not gating)."
+        )
     elif baseline:
         lines.append("> ✅ No significant regressions vs baseline.")
     else:
@@ -87,9 +93,7 @@ def to_markdown(current: dict[str, Any], baseline: dict[str, Any] | None) -> str
 
 def _env_line(label: str, doc: dict[str, Any]) -> str:
     bits = [f"**{label}:** v{doc['version']}"]
-    for k in ("python", "pandas", "polars", "platform"):
-        if doc.get(k):
-            bits.append(f"{k} {doc[k]}")
+    bits.extend(f"{k} {doc[k]}" for k in ("python", "pandas", "polars", "platform") if doc.get(k))
     return " · ".join(bits)
 
 

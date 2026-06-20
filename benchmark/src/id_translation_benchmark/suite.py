@@ -10,16 +10,22 @@ tidy :class:`pandas.DataFrame` (via :func:`rics.performance.to_dataframe`) with 
 for :func:`rics.performance.plot_run` / :func:`rics.performance.get_best`.
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from itertools import product
+from typing import TYPE_CHECKING, cast
 
-import pandas as pd
-from rics.performance import MultiCaseTimer, to_dataframe
+from rics.performance import MultiCaseTimer, SkipIfParams, to_dataframe
 
 from .backends import VECTORIZED
-from .capabilities import supports_stratify
 from .data import ID_TYPES, IdType
-from .payload import build_payload
+from .payload import Payload, build_payload
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    import pandas as pd
 
 # Data dimension column names, in case-arg order. Consumed by ``to_dataframe(names=...)``.
 DIMENSIONS = ["n", "cardinality", "id_type"]
@@ -34,12 +40,12 @@ class Candidate:
 
     label: str
     backend: str
-    io_kwargs: dict | None = None
+    io_kwargs: dict[str, object] | None = None
     skip_id_types: frozenset[str] = frozenset()
     """ID types this candidate cannot handle (skipped instead of erroring)."""
 
     @classmethod
-    def of(cls, backend: str, *, skip_id_types: frozenset[str] = frozenset(), **io_kwargs: object) -> "Candidate":
+    def of(cls, backend: str, *, skip_id_types: frozenset[str] = frozenset(), **io_kwargs: object) -> Candidate:
         """Build a candidate, deriving a ``backend[knob=value]`` label from the IO kwargs."""
         if not io_kwargs:
             return cls(backend, backend, skip_id_types=skip_id_types)
@@ -58,13 +64,10 @@ class Config:
 
     candidates: list[Candidate] = field(default_factory=lambda: default_candidates(list(VECTORIZED)))
     sizes: list[int] = field(default_factory=lambda: [10_000, 1_000_000, 10_000_000])
-    cardinalities: dict[str, int | None] = field(default_factory=lambda: dict(CARDINALITIES))
+    cardinalities: dict[str, int | None] = field(default_factory=CARDINALITIES.copy)
     id_types: list[IdType] = field(default_factory=lambda: list(ID_TYPES))
     time_per_candidate: float = 2.0
     repeat: int = 3
-    stratify_by_size: bool = True
-    """Calibrate the timing iteration count per size, so small sizes aren't under-sampled when measured alongside
-    large ones. Requires a rics that supports ``MultiCaseTimer.run(stratify=...)``; ignored otherwise."""
 
     @property
     def backends(self) -> list[str]:
@@ -73,17 +76,14 @@ class Config:
 
     def case_args(self) -> list[tuple[int, str, IdType]]:
         """The data grid as ``(n, cardinality_label, id_type)`` tuples."""
-        return [
-            (n, label, id_type)
-            for n, label, id_type in product(self.sizes, self.cardinalities, self.id_types)
-        ]
+        return [(n, label, id_type) for n, label, id_type in product(self.sizes, self.cardinalities, self.id_types)]
 
 
-def build_timer(config: Config) -> MultiCaseTimer:
+def build_timer(config: Config) -> MultiCaseTimer[Payload, int, str, IdType]:
     """Create a :class:`~rics.performance.MultiCaseTimer` for ``config``."""
     backends = config.backends
 
-    def factory(n: int, cardinality: str, id_type: IdType):
+    def factory(n: int, cardinality: str, id_type: IdType) -> Payload:
         return build_payload(
             n=n,
             n_unique=config.cardinalities[cardinality],
@@ -95,13 +95,13 @@ def build_timer(config: Config) -> MultiCaseTimer:
     return MultiCaseTimer(candidates, factory, case_args=config.case_args())
 
 
-def _make_skip_if(config: Config):
+def _make_skip_if(config: Config) -> Callable[[SkipIfParams[Payload, int, str, IdType]], bool]:
     """Skip ``(candidate, data)`` combos a candidate declares it cannot handle (e.g. polars fast=True + uuid)."""
     by_label = {c.label: c for c in config.candidates}
 
-    def skip_if(params) -> bool:
+    def skip_if(params: SkipIfParams[Payload, int, str, IdType]) -> bool:
         candidate = by_label[params.candidate_label]
-        _n, _cardinality, id_type = params.data_label
+        _n, _cardinality, id_type = cast("tuple[int, str, IdType]", params.data_label)
         return id_type in candidate.skip_id_types
 
     return skip_if
@@ -110,16 +110,13 @@ def _make_skip_if(config: Config):
 def run(config: Config, *, progress: bool = True) -> pd.DataFrame:
     """Execute ``config`` and return a tidy results DataFrame."""
     timer = build_timer(config)
-    run_kwargs = dict(
+    raw = timer.run(
         time_per_candidate=config.time_per_candidate,
         repeat=config.repeat,
         progress=progress,
         skip_if=_make_skip_if(config),
+        stratify=DIMENSIONS.index("n"),
     )
-    if config.stratify_by_size and supports_stratify():
-        # case_args are (n, cardinality, id_type); stratify by n so each size gets its own calibrated iteration count.
-        run_kwargs["stratify"] = lambda label: label[0]
-    raw = timer.run(**run_kwargs)
     # Keep the ``Candidate`` column name so rics tooling (plot_run/get_best) stays compatible;
     # add a friendlier ``backend`` alias alongside it.
     df = to_dataframe(raw, names=DIMENSIONS)
@@ -127,12 +124,12 @@ def run(config: Config, *, progress: bool = True) -> pd.DataFrame:
     return df
 
 
-def _make_candidate(candidate: Candidate):
+def _make_candidate(candidate: Candidate) -> Callable[[Payload], object | None]:
     # Bind the spec so each candidate translates its own backend's container with its IO kwargs.
     # Short-circuit unsupported id types to a no-op: rics' autonumber phase calls every candidate on every
     # data variant *without* consulting skip_if, so an erroring candidate would otherwise break the whole run.
     # skip_if (see _make_skip_if) keeps these no-op combos out of the recorded results.
-    def candidate_fn(payload):
+    def candidate_fn(payload: Payload) -> object | None:
         if payload.id_type in candidate.skip_id_types:
             return None
         return payload.translate(candidate.backend, candidate.io_kwargs)

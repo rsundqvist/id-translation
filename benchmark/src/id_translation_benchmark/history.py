@@ -8,19 +8,21 @@ stringified-UUID types. One JSON file per version lives under ``benchmark/histor
 import json
 import platform
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 import pandas as pd
 
-from .capabilities import available_backends, version as installed_version
+from .capabilities import available_backends
+from .capabilities import version as installed_version
+from .data import IdType
 from .suite import Config, default_candidates
 
 HISTORY_DIR = Path(__file__).resolve().parents[2] / "history"  # benchmark/history/
 
 # Tracked across all releases: native int, generic strings, and the common "UUID stored as a string" case.
-HISTORY_ID_TYPES = ["int", "str", "uuid-str"]
+HISTORY_ID_TYPES: list[IdType] = ["int", "str", "uuid-str"]
 
 # Series + DataFrame for both engines. Portable (default settings) so it is comparable across versions.
 _HISTORY_BACKENDS = ["pandas.Series", "pandas.DataFrame", "polars.Series", "polars.DataFrame"]
@@ -67,7 +69,7 @@ def metadata() -> dict[str, Any]:
         "python": platform.python_version(),
         "platform": platform.system(),
         "machine": platform.machine(),
-        "timestamp": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "timestamp": datetime.now(UTC).isoformat(timespec="seconds"),
         "unit": "ms",
     }
     for mod in ("pandas", "polars"):
@@ -96,7 +98,9 @@ def save_history(doc: dict[str, Any], directory: Path = HISTORY_DIR) -> Path:
 
 
 def load_history(path: Path) -> dict[str, Any]:
-    return json.loads(Path(path).read_text())
+    """Load a single history document from ``path``."""
+    document: dict[str, Any] = json.loads(Path(path).read_text())
+    return document
 
 
 def load_all(directory: Path = HISTORY_DIR) -> list[dict[str, Any]]:
@@ -111,9 +115,9 @@ def latest_baseline(directory: Path = HISTORY_DIR, *, exclude: str | None = None
     return docs[-1] if docs else None
 
 
-def _version_key(v: str) -> tuple:
+def _version_key(v: str) -> tuple[int, ...]:
     # Sort 1.10.0 after 1.9.0; ignore any dev/rc suffix on the numeric head.
-    head = v.split(".dev")[0].split("rc")[0].split("+")[0]
+    head = v.split(".dev", maxsplit=1)[0].split("rc", maxsplit=1)[0].split("+", maxsplit=1)[0]
     parts = []
     for piece in head.split("."):
         digits = "".join(c for c in piece if c.isdigit())

@@ -7,6 +7,7 @@ translated values back onto every row. That is the comparison we actually care a
 """
 
 from dataclasses import dataclass, field
+from typing import Any
 
 from id_translation import Translator
 
@@ -21,14 +22,14 @@ DEFAULT_FMT = "{id}:{name}"
 class Payload:
     """Everything a candidate needs to translate one case, built outside the timed region."""
 
-    translator: Translator
+    translator: Translator[Any, Any, Any]
     containers: dict[str, object]
     n: int
     n_unique: int
     id_type: IdType
-    expected_unique: dict = field(repr=False, default_factory=dict)
+    expected_unique: dict[object, object] = field(repr=False, default_factory=dict)
 
-    def translate(self, backend: str, io_kwargs: dict | None = None) -> object:
+    def translate(self, backend: str, io_kwargs: dict[str, object] | None = None) -> object:
         """Translate the container for ``backend`` (this is the timed call).
 
         ``io_kwargs`` is forwarded to the backend's :class:`~id_translation.dio.DataStructureIO`, e.g.
@@ -41,7 +42,9 @@ class Payload:
         return self.translator.translate(container, names=SOURCE, io_kwargs=io_kwargs)
 
 
-def make_translator(unique: list, *, fmt: str = DEFAULT_FMT, enable_uuid_heuristics: bool = False) -> Translator:
+def make_translator(
+    unique: list[object], *, fmt: str = DEFAULT_FMT, enable_uuid_heuristics: bool = False
+) -> Translator[Any, Any, Any]:
     """Build an offline translator covering exactly ``unique`` IDs.
 
     ``enable_uuid_heuristics`` is required for the ``uuid`` ID type: polars stringifies ``UUID`` objects when

@@ -9,16 +9,17 @@ requires-python = ">=3.11"
 
 dependencies = [
     "id-translation",
-    "rics >= 5.1.0",          # MultiCaseTimer / to_dataframe / get_best.
+    # "rics>=6.2.0",
+    "rics",
     "pandas >= 2.0.3",
-    "polars >= 1.41.0",       # join/replace_strict perf; see FINDINGS.md.
+    "polars >= 1.41.0",
     "numpy",
-    "click >= 8.1",           # CLI for the benchmark + CI entry points.
+    "click >= 8.1",
 ]
 
 [project.optional-dependencies]
 plot = [
-    "rics[plotting]",         # seaborn + matplotlib for plot_run.
+    "rics[plotting]", # seaborn + matplotlib for plot_run.
     "seaborn",
 ]
 
@@ -29,12 +30,37 @@ dev = ["pytest~=9.0.2"]
 id-translation-benchmark = "id_translation_benchmark.cli:main"
 
 [tool.uv.sources]
-# Benchmark the working copy, not a released wheel.
 id-translation = { path = "..", editable = true }
+rics = { git = "https://github.com/rsundqvist/rics/" }
 
 [build-system]
 requires = ["uv_build>=0.11.0,<0.12.0"]
 build-backend = "uv_build"
+
+[tool.ruff]
+extend = "../pyproject.toml"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = [
+    "D",
+    "S101",
+    "ANN",
+    "PLR2004",
+    "PLC0415",
+    "PLR0911",
+]
+"scripts/*" = [
+    "D",
+    "S603",    # Trusted local subprocess (uv).
+    "S607",    # Partial executable path (uv).
+    "PLC0415",
+    "PLR0912",
+    "PLR0915",
+    "PERF401",
+]
+"src/id_translation_benchmark/*" = [
+    "PLC0415", # Intentional lazy/optional imports (graceful degradation across releases + extras).
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
