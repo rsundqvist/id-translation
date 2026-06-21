@@ -48,8 +48,18 @@ def run_one(
     sizes: list[int] | None,
     history_dir: Path | None = None,
 ) -> bool:
-    # Spin up an isolated, ephemeral env with the target release pinned alongside the suite's runtime deps...
-    deps = (f"id-translation=={version}", "pandas", "polars", "numpy")
+    # Spin up an isolated, ephemeral env with the target release pinned alongside the suite's runtime deps
+    # (the benchmark package itself is not installed -- it runs from PYTHONPATH -- so its deps go here too)...
+    deps = (
+        f"id-translation=={version}",
+        # The suite uses the stratify performance API, which shipped in rics 6.2.0. Old id-translation releases
+        # pull an older rics by default, so pin the release that provides it here.
+        "rics>=6.2.0",
+        "click",
+        "pandas",
+        "polars",
+        "numpy",
+    )
     uv_run = ["uv", "run", "--isolated", "--no-project", f"--python={python}", *(f"--with={dep}" for dep in deps)]
 
     # ...then run the *current* benchmark harness inside it, recording this version's data point.
