@@ -1,0 +1,181 @@
+{
+  "version": "0.13.0",
+  "id_translation": "0.13.0",
+  "python": "3.11.15",
+  "platform": "Linux",
+  "machine": "x86_64",
+  "timestamp": "2026-06-21T10:43:24+00:00",
+  "unit": "ms",
+  "pandas": "3.0.3",
+  "polars": "1.41.2",
+  "results": [
+    {
+      "candidate": "pandas.DataFrame",
+      "n": 1000000,
+      "cardinality": "high",
+      "id_type": "int",
+      "ms": 902.0812
+    },
+    {
+      "candidate": "pandas.DataFrame",
+      "n": 1000000,
+      "cardinality": "high",
+      "id_type": "str",
+      "ms": 770.6003
+    },
+    {
+      "candidate": "pandas.DataFrame",
+      "n": 1000000,
+      "cardinality": "high",
+      "id_type": "uuid-str",
+      "ms": 837.5366
+    },
+    {
+      "candidate": "pandas.DataFrame",
+      "n": 1000000,
+      "cardinality": "low",
+      "id_type": "int",
+      "ms": 15.4211
+    },
+    {
+      "candidate": "pandas.DataFrame",
+      "n": 1000000,
+      "cardinality": "low",
+      "id_type": "str",
+      "ms": 158.2467
+    },
+    {
+      "candidate": "pandas.DataFrame",
+      "n": 1000000,
+      "cardinality": "low",
+      "id_type": "uuid-str",
+      "ms": 167.373
+    },
+    {
+      "candidate": "pandas.Series",
+      "n": 1000000,
+      "cardinality": "high",
+      "id_type": "int",
+      "ms": 913.7336
+    },
+    {
+      "candidate": "pandas.Series",
+      "n": 1000000,
+      "cardinality": "high",
+      "id_type": "str",
+      "ms": 765.7056
+    },
+    {
+      "candidate": "pandas.Series",
+      "n": 1000000,
+      "cardinality": "high",
+      "id_type": "uuid-str",
+      "ms": 823.3154
+    },
+    {
+      "candidate": "pandas.Series",
+      "n": 1000000,
+      "cardinality": "low",
+      "id_type": "int",
+      "ms": 14.6464
+    },
+    {
+      "candidate": "pandas.Series",
+      "n": 1000000,
+      "cardinality": "low",
+      "id_type": "str",
+      "ms": 149.5538
+    },
+    {
+      "candidate": "pandas.Series",
+      "n": 1000000,
+      "cardinality": "low",
+      "id_type": "uuid-str",
+      "ms": 154.7269
+    },
+    {
+      "candidate": "polars.DataFrame",
+      "n": 1000000,
+      "cardinality": "high",
+      "id_type": "int",
+      "ms": 1228.5411
+    },
+    {
+      "candidate": "polars.DataFrame",
+      "n": 1000000,
+      "cardinality": "high",
+      "id_type": "str",
+      "ms": 1894.2924
+    },
+    {
+      "candidate": "polars.DataFrame",
+      "n": 1000000,
+      "cardinality": "high",
+      "id_type": "uuid-str",
+      "ms": 2034.3795
+    },
+    {
+      "candidate": "polars.DataFrame",
+      "n": 1000000,
+      "cardinality": "low",
+      "id_type": "int",
+      "ms": 16.5906
+    },
+    {
+      "candidate": "polars.DataFrame",
+      "n": 1000000,
+      "cardinality": "low",
+      "id_type": "str",
+      "ms": 31.5006
+    },
+    {
+      "candidate": "polars.DataFrame",
+      "n": 1000000,
+      "cardinality": "low",
+      "id_type": "uuid-str",
+      "ms": 34.8499
+    },
+    {
+      "candidate": "polars.Series",
+      "n": 1000000,
+      "cardinality": "high",
+      "id_type": "int",
+      "ms": 1187.9867
+    },
+    {
+      "candidate": "polars.Series",
+      "n": 1000000,
+      "cardinality": "high",
+      "id_type": "str",
+      "ms": 1775.6756
+    },
+    {
+      "candidate": "polars.Series",
+      "n": 1000000,
+      "cardinality": "high",
+      "id_type": "uuid-str",
+      "ms": 2127.0469
+    },
+    {
+      "candidate": "polars.Series",
+      "n": 1000000,
+      "cardinality": "low",
+      "id_type": "int",
+      "ms": 16.8229
+    },
+    {
+      "candidate": "polars.Series",
+      "n": 1000000,
+      "cardinality": "low",
+      "id_type": "str",
+      "ms": 33.014
+    },
+    {
+      "candidate": "polars.Series",
+      "n": 1000000,
+      "cardinality": "low",
+      "id_type": "uuid-str",
+      "ms": 34.3322
+    }
+  ]
+}
