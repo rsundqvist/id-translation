@@ -145,8 +145,8 @@ jobs:
 
       - name: Backfill history (isolated env per release)
         shell: bash
-        # The script only needs stdlib; it shells out to `uv run --isolated` per release.
-        run: uv run --no-project python benchmark/scripts/backfill.py --min "${{ github.event.inputs.backfill_min }}"
+        # The runner script needs only click (stdlib otherwise); it shells out to `uv run --isolated` per release.
+        run: uv run --no-project --with click python benchmark/scripts/backfill.py --min "${{ github.event.inputs.backfill_min }}"
 
       - name: Commit history
         shell: bash
