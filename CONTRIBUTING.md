@@ -28,8 +28,12 @@ Follow these steps to begin local development.
    ```bash
    git clone git@github.com:rsundqvist/id-translation.git
    cd id-translation
-   uv sync
+   uv sync --all-extras
    ```
+
+   The project targets **regular CPython 3.14** (pinned via `.python-version`), matching CI and Read the Docs; uv
+   selects it automatically. Avoid the free-threaded `3.14t` build — some dependencies (e.g. `pymssql`) have no wheels
+   for it.
    
    Generating documentation has a few dependencies which may need to be installed
    manually.

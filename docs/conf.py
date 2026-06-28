@@ -114,6 +114,13 @@ extensions = [
     "myst_parser",
     "sphinx_llm.txt",
 ]
+# Summary line for the generated llms.txt index. Without this, the extension falls back to the
+# package metadata Description (the full README), which bloats the top of the index.
+llms_txt_description = (
+    "Translate opaque database IDs (int, str, UUID) into human-readable labels. Configurable via TOML, "
+    "with pluggable fetchers for SQL and file/in-memory sources, automatic name-to-source and placeholder "
+    "mapping, and integrations for pandas, polars, pyarrow, and dask."
+)
 autosummary_ignore_module_all = True
 autosummary_imported_members = True
 # autoclass_content = "both"  # Add __init__ doc (ie. params) to class summaries
