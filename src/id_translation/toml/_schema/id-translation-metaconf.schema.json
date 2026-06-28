@@ -1,0 +1,47 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://id-translation.readthedocs.io/en/stable/id-translation-metaconf.schema.json",
+  "title": "id-translation metaconf",
+  "description": "Schema for the id-translation `metaconf.toml` file, which controls how configuration files in the same directory are processed. See [the docs](https://id-translation.readthedocs.io/en/stable/documentation/translator-config.html#meta-configuration).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "env": {
+      "type": "object",
+      "description": "Control environment-variable interpolation (${VAR} / ${VAR:default}).",
+      "additionalProperties": false,
+      "properties": {
+        "allow_interpolation": {
+          "type": "boolean",
+          "description": "Enable ${VAR} substitution. Default true."
+        },
+        "allow_blank": {
+          "type": "boolean",
+          "description": "Allow blank values for interpolated variables. Default false."
+        },
+        "allow_nested": {
+          "type": "boolean",
+          "description": "Allow nested ${...} interpolation. Default false."
+        }
+      }
+    },
+    "equivalence": {
+      "type": "object",
+      "description": "Determines how equivalence between configuration files is computed (for cache invalidation).",
+      "additionalProperties": false,
+      "properties": {
+        "python_version": {
+          "type": "string",
+          "description": "Format for the `python_version` equivalence key, e.g. `{v.major}.{v.minor}.{v.micro}`."
+        },
+        "extra_packages": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Additional packages whose versions affect `ConfigMetadata` equivalence."
+        }
+      }
+    }
+  }
+}

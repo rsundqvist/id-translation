@@ -1,0 +1,347 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://id-translation.readthedocs.io/en/stable/id-translation.schema.json",
+  "title": "id-translation configuration",
+  "description": "Schema for the id-translation main configuration file. The fixed grammar is validated; built-in fetcher types are enumerated, while custom (fully-qualified) types, function kwargs and overrides stay permissive because their keys depend on the chosen implementation. See [the configuration docs](https://id-translation.readthedocs.io/en/stable/documentation/translator-config.html).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "translator": {
+      "$ref": "#/definitions/translator"
+    },
+    "unknown_ids": {
+      "$ref": "#/definitions/unknownIds"
+    },
+    "transform": {
+      "$ref": "#/definitions/transform"
+    },
+    "fetching": {
+      "$ref": "#/definitions/fetching"
+    }
+  },
+  "definitions": {
+    "translator": {
+      "type": "object",
+      "description": "Top-level `Translator` settings. See [the docs](https://id-translation.readthedocs.io/en/stable/documentation/translator-config.html#section-translator).",
+      "additionalProperties": false,
+      "properties": {
+        "fmt": {
+          "type": "string",
+          "description": "Format string controlling how translated IDs are displayed, e.g. `{id}:{name}`."
+        },
+        "enable_uuid_heuristics": {
+          "type": "boolean",
+          "description": "Improve matching when UUID-like IDs are in use."
+        },
+        "mapping": {
+          "$ref": "#/definitions/mapping"
+        }
+      }
+    },
+    "unknownIds": {
+      "type": "object",
+      "description": "Display and placeholder values for IDs that could not be translated. See [the docs](https://id-translation.readthedocs.io/en/stable/documentation/translator-config.html#section-unknown-ids).",
+      "additionalProperties": false,
+      "properties": {
+        "fmt": {
+          "type": "string",
+          "description": "Format for untranslated IDs. A plain string like `Unknown`, or `{id}` to leave the ID as-is."
+        },
+        "overrides": {
+          "$ref": "#/definitions/overrides"
+        }
+      }
+    },
+    "transform": {
+      "type": "object",
+      "description": "One `Transformer` per source: `[transform.<source>.<TransformerType>]`. The innermost keys are passed to the transformer's `__init__`. `<TransformerType>` may be a built-in name or a fully-qualified type name. Transformers belong to the `Translator`, but may live in an auxiliary fetcher file too (co-located with the fetcher that produces the source); a given source may be transformed only once across all files. See [the docs](https://id-translation.readthedocs.io/en/stable/documentation/translator-config.html#section-transformations).",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "object"
+        }
+      }
+    },
+    "fetching": {
+      "type": "object",
+      "description": "Fetcher configuration. Exactly one implementation block is expected (`[fetching.<FetcherType>]`: a built-in name or a fully-qualified type), alongside the optional reserved `mapping`, `cache` and `MultiFetcher` sections. See [the docs](https://id-translation.readthedocs.io/en/stable/documentation/translator-config.html#section-fetching).",
+      "properties": {
+        "mapping": {
+          "$ref": "#/definitions/mapping"
+        },
+        "cache": {
+          "$ref": "#/definitions/cache"
+        },
+        "MultiFetcher": {
+          "$ref": "#/definitions/multiFetcher"
+        },
+        "MemoryFetcher": {
+          "$ref": "#/definitions/memoryFetcher"
+        },
+        "PandasFetcher": {
+          "$ref": "#/definitions/pandasFetcher"
+        },
+        "SqlFetcher": {
+          "$ref": "#/definitions/sqlFetcher"
+        }
+      },
+      "additionalProperties": {
+        "$ref": "#/definitions/fetcherImpl"
+      }
+    },
+    "fetcherCommon": {
+      "type": "object",
+      "description": "Keyword arguments accepted by every `AbstractFetcher` implementation.",
+      "properties": {
+        "allow_fetch_all": {
+          "type": "boolean",
+          "description": "Control access to `Fetcher.fetch_all`. Some fetcher types redefine or ignore this key."
+        },
+        "selective_fetch_all": {
+          "type": "boolean",
+          "description": "Sources without required keys are not fetched."
+        },
+        "identifiers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Hierarchical identifiers for the fetcher. Based on the source file if not given."
+        },
+        "optional": {
+          "type": "boolean",
+          "description": "Multi-fetcher mode only: if true, discard the fetcher on a sources-resolution crash."
+        }
+      }
+    },
+    "fetcherImpl": {
+      "type": "object",
+      "description": "A custom fetcher block keyed by fully-qualified type name (e.g. `[fetching.'my.library.SuperFetcher']`). All keys are forwarded to the constructor.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/fetcherCommon"
+        }
+      ],
+      "additionalProperties": true
+    },
+    "memoryFetcher": {
+      "type": "object",
+      "description": "Built-in [`MemoryFetcher`](https://id-translation.readthedocs.io/en/stable/api/id_translation.fetching.html#id_translation.fetching.MemoryFetcher).",
+      "allOf": [
+        {
+          "$ref": "#/definitions/fetcherCommon"
+        }
+      ],
+      "properties": {
+        "data": {
+          "type": "object",
+          "description": "In-memory translation data, keyed by source. Usually supplied programmatically rather than in TOML."
+        },
+        "return_all": {
+          "type": "boolean",
+          "description": "Return all available data for fetch-all operations. Default true."
+        }
+      },
+      "additionalProperties": true
+    },
+    "pandasFetcher": {
+      "type": "object",
+      "description": "Built-in [`PandasFetcher`](https://id-translation.readthedocs.io/en/stable/api/id_translation.fetching.html#id_translation.fetching.PandasFetcher).",
+      "allOf": [
+        {
+          "$ref": "#/definitions/fetcherCommon"
+        }
+      ],
+      "properties": {
+        "read_function": {
+          "type": "string",
+          "description": "Pandas read function, e.g. `read_csv`. Inferred from `read_path_format` if omitted."
+        },
+        "read_path_format": {
+          "type": "string",
+          "description": "Format string for source paths, e.g. `data/{}.csv`. Default `data/{}.csv`."
+        },
+        "read_function_kwargs": {
+          "type": "object",
+          "description": "Extra keyword arguments forwarded to the read function."
+        }
+      },
+      "additionalProperties": true
+    },
+    "sqlFetcher": {
+      "type": "object",
+      "description": "Built-in [`SqlFetcher`](https://id-translation.readthedocs.io/en/stable/api/id_translation.fetching.html#id_translation.fetching.SqlFetcher).",
+      "allOf": [
+        {
+          "$ref": "#/definitions/fetcherCommon"
+        }
+      ],
+      "properties": {
+        "connection_string": {
+          "type": "string",
+          "description": "SQLAlchemy connection string, e.g. `postgresql+pg8000://user@host:5432/db`."
+        },
+        "password": {
+          "type": "string",
+          "description": "Password injected into the connection string (keeps it out of the string itself)."
+        },
+        "whitelist_tables": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "If given, only these tables are eligible as sources."
+        },
+        "blacklist_tables": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Tables excluded from source discovery."
+        },
+        "schema": {
+          "type": "string",
+          "description": "Database schema to read tables from."
+        },
+        "include_views": {
+          "type": "boolean",
+          "description": "Include views in addition to tables. Default false."
+        },
+        "engine_kwargs": {
+          "type": "object",
+          "description": "Extra keyword arguments forwarded to `sqlalchemy.create_engine`."
+        }
+      },
+      "required": [
+        "connection_string"
+      ],
+      "additionalProperties": true
+    },
+    "cache": {
+      "type": "object",
+      "description": "User-defined `CacheAccess`. Only `type` is required; all other keys are forwarded to the implementation's `__init__`. See [choosing a caching strategy](https://id-translation.readthedocs.io/en/stable/documentation/translator-config.html#choosing-a-cache).",
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "Fully-qualified `CacheAccess` subtype, e.g. `my.library.MyCacheAccess`."
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "additionalProperties": true
+    },
+    "multiFetcher": {
+      "type": "object",
+      "description": "`MultiFetcher` options. Permitted only in the main configuration file. See [the docs](https://id-translation.readthedocs.io/en/stable/documentation/translator-config.html#multiple-fetchers).",
+      "additionalProperties": false,
+      "properties": {
+        "max_workers": {
+          "type": "integer",
+          "description": "Maximum number of child fetchers to call in parallel."
+        },
+        "on_source_conflict": {
+          "enum": [
+            "raise",
+            "warn",
+            "ignore"
+          ],
+          "description": "Action for disputes during source discovery."
+        },
+        "fetcher_discarded_log_level": {
+          "type": [
+            "integer",
+            "string"
+          ],
+          "description": "Log level used when discarding optional fetchers that fail during source discovery."
+        }
+      }
+    },
+    "mapping": {
+      "type": "object",
+      "description": "Mapping configuration (`[*.mapping]`). Known keys are typed; additional `Mapper` keyword arguments are allowed. See [the docs](https://id-translation.readthedocs.io/en/stable/documentation/translator-config.html#subsection-mapping).",
+      "properties": {
+        "score_function": {
+          "type": [
+            "string",
+            "object"
+          ],
+          "description": "Score-function name, or a table of `<name>.<kwargs>` for score functions that take arguments."
+        },
+        "on_unmapped": {
+          "enum": [
+            "raise",
+            "warn",
+            "ignore"
+          ],
+          "description": "How to handle values that could not be matched to a candidate."
+        },
+        "cardinality": {
+          "enum": [
+            "1:1",
+            "1:N",
+            "N:1",
+            "M:N",
+            "N:N"
+          ],
+          "description": "How many candidates a single value may map to."
+        },
+        "filter_functions": {
+          "type": "array",
+          "description": "`[[*.mapping.filter_functions]]` list-subsections; remove undesirable matches.",
+          "items": {
+            "$ref": "#/definitions/functionEntry"
+          }
+        },
+        "score_function_heuristics": {
+          "type": "array",
+          "description": "`[[*.mapping.score_function_heuristics]]` list-subsections, applied in order.",
+          "items": {
+            "$ref": "#/definitions/heuristicEntry"
+          }
+        },
+        "overrides": {
+          "$ref": "#/definitions/overrides"
+        }
+      },
+      "additionalProperties": true
+    },
+    "functionEntry": {
+      "type": "object",
+      "description": "A function reference plus implementation-specific keyword arguments.",
+      "properties": {
+        "function": {
+          "type": "string",
+          "description": "Function name (built-in) or fully-qualified name in single quotes."
+        }
+      },
+      "required": [
+        "function"
+      ],
+      "additionalProperties": true
+    },
+    "heuristicEntry": {
+      "type": "object",
+      "description": "A heuristic-function reference plus implementation-specific keyword arguments.",
+      "properties": {
+        "function": {
+          "type": "string",
+          "description": "Function name (built-in) or fully-qualified name in single quotes."
+        },
+        "mutate": {
+          "type": "boolean",
+          "description": "Keep changes made by `function`. Disabled by default."
+        }
+      },
+      "required": [
+        "function"
+      ],
+      "additionalProperties": true
+    },
+    "overrides": {
+      "type": "object",
+      "description": "Shared and context-specific key-value overrides (`InheritedKeysDict`). No fixed keys: shared items at the top level, context-specific items in `[*.overrides.<context>]` subsections. See [the docs](https://id-translation.readthedocs.io/en/stable/documentation/translator-config.html#subsection-overrides).",
+      "additionalProperties": true
+    }
+  }
+}
