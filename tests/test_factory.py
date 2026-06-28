@@ -85,7 +85,6 @@ class TestCacheAccess:
             self.create(tmp_path, cache)
 
     def test_only_one_cached(self, tmp_path):
-        from id_translation.fetching._abstract_fetcher import _NOOP_CACHE_ACCESS
         from id_translation.fetching.exceptions import CacheAccessNotAvailableError
 
         cache = f"""
@@ -105,7 +104,6 @@ class TestCacheAccess:
 
         # Animals fetcher - not cached
         assert isinstance(fetcher_animals, AbstractFetcher)
-        assert fetcher_animals._cache_access is _NOOP_CACHE_ACCESS
         with pytest.raises(CacheAccessNotAvailableError, match=r"documentation/examples/caching/on_disk.html"):
             _ = fetcher_animals.cache_access
 

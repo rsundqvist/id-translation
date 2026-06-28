@@ -16,22 +16,21 @@ translate() calls, which is what an online service typically does.
 
 Two things worth understanding:
 
-* The CacheAccess contract is all-or-nothing: load() must return translations
-  that fully cover the request, or None. There is no partial hit, so we return a
-  cache entry only when *every* requested ID is present and unexpired; otherwise
-  we return None and let the fetcher re-fetch (and re-cache) the whole request.
+* Partial hits: load() returns a PartialCacheHit holding whatever hot rows we
+  have; the fetcher fetches only the uncovered IDs and merges them (calling
+  store() with just the complement). We return None only when nothing is cached
+  for the source, or we lack a requested placeholder.
 * Simplification -- a source is assumed to always be fetched with the same
   placeholders. We store one row per ID for the most recent placeholder layout
   and reset a source's cache if its placeholders change. A production cache that
-  mixes placeholder sets per source would instead key rows by placeholder layout
-  and verify coverage in load().
+  mixes placeholder sets per source would instead key rows by placeholder layout.
 """
 
 import time
 from dataclasses import dataclass
 
 from id_translation.fetching import CacheAccess
-from id_translation.fetching.types import FetchInstruction
+from id_translation.fetching.types import FetchInstruction, PartialCacheHit
 from id_translation.offline.types import PlaceholdersTuple, PlaceholderTranslations
 from id_translation.types import IdType, SourceType
 
@@ -81,28 +80,29 @@ class InMemoryCacheAccess(CacheAccess[SourceType, IdType]):
     def load(
         self,
         instr: FetchInstruction[SourceType, IdType],
-    ) -> PlaceholderTranslations[SourceType] | None:
+    ) -> PartialCacheHit[SourceType, IdType] | None:
         if instr.ids is None:
             return None  # An accumulated cache cannot prove it holds *all* IDs (fetch_all).
 
         sc = self._cache.get(instr.source)
-        if sc is None:
+        if sc is None or not set(instr.placeholders).issubset(sc.placeholders):
+            # Nothing cached for this source, or we lack a requested placeholder. Let the fetcher fetch everything;
+            # store() will (re)set the layout.
             return None
 
         deadline = time.monotonic() - self._ttl
-        records = []
-        for id_ in instr.ids:
-            entry = sc.rows.get(id_)
-            if entry is None or entry[0] < deadline:
-                return None  # Missing or expired: not a full hit (all-or-nothing).
-            records.append(entry[1])
+        records = [sc.rows[id_][1] for id_ in instr.ids if id_ in sc.rows and sc.rows[id_][0] >= deadline]
 
-        return PlaceholderTranslations(
-            source=instr.source,
-            placeholders=sc.placeholders,
-            records=records,
-            id_pos=sc.id_pos,
-            placeholder_aliases=dict(sc.aliases),
+        # Return whatever subset is hot; the fetcher fetches the rest at our layout and merges. `covered` is left to
+        # default to the IDs in these rows, so any missing/expired IDs are re-fetched (and re-cached via store()).
+        return PartialCacheHit(
+            PlaceholderTranslations(
+                source=instr.source,
+                placeholders=sc.placeholders,
+                records=records,
+                id_pos=sc.id_pos,
+                placeholder_aliases=dict(sc.aliases),
+            )
         )
 
     def _evict(self, sc: _SourceCache) -> None:
@@ -130,7 +130,7 @@ def create(ttl: float = 3600) -> Translator[str, str, int]:
 
 
 # ==================================================================================================================== #
-# By-ID translation populates the cache incrementally; repeating known IDs is served from memory.
+# By-ID translation populates the cache incrementally; subsequent calls fetch only the uncovered IDs.
 translator = create()
-print("first :", translator.translate([1904, 1999], "people"))  # cache miss -> fetch -> store
-print("repeat:", translator.translate(1904, "people"))  # cache hit (1904 already cached)
+print("first  :", translator.translate(1904, "people"))  # miss -> fetch {1904} -> store
+print("partial:", translator.translate([1904, 1999], "people"))  # 1904 served from memory, only 1999 fetched
