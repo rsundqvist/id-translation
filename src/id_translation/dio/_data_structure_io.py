@@ -48,7 +48,7 @@ class DataStructureIO(Generic[TranslatableT, NameType, SourceType, IdType]):
             Implementation rank.
 
         Raises:
-            ValueError: If the implementation is not registered.
+            DataStructureIOError: If the implementation is not registered.
         """
         from ._resolve import get_resolution_order  # noqa: PLC0415
 
