@@ -28,7 +28,7 @@ Transformers
 ------------
 The :attr:`.Translator.transformers` are reused for all translation tasks. Bundled :class:`.Transformer` types are
 thread safe. Transformers are inherited by any :class:`.TranslationMap` instances created by the ``Translator``, including
-the :attr:`.Translator.cache`) created by :meth:`.Translator.go_offline`.
+the :attr:`.Translator.cache` created by :meth:`.Translator.go_offline`.
 
 Fetchers
 --------

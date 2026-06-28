@@ -24,7 +24,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * Add new `TranslationAbortedWarning` type.
   * Emit as `TranslationAbortedWarning` instead of `MappingWarning`.
   * No longer emitted as logs.
-- Emit `FutureWarning` in `Translator.go_offline()` when already offline.
 
 ### Fixed
 - Fixed exit event keys in `AbstractFetcher.fetch_all()` and `Translator.go_offline()`.

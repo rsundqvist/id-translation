@@ -76,5 +76,5 @@ Read the narrative docs before non-trivial work: `docs/documentation/translation
 - **Isolate disposable notes:** keep scratch/working notes (e.g. an `adoption-notes/` folder or `claude-todos.txt` file)
   in their own standalone commits, separate from real code/docs, so they can be dropped later.
 - **Write lean messages:** state the *why* and any non-obvious *what*; omit whatever the diff shows.
-  No mechanical consequences (renames, updated references, call-site fixups), and no
-  "verified"/"tests pass"/"build clean" lines.
+  Prefer a single-line message when the subject already conveys the why. No mechanical consequences
+  (renames, updated references, call-site fixups), and no "verified"/"tests pass"/"build clean" lines.

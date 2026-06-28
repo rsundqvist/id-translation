@@ -21,10 +21,10 @@ class ParseBlockResult(_NamedTuple):
     placeholders: list[str]
     """Names of the :attr:`.Format.placeholders` in `parsed_block`, in the order in which they appear."""
     placeholder_attributes: list[str | None]
-    """Tuples ``(placeholder, attribute)`` in order.
+    """Attribute-access/indexing suffix per :attr:`placeholders` element, in order.
 
-    Placeholder attribute access and/or indexing per :attr:`placeholders` element. Will be ``None`` elements that use
-    neither.
+    Element ``i`` is the suffix for ``placeholders[i]`` (e.g. ``"name.first"`` or ``"[0]"``), or ``None`` for
+    placeholders that use neither.
     """
 
 
@@ -89,7 +89,7 @@ class Element:
     placeholder_attributes: list[tuple[str, str]] = _field(default_factory=list)
     """A list of tuples ``[(placeholder, attribute), ..]``.
 
-    Order matches :attr:`placeholders`, excluding placeholders without attribute access (i.e., there the "values" will
+    Order matches :attr:`placeholders`, excluding placeholders without attribute access (i.e., the "values" will
     never be blank). This is essentially a ``dict`` with possible repeated keys.
     """
 
@@ -184,10 +184,6 @@ class Element:
         placeholders = []
         attributes = []
 
-        # Optional block backtracking
-        replaced_parts_index = []
-        placeholders_index = []
-
         formatter = _Formatter()
 
         for literal_text, field_name, format_spec, conversion in formatter.parse(block):
@@ -208,7 +204,6 @@ class Element:
                 formatting_parts = _get_formatting_parts(attribute, conversion=conversion, format_spec=format_spec)
 
                 if placeholder in defaults:
-                    replaced_parts_index.append(len(parts))
                     formatting = "".join(["{", *formatting_parts, "}"])
                     value = defaults[placeholder]
                     parts.append(formatting.format(value))
@@ -217,7 +212,6 @@ class Element:
 
                     placeholders.append(placeholder)
                     if keep_placeholder_names:
-                        placeholders_index.append(len(parts))
                         parts.append(placeholder)
 
                     parts.extend(formatting_parts)

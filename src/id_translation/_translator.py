@@ -1123,7 +1123,8 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
            The :attr:`.fetcher` will be destroyed.
 
-        Subsequent calls to this method will return immediately.
+        Subsequent calls to this method return immediately, emitting a ``FutureWarning`` (this will raise in
+        ``id-translation==2.0.0``).
 
         Args:
             translatable: Data from which IDs to fetch will be extracted. Fetch all IDs if ``None``.
