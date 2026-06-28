@@ -26,8 +26,8 @@ from ..offline.types import (
 from ..types import ID, IdType, SourceType
 from . import exceptions
 from ._cache_access import CacheAccess
+from ._cache_coordinator import CacheCoordinator
 from ._fetcher import Fetcher
-from .exceptions import CacheAccessNotAvailableError
 from .types import FetchInstruction, IdsToFetch
 
 
@@ -94,11 +94,9 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
 
         self._active_operations: dict[str, int] = {}
 
-        if cache_access is None:
-            cache_access = _NOOP_CACHE_ACCESS
-        else:
+        if cache_access is not None:
             cache_access.set_parent(self)
-        self._cache_access = cache_access
+        self._cache: CacheCoordinator[SourceType, IdType] = CacheCoordinator(self, cache_access)
 
     @final  # Prevent accidental overriding
     def initialize_sources(self, task_id: int | None = None, *, force: bool = False) -> None:
@@ -290,13 +288,12 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
 
     @property
     def cache_access(self) -> CacheAccess[SourceType, IdType]:
-        """Return the :class:`.CacheAccess` for this fetcher."""
-        cache_access = self._cache_access
+        """Return the :class:`.CacheAccess` for this fetcher.
 
-        if cache_access is not _NOOP_CACHE_ACCESS:
-            return cache_access
-
-        raise CacheAccessNotAvailableError(f"{self} does not have a `CacheAccess`.")
+        Raises:
+            CacheAccessNotAvailableError: If this fetcher has no cache configured.
+        """
+        return self._cache.cache_access
 
     @property
     def online(self) -> bool:
@@ -594,50 +591,18 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
             enable_uuid_heuristics=enable_uuid_heuristics,
         )
 
-        translations: PlaceholderTranslations[SourceType] | None = None
-
-        cache = self._cache_access
-        logger: logging.Logger | None = None
-        store_cache = False
-
-        def log_cache(msg: str, event: str) -> None:
-            if logger is None:
-                return
-
-            pretty = f"{type(cache).__name__}[{source=}]"
-            logger.debug(msg.format(pretty), extra={"source": instr.source, "task_id": task_id, "cache_event": event})
-
-        if cache.enabled:
-            logger = self.logger
-            if not logger.isEnabledFor(logging.DEBUG):
-                logger = None
-
-            translations = cache.load(instr)
-            store_cache = translations is None
-
-            if logger:
-                value = f"{len(translations.records)} IDs" if translations else None
-                cache_event = "hit" if translations else "miss"
-                log_cache(f"{{}}.load() returned {value}.", cache_event)
-
-        if translations is None:
-            translations = self._call_user_impl(instr)
-
-        if reverse_mappings:
-            # The mapping is only in reverse from the Fetchers point-of-view; we're mapping back to "proper" values.
-            translations.placeholders = tuple(reverse_mappings.get(p, p) for p in translations.placeholders)
-
-        translations.id_pos = translations.placeholders.index(ID)
-        translations.placeholder_aliases.update(reverse_mappings)
+        translations = self._cache.run(
+            instr,
+            placeholders,
+            reverse_mappings=reverse_mappings,
+            required_placeholders=required_placeholders,
+            placeholder_attributes=placeholder_attributes,
+        )
 
         available_placeholders = {*translations.placeholders, *translations.placeholder_aliases}
         unmapped_required_placeholders = required_placeholders.difference(available_placeholders)
         if unmapped_required_placeholders:
             self._verify_placeholders(reverse_mappings or {}, source, unmapped_required_placeholders)
-
-        if store_cache:
-            log_cache(f"Calling {{}}.store() with {len(translations.records)} IDs.", "store")
-            cache.store(instr, translations)
 
         return translations
 
@@ -861,18 +826,3 @@ class _AbstractFetcherLogAdapter(logging.Filter):
         record.fetcher_config_file = self.config_file
         record.fetcher_class = self.cls
         return True
-
-
-class NoopCacheAccess(CacheAccess[Any, Any]):
-    @property
-    def enabled(self) -> bool:
-        return False
-
-    def _raise(self, *_: Any, **__: Any) -> None:
-        raise NotImplementedError
-
-    store = _raise
-    load = _raise
-
-
-_NOOP_CACHE_ACCESS = NoopCacheAccess()

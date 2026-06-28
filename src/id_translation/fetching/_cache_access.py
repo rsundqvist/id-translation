@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Generic
 
-from id_translation.fetching.types import FetchInstruction
+from id_translation.fetching.types import FetchInstruction, PartialCacheHit
 from id_translation.offline.types import PlaceholderTranslations
 from id_translation.types import IdType, SourceType
 
@@ -30,17 +30,24 @@ class CacheAccess(ABC, Generic[SourceType, IdType]):
     def load(
         self,
         instr: FetchInstruction[SourceType, IdType],
-    ) -> PlaceholderTranslations[SourceType] | None:
+    ) -> PlaceholderTranslations[SourceType] | PartialCacheHit[SourceType, IdType] | None:
         """Load cached translations.
 
-        If this method returns ``None``, the ``AbstractFetcher`` will use :meth:`~.AbstractFetcher.fetch_translations`
-        instead. The fetcher will then call :meth:`store` using `instr` and the newly fetched translations.
+        Return one of:
+
+        * A :class:`.PlaceholderTranslations` covering every requested ID (a complete hit). It is used as-is;
+          :meth:`store` is not called.
+        * ``None`` (a miss). The ``AbstractFetcher`` calls :meth:`~.AbstractFetcher.fetch_translations` for all IDs and
+          then :meth:`store`.
+        * A :class:`.PartialCacheHit`. The fetcher fetches only the *missing* IDs, merges them with the cached rows,
+          and calls :meth:`store` with the freshly fetched complement. Not supported for
+          :attr:`~.FetchInstruction.fetch_all` instructions (return ``None`` or a complete hit instead).
 
         Args:
             instr: A :class:`.FetchInstruction`.
 
         Returns:
-            Cached :class:`.PlaceholderTranslations` or ``None``.
+            Cached :class:`.PlaceholderTranslations`, a :class:`.PartialCacheHit`, or ``None``.
         """
 
     @abstractmethod

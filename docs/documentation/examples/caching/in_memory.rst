@@ -22,12 +22,12 @@ the cache lives only as long as the process.
    :ref:`choosing-a-cache` for how this compares to :meth:`.Translator.go_offline` and
    :meth:`.Translator.load_persistent_instance`.
 
-The all-or-nothing contract
----------------------------
-The :class:`.AbstractFetcher` treats :meth:`.CacheAccess.load` as all-or-nothing: whatever it returns is taken as the
-complete result, and there is no "fetch the missing IDs" step. A by-ID cache must therefore return an entry **only when
-every requested ID is present** (and unexpired); otherwise it returns ``None`` and the fetcher re-fetches -- and
-re-caches -- the whole request.
+Partial hits
+------------
+:meth:`.CacheAccess.load` may return a :class:`.PartialCacheHit` -- the rows it holds, plus (optionally) the IDs it
+vouches for. The :class:`.AbstractFetcher` then fetches only the **uncovered** IDs and merges them with the cached rows,
+so an accumulating by-ID cache no longer forces a full re-fetch when a single ID is missing. This cache returns ``None``
+only when it holds nothing for the source (or lacks a requested placeholder).
 
 .. note::
 
@@ -58,8 +58,10 @@ is reset first (see the note above); oldest entries are dropped once the per-sou
    :pyobject: InMemoryCacheAccess.store
    :dedent:
 
-:meth:`~.CacheAccess.load` returns a hit only when every requested ID is cached and unexpired -- otherwise ``None``.
-``fetch_all`` requests always miss, since an accumulated cache cannot prove that it holds every ID.
+:meth:`~.CacheAccess.load` returns a :class:`.PartialCacheHit` with whatever hot rows it holds; ``covered`` defaults to
+those rows, so missing or expired IDs are re-fetched (and re-cached via :meth:`~.CacheAccess.store`). It returns ``None``
+when nothing is cached for the source or a requested placeholder is missing. ``fetch_all`` requests always miss, since an
+accumulated cache cannot prove that it holds every ID.
 
 .. literalinclude:: in_memory.py
    :caption: The ``InMemoryCacheAccess.load()`` method.
