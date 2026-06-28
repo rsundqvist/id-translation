@@ -110,6 +110,15 @@ def test_indexing(df, translator):
     )
 
 
+def test_legacy_fetcher_without_placeholder_attributes_warns():
+    """A custom Fetcher predating `placeholder_attributes` should warn, not crash with a TypeError."""
+    fetcher = _LegacyMemoryFetcher({"people": {"id": [1, 2], "name": ["Alice", "Bob"]}})
+    translator = Translator[str, str, int](fetcher, fmt="{id}:{name}")
+
+    with pytest.warns(FutureWarning, match="placeholder_attributes"):
+        assert translator.translate([1, 2], names="people") == ["1:Alice", "2:Bob"]
+
+
 @pytest.fixture
 def translator() -> Translator[str, str, Id]:
     # Languages
@@ -167,6 +176,32 @@ class InterceptFetcher(MemoryFetcher[str, Id]):
         assert instr.source not in self.instr
         self.instr[instr.source] = instr
         return super().fetch_translations(instr)
+
+
+class _LegacyMemoryFetcher(MemoryFetcher[str, int]):
+    """Custom fetcher with pre-`placeholder_attributes` ``fetch``/``fetch_all`` signatures (the v1.2.1 interface)."""
+
+    def fetch(  # type: ignore[override]
+        self, ids_to_fetch, placeholders=(), *, required=(), task_id=None, enable_uuid_heuristics=False
+    ):
+        return super().fetch(
+            ids_to_fetch,
+            placeholders,
+            required=required,
+            task_id=task_id,
+            enable_uuid_heuristics=enable_uuid_heuristics,
+        )
+
+    def fetch_all(  # type: ignore[override]
+        self, placeholders=(), *, required=(), sources=None, task_id=None, enable_uuid_heuristics=False
+    ):
+        return super().fetch_all(
+            placeholders,
+            required=required,
+            sources=sources,
+            task_id=task_id,
+            enable_uuid_heuristics=enable_uuid_heuristics,
+        )
 
 
 class P(Protocol):

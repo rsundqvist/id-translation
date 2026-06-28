@@ -1,8 +1,10 @@
+import inspect
 import logging
 import pickle
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from copy import deepcopy
 from datetime import timedelta
+from functools import cache
 from time import perf_counter
 from typing import (
     TYPE_CHECKING,
@@ -34,6 +36,7 @@ from .mapping.types import UserOverrideFunction
 from .offline import Format, TranslationMap
 from .offline.types import (
     FormatType,
+    PlaceholderAttributes,
     PlaceholderTranslations,
     SourcePlaceholderTranslations,
 )
@@ -1438,20 +1441,41 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             return self.fetcher.fetch_all(
                 placeholders,
                 required=required,
-                placeholder_attributes=placeholder_attributes,
+                # placeholder_attributes=placeholder_attributes, # TODO(2.0.0): Drop shim + uncomment this.
                 sources=ids_or_sources,
                 task_id=task_id,
                 enable_uuid_heuristics=self._enable_uuid_heuristics,
+                **self._placeholder_attributes_kwarg(type(self.fetcher).fetch_all, placeholder_attributes),
             )
         else:
             return self.fetcher.fetch(
                 ids_or_sources,
                 placeholders,
                 required=required,
-                placeholder_attributes=placeholder_attributes,
+                # placeholder_attributes=placeholder_attributes, # TODO(2.0.0): Drop shim + uncomment this.
                 task_id=task_id,
                 enable_uuid_heuristics=self._enable_uuid_heuristics,
+                **self._placeholder_attributes_kwarg(type(self.fetcher).fetch, placeholder_attributes),
             )
+
+    def _placeholder_attributes_kwarg(
+        self, func: Callable[..., Any], attributes: PlaceholderAttributes
+    ) -> dict[str, Any]:
+        """Forward ``placeholder_attributes`` only to fetchers whose method accepts it.
+
+        Custom :class:`.Fetcher` implementations written before this argument existed may omit it; warn and skip rather
+        than crashing with a ``TypeError``. See :attr:`.Format.placeholder_attributes`.
+        """
+        if _accepts_placeholder_attributes(func):
+            return {"placeholder_attributes": attributes}
+        emit_warning(
+            f"{tname(self.fetcher, include_module=True)}.{func.__name__}() does not accept the 'placeholder_attributes'"
+            " keyword argument; attribute access in the format string may be ignored."
+            "\nHint: Add `placeholder_attributes: PlaceholderAttributes | None = None` to the method signature."
+            "\nWARNING: This will raise in `id-translation==2.0.0`.",
+            FutureWarning,
+        )
+        return {}
 
     def _to_translation_map(
         self,
@@ -1491,3 +1515,15 @@ def _handle_default(
         default_placeholders = InheritedKeysDict.make(default_fmt_placeholders)
 
     return default_placeholders, default_fmt
+
+
+@cache
+def _accepts_placeholder_attributes(func: Callable[..., Any]) -> bool:
+    """Return ``True`` if `func` accepts a ``placeholder_attributes`` keyword (or ``**kwargs``)."""
+    try:
+        parameters = inspect.signature(func).parameters
+    except (TypeError, ValueError):  # pragma: no cover
+        return True  # Can't introspect; assume support to avoid spurious warnings.
+    if "placeholder_attributes" in parameters:
+        return True
+    return any(p.kind is inspect.Parameter.VAR_KEYWORD for p in parameters.values())
