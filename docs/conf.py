@@ -1,7 +1,7 @@
 """Sphinx configuration."""
 
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from zipfile import ZipFile
 
 from docutils.nodes import Text, reference
@@ -58,7 +58,28 @@ def skip_member(app, what, name, obj, skip, options):
 def setup(app):  # noqa
     app.connect("missing-reference", callback)
     app.connect("autodoc-skip-member", skip_member)
+    app.connect("build-finished", publish_jsonschema)
     add_custom_lexer()
+
+
+def publish_jsonschema(app, exception):
+    """Publish the config JSON schemas to the doc root.
+
+    Emits the main, fetcher and metaconf schemas at clean, versioned URLs
+    (``.../en/<version>/<name>.schema.json``) that config files reference via
+    SchemaStore / ``#:schema`` / a JSON Schema mapping. The fetcher schema is derived
+    from the main one (single source); see ``id_translation.toml._schema``.
+    """
+    if exception is not None:
+        return
+    import json
+
+    from id_translation.toml._schema import published_schemas
+
+    for filename, schema in published_schemas().items():
+        with open(os.path.join(app.outdir, filename), "w", encoding="utf-8") as f:
+            json.dump(schema, f, indent=2)
+            f.write("\n")
 
 
 def add_custom_lexer():
@@ -85,7 +106,7 @@ def add_custom_lexer():
 
 _metadata = metadata.metadata(id_translation.__name__)
 project = _metadata["Name"]
-copyright = _metadata["Author"] + f", {datetime.now(timezone.utc).year}"
+copyright = _metadata["Author"] + f", {datetime.now(UTC).year}"
 author = _metadata["Author"]
 # The version info for the project you're documenting, acts as replacement
 # for |version| and |release|, also used in various other places throughout
