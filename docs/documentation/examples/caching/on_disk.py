@@ -1,7 +1,7 @@
 """A naive caching solution.
 
 Downloaded from:
-    https://id-translation.readthedocs.io/en/stable/documentation/examples/caching/caching.html
+    https://id-translation.readthedocs.io/en/stable/documentation/examples/caching/on_disk.html
 
 This implementation provides:
     * Per-source cache timeout.

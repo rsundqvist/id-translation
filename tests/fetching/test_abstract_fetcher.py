@@ -68,7 +68,7 @@ class TestCache:
         self._run(fetcher)
 
     def test_no_access(self):
-        with pytest.raises(CacheAccessNotAvailableError, match=r"documentation/examples/caching/caching.html"):
+        with pytest.raises(CacheAccessNotAvailableError, match=r"documentation/examples/caching/on_disk.html"):
             _ = MemoryFetcher({}).cache_access
 
     def test_clone(self, windows_hack_temp_dir):

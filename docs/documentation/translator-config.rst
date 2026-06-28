@@ -204,7 +204,42 @@ Fetchers should be designed so that they do not raise before :meth:`.Fetcher.ini
 
 Caching
 ~~~~~~~
-This library does not provide any caching implementations.
+.. _choosing-a-cache:
+
+Choosing a caching strategy
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Before implementing a :class:`.CacheAccess`, check whether a simpler built-in mechanism already fits. All three avoid
+re-fetching translation data; they differ in scope, lifetime, and storage.
+
+.. list-table::
+   :header-rows: 1
+
+   * - Mechanism
+     - Scope
+     - Lifetime
+     - Storage
+     - Use when
+   * - :meth:`~.Translator.go_offline`
+     - Whole :class:`.Translator`
+     - In-process (terminal)
+     - Memory
+     - Required IDs are known in advance.
+   * - :meth:`~.Translator.load_persistent_instance`
+     - Whole :class:`.Translator`
+     - Cross-process
+     - Disk (:mod:`pickle`)
+     - The cache should be shared or reused between processes.
+   * - :class:`.CacheAccess`
+     - Per source
+     - User-defined
+     - User-defined
+     - You need per-source control, or want to avoid the others' trade-offs.
+
+See the :ref:`on-disk <caching_example>` and :ref:`in-memory <in_memory_caching_example>` ``CacheAccess`` examples.
+
+Implementing ``CacheAccess``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+This library does not provide any ``CacheAccess`` implementations.
 
 Instead, users may implement the :class:`.CacheAccess` interface to define their own caching logic. The
 :class:`.AbstractFetcher` will then call :meth:`.CacheAccess.load` and :meth:`.CacheAccess.store` when appropriate.

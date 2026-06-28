@@ -1,9 +1,9 @@
 .. _caching_example:
 
-================================
-A ``CacheAccess`` implementation
-================================
-A :class:`.CacheAccess` solution that stores data locally on disk. Click :download:`here <caching.py>` to download the
+=========================================
+An on-disk ``CacheAccess`` implementation
+=========================================
+A :class:`.CacheAccess` solution that stores data locally on disk. Click :download:`here <on_disk.py>` to download the
 full script.
 
 Design goals
@@ -20,7 +20,7 @@ Implementation
 --------------
 The new class needs to know where to store data and how long to keep it.
 
-.. literalinclude:: caching.py
+.. literalinclude:: on_disk.py
    :caption: The  ``__init__`` method.
    :pyobject: MyCacheAccess.__init__
    :dedent:
@@ -28,7 +28,7 @@ The new class needs to know where to store data and how long to keep it.
 We can now start implementing the abstract methods in :class:`.CacheAccess`. We'll start with
 :meth:`.CacheAccess.store`:
 
-.. literalinclude:: caching.py
+.. literalinclude:: on_disk.py
    :caption: The  ``MyCacheAccess.store()`` method.
    :pyobject: MyCacheAccess.store
    :dedent:
@@ -41,7 +41,7 @@ Otherwise, we use source as the file name and we convert the translations to a :
 
 We're now ready to implement :meth:`.CacheAccess.load`, which will read, verify, and convert the stored data.
 
-.. literalinclude:: caching.py
+.. literalinclude:: on_disk.py
    :caption: The  ``MyCacheAccess.load()`` method.
    :pyobject: MyCacheAccess.load
    :dedent:
@@ -49,7 +49,7 @@ We're now ready to implement :meth:`.CacheAccess.load`, which will read, verify,
 As per **Requirement 3**, we should only return data that is newer than `ttl` seconds. We'll use the
 :py:data:`modification time <stat.ST_MTIME>` of the serialized data that is reported by the operating system.
 
-.. literalinclude:: caching.py
+.. literalinclude:: on_disk.py
    :caption: The ``MyCacheAccess.age_in_seconds()`` method.
    :pyobject: MyCacheAccess.age_in_seconds
    :dedent:
@@ -67,7 +67,7 @@ Creating a cached fetcher
 -------------------------
 All :class:`.AbstractFetcher` implementations accept an optional `cache_access` keyword argument.
 
-.. literalinclude:: caching.py
+.. literalinclude:: on_disk.py
    :caption: Creating a :class:`.Translator` with a cached fetcher.
    :pyobject: create
 
@@ -148,4 +148,4 @@ be used.
    Load cache (age=0 <= 3600=ttl) at path='cache/people.ftr'.
    person= 1904:Fred
 
-This concludes the example. Click :download:`here <caching.py>` to download the full script.
+This concludes the example. Click :download:`here <on_disk.py>` to download the full script.

@@ -87,5 +87,5 @@ class CacheAccessNotAvailableError(FetcherError):
 
         from id_translation._utils import DOC_LINK  # noqa: PLC0415
 
-        link = DOC_LINK + "documentation/examples/caching/caching.html"
+        link = DOC_LINK + "documentation/examples/caching/on_disk.html"
         self.add_note(f"Hint: {link}")
