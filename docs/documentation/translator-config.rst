@@ -35,10 +35,10 @@ The ``metaconf.toml``-file is read as-is, without any preprocessing.
 
 Sections
 --------
-The only valid top-level keys are ``translator``, ``unknown_ids``, and ``fetching``. Only the ``fetching`` section is
-required, though it may be left out of the main configuration file if fetching is configured separately. Other
-:attr:`top-level keys <.TranslatorFactory.TOP_LEVEL_KEYS>`
-will raise a :class:`~id_translation.exceptions.ConfigurationError` if present.
+The valid top-level keys are ``translator``, ``fetching``, ``unknown_ids``, and ``transform`` (the
+:attr:`~.TranslatorFactory.TOP_LEVEL_KEYS`). Only the ``fetching`` section is required, though it may be left out of
+the main configuration file if fetching is configured separately. Any other top-level key
+will raise a :class:`~id_translation.exceptions.ConfigurationError`.
 
 Section: Translator
 -------------------
@@ -82,14 +82,23 @@ Section: Unknown IDs
 Section: Transformations
 ------------------------
 You may specify one :class:`.Transformer` per source. Subsection keys are passed directly to the ``init``-method of the
-chosen transformer type. For available transformers, see :mod:`id_translation.transform`.
+chosen transformer type. For available built-in transformers, see :mod:`id_translation.transform`.
 
 .. note::
 
-   You may add ``[transform.'<source>']``-sections either in the main configuration file, or in an auxiliary fetcher
-   configuration. It is a :class:`~id_translation.exceptions.ConfigurationError` to specify transformations for the same
-   `source` more than once.
+   Chained transformers and programmatic registration for e.g. bitmask sources is not supported out-of-the-box.
+   See https://github.com/rsundqvist/id-translation/issues/421 in GitHub for built-in support status.
 
+.. hint::
+
+   Transformers belong to the :class:`.Translator`, but you may place ``[transform.'<source>']``-sections in either
+   the main configuration file or an auxiliary fetcher configuration. Co-locating a transform with the fetcher that
+   produces ``<source>`` is often the best way to organize transform configs.
+
+.. warning::
+
+   It is a :class:`~id_translation.exceptions.ConfigurationError` to specify transformations for the same ``<source>``
+   more than once.
 
 For example, to configure a :class:`.BitmaskTransformer`, add a section on the form
 ``[transform.'<source>'.BitmaskTransformer]`` to an appropriate configuration file:

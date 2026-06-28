@@ -15,6 +15,7 @@ from id_translation.mapping import Mapper
 from id_translation.transform.types import Transformer, Transformers
 from id_translation.types import IdType, NameType, SourceType
 
+from .._utils.emit_warning import emit_warning
 from . import factories as cf
 from ._load_toml import load_toml_file
 from .meta import ConfigMetadata, Metaconf
@@ -117,7 +118,7 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
         ConfigurationError: If `config` is invalid.
     """
 
-    TOP_LEVEL_KEYS = ("translator", "mapping", "fetching", "unknown_ids", "transform")
+    TOP_LEVEL_KEYS = ("translator", "fetching", "unknown_ids", "transform")
     """Top-level keys allowed in the main configuration file."""
 
     def __init__(
@@ -338,6 +339,16 @@ def _make_default_translations(
 
 def _check_allowed_keys(allowed: Iterable[str], *, actual: Iterable[str], toml_path: str) -> None:
     bad_keys = set(actual).difference(allowed)
+
+    if "mapping" in bad_keys:  # TODO(2.0.0): Remove this branch
+        bad_keys.remove("mapping")
+        emit_warning(
+            "The top-level 'mapping' key is not used."
+            "\nHint: You want [translator.mapping] or [fetching.mapping]."
+            "\nWARNING: This will raise in `id-translation==2.0.0`.",
+            FutureWarning,
+        )
+
     if bad_keys:
         raise ValueError(f"Forbidden keys {sorted(bad_keys)} in [{toml_path}]-section.")
 
