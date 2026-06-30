@@ -213,6 +213,11 @@ def _normalize(
         # The mapping is only in reverse from the Fetcher's point-of-view; we're mapping back to "proper" values.
         translations.placeholders = tuple(reverse_mappings.get(p, p) for p in translations.placeholders)
 
-    translations.id_pos = translations.placeholders.index(ID)
+    try:
+        translations.id_pos = translations.placeholders.index(ID)
+    except ValueError:
+        # No placeholder mapped to "id" for this source. Rely on AbstractFetcher._verify_placeholders to raise.
+        translations.id_pos = -1
+
     translations.placeholder_aliases.update(reverse_mappings)
     return translations

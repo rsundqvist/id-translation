@@ -1,3 +1,4 @@
+import pickle
 from copy import deepcopy
 
 import pandas as pd
@@ -163,10 +164,31 @@ def test_optional_engine_error():
     connection_string = "not a proper connection string!"
     fetcher = SqlFetcher(connection_string, optional=True)
 
+    # Engine creation is deferred, so construction does no work and the bad string is not parsed yet.
+    assert str(fetcher) == "SqlFetcher(<uninitialized>)"
+
     message = "Could not parse SQLAlchemy URL from given URL string"
-    assert str(fetcher) == f"SqlFetcher(<disconnected>: no engine: ArgumentError('{message}'))"
     with pytest.raises(ConnectionStatusError, match=message):
         fetcher.initialize_sources()
+
+    # After the (failed, optional) creation attempt, the error is reflected in the repr.
+    assert str(fetcher) == f"SqlFetcher(<disconnected>: no engine: ArgumentError('{message}'))"
+
+
+@pytest.mark.parametrize(
+    "connection_string, password",
+    [
+        ("postgresql+pg8000://user:SUPERSECRET@host/db", None),  # inline password
+        ("postgresql+pg8000://user:{password}@host/db", "SUPERSECRET"),  # password argument
+    ],
+)
+def test_not_picklable_with_credentials(connection_string, password):
+    # Deferred engine creation retains connection_string/password on the instance; refuse to pickle so the secrets
+    # cannot be serialized (and so a credential-stripped fetcher does not fail confusingly on use later).
+    fetcher = RealSqlFetcher[int](connection_string, password=password)
+    with pytest.raises(TypeError, match="cannot be pickled"):
+        pickle.dumps(fetcher)
+    assert "SUPERSECRET" not in str(fetcher)
 
 
 def test_disconnected(connection_string):

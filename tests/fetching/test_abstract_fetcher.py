@@ -40,6 +40,14 @@ def test_unknown_placeholders(fetcher):
         fetcher.fetch([IdsToFetch("humans", set())], ("id", "number_of_legs"), {"number_of_legs"})
 
 
+def test_missing_id_placeholder_raises_clear_error():
+    # "id" is required implicitly even when not requested; a source that never maps it must raise
+    # UnknownPlaceholderError, not the bare `ValueError` from PlaceholderTranslations.id_pos computation.
+    no_id_fetcher: MemoryFetcher[str, str] = MemoryFetcher({"countries": {"code": ["US"], "name": ["USA"]}})
+    with pytest.raises(exceptions.UnknownPlaceholderError, match=r"{'id'} not recognized"):
+        no_id_fetcher.fetch([IdsToFetch("countries", {"US"})])
+
+
 @pytest.mark.parametrize(
     "selective_fetch_all, required, expected",
     [

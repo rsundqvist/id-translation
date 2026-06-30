@@ -3,7 +3,7 @@ from collections.abc import Collection, Iterable
 from copy import deepcopy
 from dataclasses import dataclass
 from time import perf_counter
-from typing import Any, Generic, Literal, Self, TypeAlias, Unpack
+from typing import Any, Generic, Literal, NoReturn, Self, TypeAlias, Unpack
 from urllib.parse import quote_plus
 from uuid import UUID
 
@@ -88,11 +88,13 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
     ) -> None:
         super().__init__(**kwargs)
         self._engine_kwargs = engine_kwargs or {}
-        self._engine: sqlalchemy.Engine | None = None
 
-        engine, engine_str = self._create_engine(connection_string, password)
-        self._engine = engine
-        self._estr = engine_str
+        # Child create_engine() impls may do real work, e.g. reading secrets. Delay until needed, typically the first
+        # initialize_sources(). By convention, Fetcher.__init__ should not raise (but initialize_sources may).
+        self._connection_string = connection_string
+        self._password = password
+        self._engine: sqlalchemy.Engine | None = None
+        self._estr: str | None = None  # Set alongside the engine, when it is created.
 
         self._schema = schema
         self._reflect_views = include_views
@@ -132,6 +134,14 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
             engine_str = f"no engine: {e!r}"
 
         return engine, engine_str
+
+    def _ensure_engine(self) -> None:
+        if self._estr is not None:
+            return  # Engine already created -- or, for an optional fetcher, an earlier attempt already failed.
+
+        engine, engine_str = self._create_engine(self._connection_string, self._password)
+        self._engine = engine
+        self._estr = engine_str
 
     def select_where(
         self,
@@ -322,6 +332,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         return self._engine is not None  # pragma: no cover
 
     def _initialize_sources(self, task_id: int) -> dict[str, list[str]]:
+        self._ensure_engine()
         if self._engine is None:
             raise ConnectionStatusError(f"disconnected: {self._estr}")
 
@@ -337,8 +348,6 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         return super().allow_fetch_all and all(s.fetch_all_permitted for s in self._table_summaries.values())
 
     def __str__(self) -> str:
-        disconnected = "<disconnected>: " if not self.online else ""
-
         kwargs: dict[str, Any] = {}
         if self._schema:
             kwargs["schema"] = self._schema
@@ -348,11 +357,15 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
             kwargs["sources"] = [*self._table_summaries]
 
         pretty_kwargs = ", " + format_kwargs(kwargs, max_value_length=1024) if kwargs else ""
+        if self._estr is None:
+            return f"{type(self).__name__}(<uninitialized>{pretty_kwargs})"
+        disconnected = "<disconnected>: " if not self.online else ""
         return f"{type(self).__name__}({disconnected}{self._estr}{pretty_kwargs})"
 
     @property
     def engine(self) -> sqlalchemy.engine.Engine:
         """The :class:`~sqlalchemy.engine.Engine` used by this fetcher."""
+        self._ensure_engine()
         self.assert_online()
         assert self._engine is not None  # noqa: S101
         return self._engine
@@ -374,10 +387,11 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         password: str | None,
         engine_kwargs: dict[str, Any],
     ) -> sqlalchemy.engine.Engine:
-        """Factory method used by ``__init__``.
+        """Factory method that creates the :attr:`engine`.
 
-        For a more detailed description of the arguments and the behaviour of this function, see the
-        :class:`class docstring <SqlFetcher>`.
+        Called lazily on the first :meth:`~.AbstractFetcher.initialize_sources` call (not from ``__init__``), so any
+        runtime work done here surfaces there rather than at construction. For a more detailed description of the
+        arguments and the behaviour of this function, see the :class:`class docstring <SqlFetcher>`.
 
         Args:
             connection_string: A SQLAlchemy connection string.
@@ -511,6 +525,9 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         metadata = sqlalchemy.MetaData(schema=self._schema)
         metadata.reflect(self.engine, only=self._whitelist, views=self._reflect_views)
         return metadata
+
+    def __getstate__(self) -> NoReturn:
+        raise TypeError(f"{type(self).__name__} cannot be pickled (it holds connection credentials).")
 
     def __deepcopy__(self, memo: dict[int, Any] | None = None) -> Self:
         if memo is None:

@@ -32,6 +32,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Fixed exit event keys in `AbstractFetcher.fetch_all()` and `Translator.go_offline()`.
+- `SqlFetcher` defers engine creation to the first `initialize_sources()` call, so runtime errors from an overridden
+  `create_engine()` (e.g. a bad slug or unreachable database) surface there rather than at construction.
 
 ## [1.2.1] - 2026-05-09
 
