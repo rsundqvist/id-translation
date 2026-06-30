@@ -59,6 +59,13 @@ class BaseMetadata(ABC):
 
         return self._is_equivalent(other)
 
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, BaseMetadata) or type(self) is not type(other):
+            return NotImplemented
+        return self.to_dict() == other.to_dict()
+
+    __hash__ = None  # type: ignore[assignment]  # Mutable (e.g. 'versions') with value equality => unhashable.
+
     def to_dict(self) -> dict[str, Any]:
         """Get a dict representation of this ``BaseMetadata``."""
         raw = self.__dict__.copy()

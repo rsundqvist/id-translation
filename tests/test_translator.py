@@ -1,6 +1,5 @@
 import logging
 from contextlib import contextmanager
-from dataclasses import dataclass
 from itertools import combinations_with_replacement
 from typing import Any, assert_type
 from uuid import UUID
@@ -50,17 +49,10 @@ class UnitTestTranslator(RealTranslator[str, str, int]):
         self.now = pd.Timestamp.now()
 
 
-@dataclass
 class ConfigMetadataForTest(_config_metadata.ConfigMetadata):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
-
-    def __post_init__(self) -> None:
         assert self.clazz in ("id_translation._translator.Translator", "tests.test_translator.Translator")
-
-
-# __post_init__ doesn't play nice with monkey patching
-_config_metadata.ConfigMetadata = ConfigMetadataForTest  # type: ignore
 
 
 @pytest.mark.parametrize("with_id, with_override, store", combinations_with_replacement([False, True], 3))
