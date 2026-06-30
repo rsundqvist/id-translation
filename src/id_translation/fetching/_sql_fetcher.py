@@ -46,7 +46,8 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
     """Fetch data from a SQL source.
 
     Args:
-        connection_string: A SQLAlchemy connection string.
+        connection_string: A SQLAlchemy connection string. Passed verbatim to :meth:`create_engine`, so subclasses that
+            override it may reinterpret the value when needed (e.g. as a database slug).
         password: Password to insert into the connection string. Will be escaped to allow for special characters. If
             given, the connection string must contain a password key, eg; ``dialect://user:{password}@host:port``.
         whitelist_tables: The only tables the fetcher may access.

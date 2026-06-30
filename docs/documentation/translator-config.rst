@@ -5,17 +5,19 @@ Configuration
 This document describes the TOML format used by the
 :meth:`Translator.from_config() <id_translation.Translator.from_config>`-method.
 
-.. hint::
-    Functions or classes are resolved by name using :func:`rics.misc.get_by_full_name`.
+.. note::
+   Unqualified names are assumed to belong to an appropriate ``id_translation`` module. To specify a custom
+   implementation, use ``'fully.qualified.names'`` (in quotation marks).
 
-    Unqualified names are assumed to
-    belong to an appropriate ``id_translation`` module. To specify a custom implementation, use
-    ``'fully.qualified.names'`` (in quotation marks).
+Functions or classes are resolved by name using :func:`rics.misc.get_by_full_name`.
 
 Meta configuration
 ------------------
 The ``metaconf.toml``-file must be placed next to the main TOML configuration file, and determines how other files are
 processed by the factory. See :class:`~id_translation.toml.meta.Metaconf` for internal representation.
+
+You rarely need this file: environment-variable interpolation (``${VAR}`` / ``${VAR:default}``) is **on by default**.
+Add a ``metaconf.toml`` only to *change* that default. See :class:`.ConfigMetadata` for details.
 
 .. list-table:: The ``metaconf.toml`` file format.
    :header-rows: 1
@@ -29,7 +31,8 @@ processed by the factory. See :class:`~id_translation.toml.meta.Metaconf` for in
      - Control environment-variable interpolation; ``${VAR}`` or ``${VAR:default}``.
    * - ``[equivalence]``
      - :class:`~id_translation.toml.meta.EquivalenceConf`
-     - Determines how equivalence between configuration files is determined.
+     - Determines how equivalence between configuration files is determined (used by e.g.
+       :meth:`~.Translator.load_persistent_instance`).
 
 The ``metaconf.toml``-file is read as-is, without any preprocessing.
 
@@ -50,7 +53,7 @@ Section: Translator
      - Description
    * - fmt
      - :class:`~id_translation.offline.Format`
-     - Specify how translated IDs are displayed.
+     - Specify how translated IDs are displayed. Defaults to ``{id}:{name}``; use ``fmt = "{name}"`` for the label alone.
    * - enable_uuid_heuristics
      - :py:class:`bool`
      - Improves matching when :py:class:`~uuid.UUID`-like IDs are in use.
@@ -131,7 +134,23 @@ For example, a ``[transform.'<source>'.'my.library.SuperTransformer']``-section 
 Section: Fetching
 -----------------
 The type of the fetcher is determined by the second-level key (other than ``mapping``, which is reserved). For example,
-a :class:`~id_translation.fetching.MemoryFetcher` would be created by adding a ``[fetching.MemoryFetcher]``-section.
+a :class:`~id_translation.fetching.MemoryFetcher` would be created by adding a ``[fetching.MemoryFetcher]``-section. A
+single file may only declare **one** fetcher this way -- a single fetcher commonly serves many sources (e.g. one
+``SqlFetcher`` across several tables); see :ref:`Multiple fetchers` below if you need to *combine* fetchers, e.g. a
+``SqlFetcher`` alongside a ``MemoryFetcher``.
+
+The :class:`~id_translation.fetching.MemoryFetcher` is handy for small, static sources. Give each source one column per
+placeholder (``id`` and ``name`` at minimum):
+
+.. code-block:: toml
+
+   [fetching.MemoryFetcher.data.customers]
+   id = [1, 2]
+   name = ["Alice", "Bob"]
+
+See :meth:`.PlaceholderTranslations.make` for the other accepted ``data`` forms. For string-keyed sources, a scalar
+shorthand (``P = "Pending"``) is often handier; the :ref:`adoption guide <adopting-id-translation>` uses it. Avoid it
+for integer IDs -- TOML keys are always strings, so ``101 = "Widget"`` would key the row under the string ``"101"``.
 
 .. list-table:: Section keys: ``[fetching]``
    :header-rows: 1

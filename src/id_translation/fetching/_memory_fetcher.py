@@ -17,7 +17,16 @@ class MemoryFetcher(AbstractFetcher[SourceType, IdType]):
     This is essentially a thin wrapper for the :class:`.PlaceholderTranslations` class.
 
     Args:
-        data: A dict ``{source: PlaceholderTranslations}`` to fetch from.
+        data: A dict ``{source: data_for_source}``. Each per-source value may be anything accepted by
+            :meth:`.PlaceholderTranslations.make`:
+
+            * ``{id: label}`` -- the simplest form; one label per ID.
+            * ``{placeholder: [values, ...]}`` -- column-oriented; use this for multiple placeholders.
+            * A :class:`pandas.DataFrame`.
+            * A ready-made :class:`.PlaceholderTranslations`.
+
+            The first two forms are plain dicts, so they may be written directly in TOML configuration as
+            ``[fetching.MemoryFetcher.data.<source>]``-sections (see :ref:`translator-config-fetching`).
         return_all: If ``False``, return only the requested IDs and placeholders.
         **kwargs: See :class:`.AbstractFetcher`.
     """

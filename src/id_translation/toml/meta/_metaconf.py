@@ -35,7 +35,12 @@ class EnvConf:
 
 @dataclass(frozen=True)
 class EquivalenceConf:
-    """Determines how equivalence between configuration files is determined."""
+    """Determines how equivalence between configuration files is determined.
+
+    .. seealso::
+
+       The :meth:`.Translator.load_persistent_instance` method.
+    """
 
     python_version: str = "{v.major}.{v.minor}.{v.micro}"
     """Used to format the ``'python_version'`` version using ``v=sys.version_info``."""

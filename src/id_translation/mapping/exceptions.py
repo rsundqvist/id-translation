@@ -22,7 +22,7 @@ class MappingError(Exception):
 
             expected = enable_verbose_debug_messages.__module__ + "." + enable_verbose_debug_messages.__name__
             assert func == expected  # noqa: S101
-        self.add_note(f"Hint: Use `{func}` for detailed output.")
+        self.add_note(f"Hint: Use `{func}` to see why mapping failed.")
 
 
 class UnmappedValuesError(MappingError):
