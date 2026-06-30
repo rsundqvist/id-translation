@@ -5,6 +5,10 @@ Configuration
 This document describes the TOML format used by the
 :meth:`Translator.from_config() <id_translation.Translator.from_config>`-method.
 
+.. seealso::
+   Adding ``id-translation`` to a codebase you already have? The :ref:`migration-guide` guide walks through it end to
+   end, including the recommended single ``create_translator()`` entry point.
+
 .. note::
    Unqualified names are assumed to belong to an appropriate ``id_translation`` module. To specify a custom
    implementation, use ``'fully.qualified.names'`` (in quotation marks).
@@ -149,7 +153,7 @@ placeholder (``id`` and ``name`` at minimum):
    name = ["Alice", "Bob"]
 
 See :meth:`.PlaceholderTranslations.make` for the other accepted ``data`` forms. For string-keyed sources, a scalar
-shorthand (``P = "Pending"``) is often handier; the :ref:`adoption guide <adopting-id-translation>` uses it. Avoid it
+shorthand (``P = "Pending"``) is often handier; the :ref:`adoption guide <migration-guide>` uses it. Avoid it
 for integer IDs -- TOML keys are always strings, so ``101 = "Widget"`` would key the row under the string ``"101"``.
 
 .. list-table:: Section keys: ``[fetching]``

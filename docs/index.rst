@@ -24,6 +24,11 @@ might look like.
 
 .. hint::
 
+   Already have an application that resolves IDs by hand (``dict``\ s, ``.map()``, ad-hoc SQL ``JOIN``\ s)? See the
+   :ref:`migration-guide` instead -- it walks through adding ``id-translation`` to an existing codebase.
+
+.. hint::
+
    See the :doc:`/documentation/translation-primer` for a high-level overview of the :class:`.Translator` plumbing.
 
 

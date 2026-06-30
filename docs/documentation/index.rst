@@ -6,6 +6,7 @@ Examples and documentation.
    :hidden:
 
    examples/index
+   migration-guide
    cookbook/index
    translator-config
    translation-primer

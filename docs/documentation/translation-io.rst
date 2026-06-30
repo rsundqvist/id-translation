@@ -52,6 +52,8 @@ Bundled implementations have priorities in the `1000 - 1999` range (inclusive); 
 ..
    The csv-table directive does not work properly when used in src/id_translation/dio/__init__.py with :path:.
 
+.. _io-implementations:
+
 .. csv-table:: Ranking of built-in :class:`DataStructureIO` implementations.
    :file: io-ranks.csv
    :header-rows: 1
