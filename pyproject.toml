@@ -90,7 +90,7 @@ test = [
 ]
 devops = [
     "nox~=2026.2.9",
-    "invoke~=2.2.1",
+    "invoke>=2.2.1,<3.1.0",
     "mypy~=1.19.1",
     "ruff~=0.15.5",
     "codespell~=2.4.1",
