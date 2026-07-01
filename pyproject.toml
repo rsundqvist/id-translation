@@ -81,7 +81,7 @@ test = [
     "pytest~=9.0.2",
     "xdoctest~=1.3.0",
     "coverage~=7.13.1",
-    "pytest-cov~=7.0.0",
+    "pytest-cov>=7.0,<7.2",
     "s3fs~=2026.1.0 ; sys_platform == 'linux'", # Minio tests
     "pg8000~=1.31.5",
     "pymssql~=2.3.10",
