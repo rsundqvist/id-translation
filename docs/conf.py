@@ -17,14 +17,13 @@ if True:  # E402 hack
 import shutil
 from importlib import metadata
 
-from rics._internal_support import make_toc_tree_titles_shorter, myst_parser_markdown_doc_refs
+from rics._internal_support import myst_parser_markdown_doc_refs
 from rics._internal_support.changelog import split_changelog
 
 import id_translation
 from id_translation.fetching import AbstractFetcher
 
 myst_parser_markdown_doc_refs.patch()
-make_toc_tree_titles_shorter.patch()
 
 if not os.path.exists("api"):
     os.mkdir("api")
@@ -251,7 +250,6 @@ html_theme_options = {
     "icon_links_label": "Quick Links",
     "use_edit_page_button": False,
     "navigation_with_keys": False,
-    "show_toc_level": 1,
     "navbar_end": ["navbar-icon-links"],  # Dark mode doesn't work properly; disable it
 }
 
