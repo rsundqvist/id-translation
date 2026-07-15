@@ -55,10 +55,54 @@ def skip_member(app, what, name, obj, skip, options):
     return skip or name.startswith("_")
 
 
+def forbid_downstream_unresolvable_references(app, env):
+    """Warn on py-domain references that may resolve here, but not in downstream projects.
+
+    Docstrings are inherited, copied, and wrapped by downstream projects (see e.g. the id-translation-project
+    template). There, relative references such as ``:class:`.Format``` (including bare exception names in ``Raises:``
+    sections) can only be resolved by intersphinx, which requires an exact fully-qualified match against a documented
+    name. Enforce that invariant for all py-domain references in docstrings; narrative documents are only rendered
+    here, and may use ``py:currentmodule``-relative references. The build runs with ``-W``, so violations fail it.
+    """
+    import builtins
+
+    from sphinx import addnodes
+    from sphinx.ext.intersphinx import InventoryAdapter
+    from sphinx.util.logging import getLogger
+
+    logger = getLogger(__name__)
+
+    domain = env.get_domain("py")
+    external = {name for objects in InventoryAdapter(env).main_inventory.values() for name in objects}
+
+    def is_exact_match(target):
+        return target in domain.objects or target in domain.modules or target in external
+
+    def source_of(node):
+        while node is not None:
+            if node.source:
+                return node.source
+            node = node.parent
+        return ""
+
+    for docname in sorted(env.found_docs):
+        for node in env.get_doctree(docname).findall(addnodes.pending_xref):
+            if node.get("refdomain") != "py":
+                continue
+            if "docstring of " not in source_of(node):
+                continue
+            target = node.get("reftarget", "")
+            if is_exact_match(target) or hasattr(builtins, target):
+                continue
+            msg = f"Reference {target!r} does not exactly match any documented name, so it will not resolve in"
+            logger.warning(msg + " downstream projects. Use a fully qualified name.", location=node)
+
+
 def setup(app):  # noqa
     app.connect("missing-reference", callback)
     app.connect("autodoc-skip-member", skip_member)
     app.connect("build-finished", publish_jsonschema)
+    app.connect("env-check-consistency", forbid_downstream_unresolvable_references)
     add_custom_lexer()
 
 
