@@ -2,14 +2,14 @@
 
 .. hint::
 
-   Use :func:`.register_io` to register custom :class:`.DataStructureIO` implementations.
+   Use :func:`~id_translation.dio.register_io` to register custom :class:`~id_translation.dio.DataStructureIO` implementations.
 
 Rules of thumb
 --------------
-* The :attr:`IdTypes` are the only `"truly"` translatable types. Collections thereof are also supported.
+* The :attr:`~id_translation.types.IdTypes` are the only `"truly"` translatable types. Collections thereof are also supported.
 * Non-inplace (copy-translation, default) always `tries` to return a collection of the same type, with all
-  :attr:`IdTypes` converted to :py:class:`str`.
-* In-place translation always returns ``None``, or raises :class:`~.dio.exceptions.NotInplaceTranslatableError`.
+  :attr:`~id_translation.types.IdTypes` converted to :py:class:`str`.
+* In-place translation always returns ``None``, or raises :class:`~id_translation.dio.exceptions.NotInplaceTranslatableError`.
 
 Overloads err on the overly-permissive side. Static type checkers (only MyPy is tested) may incorrectly allow things
 like ``translator.translate("a-string-id")`` for ``int``-only ``Translator`` instances.
@@ -37,7 +37,7 @@ from typing import TYPE_CHECKING
 from uuid import UUID as _UUID
 
 ID: _t.Literal["id"] = "id"
-"""Name of the ID placeholder in the translation :class:`~.Format`.
+"""Name of the ID placeholder in the translation :class:`~id_translation.offline.Format`.
 
 Cannot be changed (yet); see https://github.com/rsundqvist/id-translation/issues/151.
 """
@@ -45,7 +45,7 @@ Cannot be changed (yet); see https://github.com/rsundqvist/id-translation/issues
 IdTypes = int | str | _UUID
 """Type of the value being translated into human-readable labels."""
 IdType = _t.TypeVar("IdType", bound=IdTypes)
-"""Type variable bound by :attr:`IdTypes`."""
+"""Type variable bound by :attr:`~id_translation.types.IdTypes`."""
 
 NameType = _t.TypeVar("NameType", bound=_cabc.Hashable)
 """Type used to label collections of IDs, such as the column names in a DataFrame or the keys of a dict."""
@@ -93,8 +93,8 @@ InplaceTranslatable: _t.TypeAlias = DictTranslatable[NameType, IdType] | _Inplac
 Translatable: _t.TypeAlias = InplaceTranslatable[NameType, IdType] | CopyTranslatable[IdType] | PandasTranslatable
 """Enumeration of translatable types.
 
-Types ``int``, ``str``, and ``UUID`` can be translated, or a collection thereof. Some :mod:`numpy` and :mod:`pandas`
-types are also supported. The :class:`.Translator` is quite flexible when it comes to the encapsulating data structure,
+Types ``int``, ``str``, and ``UUID`` can be translated, or a collection thereof. Some :mod:`numpy` and :mod:`~id_translation.dio.integration.pandas`
+types are also supported. The :class:`~id_translation.Translator` is quite flexible when it comes to the encapsulating data structure,
 and will do its best to return a data structure of the same type (albeit with elements converted to ``str``).
 
 .. note::

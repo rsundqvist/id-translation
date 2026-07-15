@@ -33,7 +33,7 @@ class PlaceholderTranslations(_t.Generic[_tt.SourceType]):
     id_pos: int = -1
     """Position if the ID placeholder in `placeholders`."""
     placeholder_aliases: dict[str, str] = _dataclasses.field(default_factory=dict)
-    """Alternative :attr:`placeholder <placeholders>` names."""
+    """Alternative :attr:`placeholder <id_translation.offline.types.PlaceholderTranslations.placeholders>` names."""
 
     @classmethod
     def make(cls, source: _tt.SourceType, data: "MakeTypes[_tt.SourceType, _tt.IdTypes]") -> _t.Self:
@@ -44,7 +44,7 @@ class PlaceholderTranslations(_t.Generic[_tt.SourceType]):
             data: Some data to convert to a ``PlaceholderTranslations`` instance.
 
         Returns:
-            A new :class:`PlaceholderTranslations` instance.
+            A new :class:`~id_translation.offline.types.PlaceholderTranslations` instance.
 
         Raises:
             TypeError: If `data` cannot be converted.

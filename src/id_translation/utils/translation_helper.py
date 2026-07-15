@@ -3,7 +3,8 @@
 Typing rules
 ------------
 
-Compared to :meth:`.Translator.translate`, typing is limited. Rules for :meth:`.TranslationHelper.apply`:
+Compared to :meth:`Translator.translate <id_translation.Translator.translate>`, typing is limited. Rules for
+:meth:`TranslationHelper.apply <id_translation.utils.translation_helper.TranslationHelper.apply>`:
 
 * When ``user_params = False``, output= input.
 * When ``user_params != False``, output= ``Any`` (new variable) or same (existing variable).
@@ -36,7 +37,8 @@ Examples:
     **Function definition**
 
     Arguments provided when the helper is initialized are fixed. An exception is raised if fixed arguments overlap
-    either with `user_kwargs`, or with the defaults provided as keyword-arguments to :meth:`~.TranslationHelper.apply`.
+    either with `user_kwargs`, or with the defaults provided as keyword-arguments to
+    :meth:`~id_translation.utils.translation_helper.TranslationHelper.apply`.
 
     In the example below, ``names="name"`` is a fixed argument (see the snippet above) and ``fmt="{id}:{name}"`` is a
     default argument.
@@ -79,7 +81,7 @@ Examples:
 
     **Argument forwarding**
 
-    Dicts are interpreted as keyword-arguments for :meth:`.Translator.translate`.
+    Dicts are interpreted as keyword-arguments for :meth:`Translator.translate <id_translation.Translator.translate>`.
 
     >>> example(22, translate={"fmt": "{name} (binary={id:0b})"})[-1]
     'name-of-21 (binary=10101)'
@@ -95,13 +97,16 @@ Examples:
 
        Users may not override the `fixed_params` of the helper instance.
 
-    The helper uses :meth:`.TranslationHelper.convert_user_params` internally, which may also be used to validate the
+    The helper uses :meth:`TranslationHelper.convert_user_params <id_translation.utils.translation_helper.TranslationHelper.convert_user_params>`
+    internally, which may also be used to validate the
     configuration.
 
     **Documenting user arguments**
 
-    Initialized helpers provide methods creating :meth:`user_params <.make_user_params_docstring>`
-    and :meth:`type error <.make_type_error_docstring>` docstrings, which may be used as part of the docstring of
+    Initialized helpers provide methods creating
+    :meth:`user_params <id_translation.utils.translation_helper.TranslationHelper.make_user_params_docstring>`
+    and :meth:`type error <id_translation.utils.translation_helper.TranslationHelper.make_type_error_docstring>` docstrings, which may be used as part
+    of the docstring of
     functions that use translation helpers.
 
     >>> example.__doc__.format(  # doctest: +SKIP
@@ -110,7 +115,7 @@ Examples:
     ... )
     >>> help(example)
 
-    See the :func:`example` function below for output.
+    See the :func:`~id_translation.utils.translation_helper.example` function below for output.
 """
 
 import os as _os
@@ -146,14 +151,14 @@ class TranslationHelper(_t.Generic[_tt.NameType, _tt.SourceType, _tt.IdType]):
     """Helper class for single-purpose translation tasks.
 
     Args:
-        translator_or_factory: A callable ``() -> Translator``, or an initialized :class:`.Translator`.
+        translator_or_factory: A callable ``() -> Translator``, or an initialized :class:`~id_translation.Translator`.
         user_params_name: Used for reporting errors.
-        **fixed_params: Fixed parameters for :meth:`.Translator.translate`. Attempting to override these in
-            :meth:`TranslationHelper.apply` will raise an error.
+        **fixed_params: Fixed parameters for :meth:`Translator.translate <id_translation.Translator.translate>`. Attempting to override these in
+            :meth:`TranslationHelper.apply <id_translation.utils.translation_helper.TranslationHelper.apply>` will raise an error.
 
     Notes:
         The https://github.com/rsundqvist/id-translation-project/ template includes functions such as
-        :func:`~big_corporation_inc.id_translation.get_singleton`, which are suitable :class:`.Translator` suppliers.
+        :func:`~big_corporation_inc.id_translation.get_singleton`, which are suitable :class:`~id_translation.Translator` suppliers.
         See the `Big Corporation Inc. <https://rsundqvist.github.io/id-translation-project/>`_ sample docs for more.
 
     .. seealso:: The :ref:`Typing rules` and :ref:`Examples <translation-helper-examples>` sections.
@@ -227,7 +232,7 @@ class TranslationHelper(_t.Generic[_tt.NameType, _tt.SourceType, _tt.IdType]):
 
         Returns:
             The original `translatable` if `user_params` is ``False``. Otherwise, return a translated copy or
-            ``None`` based on the `copy`-setting (see :meth:`.Translator.translate`).
+            ``None`` based on the `copy`-setting (see :meth:`Translator.translate <id_translation.Translator.translate>`).
 
         Raises:
             TypeError: If reserved or fixed keys are passed in the `user_params`.
@@ -255,7 +260,7 @@ class TranslationHelper(_t.Generic[_tt.NameType, _tt.SourceType, _tt.IdType]):
         return result
 
     def name_to_source(self) -> _tt.NameToSource[_tt.NameType, _tt.SourceType]:
-        """Return the name-to-source mapping of the latest :meth:`.apply()`-call."""
+        """Return the name-to-source mapping of the latest :meth:`~id_translation.utils.translation_helper.TranslationHelper.apply`-call."""
         if self._translated_names is None:
             raise ValueError("No names have been translated using this TranslationHelper.")
         return dict(self._translated_names)
@@ -291,7 +296,7 @@ class TranslationHelper(_t.Generic[_tt.NameType, _tt.SourceType, _tt.IdType]):
             validate: If ``False``, skip the regular fixed parameter validation.
 
         Returns:
-            Valid :meth:`.Translator.translate` parameters
+            Valid :meth:`Translator.translate <id_translation.Translator.translate>` parameters
         """
         if user_params is False:
             msg = f"Cannot convert {self._user_params_name}=False."
@@ -363,12 +368,12 @@ class TranslationHelper(_t.Generic[_tt.NameType, _tt.SourceType, _tt.IdType]):
 
         parts = [
             "Translation options. Set to ``False`` to disable.",
-            "If :class:`dict`, use as keyword-arguments for :attr:`.Translator.translate` (raises"
+            "If :class:`dict`, use as keyword-arguments for :attr:`Translator.translate <id_translation.Translator.translate>` (raises"
             f" :py:class:`TypeError` for {len(reserved) + len(ALWAYS_RESERVED)} reserved keys).",
         ]
 
         types = [
-            (str, "fmt", "see :class:`.Format`"),
+            (str, "fmt", "see :class:`~id_translation.offline.Format`"),
             (float, "max_fails", "where 1=disable check, 0=no missing IDs allowed"),
         ]
 
@@ -414,8 +419,9 @@ class TranslationHelper(_t.Generic[_tt.NameType, _tt.SourceType, _tt.IdType]):
         """Convenience method for creating multiple docstrings.
 
         Args:
-            user_params_key: Key for :meth:`make_user_params_docstring` output. Default is `user_params_name`.
-            type_error_key: Key for :meth:`make_type_error_docstring` output.
+            user_params_key: Key for :meth:`~id_translation.utils.translation_helper.TranslationHelper.make_user_params_docstring` output. Default is
+                `user_params_name`.
+            type_error_key: Key for :meth:`~id_translation.utils.translation_helper.TranslationHelper.make_type_error_docstring` output.
 
         Returns:
             A dict of docstrings.
@@ -457,7 +463,8 @@ if __doc__:
         ) -> list[str]:
             """Create and translate the first `n` integers.
 
-            Docstrings for `translate` and ``TypeError`` were produced by :meth:`~.TranslationHelper.make_docstrings`.
+            Docstrings for `translate` and ``TypeError`` were produced by
+            :meth:`~id_translation.utils.translation_helper.TranslationHelper.make_docstrings`.
 
             Args:
                 n: Number of integers to create.

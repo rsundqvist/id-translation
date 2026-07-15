@@ -7,7 +7,7 @@ from ._initialize import initialize
 
 
 def default_transformer_factory(clazz: str, config: dict[str, Any]) -> Transformer[IdType]:
-    """Create a :class:`.Transformer` from config."""
+    """Create a :class:`~id_translation.transform.types.Transformer` from config."""
     from id_translation import transform as default_module  # noqa: PLC0415
 
     return initialize(

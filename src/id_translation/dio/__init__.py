@@ -14,9 +14,9 @@ from ._resolve import (
 from ._util import pretty_io_name
 
 ENTRYPOINT_GROUP: str = "id_translation.dio"  # Public reexport. Must match _repository.ENTRYPOINT_GROUP.
-"""Group used to discover :class:`DataStructureIO` integrations.
+"""Group used to discover :class:`~id_translation.dio.DataStructureIO` integrations.
 
-See :func:`load_integrations` and :py:func:`importlib.metadata.entry_points` for details.
+See :func:`~id_translation.dio.load_integrations` and :py:func:`importlib.metadata.entry_points` for details.
 """
 
 __all__ = [

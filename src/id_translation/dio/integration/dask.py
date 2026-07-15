@@ -29,8 +29,8 @@ class DaskIO(_DataStructureIO[DaskT, str, _tt.SourceType, _tt.IdType]):
     """Optional IO implementation for ``dask`` types.
 
     Args:
-        missing_as_nan: If set, unknown IDs will be `NaN`. Forwarded to :class:`.PandasIO`.
-        as_category: Set `dtype='category'` in the result. Forwarded to :class:`.PandasIO`.
+        missing_as_nan: If set, unknown IDs will be `NaN`. Forwarded to :class:`~id_translation.dio.integration.pandas.PandasIO`.
+        as_category: Set `dtype='category'` in the result. Forwarded to :class:`~id_translation.dio.integration.pandas.PandasIO`.
 
     Notes:
         Combining ``missing_as_nan=False`` with ``as_category=True`` can be unpredictable in distributed contexts.
@@ -51,7 +51,7 @@ class DaskIO(_DataStructureIO[DaskT, str, _tt.SourceType, _tt.IdType]):
 
     @property
     def partition_io(self) -> PartitionIO[_t.Any, _tt.SourceType, _tt.IdType]:
-        """The :class:`PartitionIO` implementation used by this instance."""
+        """The :class:`~id_translation.dio.integration.dask.PartitionIO` implementation used by this instance."""
         return self._part_io
 
     @classmethod

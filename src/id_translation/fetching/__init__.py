@@ -1,18 +1,18 @@
 """Fetching of translation data.
 
 Composite:
-    * :class:`.MultiFetcher`: Solution for using multiple simple fetchers, e.g. multiple databases or file-system
+    * :class:`~id_translation.fetching.MultiFetcher`: Solution for using multiple simple fetchers, e.g. multiple databases or file-system
       locations. Or a combination thereof!
 
 Simple fetchers:
-    * :class:`.SqlFetcher`: Fetching from a single SQL database or schema.
-    * :class:`.PandasFetcher`: File-system fetching based on pandas read-functions. Valid URL schemes include http, ftp,
+    * :class:`~id_translation.fetching.SqlFetcher`: Fetching from a single SQL database or schema.
+    * :class:`~id_translation.fetching.PandasFetcher`: File-system fetching based on pandas read-functions. Valid URL schemes include http, ftp,
       s3, gs, and file.
-    * :class:`.MemoryFetcher`: In-memory solution, used primarily for testing.
+    * :class:`~id_translation.fetching.MemoryFetcher`: In-memory solution, used primarily for testing.
 
 Base fetchers:
-    * :class:`.Fetcher`: Top-level interface definition. Base for all fetching implementations.
-    * :class:`.AbstractFetcher`: Implements high-level operations such as
+    * :class:`~id_translation.fetching.Fetcher`: Top-level interface definition. Base for all fetching implementations.
+    * :class:`~id_translation.fetching.AbstractFetcher`: Implements high-level operations such as
       `placeholder mapping <../documentation/translation-primer.html#placeholder-mapping>`__.
 
 Fetchers may have additional dependencies.

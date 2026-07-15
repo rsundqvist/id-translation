@@ -30,7 +30,7 @@ class Fetcher(Generic[SourceType, IdType], HasSources[SourceType]):
     @property
     @abstractmethod
     def allow_fetch_all(self) -> bool:
-        """Flag indicating whether the :meth:`~.fetching.Fetcher.fetch_all` operation is permitted."""
+        """Flag indicating whether the :meth:`~id_translation.fetching.Fetcher.fetch_all` operation is permitted."""
 
     def close(self) -> None:
         """Close the ``Fetcher``. Does nothing by default."""
@@ -44,7 +44,7 @@ class Fetcher(Generic[SourceType, IdType], HasSources[SourceType]):
     def optional(self) -> bool:
         """Return ``True`` if this fetcher has been marked as `optional`.
 
-        In multi-fetcher mode, optional fetchers may be discarded if :attr:`~.HasSources.sources` cannot be resolved
+        In multi-fetcher mode, optional fetchers may be discarded if :attr:`~id_translation.types.HasSources.sources` cannot be resolved
         (raises an exception). Default value is ``False``.
 
         Returns:
@@ -66,7 +66,7 @@ class Fetcher(Generic[SourceType, IdType], HasSources[SourceType]):
         """Retrieve placeholder translations from the source.
 
         Args:
-            ids_to_fetch: An iterable of :class:`.IdsToFetch`.
+            ids_to_fetch: An iterable of :class:`~id_translation.fetching.types.IdsToFetch`.
             placeholders: All desired placeholders in preferred order.
             required: Placeholders that must be included in the response.
             placeholder_attributes: Attributes that will be accessed for each placeholder.
@@ -77,10 +77,10 @@ class Fetcher(Generic[SourceType, IdType], HasSources[SourceType]):
             A mapping ``{source: PlaceholderTranslations}`` of translation elements.
 
         Raises:
-            UnknownPlaceholderError: For placeholder(s) that are unknown to the ``Fetcher``.
-            UnknownSourceError: For sources(s) that are unknown to the ``Fetcher``.
-            ForbiddenOperationError: If trying to fetch all IDs when not possible or permitted.
-            ImplementationError: For errors made by the inheriting implementation.
+            ~id_translation.fetching.exceptions.UnknownPlaceholderError: For placeholder(s) that are unknown to the ``Fetcher``.
+            ~id_translation.fetching.exceptions.UnknownSourceError: For sources(s) that are unknown to the ``Fetcher``.
+            ~id_translation.fetching.exceptions.ForbiddenOperationError: If trying to fetch all IDs when not possible or permitted.
+            ~id_translation.fetching.exceptions.ImplementationError: For errors made by the inheriting implementation.
 
         See Also:
             🔑 This is a key event method. See :ref:`key-events` for details.
@@ -121,7 +121,7 @@ class Fetcher(Generic[SourceType, IdType], HasSources[SourceType]):
             🔑 This is a key event method. See :ref:`key-events` for details.
 
         Raises:
-            ForbiddenOperationError: If fetching all IDs is not possible or permitted.
-            UnknownPlaceholderError: For placeholder(s) that are unknown to the ``Fetcher``.
-            ImplementationError: For errors made by the inheriting implementation.
+            ~id_translation.fetching.exceptions.ForbiddenOperationError: If fetching all IDs is not possible or permitted.
+            ~id_translation.fetching.exceptions.UnknownPlaceholderError: For placeholder(s) that are unknown to the ``Fetcher``.
+            ~id_translation.fetching.exceptions.ImplementationError: For errors made by the inheriting implementation.
         """

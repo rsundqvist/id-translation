@@ -14,14 +14,15 @@ class MagicDict(MutableMapping[IdType, str]):
     """Dictionary type for translated IDs.
 
     A ``dict``-like mapping which returns "real" values if present in a backing dict. Values for unknown keys are
-    generated using the :attr:`default_value`.
+    generated using the :attr:`~id_translation.offline.MagicDict.default_value`.
 
     Args:
-        real_translations: A dict holding :attr:`real` translations.
+        real_translations: A dict holding :attr:`~id_translation.offline.MagicDict.real` translations.
         default_value: A string with exactly one or zero positional placeholders.
         enable_uuid_heuristics: Improves matching when :py:class:`~uuid.UUID`-like IDs are in use. Forcibly set to
             ``False`` if any of the `real_translations` are not ``UUID``-like.
-        transformer: Initialized :class:`.Transformer` instance. The :meth:`.Transformer.update_translations`-method is
+        transformer: Initialized :class:`~id_translation.transform.types.Transformer` instance. The
+            :meth:`Transformer.update_translations <id_translation.transform.types.Transformer.update_translations>`-method is
             called after UUID heuristics are applied.
 
     Examples:
@@ -29,7 +30,7 @@ class MagicDict(MutableMapping[IdType, str]):
 
         >>> magic = MagicDict({1999: "Sofia", 1991: "Richard"})
 
-        Iteration, equality (``__eq__``), and length are based on the :attr:`real`  values.
+        Iteration, equality (``__eq__``), and length are based on the :attr:`~id_translation.offline.MagicDict.real`  values.
 
         >>> magic
         {1999: 'Sofia', 1991: 'Richard'}
@@ -80,7 +81,7 @@ class MagicDict(MutableMapping[IdType, str]):
         >>> magic["unknown"], magic["Hello"]
         ("<Failed: id='unknown'>", 'World!')
 
-        To further customize ID matching behaviour, refer to the :class:`.Transformer` interface.
+        To further customize ID matching behaviour, refer to the :class:`~id_translation.transform.types.Transformer` interface.
     """
 
     LOGGER = logging.getLogger(__package__).getChild("MagicDict")
@@ -106,7 +107,7 @@ class MagicDict(MutableMapping[IdType, str]):
     def get(self, key: IdType, /, _: Any = None) -> str:
         """Same as ``__getitem__``.
 
-        Values for missing keys are generated from :attr:`default_value`.
+        Values for missing keys are generated from :attr:`~id_translation.offline.MagicDict.default_value`.
         """
         return self[key]
 
@@ -114,11 +115,13 @@ class MagicDict(MutableMapping[IdType, str]):
         """Attempt to get an actual translation.
 
         This method behaves like ``MagicDict.__getitem__``, applying all appropriate heuristics **except** for falling
-        back to the :attr:`default_value`. Returns ``None`` if the `key` cannot be mapped to a real value, like the
+        back to the :attr:`~id_translation.offline.MagicDict.default_value`. Returns ``None`` if the `key` cannot be mapped to a real value, like the
         regular ``dict.get`` method would.
 
-        To bypass the heuristics, use :attr:`real` and :meth:`dict.get` instead. Note that the backing dict may still
-        contain mappings added by transformers, since the :meth:`.Transformer.update_translations` interface is called
+        To bypass the heuristics, use :attr:`~id_translation.offline.MagicDict.real` and :meth:`dict.get` instead. Note that the backing dict may
+        still
+        contain mappings added by transformers, since the
+        :meth:`Transformer.update_translations <id_translation.transform.types.Transformer.update_translations>` interface is called
         during initialization.
         """
         if key in self._real:
@@ -128,7 +131,7 @@ class MagicDict(MutableMapping[IdType, str]):
         return self._real.get(key)
 
     def real_contains(self, key: IdType, /) -> bool:
-        """Check if an actual translation exists using :meth:`real_get`."""
+        """Check if an actual translation exists using :meth:`~id_translation.offline.MagicDict.real_get`."""
         return self.real_get(key) is not None
 
     @property

@@ -27,8 +27,8 @@ class PandasFetcher(AbstractFetcher[str, IdType]):
 
     .. hint::
 
-       When using **remote file systems**, :attr:`~.AbstractFetcher.sources` are resolved using
-       `AbstractFileSystem.glob()`_. If resolution fails, consider overriding the :meth:`find_sources`-method.
+       When using **remote file systems**, :attr:`~id_translation.fetching.AbstractFetcher.sources` are resolved using
+       `AbstractFileSystem.glob()`_. If resolution fails, consider overriding the :meth:`~id_translation.fetching.PandasFetcher.find_sources`-method.
 
     Args:
         read_function: A function ``(str) -> DataFrame``. Derive from `read_path_format` if ``None``. Strings are
@@ -36,7 +36,7 @@ class PandasFetcher(AbstractFetcher[str, IdType]):
         read_path_format: A string on the form ``protocol://path/to/sources/{}.<ext>``, or a callable to apply
             to a source before passing them to `read_function`.
         read_function_kwargs: Additional keyword arguments for `read_function`.
-        **kwargs: See :class:`.AbstractFetcher`.
+        **kwargs: See :class:`~id_translation.fetching.AbstractFetcher`.
 
     See Also:
         The official `Pandas IO documentation <https://pandas.pydata.org/pandas-docs/stable/user_guide/io.html>`_
@@ -82,7 +82,7 @@ class PandasFetcher(AbstractFetcher[str, IdType]):
 
         Sources are resolved in three steps:
 
-        1. Create glob pattern by calling :meth:`format_source` with ``source='*'``.
+        1. Create glob pattern by calling :meth:`~id_translation.fetching.PandasFetcher.format_source` with ``source='*'``.
         2. Glob files using `AbstractFileSystem.glob()`_ (requires ``fsspec``) or :meth:`Path.glob() <pathlib.Path.glob>`.
         3. Strip the directory and file suffix from the globbed paths to create source names.
 

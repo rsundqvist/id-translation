@@ -37,8 +37,9 @@ class Format:
         >>> Format(Format.DEFAULT).fstring().format(id=1, name="First")
         '1:First'
 
-        Using :meth:`Format.fstring` and :py:meth:`str.format` is flexible but verbose. Formats can be applied either
-        through :meth:`Format.format`...
+        Using :meth:`Format.fstring <id_translation.offline.Format.fstring>` and :py:meth:`str.format` is flexible but verbose. Formats can be applied
+        either
+        through :meth:`Format.format <id_translation.offline.Format.format>`...
 
         >>> fmt = Format(Format.DEFAULT_FAILED)
         >>> fmt.format(id=1, name="First")
@@ -74,14 +75,14 @@ class Format:
         >>> fmt(id=0, name="Tarzan")
         '0:[Tarzan]'
 
-        ...but the :attr:`placeholders` attribute can be used to retrieve all placeholders, required and optional:
+        ...but the :attr:`~id_translation.offline.Format.placeholders` attribute can be used to retrieve all placeholders, required and optional:
 
         >>> fmt.placeholders
         ('id', 'name', 'is_nice')
         >>> fmt(id=1, name="Morris", is_nice=True)
         '1:[Morris], nice=True'
 
-    The :class:`.Translator` will automatically add optional placeholders, if they are present in the source.
+    The :class:`~id_translation.Translator` will automatically add optional placeholders, if they are present in the source.
 
     .. note::
        Python format specifications and conversions are preserved.
@@ -126,7 +127,7 @@ class Format:
         """Create a format string for the given placeholders.
 
         Args:
-            placeholders: Keys to keep. Passing ``None`` is equivalent to passing :attr:`required_placeholders`.
+            placeholders: Keys to keep. Passing ``None`` is equivalent to passing :attr:`~id_translation.offline.Format.required_placeholders`.
             positional: If ``True``, remove names to return a positional fstring.
 
         Returns:
@@ -149,7 +150,7 @@ class Format:
         return "".join(e.positional_part if positional else e.part for e in filter(predicate, self._elements))
 
     def partial(self, defaults: Mapping[str, Any]) -> Self:
-        """Get a partially formatted :meth:`fstring`.
+        """Get a partially formatted :meth:`~id_translation.offline.Format.fstring`.
 
         Args:
             defaults: Keys which should be replaced with real values. Keys which are **not** part of `defaults` will

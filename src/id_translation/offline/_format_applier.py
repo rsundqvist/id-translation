@@ -12,14 +12,14 @@ if TYPE_CHECKING:
 
 
 class FormatApplier(Generic[NameType, SourceType, IdType]):
-    """Application of :class:`.Format` specifications.
+    """Application of :class:`~id_translation.offline.Format` specifications.
 
     This class converts raw translation data into ready-to-use dicts on the form ``{id: translation}``, where the
     translation is always a plain string.
 
     Args:
-        translations: A :class:`~.PlaceholderTranslations` object returned by fetchers.
-        transformer: Initialized :class:`.Transformer` instance.
+        translations: A :class:`~id_translation.offline.types.PlaceholderTranslations` object returned by fetchers.
+        transformer: Initialized :class:`~id_translation.transform.types.Transformer` instance.
 
     Examples:
         Basic usage.
@@ -33,19 +33,19 @@ class FormatApplier(Generic[NameType, SourceType, IdType]):
         >>> fmt = Format.parse("{id}:{name}")
         >>> default_fmt = Format.parse("<Failed: id={id!r}>")
 
-        Using ``FormatApplier.__call__`` delegates to :meth:`apply`.
+        Using ``FormatApplier.__call__`` delegates to :meth:`~id_translation.offline.FormatApplier.apply`.
 
         >>> applier(fmt, default_fmt=default_fmt)
         {1999: '1999:Sofia', 1991: '1991:Richard', 1904: '1904:Fred'}
 
-        The output may look like a regular ``dict``, but is actually a :class:`.MagicDict`.
+        The output may look like a regular ``dict``, but is actually a :class:`~id_translation.offline.MagicDict`.
 
         >>> magic_dict = applier(fmt, default_fmt=default_fmt)
         >>> type(magic_dict)
         <class 'id_translation.offline._magic_dict.MagicDict'>
 
         .. warning::
-            The :class:`.MagicDict` is does **not** behave like a regular dict.
+            The :class:`~id_translation.offline.MagicDict` is does **not** behave like a regular dict.
 
         You can, for instance, use ``__getitem__`` on unknown keys:
 
@@ -53,7 +53,7 @@ class FormatApplier(Generic[NameType, SourceType, IdType]):
         >>> magic_dict[-1]
         '<Failed: id=-1>'
 
-        See the :class:`.MagicDict` class documentation for more information.
+        See the :class:`~id_translation.offline.MagicDict` class documentation for more information.
     """
 
     def __init__(
@@ -78,12 +78,13 @@ class FormatApplier(Generic[NameType, SourceType, IdType]):
 
         .. note::
 
-           This method does not accept strings. Use :meth:`.Format.parse` to convert raw formats.
+           This method does not accept strings. Use :meth:`Format.parse <id_translation.offline.Format.parse>` to convert raw formats.
 
         Args:
-            fmt: Translation :class:`.Format` to use.
+            fmt: Translation :class:`~id_translation.offline.Format` to use.
             placeholders: Tuple of placeholder names to include in the formatted output. If ``None``, use the
-                intersection of :attr:`.placeholders` and :attr:`fmt.placeholders <.Format.placeholders>`.
+                intersection of :attr:`~id_translation.offline.FormatApplier.placeholders` and
+                :attr:`fmt.placeholders <id_translation.offline.Format.placeholders>`.
             default_fmt: Alternative format for default translation.
             default_fmt_placeholders: Default placeholders, e.g. ``{'name': 'default name'}``.
             enable_uuid_heuristics: Improves matching when :py:class:`~uuid.UUID`-like IDs are in use.
@@ -138,7 +139,10 @@ class FormatApplier(Generic[NameType, SourceType, IdType]):
 
     @property
     def records(self) -> Sequence[Sequence[Any]]:
-        """Records used by this instance; see :attr:`.PlaceholderTranslations.records`."""
+        """Records used by this instance.
+
+        See :attr:`PlaceholderTranslations.records <id_translation.offline.types.PlaceholderTranslations.records>`.
+        """
         return self._translations.records
 
     def _apply(self, fstring: str, placeholders: PlaceholdersTuple) -> TranslatedIds[IdType]:
@@ -171,12 +175,15 @@ class FormatApplier(Generic[NameType, SourceType, IdType]):
 
     @property
     def placeholders(self) -> list[str]:
-        """List of placeholder names; see :attr:`.PlaceholderTranslations.placeholders`."""
+        """List of placeholder names.
+
+        See :attr:`PlaceholderTranslations.placeholders <id_translation.offline.types.PlaceholderTranslations.placeholders>`.
+        """
         return list(self._placeholders)
 
     @property
     def transformer(self) -> Transformer[IdType] | None:
-        """Get the :class:`.Transformer` instance (or ``None``) used by this ``FormatApplier``."""
+        """Get the :class:`~id_translation.transform.types.Transformer` instance (or ``None``) used by this ``FormatApplier``."""
         return self._transformer
 
     def __len__(self) -> int:

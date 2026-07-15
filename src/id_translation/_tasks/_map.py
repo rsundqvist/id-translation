@@ -58,7 +58,7 @@ class MappingTask(NamesTask[NameType, SourceType, IdType]):
 
     @property
     def names_to_translate(self) -> list[NameType]:
-        """Keys of :attr:`name_to_source`."""
+        """Keys of :attr:`~id_translation.offline.TranslationMap.name_to_source`."""
         return list(self.name_to_source)
 
     def _map(self) -> NameToSource[NameType, SourceType]:

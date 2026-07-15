@@ -46,7 +46,8 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
     """Fetch data from a SQL source.
 
     Args:
-        connection_string: A SQLAlchemy connection string. Passed verbatim to :meth:`create_engine`, so subclasses that
+        connection_string: A SQLAlchemy connection string. Passed verbatim to :meth:`~id_translation.fetching.SqlFetcher.create_engine`, so subclasses
+            that
             override it may reinterpret the value when needed (e.g. as a database slug).
         password: Password to insert into the connection string. Will be escaped to allow for special characters. If
             given, the connection string must contain a password key, eg; ``dialect://user:{password}@host:port``.
@@ -56,7 +57,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
             specified in the connection string.
         include_views: If ``True``, the fetcher will discover and query views as well.
         engine_kwargs: A dict of keyword arguments for :func:`sqlalchemy.create_engine`.
-        **kwargs: See :class:`AbstractFetcher`.
+        **kwargs: See :class:`~id_translation.fetching.AbstractFetcher`.
 
     Raises:
         ValueError: If both `whitelist_tables` and `blacklist_tables` are given.
@@ -64,12 +65,14 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
     Notes:
         Inheriting classes may override on or more of the following methods to further customize operation.
 
-        * :meth:`create_engine`; initializes the SQLAlchemy engine. Calls ``parse_connection_string``.
-        * :meth:`parse_connection_string`; does basic URL encoding. Called by ``create_engine``.
-        * :meth:`select_where`; filter values on the :attr:`~.TableSummary.id_column` of the current table.
-        * :meth:`make_table_summary`; creates :class:`TableSummary` instances.
-        * :meth:`uuid_like`; determine if :meth:`casting <cast_id_column_to_uuid>` is needed.
-        * :meth:`cast_id_column_to_uuid`; attempt to cast the `id_column` to ``UUID``.
+        * :meth:`~id_translation.fetching.SqlFetcher.create_engine`; initializes the SQLAlchemy engine. Calls ``parse_connection_string``.
+        * :meth:`~id_translation.fetching.SqlFetcher.parse_connection_string`; does basic URL encoding. Called by ``create_engine``.
+        * :meth:`~id_translation.fetching.SqlFetcher.select_where`; filter values on the
+          :attr:`~id_translation.fetching.SqlFetcher.TableSummary.id_column` of the current table.
+        * :meth:`~id_translation.fetching.SqlFetcher.make_table_summary`; creates :class:`~id_translation.fetching.SqlFetcher.TableSummary` instances.
+        * :meth:`~id_translation.fetching.SqlFetcher.uuid_like`; determine if
+          :meth:`casting <id_translation.fetching.SqlFetcher.cast_id_column_to_uuid>` is needed.
+        * :meth:`~id_translation.fetching.SqlFetcher.cast_id_column_to_uuid`; attempt to cast the `id_column` to ``UUID``.
 
         Overriding should be done with care, as methods may call each other internally.
     """
@@ -159,7 +162,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
 
         Args:
             select: A ``sqlalchemy.sql.Select`` element. If returned as-is, all IDs in the table will be fetched.
-            ids: Set of IDs to fetch. Will be ``None`` if :meth:`~AbstractFetcher.fetch_all` was called.
+            ids: Set of IDs to fetch. Will be ``None`` if :meth:`~id_translation.fetching.AbstractFetcher.fetch_all` was called.
             id_column: The ID ``sqlalchemy.sql.Column`` of the `table`, from which `ids` are fetched.
             table: Table to `select` from.
 
@@ -253,21 +256,21 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         id_column: sqlalchemy.Column[IdType],
         ids: set[IdType] | None,
     ) -> bool | None:
-        """Determine whether `id_column` should be passed to :meth:`cast_id_column_to_uuid`.
+        """Determine whether `id_column` should be passed to :meth:`~id_translation.fetching.SqlFetcher.cast_id_column_to_uuid`.
 
         .. note::
 
-           * Will not be called unless :attr:`.Translator.enable_uuid_heuristics` is ``True``.
-           * Only ``False`` will bypass calling :meth:`cast_id_column_to_uuid`.
+           * Will not be called unless :attr:`Translator.enable_uuid_heuristics <id_translation.Translator.enable_uuid_heuristics>` is ``True``.
+           * Only ``False`` will bypass calling :meth:`~id_translation.fetching.SqlFetcher.cast_id_column_to_uuid`.
 
         Return values:
-           * ``True``: Attempt to cast using :meth:`cast_id_column_to_uuid` with ``ids_are_uuid_like=True``.
-           * ``False``: Do not cast; :meth:`cast_id_column_to_uuid` will **not** be called.
-           * ``None``: Attempt to cast using :meth:`cast_id_column_to_uuid` with ``ids_are_uuid_like='unknown'``.
+           * ``True``: Attempt to cast using :meth:`~id_translation.fetching.SqlFetcher.cast_id_column_to_uuid` with ``ids_are_uuid_like=True``.
+           * ``False``: Do not cast; :meth:`~id_translation.fetching.SqlFetcher.cast_id_column_to_uuid` will **not** be called.
+           * ``None``: Attempt to cast using :meth:`~id_translation.fetching.SqlFetcher.cast_id_column_to_uuid` with ``ids_are_uuid_like='unknown'``.
 
         Args:
             id_column: The ID ``sqlalchemy.sql.Column`` of the table.
-            ids: Set of IDs to fetch. Will be ``None`` if :meth:`~AbstractFetcher.fetch_all` was called.
+            ids: Set of IDs to fetch. Will be ``None`` if :meth:`~id_translation.fetching.AbstractFetcher.fetch_all` was called.
 
         Returns:
             One of ``True``, ``False`` and ``None``. See above for explanation.
@@ -299,12 +302,13 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         This function attempts cast the `id_column` to a suitable type by looking at the type of the column and the
         `ids_are_uuid_like`-flag.
 
-        If the column is already UUID-like (as determined by :meth:`get_metadata`), the column is always returned as-is.
+        If the column is already UUID-like (as determined by :meth:`~id_translation.fetching.SqlFetcher.get_metadata`), the column is always returned
+        as-is.
 
         Args:
             id_column: The ID ``sqlalchemy.sql.Column`` of the table.
             ids_are_uuid_like: One of ``True`` and ``'unknown'`` (never ``False``). The latter typically means that
-                :meth:`~AbstractFetcher.fetch_all` was called, but could also be a normal "translation" call without IDs.
+                :meth:`~id_translation.fetching.AbstractFetcher.fetch_all` was called, but could also be a normal "translation" call without IDs.
 
         Returns:
             The `id_column` with or without a cast applied.
@@ -372,7 +376,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         return self._engine
 
     def close(self) -> None:
-        """Close the fetcher, discarding the :attr:`engine`."""
+        """Close the fetcher, discarding the :attr:`~id_translation.fetching.SqlFetcher.engine`."""
         if self._engine is None:
             return
 
@@ -388,11 +392,11 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         password: str | None,
         engine_kwargs: dict[str, Any],
     ) -> sqlalchemy.engine.Engine:
-        """Factory method that creates the :attr:`engine`.
+        """Factory method that creates the :attr:`~id_translation.fetching.SqlFetcher.engine`.
 
-        Called lazily on the first :meth:`~.AbstractFetcher.initialize_sources` call (not from ``__init__``), so any
+        Called lazily on the first :meth:`~id_translation.fetching.AbstractFetcher.initialize_sources` call (not from ``__init__``), so any
         runtime work done here surfaces there rather than at construction. For a more detailed description of the
-        arguments and the behaviour of this function, see the :class:`class docstring <SqlFetcher>`.
+        arguments and the behaviour of this function, see the :class:`class docstring <id_translation.fetching.SqlFetcher>`.
 
         Args:
             connection_string: A SQLAlchemy connection string.

@@ -1,4 +1,4 @@
-"""The :class:`.CacheAccess` integration for :class:`.AbstractFetcher`.
+"""The :class:`~id_translation.fetching.CacheAccess` integration for :class:`~id_translation.fetching.AbstractFetcher`.
 
 :class:`CacheCoordinator` owns the cache flow (load dispatch, complement fetch, merge, store). The fetcher composes one
 and passes itself, so the coordinator can invoke the fetcher primitives ``_make_fetch_instruction`` and
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 
 
 class NoopCacheAccess(CacheAccess[Any, Any]):
-    """A disabled :class:`.CacheAccess`; the default when a fetcher has no caching configured."""
+    """A disabled :class:`~id_translation.fetching.CacheAccess`; the default when a fetcher has no caching configured."""
 
     @property
     def enabled(self) -> bool:
@@ -38,7 +38,7 @@ _NOOP_CACHE_ACCESS: NoopCacheAccess = NoopCacheAccess()
 
 
 class CacheCoordinator(Generic[SourceType, IdType]):
-    """Runs the cache flow for an :class:`.AbstractFetcher`: load -> (hit | miss | partial) -> merge/store.
+    """Runs the cache flow for an :class:`~id_translation.fetching.AbstractFetcher`: load -> (hit | miss | partial) -> merge/store.
 
     Holds the owning fetcher so it can perform the mapping-coupled steps (fetch + normalize + complement) directly,
     keeping the placeholder-mapping logic on the fetcher.
@@ -208,7 +208,7 @@ def _normalize(
     translations: PlaceholderTranslations[SourceType],
     reverse_mappings: dict[str, str],
 ) -> PlaceholderTranslations[SourceType]:
-    """Map fetched placeholders back to wanted names and (re)compute :attr:`~.PlaceholderTranslations.id_pos`."""
+    """Map fetched placeholders back to wanted names and (re)compute :attr:`~id_translation.offline.types.PlaceholderTranslations.id_pos`."""
     if reverse_mappings:
         # The mapping is only in reverse from the Fetcher's point-of-view; we're mapping back to "proper" values.
         translations.placeholders = tuple(reverse_mappings.get(p, p) for p in translations.placeholders)

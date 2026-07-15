@@ -51,7 +51,7 @@ class BaseTask(Generic[NameType, SourceType, IdType]):
 
     @property
     def io(self) -> DataStructureIO[Translatable[NameType, IdType], NameType, SourceType, IdType]:
-        """Initialized :class:`DataStructureIO` instance."""
+        """Initialized :class:`~id_translation.dio.DataStructureIO` instance."""
         return self._io
 
     @property

@@ -1,7 +1,8 @@
 """Functions that return a subset of candidates with which to continue the matching procedure.
 
-Mapping of the current `value` is aborted if an empty set is returned. Functions such as :func:`filter_names` and
-:func:`filter_sources` use this to allow (or disallow) names and sources that match a given regex pattern.
+Mapping of the current `value` is aborted if an empty set is returned. Functions such as :func:`~id_translation.mapping.filter_functions.filter_names`
+and
+:func:`~id_translation.mapping.filter_functions.filter_sources` use this to allow (or disallow) names and sources that match a given regex pattern.
 """
 
 import logging

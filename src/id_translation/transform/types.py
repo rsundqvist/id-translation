@@ -12,10 +12,11 @@ class Transformer(_t.Protocol[_IdType]):
 
     .. warning::
 
-       The :meth:`update_ids`-method is **not** called when the :class:`.Translator` is working offline.
+       The :meth:`~id_translation.transform.types.Transformer.update_ids`-method is **not** called when the :class:`~id_translation.Translator` is
+       working offline.
 
-    Transformers are persistent entities owned by a single :class:`.Translator` instance. See the
-    :class:`.BitmaskTransformer` for a concrete example.
+    Transformers are persistent entities owned by a single :class:`~id_translation.Translator` instance. See the
+    :class:`~id_translation.transform.BitmaskTransformer` for a concrete example.
     """
 
     def update_ids(self, ids: set[_IdType], /) -> None:
@@ -30,7 +31,7 @@ class Transformer(_t.Protocol[_IdType]):
     def update_translations(self, translations: dict[_IdType, str], /) -> None:
         """Update real translations.
 
-        Called by the :class:`.MagicDict` during initialization.
+        Called by the :class:`~id_translation.offline.MagicDict` during initialization.
 
         Args:
             translations: A dict of real translations ``{id: translation_string}``.
@@ -45,13 +46,13 @@ class Transformer(_t.Protocol[_IdType]):
     ) -> None:
         """Attempt to create and add a translation for an unknown ID.
 
-        Callback function used by :class:`.MagicDict` whenever an unknown ID is requested.
+        Callback function used by :class:`~id_translation.offline.MagicDict` whenever an unknown ID is requested.
 
         Args:
             key: An ID which is not present in the `translations`.
-            translations: A mutable mapping of translations. Typically, the :class:`.MagicDict` caller itself.
+            translations: A mutable mapping of translations. Typically, the :class:`~id_translation.offline.MagicDict` caller itself.
         """
 
 
 Transformers = dict[_SourceType, Transformer[_IdType]]
-"""A dict ``{source: transformer}`` of initialized :class:`.Transformer` instances."""
+"""A dict ``{source: transformer}`` of initialized :class:`~id_translation.transform.types.Transformer` instances."""

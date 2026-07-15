@@ -82,18 +82,20 @@ if TYPE_CHECKING:
 class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
     r"""End-user interface for all translation tasks.
 
-    See :meth:`.Translator.translate` for runtime configuration options. Any argument chosen when the ``Translator`` is
-    created can be overridden with :meth:`.Translator.copy`. Use :meth:`.go_offline` to store translations in memory.
+    See :meth:`Translator.translate <id_translation.Translator.translate>` for runtime configuration options. Any argument chosen when the
+    ``Translator`` is
+    created can be overridden with :meth:`Translator.copy <id_translation.Translator.copy>`. Use :meth:`~id_translation.Translator.go_offline` to
+    store translations in memory.
 
     Args:
-        fetcher: A :class:`.Fetcher` or ready-to-use translations.
-        fmt: String :class:`.Format` specification for translations.
-        mapper: A :class:`~.mapping.Mapper` instance for binding names to sources.
-        default_fmt: Alternative :class:`.Format` to use fallback translation of unknown IDs.
+        fetcher: A :class:`~id_translation.fetching.Fetcher` or ready-to-use translations.
+        fmt: String :class:`~id_translation.offline.Format` specification for translations.
+        mapper: A :class:`~id_translation.mapping.Mapper` instance for binding names to sources.
+        default_fmt: Alternative :class:`~id_translation.offline.Format` to use fallback translation of unknown IDs.
         default_fmt_placeholders: Shared and/or source-specific default placeholder values for unknown IDs. See
             :meth:`InheritedKeysDict.make() <rics.collections.dicts.InheritedKeysDict.make>` for details.
         enable_uuid_heuristics: Improves matching when :py:class:`~uuid.UUID`-like IDs are in use.
-        transformers: A dict ``{source: transformer}`` of initialized :class:`.Transformer` instances.
+        transformers: A dict ``{source: transformer}`` of initialized :class:`~id_translation.transform.types.Transformer` instances.
 
     .. _translator-docstring-example:
     Examples:
@@ -126,7 +128,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
         Since `people` only has columns `id` and `name`, we can use the simplified ``{id: name}`` data format. We're
         using the full format for `animals` since we have an additional `is_nice` column in this table.
-        We didn't define a :class:`.Mapper`, so the column names must match exactly.
+        We didn't define a :class:`~id_translation.mapping.Mapper`, so the column names must match exactly.
 
         >>> import pandas as pd
         >>> df = pd.DataFrame({"animals": [0, 2], "people": [1991, 1999]})
@@ -189,7 +191,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         path: AnyPath,
         extra_fetchers: Iterable[AnyPath] = (),
     ) -> Self:
-        """Create a :class:`.Translator` from TOML inputs.
+        """Create a :class:`~id_translation.Translator` from TOML inputs.
 
         See :ref:`translator-config` for help.
 
@@ -199,7 +201,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                 ranked by input order. If a fetcher defined in the main configuration, it will be prioritized (rank=0).
 
         Returns:
-            A new :class:`.Translator` instance with a :attr:`config_metadata` attribute.
+            A new :class:`~id_translation.Translator` instance with a :attr:`~id_translation.Translator.config_metadata` attribute.
         """
         # docs: https://id-translation.readthedocs.io/en/stable/documentation/translator-config.html
         factory: TranslatorFactory[NameType, SourceType, IdType] = TranslatorFactory(path, extra_fetchers, cls)
@@ -207,7 +209,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
     @property
     def config_metadata(self) -> meta.ConfigMetadata:
-        """Return :func:`~Translator.from_config` initialization :class:`metadata <.ConfigMetadata>`."""
+        """Return :func:`~id_translation.Translator.from_config` initialization :class:`metadata <id_translation.toml.meta.ConfigMetadata>`."""
         if self._config_metadata is None:
             raise ValueError("Not created using Translator.from_config()")  # pragma: no cover
         return self._config_metadata
@@ -215,7 +217,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
     def initialize_sources(self, task_id: int | None = None, *, force: bool = False) -> Self:
         """Perform source discovery (fetcher initialization).
 
-        This method does nothing if the ``Translator`` isn't :attr:`online`.
+        This method does nothing if the ``Translator`` isn't :attr:`~id_translation.Translator.online`.
 
         Args:
             task_id: Used for logging.
@@ -231,14 +233,14 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         return self
 
     def copy(self, **overrides: Unpack[CopyParams[NameType, SourceType, IdType]]) -> Self:
-        """Make a copy of this :class:`.Translator`.
+        """Make a copy of this :class:`~id_translation.Translator`.
 
         Args:
             overrides: Keyword arguments to use when instantiating the copy. Options that aren't given will be taken
-                from the current instance. See the :class:`Translator` class documentation for possible choices.
+                from the current instance. See the :class:`~id_translation.Translator` class documentation for possible choices.
 
         Returns:
-            A copy of this :class:`.Translator` with `overrides` applied.
+            A copy of this :class:`~id_translation.Translator` with `overrides` applied.
 
         Notes:
             User types are copied using :func:`copy.deepcopy`.
@@ -697,9 +699,11 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         """Translate IDs to human-readable strings.
 
         Simplified process:
-            1. The :meth:`extract_names` method derives names of the `translatable` to translate (if needed).
-            2. The :meth:`map` method performs name-to-source mapping (see :class:`~.DirectionalMapping`).
-            3. The :meth:`fetch` method extracts IDs to translate and retrieves data (see :class:`.TranslationMap`).
+            1. The :meth:`~id_translation.Translator.extract_names` method derives names of the `translatable` to translate (if needed).
+            2. The :meth:`~id_translation.Translator.map` method performs name-to-source mapping (see
+               :class:`~id_translation.mapping.DirectionalMapping`).
+            3. The :meth:`~id_translation.Translator.fetch` method extracts IDs to translate and retrieves data (see
+               :class:`~id_translation.offline.TranslationMap`).
             4. Finally, the ``translate()`` method (i.e. this one) applies the translations and returns to the caller.
 
         See the :ref:`translation-primer` page for a detailed process description.
@@ -713,10 +717,12 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                 ``dict`` on the form ``{name_in_translatable: source_to_use}``.
             ignore_names: Names **not** to translate, or a predicate ``(NameType) -> bool``.
             copy: If ``False``, translate in-place and return ``None``.
-            override_function: A callable ``(name, sources, ids) -> Source | None``. See :meth:`.Mapper.apply` for details.
+            override_function: A callable ``(name, sources, ids) -> Source | None``. See :meth:`Mapper.apply <id_translation.mapping.Mapper.apply>`
+                for details.
             max_fails: The maximum fraction of IDs for which translation may fail. 1=disabled.
             reverse: If ``True``, perform translations back to IDs. Offline mode only.
-            fmt: A :class:`format string <.Format>` such as **'{id}:{name}'** use. Default is :attr:`.Translator.fmt`.
+            fmt: A :class:`format string <id_translation.offline.Format>` such as **'{id}:{name}'** use. Default is
+                :attr:`Translator.fmt <id_translation.Translator.fmt>`.
             io_kwargs: Keyword arguments for the IO class (e.g. :class:`~id_translation.dio.integration.pandas.PandasIO`).
 
         Returns:
@@ -724,7 +730,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
         Examples:
             Manual `name-to-source <../documentation/translation-primer.html#name-to-source-mapping>`__ mapping with a
-            temporary name-only :class:`.Format`.
+            temporary name-only :class:`~id_translation.offline.Format`.
 
             ..
                # Hidden setup code
@@ -737,14 +743,14 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             Name mappings must be complete; any name not present in the keys will be ignored (left as-is).
 
         Raises:
-            UntranslatableTypeError: If ``type(translatable)`` cannot be translated.
-            MissingNamesError: If `names` are not given and cannot be derived from `translatable`.
-            UnmappedExplicitNamesError: If any required (explicitly given) names fail to map to a source.
-            MappingError: If name-to-source mapping is ambiguous.
+            ~id_translation.dio.exceptions.UntranslatableTypeError: If ``type(translatable)`` cannot be translated.
+            ~id_translation.exceptions.MissingNamesError: If `names` are not given and cannot be derived from `translatable`.
+            ~id_translation.mapping.exceptions.UnmappedExplicitNamesError: If any required (explicitly given) names fail to map to a source.
+            ~id_translation.mapping.exceptions.MappingError: If name-to-source mapping is ambiguous.
             ValueError: If `max_fails` is not a valid fraction.
-            TooManyFailedTranslationsError: If translation fails for more than `max_fails` of IDs.
-            ConnectionStatusError: If ``reverse=True`` while the :class:`.Translator` is online.
-            UserMappingError: If `override_function` returns a source which is not known, and
+            ~id_translation.exceptions.TooManyFailedTranslationsError: If translation fails for more than `max_fails` of IDs.
+            ~id_translation.exceptions.ConnectionStatusError: If ``reverse=True`` while the :class:`~id_translation.Translator` is online.
+            ~id_translation.mapping.exceptions.UserMappingError: If `override_function` returns a source which is not known, and
                 ``mapper.on_unknown_user_override != 'ignore'``.
 
         See Also:
@@ -802,16 +808,16 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
     def translated_names(self, with_source: Literal[False] = False) -> list[NameType]: ...
 
     def translated_names(self, with_source: bool = True) -> NameToSource[NameType, SourceType] | list[NameType]:
-        """Return the names that were translated by the most recent :meth:`.translate`-call.
+        """Return the names that were translated by the most recent :meth:`~id_translation.Translator.translate`-call.
 
         Args:
             with_source: If ``True``, return a dict ``{name: source}`` instead of a list.
 
         Returns:
-            Recent names translated by this :class:`.Translator`, in **arbitrary** order.
+            Recent names translated by this :class:`~id_translation.Translator`, in **arbitrary** order.
 
         Raises:
-            ValueError: If no names have been translated using this :class:`.Translator`.
+            ValueError: If no names have been translated using this :class:`~id_translation.Translator`.
 
         Notes:
             🧵 This method is not thread safe. See :ref:`thread-safety` for details.
@@ -853,20 +859,20 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         """Extract names in `translatable`.
 
         Perform name extraction. The `names` are the first input to the :meth:`~id_translation.Translator.map` method,
-        with the second being the :attr:`~id_translation.Translator.sources`. Does not call :meth:`initialize_sources`.
+        with the second being the :attr:`~id_translation.Translator.sources`. Does not call :meth:`~id_translation.Translator.initialize_sources`.
 
         Args:
             translatable: A data structure to map names for.
             ignore_names: Names **not** to translate, or a predicate ``(NameType) -> bool``.
             io_kwargs: Keyword arguments for the IO class (e.g. :class:`~id_translation.dio.integration.pandas.PandasIO`).
-            raising: If ``False`` (the default), return ``None`` instead of raising :class:`.MissingNamesError` when
+            raising: If ``False`` (the default), return ``None`` instead of raising :class:`~id_translation.exceptions.MissingNamesError` when
                 name extraction fails.
 
         Returns:
             Names to map to sources.
 
         Raises:
-            MissingNamesError: If `names` cannot be derived (only when ``raising=True``).
+            ~id_translation.exceptions.MissingNamesError: If `names` cannot be derived (only when ``raising=True``).
         """
         task = NamesTask(self, translatable, ignore_names=ignore_names, io_kwargs=io_kwargs)
 
@@ -894,17 +900,17 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             names: Explicit names to translate. Derive from `translatable` if ``None``.
             ignore_names: Names **not** to translate, or a predicate ``(NameType) -> bool``.
             override_function: A callable ``(name, sources, ids) -> Source | None``. See
-                :meth:`Mapper.apply <.mapping.Mapper.apply>` for details.
+                :meth:`Mapper.apply <id_translation.mapping.Mapper.apply>` for details.
             io_kwargs: Keyword arguments for the IO class (e.g. :class:`~id_translation.dio.integration.pandas.PandasIO`).
 
         Returns:
             A mapping of names to translation sources. Returns ``None`` if mapping failed.
 
         Raises:
-            MissingNamesError: If `names` are not given and cannot be derived from `translatable`.
-            UnmappedExplicitNamesError: If any required (explicitly given) names fail to map to a source.
-            MappingError: If name-to-source mapping is ambiguous.
-            UserMappingError: If `override_function` returns a source which is not known, and
+            ~id_translation.exceptions.MissingNamesError: If `names` are not given and cannot be derived from `translatable`.
+            ~id_translation.mapping.exceptions.UnmappedExplicitNamesError: If any required (explicitly given) names fail to map to a source.
+            ~id_translation.mapping.exceptions.MappingError: If name-to-source mapping is ambiguous.
+            ~id_translation.mapping.exceptions.UserMappingError: If `override_function` returns a source which is not known, and
                 ``mapper.on_unknown_user_override != 'ignore'``.
 
         See Also:
@@ -935,7 +941,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
         io_kwargs: Mapping[str, Any] | None = None,
     ) -> ScoreMatrix[NameType, SourceType]:
-        """Returns raw match scores for name-to-source mapping. See :meth:`map` for details."""
+        """Returns raw match scores for name-to-source mapping. See :meth:`~id_translation.Translator.map` for details."""
         return MappingTask(
             self,
             translatable,
@@ -949,7 +955,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
     def sources(self) -> list[SourceType]:
         """A list of known sources names.
 
-        Sources are determines either by the :attr:`.fetcher` or the :attr:`.cache`.
+        Sources are determines either by the :attr:`~id_translation.Translator.fetcher` or the :attr:`~id_translation.Translator.cache`.
         """
         return list(self.placeholders)
 
@@ -967,12 +973,12 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
     @property
     def fmt(self) -> Format:
-        """Main translation :class:`.Format` for this ``Translator`` instance."""
+        """Main translation :class:`~id_translation.offline.Format` for this ``Translator`` instance."""
         return self._fmt
 
     @property
     def default_fmt(self) -> Format:
-        """Alternative translation :class:`.Format`, used for unknown IDs."""
+        """Alternative translation :class:`~id_translation.offline.Format`, used for unknown IDs."""
         return self._default_fmt
 
     @property
@@ -987,7 +993,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
     @property
     def fetcher(self) -> Fetcher[SourceType, IdType]:
-        """Return the :class:`.Fetcher` instance used to retrieve translations."""
+        """Return the :class:`~id_translation.fetching.Fetcher` instance used to retrieve translations."""
         if not self.online:
             raise ConnectionStatusError(
                 "Cannot fetch new translations.\nHint: Use the Translator.cache-property to access the data."
@@ -997,12 +1003,12 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
     @property
     def mapper(self) -> Mapper[NameType, SourceType, None]:
-        """Return the :class:`.Mapper` instance used for name-to-source binding."""
+        """Return the :class:`~id_translation.mapping.Mapper` instance used for name-to-source binding."""
         return self._mapper
 
     @property
     def cache(self) -> TranslationMap[NameType, SourceType, IdType]:
-        """Return a :class:`.TranslationMap` of cached translations."""
+        """Return a :class:`~id_translation.offline.TranslationMap` of cached translations."""
         if self._cached_tmap is None:
             assert self.online, "bad internal state"  # noqa: S101
             msg = f"No cache available. Use f`{self.go_offline.__qualname__}` to cache translations."
@@ -1018,38 +1024,38 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         max_age: str | timedelta | None = "12h",
         on_config_changed: Literal["raise", "recreate"] = "recreate",
     ) -> Self:
-        """Load or create a persistent :attr:`~.Fetcher.fetch_all`-instance.
+        """Load or create a persistent :attr:`~id_translation.fetching.Fetcher.fetch_all`-instance.
 
         Instances are created, stored and loaded as determined by a metadata file located in the given `cache_dir`. A
-        new :class:`.Translator` will be created if:
+        new :class:`~id_translation.Translator` will be created if:
 
         * There is no `'metadata'` file, or
-        * the original :class:`.Translator` is too old (see `max_age`), or
+        * the original :class:`~id_translation.Translator` is too old (see `max_age`), or
         * the current configuration -- as defined by ``(config_path, extra_fetchers, clazz)`` -- has changed in such a
-          way that it is no longer equivalent configuration used to create the original :class:`.Translator`. For
-          details, see :class:`~.toml.meta.ConfigMetadata`.
+          way that it is no longer equivalent configuration used to create the original :class:`~id_translation.Translator`. For
+          details, see :class:`~id_translation.toml.meta.ConfigMetadata`.
 
         Args:
             cache_dir: Root directory where the cached translator and associated metadata is stored.
             config_path: Path to the main TOML configuration file.
             extra_fetchers: Paths to fetching configuration TOML files. If multiple fetchers are defined, they are
                 ranked by input order. If a fetcher defined in the main configuration, it will be prioritized (rank=0).
-            max_age: The maximum age of the cached :class:`.Translator` before it must be recreated. Pass zero to force
+            max_age: The maximum age of the cached :class:`~id_translation.Translator` before it must be recreated. Pass zero to force
                 recreation, or ``None`` to ignore.
             on_config_changed: One of ``raise|recreate``. If ``'raise'``, crash instead of creating a new instance
                 if the configuration (as determined by `config_path` and `extra_fetchers`) has changed.
 
         Returns:
-            A new or cached :class:`.Translator` instance with a :attr:`config_metadata` attribute.
+            A new or cached :class:`~id_translation.Translator` instance with a :attr:`~id_translation.Translator.config_metadata` attribute.
 
         Raises:
-            ConfigurationChangedError: If the configuration has changed and ``on_config_mismatch='raise'``.
+            ~id_translation.exceptions.ConfigurationChangedError: If the configuration has changed and ``on_config_mismatch='raise'``.
 
         Notes:
             🧵 This method is not thread safe. See :ref:`thread-safety` for details.
 
         See Also:
-             The :meth:`from_config` method, which will read the `config_path`.
+             The :meth:`~id_translation.Translator.from_config` method, which will read the `config_path`.
         """
         path = any_path_to_path(config_path)
         cache_dir = any_path_to_path(cache_dir).expanduser().absolute()
@@ -1081,19 +1087,19 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
     @classmethod
     def restore(cls, path: AnyPath) -> Self:
-        """Restore a serialized :class:`.Translator`.
+        """Restore a serialized :class:`~id_translation.Translator`.
 
         Args:
-            path: Path to a serialized :class:`.Translator`.
+            path: Path to a serialized :class:`~id_translation.Translator`.
 
         Returns:
-            A :class:`.Translator`.
+            A :class:`~id_translation.Translator`.
 
         Raises:
-            TypeError: If the object at `path` is not a :class:`.Translator` or a subtype thereof.
+            TypeError: If the object at `path` is not a :class:`~id_translation.Translator` or a subtype thereof.
 
         See Also:
-            The :meth:`go_offline` method.
+            The :meth:`~id_translation.Translator.go_offline` method.
         """
         full_path = any_path_to_path(path).expanduser()
         with full_path.open("rb") as f:
@@ -1120,11 +1126,11 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         io_kwargs: Mapping[str, Any] | None = None,
         path: AnyPath | None = None,
     ) -> Self:
-        """Retrieve and :attr:`.cache` translations in memory.
+        """Retrieve and :attr:`~id_translation.Translator.cache` translations in memory.
 
         .. warning::
 
-           The :attr:`.fetcher` will be destroyed.
+           The :attr:`~id_translation.Translator.fetcher` will be destroyed.
 
         Subsequent calls to this method return immediately, emitting a ``FutureWarning`` (this will raise in
         ``id-translation==2.0.0``).
@@ -1133,30 +1139,32 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             translatable: Data from which IDs to fetch will be extracted. Fetch all IDs if ``None``.
             names: Explicit names to translate. Derive from `translatable` if ``None``.
             ignore_names: Names **not** to translate, or a predicate ``(NameType) -> bool``.
-            override_function: A callable ``(name, sources, ids) -> Source | None``. See :meth:`.Mapper.apply`
+            override_function: A callable ``(name, sources, ids) -> Source | None``. See :meth:`Mapper.apply <id_translation.mapping.Mapper.apply>`
                 for details.
             max_fails: The maximum fraction of IDs for which translation may fail. 1=disabled.
-            fmt: A :class:`format string <.Format>` such as **'{id}:{name}'** use. Default is :attr:`.Translator.fmt`.
+            fmt: A :class:`format string <id_translation.offline.Format>` such as **'{id}:{name}'** use. Default is
+                :attr:`Translator.fmt <id_translation.Translator.fmt>`.
             io_kwargs: Keyword arguments for the IO class (e.g. :class:`~id_translation.dio.integration.pandas.PandasIO`).
-            path: If given, serialize the :class:`.Translator` to disk after retrieving data.
+            path: If given, serialize the :class:`~id_translation.Translator` to disk after retrieving data.
 
         Returns:
             Self, for chained assignment.
 
         Raises:
-            ForbiddenOperationError: If :meth:`.Fetcher.fetch_all` is disabled and ``translatable=None``.
-            MappingError: If :meth:`map` fails (only when `translatable` is given).
+            ~id_translation.fetching.exceptions.ForbiddenOperationError: If :meth:`Fetcher.fetch_all <id_translation.fetching.Fetcher.fetch_all>` is
+                disabled and ``translatable=None``.
+            ~id_translation.mapping.exceptions.MappingError: If :meth:`~id_translation.Translator.map` fails (only when `translatable` is given).
 
         Notes:
             🧵 This method is not thread safe. See :ref:`thread-safety` for details.
 
-            The :class:`.Translator` is guaranteed to be :func:`~rics.misc.serializable` once offline. Fetchers often
+            The :class:`~id_translation.Translator` is guaranteed to be :func:`~rics.misc.serializable` once offline. Fetchers often
             aren't as they require things like database connections to function.
 
         See Also:
             🔑 This is a key event method. See :ref:`key-events` for details.
 
-            The :meth:`restore` method (when `path` is set).
+            The :meth:`~id_translation.Translator.restore` method (when `path` is set).
         """
         if not self.online:
             # TODO(2.0.0): raise
@@ -1246,29 +1254,32 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
     ) -> TranslationMap[NameType, SourceType, IdType]:
         """Fetch translations.
 
-        Calling ``fetch`` without arguments will perform a :meth:`.Fetcher.fetch_all` -operation, without going offline.
+        Calling ``fetch`` without arguments will perform a :meth:`Fetcher.fetch_all <id_translation.fetching.Fetcher.fetch_all>` -operation, without
+        going offline.
 
-        The returned :class:`.TranslationMap` may be converted to native types with :meth:`.TranslationMap.to_dicts`.
+        The returned :class:`~id_translation.offline.TranslationMap` may be converted to native types with
+        :meth:`TranslationMap.to_dicts <id_translation.offline.TranslationMap.to_dicts>`.
 
         Args:
             translatable: A data structure to translate.
             names: Explicit names to translate. Derive from `translatable` if ``None``. Alternatively, you may pass a
                 ``dict`` on the form ``{name_in_translatable: source_to_use}``.
             ignore_names: Names **not** to translate, or a predicate ``(NameType) -> bool``.
-            override_function: A callable ``(name, sources, ids) -> Source | None``. See :meth:`.Mapper.apply`
+            override_function: A callable ``(name, sources, ids) -> Source | None``. See :meth:`Mapper.apply <id_translation.mapping.Mapper.apply>`
                 for details.
             max_fails: The maximum fraction of IDs for which translation may fail. 1=disabled.
-            fmt: A :class:`format string <.Format>` such as **'{id}:{name}'** use. Default is :attr:`.Translator.fmt`.
+            fmt: A :class:`format string <id_translation.offline.Format>` such as **'{id}:{name}'** use. Default is
+                :attr:`Translator.fmt <id_translation.Translator.fmt>`.
             io_kwargs: Keyword arguments for the IO class (e.g. :class:`~id_translation.dio.integration.pandas.PandasIO`).
 
         Returns:
-            A :class:`.TranslationMap`.
+            A :class:`~id_translation.offline.TranslationMap`.
 
         Raises:
-            ConnectionStatusError: If disconnected from the fetcher, i.e. not :attr:`online`.
+            ~id_translation.exceptions.ConnectionStatusError: If disconnected from the fetcher, i.e. not :attr:`~id_translation.Translator.online`.
 
         Examples:
-            Using the returned :class:`.TranslationMap` class.
+            Using the returned :class:`~id_translation.offline.TranslationMap` class.
 
             ..
                # Hidden setup code
@@ -1285,7 +1296,8 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
             **Convert to finished translations.**
 
-            * :meth:`.TranslationMap.to_translations` → ``{source: MagicDict}``, where a :class:`.MagicDict` is similar
+            * :meth:`TranslationMap.to_translations <id_translation.offline.TranslationMap.to_translations>` → ``{source: MagicDict}``, where a
+              :class:`~id_translation.offline.MagicDict` is similar
               to a regular ``dict[IdType, str]``-type dict.
 
             >>> people = translation_map.to_translations()["people"]
@@ -1294,18 +1306,18 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
             .. warning::
 
-               The :class:`.MagicDict` class is used internally and has a few important differences from the built-in
-               type. Please refer to the :class:`.MagicDict` class documentation for details.
+               The :class:`~id_translation.offline.MagicDict` class is used internally and has a few important differences from the built-in
+               type. Please refer to the :class:`~id_translation.offline.MagicDict` class documentation for details.
 
-            To convert to a :class:`.MagicDict` to a regular ``dict``, simply use the dict constructor:
+            To convert to a :class:`~id_translation.offline.MagicDict` to a regular ``dict``, simply use the dict constructor:
 
             >>> dict(people)
             {1999: '1999:Sofia', 1991: '1991:Richard'}
 
             **Convert to raw translation data.**
 
-            * :meth:`.TranslationMap.to_pandas` → ``{source: DataFrame}``
-            * :meth:`.TranslationMap.to_dicts` → ``{source: {placeholder: [values...]}}``
+            * :meth:`TranslationMap.to_pandas <id_translation.offline.TranslationMap.to_pandas>` → ``{source: DataFrame}``
+            * :meth:`TranslationMap.to_dicts <id_translation.offline.TranslationMap.to_dicts>` → ``{source: {placeholder: [values...]}}``
 
             >>> translation_map.to_dicts()["people"]
             {'id': [1999, 1991], 'name': ['Sofia', 'Richard']}
@@ -1400,7 +1412,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
     @property
     def transformers(self) -> Transformers[SourceType, IdType]:
-        """Get a dict ``{source: transformer}`` of :class:`.Transformer` instances used by this ``Translator``."""
+        """Get a dict ``{source: transformer}`` of :class:`~id_translation.transform.types.Transformer` instances used by this ``Translator``."""
         return self._transformers
 
     def _execute_fetch(
@@ -1463,8 +1475,8 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
     ) -> dict[str, Any]:
         """Forward ``placeholder_attributes`` only to fetchers whose method accepts it.
 
-        Custom :class:`.Fetcher` implementations written before this argument existed may omit it; warn and skip rather
-        than crashing with a ``TypeError``. See :attr:`.Format.placeholder_attributes`.
+        Custom :class:`~id_translation.fetching.Fetcher` implementations written before this argument existed may omit it; warn and skip rather
+        than crashing with a ``TypeError``. See :attr:`Format.placeholder_attributes <id_translation.offline.Format.placeholder_attributes>`.
         """
         if _accepts_placeholder_attributes(func):
             return {"placeholder_attributes": attributes}

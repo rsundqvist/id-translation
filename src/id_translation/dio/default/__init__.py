@@ -1,4 +1,4 @@
-"""Default :class:`.DataStructureIO` implementations."""
+"""Default :class:`~id_translation.dio.DataStructureIO` implementations."""
 
 from ._dict import DictIO
 from ._sequence import SequenceIO

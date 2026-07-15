@@ -17,9 +17,9 @@ class Record(Generic[ValueType, CandidateType]):
     """Data concerning a match."""
 
     value: ValueType
-    """A hashable :class:`value <.ValueType>`."""
+    """A hashable :class:`value <id_translation.mapping.types.ValueType>`."""
     candidate: CandidateType
-    """A hashable :class:`candidate <.CandidateType>`."""
+    """A hashable :class:`candidate <id_translation.mapping.types.CandidateType>`."""
     score: float
     """Likeness score computed by some scoring function."""
 
@@ -35,11 +35,11 @@ class Reject(Generic[ValueType, CandidateType]):
     """Data concerning the rejection of a match."""
 
     record: Record[ValueType, CandidateType]
-    """A :class:`Record` to describe."""
+    """A :class:`~id_translation.mapping.matrix.Record` to describe."""
     superseding_value: Record[ValueType, CandidateType] | None = None
-    """A :class:`Record` that prevents matching of the current value."""
+    """A :class:`~id_translation.mapping.matrix.Record` that prevents matching of the current value."""
     superseding_candidate: Record[ValueType, CandidateType] | None = None
-    """A :class:`Record` that prevents matching of the current candidate."""
+    """A :class:`~id_translation.mapping.matrix.Record` that prevents matching of the current candidate."""
 
     def explain(self, min_score: float, full: bool = False) -> str:
         """Create a string which explains the rejection.
@@ -79,7 +79,7 @@ class ScoreHelper(Generic[ValueType, CandidateType]):
     """High-level selection operations.
 
     Args:
-        matrix: A :class:`.ScoreMatrix` instance.
+        matrix: A :class:`~id_translation.mapping.matrix.ScoreMatrix` instance.
         min_score: Minimum score to make a `value -> candidate` match.
         logger: Explicit ``Logger`` instance to use.
         task_id: Used for logging.
@@ -110,8 +110,9 @@ class ScoreHelper(Generic[ValueType, CandidateType]):
         """Create a ``DirectionalMapping`` with a given target ``Cardinality``.
 
         Args:
-            cardinality: Explicit cardinality to set, see :attr:`~.DirectionalMapping.cardinality`. If ``None``, use the
-                actual cardinality when selecting all matches with scores :attr:`at or above <above>` the minimum.
+            cardinality: Explicit cardinality to set, see :attr:`~id_translation.mapping.DirectionalMapping.cardinality`. If ``None``, use the
+                actual cardinality when selecting all matches with scores :attr:`at or above <id_translation.mapping.matrix.ScoreHelper.above>` the
+                minimum.
 
         Returns:
             A ``DirectionalMapping``.

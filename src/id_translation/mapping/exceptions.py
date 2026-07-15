@@ -42,7 +42,10 @@ class UnmappedExplicitNamesError(MappingError):  # TODO(2.0.0): Inherit from Unm
 
 
 class ScoringDisabledError(MappingError):
-    """Indicates that the scoring logic has been disabled. Raised by :func:`.score_functions.disabled`."""
+    """Indicates that the scoring logic has been disabled.
+
+    Raised by :func:`score_functions.disabled <id_translation.mapping.score_functions.disabled>`.
+    """
 
     def __init__(self, value: _Any, candidates: _Any, context: _Any) -> None:
         super().__init__(

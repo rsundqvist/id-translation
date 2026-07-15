@@ -7,7 +7,7 @@ from id_translation.mapping import HeuristicScore, Mapper
 
 
 def default_mapper_factory(config: dict[str, Any], for_fetcher: bool) -> Mapper[Any, Any, Any] | None:
-    """Create a :class:`.Mapper` from config."""
+    """Create a :class:`~id_translation.mapping.Mapper` from config."""
     if "score_function" in config and isinstance(config["score_function"], dict):
         score_function = config.pop("score_function")
 

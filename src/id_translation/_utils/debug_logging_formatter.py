@@ -1,6 +1,6 @@
 """Handler which pretty-prints (color) logger output to stdout.
 
-Used by :func:`.enable_verbose_debug_messages`.
+Used by :func:`~id_translation.logging.enable_verbose_debug_messages`.
 """
 
 import logging

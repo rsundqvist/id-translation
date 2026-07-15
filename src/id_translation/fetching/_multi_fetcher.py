@@ -33,8 +33,8 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         max_workers: Number of threads to use for fetching. Fetch instructions will be dispatched using a
              :py:class:`~concurrent.futures.ThreadPoolExecutor`. Individual fetchers will be called at most once per
              ``fetch()`` or ``fetch_all()`` call made with the ``MultiFetcher``.
-        on_source_conflict: Action to take when multiple fetchers :meth:`claim <.Fetcher.initialize_sources>` the same source.
-        fetcher_discarded_log_level: Level used when discarding :attr:`~.Fetcher.optional` fetchers.
+        on_source_conflict: Action to take when multiple fetchers :meth:`claim <id_translation.fetching.Fetcher.initialize_sources>` the same source.
+        fetcher_discarded_log_level: Level used when discarding :attr:`~id_translation.fetching.Fetcher.optional` fetchers.
     """
 
     def __init__(
@@ -70,7 +70,7 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         return all(f.online for f in self._id_to_fetcher.values())  # pragma: no cover
 
     def close(self) -> None:
-        """Close all :attr:`child <children>` fetchers."""
+        """Close all :attr:`child <id_translation.fetching.MultiFetcher.children>` fetchers."""
         for fetcher in self.children:
             fetcher.close()
 
@@ -108,8 +108,10 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
     def initialize_sources(self, task_id: int | None = None, *, force: bool = False) -> None:
         """Perform source discovery.
 
-        Perform source discovery for all :attr:`children`, discarding :attr:`optional <.Fetcher.optional>` children that
-        raise or do not return any sources when their respective :meth:`.Fetcher.initialize_sources` methods are
+        Perform source discovery for all :attr:`~id_translation.fetching.MultiFetcher.children`, discarding
+        :attr:`optional <id_translation.fetching.Fetcher.optional>` children that
+        raise or do not return any sources when their respective
+        :meth:`Fetcher.initialize_sources <id_translation.fetching.Fetcher.initialize_sources>` methods are
         called.
 
         Args:
@@ -402,7 +404,7 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
 
     @property
     def on_source_conflict(self) -> OnSourceConflict:
-        """Action to take when multiple fetchers :meth:`claim <.Fetcher.initialize_sources>` the same source."""
+        """Action to take when multiple fetchers :meth:`claim <id_translation.fetching.Fetcher.initialize_sources>` the same source."""
         return self._on_source_conflict
 
     def _gather(

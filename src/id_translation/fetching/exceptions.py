@@ -80,7 +80,7 @@ class DuplicateSourceError(FetcherError):
 
 
 class CacheAccessNotAvailableError(FetcherError):
-    """Raised when calling :attr:`.AbstractFetcher.cache_access` on an instance that is not cached."""
+    """Raised by :attr:`AbstractFetcher.cache_access <id_translation.fetching.AbstractFetcher.cache_access>` on instances that are not cached."""
 
     def __init__(self, msg: str) -> None:
         super().__init__(msg)

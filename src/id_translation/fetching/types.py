@@ -28,7 +28,7 @@ class FetchInstruction(_t.Generic[_tt.SourceType, _tt.IdType]):
     required: set[str]
     """Placeholders that must be included in the response."""
     placeholder_attributes: _ot.PlaceholderAttributes
-    """See :attr:`.Format.placeholder_attributes` for details."""
+    """See :attr:`Format.placeholder_attributes <id_translation.offline.Format.placeholder_attributes>` for details."""
     ids: set[_tt.IdType] | None
     """Unique IDs to fetch translations for."""
     task_id: int
@@ -47,26 +47,28 @@ class FetchInstruction(_t.Generic[_tt.SourceType, _tt.IdType]):
 
 @_dataclass(frozen=True)
 class PartialCacheHit(_t.Generic[_tt.SourceType, _tt.IdType]):
-    """Partial result of :meth:`.CacheAccess.load`: cached rows plus the IDs the cache vouches for.
+    """Partial result of :meth:`CacheAccess.load <id_translation.fetching.CacheAccess.load>`: cached rows plus the IDs the cache vouches for.
 
     .. attention::
 
-       Not supported for :attr:`.FetchInstruction.fetch_all` instructions.
+       Not supported for :attr:`FetchInstruction.fetch_all <id_translation.fetching.types.FetchInstruction.fetch_all>` instructions.
 
-    Returning this -- instead of a full :class:`.PlaceholderTranslations` (complete hit) or ``None`` (miss) -- tells the
-    :class:`.AbstractFetcher` to fetch only the *missing* IDs and merge them with `translations`.
+    Returning this -- instead of a full :class:`~id_translation.offline.types.PlaceholderTranslations` (complete hit) or ``None`` (miss) -- tells the
+    :class:`~id_translation.fetching.AbstractFetcher` to fetch only the *missing* IDs and merge them with `translations`.
     """
 
     translations: _ot.PlaceholderTranslations[_tt.SourceType]
-    """Cached :class:`.PlaceholderTranslations`, scoped to the requested IDs.
+    """Cached :class:`~id_translation.offline.types.PlaceholderTranslations`, scoped to the requested IDs.
 
-    May be empty (length of :attr:`.PlaceholderTranslations.records` is 0) to enforce layout; see :attr:`placeholders`.
+    May be empty (length of :attr:`PlaceholderTranslations.records <id_translation.offline.types.PlaceholderTranslations.records>` is 0) to enforce
+    layout; see :attr:`~id_translation.fetching.types.PartialCacheHit.placeholders`.
     """
 
     covered: set[_tt.IdType] | None = None
     """Requested IDs the cache is satisfying.
 
-    Defaults to the IDs present in :attr:`translations` (extracted by the fetcher); set this only to *additionally*
+    Defaults to the IDs present in :attr:`~id_translation.fetching.types.PartialCacheHit.translations` (extracted by the fetcher); set this only to
+    *additionally*
     vouch for IDs that have no row, e.g. known-missing IDs for negative caching.
     """
 
@@ -76,7 +78,7 @@ class PartialCacheHit(_t.Generic[_tt.SourceType, _tt.IdType]):
 
         .. hint::
 
-           Use the :attr:`.CacheAccess.parent` to access e.g. available placeholders.
+           Use the :attr:`CacheAccess.parent <id_translation.fetching.CacheAccess.parent>` to access e.g. available placeholders.
 
         The fetcher fetches the complement using at least these placeholders, so a cache keeps its stored layout
         cohesive (avoiding a per-request layout split) simply by returning that layout here -- even when `translations`

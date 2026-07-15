@@ -1,7 +1,7 @@
 """Functions which perform heuristics for score functions.
 
 See Also:
-    The :class:`~.HeuristicScore` class.
+    The :class:`~id_translation.mapping.HeuristicScore` class.
 """
 
 import collections.abc as _abc
@@ -31,7 +31,8 @@ def like_database_table(
         tables: Database tables used as possible translation sources.
         context: Ignored.
         plural_to_singular: Convert plural-form to singular form. Pass a ``dict`` to specify custom transformations,
-            backed by the default transformer. See :class:`NounTransformer` for details. Set to ``False`` to disable.
+            backed by the default transformer. See :class:`~id_translation.mapping.heuristic_functions.NounTransformer` for details. Set to ``False``
+            to disable.
 
             To use a custom transformer, pass a callable ``(str) -> str``, or the fully qualified name of such a
             callable. The callable will be resolved using :func:`rics.misc.get_by_full_name`, then cached.
@@ -40,7 +41,7 @@ def like_database_table(
         A tuple ``(normalized_name, normalized_table_names)``.
 
     See Also:
-        * :func:`smurf_columns`
+        * :func:`~id_translation.mapping.heuristic_functions.smurf_columns`
 
     Examples:
         Remove ID suffixes and convert a variety of plural forms to singular forms.
@@ -91,7 +92,8 @@ def smurf_columns(
         table: A ``Translator`` :attr:`source <id_translation.Translator.sources>` table to which
             the `columns` (or :attr:`~id_translation.Translator.placeholders`) belong.
         plural_to_singular: Convert plural-form to singular form. Pass a ``dict`` to specify custom transformations,
-            backed by the default transformer. See :class:`NounTransformer` for details. Set to ``False`` to disable.
+            backed by the default transformer. See :class:`~id_translation.mapping.heuristic_functions.NounTransformer` for details. Set to ``False``
+            to disable.
 
             To use a custom transformer, pass a callable ``(str) -> str``, or the fully qualified name of such a
             callable. The callable will be resolved using :func:`rics.misc.get_by_full_name`, then cached.
@@ -131,14 +133,14 @@ def smurf_columns(
         {'goose_id'}
 
     Notes:
-        This function acts similarly to chained calls to :func:`value_fstring_alias`, using
+        This function acts similarly to chained calls to :func:`~id_translation.mapping.heuristic_functions.value_fstring_alias`, using
         ``fstring="{context}", for_value="name"`` and ``fstring="{context}_{value}"``, but is more powerful since it is
         able to preprocess the inputs.
 
     See Also:
-        * :func:`short_circuit`
-        * :func:`like_database_table`
-        * :func:`value_fstring_alias`
+        * :func:`~id_translation.mapping.heuristic_functions.short_circuit`
+        * :func:`~id_translation.mapping.heuristic_functions.like_database_table`
+        * :func:`~id_translation.mapping.heuristic_functions.value_fstring_alias`
     """
     to_singular = _get_noun_transformer(plural_to_singular)
     table = to_singular(table.lower())
@@ -267,7 +269,8 @@ def value_fstring_alias(
         >>> value_fstring_alias("id", ["dog_id"], "dog", fstring="{context}_{value}")
         ('dog_id', ['dog_id'])
 
-        In cases such as these, consider using :func:`smurf_columns` instead, which will work both for ``table="dog"``
+        In cases such as these, consider using :func:`~id_translation.mapping.heuristic_functions.smurf_columns` instead, which will work both for
+        ``table="dog"``
         (as above), and with ``table="dogs"``.
     """
     if not for_value and "{value}" not in fstring:
@@ -332,7 +335,7 @@ class NounTransformer:
 
     This class performs simple heuristics to convert nouns commonly used as database table names. It will quickly break
     either if given nouns that are already on singular form, or are not trivially convertible (see
-    :attr:`PLURAL_TO_SINGULAR_SUFFIXES`) to singular form.
+    :attr:`~id_translation.mapping.heuristic_functions.NounTransformer.PLURAL_TO_SINGULAR_SUFFIXES`) to singular form.
 
     .. note::
        For more complex use cases, consider using a language-processing framework such as
@@ -366,7 +369,7 @@ class NounTransformer:
         >>> nt("bus"), nt("news")
         ('bu', 'new')
 
-        See :attr:`PLURAL_TO_SINGULAR_SUFFIXES` for affected suffixes.
+        See :attr:`~id_translation.mapping.heuristic_functions.NounTransformer.PLURAL_TO_SINGULAR_SUFFIXES` for affected suffixes.
 
     Notes:
         This is not :class:`~id_translation.transform.types.Transformer` implementation, in spite of the name.

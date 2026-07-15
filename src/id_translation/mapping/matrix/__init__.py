@@ -1,4 +1,4 @@
-"""Functions and classes used by the :class:`.Mapper` for handling score matrices.
+"""Functions and classes used by the :class:`~id_translation.mapping.Mapper` for handling score matrices.
 
 .. warning::
 

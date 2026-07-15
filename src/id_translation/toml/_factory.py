@@ -28,94 +28,95 @@ SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS = "ID_TRANSLATION_SUPPRESS_OPTIONAL_FETCHE
 
 
 class TranslatorFactory(Generic[NameType, SourceType, IdType]):
-    """Create a :class:`.Translator` from TOML inputs."""
+    """Create a :class:`~id_translation.Translator` from TOML inputs."""
 
     FetcherFactory: TypeAlias = Callable[[str, dict[str, Any]], AbstractFetcher[Any, Any]]
-    """Signature for :attr:`FETCHER_FACTORY`."""
+    """Signature for :attr:`~id_translation.toml.TranslatorFactory.FETCHER_FACTORY`."""
 
     FETCHER_FACTORY: FetcherFactory = staticmethod(cf.default_fetcher_factory)
     """A callable ``(clazz, config) -> AbstractFetcher``.
 
-    Overwrite attribute with your own :attr:`.FetcherFactory` implementation to customize.
+    Overwrite attribute with your own :attr:`~id_translation.toml.TranslatorFactory.FetcherFactory` implementation to customize.
 
     Args:
-        clazz: Type of :class:`.AbstractFetcher` to create.
+        clazz: Type of :class:`~id_translation.fetching.AbstractFetcher` to create.
         config: Keyword arguments for the fetcher class.
 
     Returns:
-        An :class:`.AbstractFetcher` instance.
+        An :class:`~id_translation.fetching.AbstractFetcher` instance.
 
     Raises:
         exceptions.ConfigurationError: If `config` is invalid.
-        TypeError: If `clazz` is not an :class:`.AbstractFetcher` subtype.
+        TypeError: If `clazz` is not an :class:`~id_translation.fetching.AbstractFetcher` subtype.
 
     See Also:
         :ref:`translator-config-fetching`
     """
 
     MapperFactory: TypeAlias = Callable[[dict[str, Any], bool], Mapper[Any, Any, Any] | None]
-    """Signature for :attr:`MAPPER_FACTORY`."""
+    """Signature for :attr:`~id_translation.toml.TranslatorFactory.MAPPER_FACTORY`."""
 
     MAPPER_FACTORY: MapperFactory = cf.default_mapper_factory
     """A callable ``(config, for_fetcher) -> Mapper | None``.
 
-    Overwrite attribute with your own :attr:`.MapperFactory` implementation to customize.
+    Overwrite attribute with your own :attr:`~id_translation.toml.TranslatorFactory.MapperFactory` implementation to customize.
 
     If ``None`` is returned, a suitable default is used instead.
 
     Args:
-        config: Keyword arguments for the :class:`.Mapper`.
-        for_fetcher: Flag indicating that the :class:`.Mapper` returned will be used by an :class:`.AbstractFetcher` instance.
+        config: Keyword arguments for the :class:`~id_translation.mapping.Mapper`.
+        for_fetcher: Flag indicating that the :class:`~id_translation.mapping.Mapper` returned will be used by an
+            :class:`~id_translation.fetching.AbstractFetcher` instance.
 
     Returns:
-        A :class:`.Mapper` instance or ``None``.
+        A :class:`~id_translation.mapping.Mapper` instance or ``None``.
 
     Raises:
-        ConfigurationError: If `config` is invalid.
+        ~id_translation.exceptions.ConfigurationError: If `config` is invalid.
 
     See Also:
         :ref:`translator-config-mapping`
     """
 
     TransformerFactory: TypeAlias = Callable[[str, dict[str, Any]], Transformer[Any]]
-    """Signature for :attr:`TRANSFORMER_FACTORY`."""
+    """Signature for :attr:`~id_translation.toml.TranslatorFactory.TRANSFORMER_FACTORY`."""
 
     TRANSFORMER_FACTORY: TransformerFactory = cf.default_transformer_factory
     """A callable ``(clazz, config) -> Transformer``.
 
-    Overwrite attribute with your own :attr:`.TransformerFactory` implementation to customize.
+    Overwrite attribute with your own :attr:`~id_translation.toml.TranslatorFactory.TransformerFactory` implementation to customize.
 
     Args:
-        clazz: Type of :class:`.Transformer` to create.
+        clazz: Type of :class:`~id_translation.transform.types.Transformer` to create.
         config: Keyword arguments for the transformer class.
 
     Returns:
-        A :class:`.Transformer` instance.
+        A :class:`~id_translation.transform.types.Transformer` instance.
 
     Raises:
-        ConfigurationError: If `config` is invalid.
+        ~id_translation.exceptions.ConfigurationError: If `config` is invalid.
 
     See Also:
         :ref:`translator-config-transform`
     """
 
     CacheAccessFactory: TypeAlias = Callable[[str, dict[str, Any]], CacheAccess[Any, Any]]
-    """Signature for :attr:`CACHE_ACCESS_FACTORY`."""
+    """Signature for :attr:`~id_translation.toml.TranslatorFactory.CACHE_ACCESS_FACTORY`."""
 
     CACHE_ACCESS_FACTORY: CacheAccessFactory = cf.default_cache_access_factory
     """A callable ``(clazz, config) -> CacheAccess``.
 
-    Overwrite attribute with your own :attr:`.CacheAccessFactory` implementation to customize.
+    Overwrite attribute with your own :attr:`~id_translation.toml.TranslatorFactory.CacheAccessFactory` implementation to customize.
 
     Args:
-        clazz: Type of :class:`.CacheAccess` to create.
+        clazz: Type of :class:`~id_translation.fetching.CacheAccess` to create.
         config: Keyword arguments for the cache class.
 
     Returns:
-        A :class:`.CacheAccess` instance.
+        A :class:`~id_translation.fetching.CacheAccess` instance.
 
     Raises:
-        ConfigurationError: If `config` is invalid.
+        ~id_translation.exceptions.ConfigurationError: If `config` is invalid.
     """
 
     TOP_LEVEL_KEYS = ("translator", "fetching", "unknown_ids", "transform")
@@ -144,11 +145,11 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
 
     @property
     def metaconf(self) -> Metaconf:
-        """Returns the :class:`.Metaconf` used by this factory."""
+        """Returns the :class:`~id_translation.toml.meta.Metaconf` used by this factory."""
         return self._metaconf
 
     def create(self) -> "Translator[NameType, SourceType, IdType]":
-        """Create :class:`.Translator` instance."""
+        """Create :class:`~id_translation.Translator` instance."""
         config_metadata = ConfigMetadata.from_toml_paths(self.file, self.extra_fetchers, self.clazz)
         with _rethrow_with_file(self.file):
             config: dict[str, Any] = self.load_toml_file(self.file)
@@ -179,7 +180,7 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
             return ans
 
     def load_toml_file(self, path: str) -> dict[str, Any]:
-        """Read a TOML file from `path` with the current :attr:`.Metaconf.env` settings.
+        """Read a TOML file from `path` with the current :attr:`Metaconf.env <id_translation.toml.meta.Metaconf.env>` settings.
 
         Args:
             path: Path to file.
@@ -188,7 +189,7 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
             A dict parsed from `path`.
 
         See Also:
-            :func:`.load_toml_file`
+            :func:`~id_translation.toml.load_toml_file`
         """
         env = self.metaconf.env
         return load_toml_file(

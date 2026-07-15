@@ -11,7 +11,7 @@ ENABLE_VERBOSE_LOGGING: bool = _env.read_bool("ID_TRANSLATION_VERBOSE")
 """Set to enable additional ``DEBUG``-level messages.
 
 The default (``False``) is controlled by the :envvar:`ID_TRANSLATION_VERBOSE` variable. Use
-:func:`enable_verbose_debug_messages` to enable temporarily.
+:func:`~id_translation.logging.enable_verbose_debug_messages` to enable temporarily.
 """
 
 LOGGER = _l.getLogger("id_translation")
@@ -27,7 +27,8 @@ EMIT_LOGGED_WARNINGS: bool = True
 """Set to ``False`` to disable warnings that are emitted as logs.
 
 Log messages whose level is set in configuration are often repeated as as specific warning type. For example, setting
-:attr:`on_unmapped='warn' <.Mapper.on_unmapped>` will emit both a :class:`~.UnmappedValuesWarning` and a logger message.
+:attr:`on_unmapped='warn' <id_translation.mapping.Mapper.on_unmapped>` will emit both a
+:class:`~id_translation.mapping.exceptions.UnmappedValuesWarning` and a logger message.
 When ``EMIT_LOGGED_WARNINGS=False``, the ``UnmappedValuesWarning`` is suppressed.
 """
 
@@ -52,10 +53,10 @@ def enable_verbose_debug_messages(
       `verbose <../_static/logging/verbose-rainbow.html>`_.
 
     Args:
-        level: Log level. If `'verbose'` (default), set :attr:`ENABLE_VERBOSE_LOGGING` to ``True``.
+        level: Log level. If `'verbose'` (default), set :attr:`~id_translation.logging.ENABLE_VERBOSE_LOGGING` to ``True``.
         use_custom_handler: Set to ``False`` to use existing handlers. If `'auto'` (default), use existing handlers if
             one is found (see :py:meth:`logging.Logger.hasHandlers`). If ``True``, propagation is disabled for the
-            :data:`namespace root logger <LOGGER>`.
+            :data:`namespace root logger <id_translation.logging.LOGGER>`.
         style: Formatting style to use. Ignored when `use_custom_handler` evaluates to ``False``.
 
     Examples:

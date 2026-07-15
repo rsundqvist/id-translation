@@ -1,4 +1,4 @@
-"""Backend for the :meth:`.Translator.from_config` method."""
+"""Backend for the :meth:`Translator.from_config <id_translation.Translator.from_config>` method."""
 
 from . import factories, meta
 from ._factory import TranslatorFactory

@@ -8,7 +8,7 @@ class ConfigurationError(TypeError):
 
 
 class ConfigurationChangedError(Exception):
-    """See :meth:`.Translator.load_persistent_instance`."""
+    """See :meth:`Translator.load_persistent_instance <id_translation.Translator.load_persistent_instance>`."""
 
 
 class ConnectionStatusError(ConnectionError):

@@ -20,9 +20,9 @@ class DataStructureIO(Generic[TranslatableT, NameType, SourceType, IdType]):
 
     @classmethod
     def register(cls) -> None:
-        """Register this implementation for all :class:`.Translator` instances.
+        """Register this implementation for all :class:`~id_translation.Translator` instances.
 
-        See :func:`.dio.register_io` for details.
+        See :func:`dio.register_io <id_translation.dio.register_io>` for details.
         """
         from ._resolve import register_io  # noqa: PLC0415
 
@@ -32,7 +32,7 @@ class DataStructureIO(Generic[TranslatableT, NameType, SourceType, IdType]):
     def is_registered(cls) -> bool:
         """Returns registration status for this implementation.
 
-        See :func:`.dio.is_registered` for details.
+        See :func:`dio.is_registered <id_translation.dio.is_registered>` for details.
         """
         from ._resolve import is_registered  # noqa: PLC0415
 
@@ -42,13 +42,13 @@ class DataStructureIO(Generic[TranslatableT, NameType, SourceType, IdType]):
     def get_rank(cls) -> int:
         """Return the rank of this implementation.
 
-        See :func:`.dio.get_resolution_order` for details. The highest possible rank is 0.
+        See :func:`dio.get_resolution_order <id_translation.dio.get_resolution_order>` for details. The highest possible rank is 0.
 
         Returns:
             Implementation rank.
 
         Raises:
-            DataStructureIOError: If the implementation is not registered.
+            ~id_translation.dio.exceptions.DataStructureIOError: If the implementation is not registered.
         """
         from ._resolve import get_resolution_order  # noqa: PLC0415
 
@@ -107,5 +107,5 @@ class DataStructureIO(Generic[TranslatableT, NameType, SourceType, IdType]):
             A copy of `translatable` if ``copy=True``, ``None`` otherwise.
 
         Raises:
-            NotInplaceTranslatableError: If ``copy=False`` for a type which is not translatable in-place.
+            ~id_translation.dio.exceptions.NotInplaceTranslatableError: If ``copy=False`` for a type which is not translatable in-place.
         """

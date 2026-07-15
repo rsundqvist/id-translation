@@ -1,6 +1,6 @@
 """Default factory implementations.
 
-These may be used as baselines when overwriting ``FACTORY``-attributes in the :class:`.TranslatorFactory` class.
+These may be used as baselines when overwriting ``FACTORY``-attributes in the :class:`~id_translation.toml.TranslatorFactory` class.
 """
 
 from ._cache_access import default_cache_access_factory

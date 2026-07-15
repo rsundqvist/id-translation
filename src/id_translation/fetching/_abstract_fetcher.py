@@ -36,26 +36,27 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
 
     The ``AbstractFetcher`` implements common utility for use by more specialized fetchers. It provides functions such
     as `mapping <../documentation/translation-primer.html#placeholder-mapping>`__ and validation of the relevant
-    :attr:`~.Format.placeholders`. It also adds extensive logging and scaffolding for the
+    :attr:`~id_translation.offline.Format.placeholders`. It also adds extensive logging and scaffolding for the
     :ref:`caching <caching_example>` API, as well as a handful of other features.
 
     Abstract methods:
-        * :meth:`_initialize_sources`: First-time initialization. Called once per instance.
-        * :meth:`fetch_translations`: Retrieve translation data based on a :class:`.FetchInstruction`.
+        * :meth:`~id_translation.fetching.AbstractFetcher._initialize_sources`: First-time initialization. Called once per instance.
+        * :meth:`~id_translation.fetching.AbstractFetcher.fetch_translations`: Retrieve translation data based on a
+          :class:`~id_translation.fetching.types.FetchInstruction`.
 
-    All bundled fetchers (except the :class:`MultiFetcher`) inherit from this class.
+    All bundled fetchers (except the :class:`~id_translation.fetching.MultiFetcher`) inherit from this class.
 
     Args:
-        mapper: A :class:`.Mapper` instance used to adapt placeholder names in sources to wanted names, i.e.
-            the names of the placeholders that are in the translation :class:`.Format` being used.
-        allow_fetch_all: If ``False``, an error will be raised when :meth:`fetch_all` is called.
-        selective_fetch_all: If ``True``, fetch only from those :attr:`~.HasSources.sources` that contain the required
-            :attr:`~.HasSources.placeholders` (after mapping). May reduce the number of sources retrieved.
+        mapper: A :class:`~id_translation.mapping.Mapper` instance used to adapt placeholder names in sources to wanted names, i.e.
+            the names of the placeholders that are in the translation :class:`~id_translation.offline.Format` being used.
+        allow_fetch_all: If ``False``, an error will be raised when :meth:`~id_translation.fetching.AbstractFetcher.fetch_all` is called.
+        selective_fetch_all: If ``True``, fetch only from those :attr:`~id_translation.types.HasSources.sources` that contain the required
+            :attr:`~id_translation.types.HasSources.placeholders` (after mapping). May reduce the number of sources retrieved.
         identifiers: A collection of hierarchical identifiers. If given, element zero
-            of the `identifiers` is added to the :attr:`logger` name for the fetcher.
+            of the `identifiers` is added to the :attr:`~id_translation.fetching.AbstractFetcher.logger` name for the fetcher.
         optional: If ``True``, this fetcher may be discarded if source/placeholder-enumeration fails in multi-fetcher
             mode. Optional fetchers should not raise before :meth`_initialize_sources` is called.
-        cache_access: A :class:`.CacheAccess` instance. Defaults to a NOOP-implementation (i.e. always fetch new data).
+        cache_access: A :class:`~id_translation.fetching.CacheAccess` instance. Defaults to a NOOP-implementation (i.e. always fetch new data).
 
     See Also:
         See the :ref:`🚀 examples page <orm_example>` for an implementation example.
@@ -140,7 +141,8 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         """Perform a full (re) discovery of sources and placeholders.
 
         The actual names used by the underlying system (e.g. a database) should be returned. The required mapping
-        operations are performed automatically when :meth:`fetch_translations` is invoked. The :meth:`id_column` method
+        operations are performed automatically when :meth:`~id_translation.fetching.AbstractFetcher.fetch_translations` is invoked. The
+        :meth:`~id_translation.fetching.AbstractFetcher.id_column` method
         may be used by implementations that must resolve a primary ID column as part of the initialization process.
 
         .. important::
@@ -148,7 +150,8 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
            Runtime errors should be raised here, **not** in the ``__init__`` method.
 
         If discovery fails (e.g. because the target database is not accessible), the exception should be raised here.
-        The :class:`.MultiFetcher` will suppress exceptions [#f1]_ raised by :attr:`optional` children.
+        The :class:`~id_translation.fetching.MultiFetcher` will suppress exceptions [#f1]_ raised by
+        :attr:`~id_translation.fetching.AbstractFetcher.optional` children.
 
         Args:
             task_id: Used for logging.
@@ -167,7 +170,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
     @final
     @property
     def selective_fetch_all(self) -> bool:
-        """If set, reduce the amount of data fetched by :meth:`fetch_all`."""
+        """If set, reduce the amount of data fetched by :meth:`~id_translation.fetching.AbstractFetcher.fetch_all`."""
         return self._selective_fetch_all
 
     @final
@@ -201,11 +204,11 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         """Map `placeholder` names to the actual names seen in `source`.
 
         This method calls ``Mapper.apply(values=placeholders, candidates=candidates, context=source)`` using the local
-        :attr:`.AbstractFetcher.mapper` instance.
+        :attr:`AbstractFetcher.mapper <id_translation.fetching.AbstractFetcher.mapper>` instance.
 
         Args:
             source: The source to map placeholders for.
-            placeholders: Desired :attr:`~.Format.placeholders`.
+            placeholders: Desired :attr:`~id_translation.offline.Format.placeholders`.
             candidates: A subset of candidates (placeholder names) in `source` to map with `placeholders`.
             task_id: Used for logging.
 
@@ -215,7 +218,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
             the candidates available for the source.
 
         Raises:
-            UnknownSourceError: If `source` is not in :attr:`sources`.
+            ~id_translation.fetching.exceptions.UnknownSourceError: If `source` is not in :attr:`~id_translation.fetching.AbstractFetcher.sources`.
 
         See Also:
             🔑 This is a key event method. See :ref:`key-events` for details.
@@ -288,10 +291,10 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
 
     @property
     def cache_access(self) -> CacheAccess[SourceType, IdType]:
-        """Return the :class:`.CacheAccess` for this fetcher.
+        """Return the :class:`~id_translation.fetching.CacheAccess` for this fetcher.
 
         Raises:
-            CacheAccessNotAvailableError: If this fetcher has no cache configured.
+            ~id_translation.fetching.exceptions.CacheAccessNotAvailableError: If this fetcher has no cache configured.
         """
         return self._cache.cache_access
 
@@ -303,7 +306,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         """Raise an error if offline.
 
         Raises:
-            ConnectionStatusError: If not online.
+            ~id_translation.exceptions.ConnectionStatusError: If not online.
         """
         if not self.online:  # pragma: no cover
             raise ConnectionStatusError("disconnected")
@@ -548,22 +551,23 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
     def fetch_translations(self, instr: FetchInstruction[SourceType, IdType]) -> PlaceholderTranslations[SourceType]:
         """Retrieve placeholder translations from the source.
 
-        The :class:`.FetchInstruction` will use the names returned by :meth:`._initialize_sources`; the
+        The :class:`~id_translation.fetching.types.FetchInstruction` will use the names returned by
+        :meth:`~id_translation.fetching.AbstractFetcher._initialize_sources`; the
         ``AbstractFetcher`` is responsible for mapping in both directions. This method is **not** called if
-        translations are returned by the :meth:`.CacheAccess.load` method.
+        translations are returned by the :meth:`CacheAccess.load <id_translation.fetching.CacheAccess.load>` method.
 
         .. note::
 
            This method is called sequentially once per source.
 
-        If the :attr:`IDs <.FetchInstruction.ids>` of the instruction are ``None``, the fetcher should retrieve data for
-        as many IDs as possible. Use :attr:`allow_fetch_all` to disallow.
+        If the :attr:`IDs <id_translation.fetching.types.FetchInstruction.ids>` of the instruction are ``None``, the fetcher should retrieve data for
+        as many IDs as possible. Use :attr:`~id_translation.fetching.AbstractFetcher.allow_fetch_all` to disallow.
 
         Args:
-            instr: A single :class:`.FetchInstruction` instance.
+            instr: A single :class:`~id_translation.fetching.types.FetchInstruction` instance.
 
         Returns:
-            A single :class:`.PlaceholderTranslations` instance.
+            A single :class:`~id_translation.offline.types.PlaceholderTranslations` instance.
 
         See Also:
             🔑 This is a key event method. See :ref:`key-events` for details.
@@ -738,7 +742,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
 
     @classmethod
     def default_mapper_kwargs(cls) -> dict[str, Any]:
-        """Return default :class:`.Mapper` arguments for ``AbstractFetcher`` implementations."""
+        """Return default :class:`~id_translation.mapping.Mapper` arguments for ``AbstractFetcher`` implementations."""
         return dict(
             score_function=HeuristicScore(
                 cls.default_score_function,  # type: ignore

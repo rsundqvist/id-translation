@@ -1,3 +1,4 @@
+import re
 from math import inf
 from typing import Unpack, assert_type
 from uuid import UUID
@@ -183,12 +184,13 @@ def test_typed_dict_docstring_contains_relevant_methods():
     }
 
     # Test docstring
-    template = ":meth:`.Translator.{func.__name__}`"
+    template = r":meth:`(?:~|[\w. ]+ <)id_translation\.Translator\.{func.__name__}[`>]"
     for typed_dict, functions in types.items():
         docstring = typed_dict.__doc__
         assert docstring is not None
         for func in functions:  # type: ignore[attr-defined]
-            assert template.format(func=func) in docstring, f"{typed_dict.__name__}: {func.__qualname__}"
+            pattern = template.format(func=func)
+            assert re.search(pattern, docstring), f"{typed_dict.__name__}: {func.__qualname__}"
 
 
 @pytest.mark.parametrize(

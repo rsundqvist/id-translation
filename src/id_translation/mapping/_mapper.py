@@ -59,7 +59,7 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
         filter_functions: Function-kwargs pairs of filters to apply before scoring.
         min_score: Minimum score `s_i`, as given by ``score(k, c_i)``, to consider `k` a match for `c_i`.
         overrides: If a dict, assumed to be 1:1 mappings (`value` to `candidate`) which override the scoring logic. If
-            :class:`rics.collections.dicts.InheritedKeysDict`, the context passed to :meth:`apply` is used to retrieve
+            :class:`rics.collections.dicts.InheritedKeysDict`, the context passed to :meth:`~id_translation.mapping.Mapper.apply` is used to retrieve
             specific overrides.
         on_unmapped: Action to take if mapping fails for any values.
         on_unknown_user_override: Action to take if an :attr:`~id_translation.mapping.types.UserOverrideFunction`
@@ -115,22 +115,24 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
             context: Context in which mapping is being done.
             override_function: A callable that takes inputs ``(value, candidates, context)`` that returns either
                 ``None`` (let the regular mapping logic decide) or one of the `candidates`. How non-candidates returned
-                is handled is determined by the :attr:`on_unknown_user_override` property.
+                is handled is determined by the :attr:`~id_translation.mapping.Mapper.on_unknown_user_override` property.
             task_id: Used for logging.
             **kwargs: Runtime keyword arguments for score and filter functions. May be used to add information which is
                 not known when the ``Mapper`` is initialized.
 
         Returns:
-            A :class:`.DirectionalMapping` on the form ``{value: [matched_candidates..]}``. May be turned into a
-            plain dict ``{value: candidate}`` by using the :meth:`.DirectionalMapping.flatten` function (only if
-            :attr:`.DirectionalMapping.cardinality` is of type :attr:`.Cardinality.one_right`).
+            A :class:`~id_translation.mapping.DirectionalMapping` on the form ``{value: [matched_candidates..]}``. May be turned into a
+            plain dict ``{value: candidate}`` by using the :meth:`DirectionalMapping.flatten <id_translation.mapping.DirectionalMapping.flatten>`
+            function (only if
+            :attr:`DirectionalMapping.cardinality <id_translation.mapping.DirectionalMapping.cardinality>` is of type
+            :attr:`Cardinality.one_right <id_translation.mapping.Cardinality.one_right>`).
 
         Raises:
-            MappingError: If any values failed to match and ``on_unmapped='raise'``.
-            BadFilterError: If a filter returns candidates that are not a subset of the original candidates.
-            UserMappingError: If `override_function` returns an unknown candidate and
+            ~id_translation.mapping.exceptions.MappingError: If any values failed to match and ``on_unmapped='raise'``.
+            ~id_translation.mapping.exceptions.BadFilterError: If a filter returns candidates that are not a subset of the original candidates.
+            ~id_translation.mapping.exceptions.UserMappingError: If `override_function` returns an unknown candidate and
                 ``on_unknown_user_override != 'allow'``
-            MappingError: If passing ``context=None`` (the default) when using context-sensitive overrides (type
+            ~id_translation.mapping.exceptions.MappingError: If passing ``context=None`` (the default) when using context-sensitive overrides (type
                 :class:`rics.collections.dicts.InheritedKeysDict`).
         """
         start = perf_counter()
@@ -210,7 +212,7 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
             context: Context in which mapping is being done.
             override_function: A callable that takes inputs ``(value, candidates, context)`` that returns either
                 ``None`` (let the regular mapping logic decide) or one of the `candidates`. How non-candidates returned
-                is handled is determined by the :attr:`on_unknown_user_override` property.
+                is handled is determined by the :attr:`~id_translation.mapping.Mapper.on_unknown_user_override` property.
             task_id: Used for logging.
             **kwargs: Runtime keyword arguments for score and filter functions. May be used to add information which is
                 not known when the ``Mapper`` is initialized.
@@ -220,8 +222,8 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
             ``DataFrame.columns=candidates``.
 
         Raises:
-            BadFilterError: If a filter returns candidates that are not a subset of the original candidates.
-            UserMappingError: If `override_function` returns an unknown candidate and
+            ~id_translation.mapping.exceptions.BadFilterError: If a filter returns candidates that are not a subset of the original candidates.
+            ~id_translation.mapping.exceptions.UserMappingError: If `override_function` returns an unknown candidate and
                 ``on_unknown_user_override != 'allow'``
         """
         start = perf_counter()
@@ -296,7 +298,7 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
             A ``DirectionalMapping``.
 
         See Also:
-            :meth:`.ScoreHelper.to_directional_mapping`
+            :meth:`ScoreHelper.to_directional_mapping <id_translation.mapping.matrix.ScoreHelper.to_directional_mapping>`
         """
         helper = ScoreHelper(scores, self._min_score, self._logger, task_id=task_id)
         return helper.to_directional_mapping(self.cardinality)
@@ -481,7 +483,7 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
 
         Args:
             overrides: Keyword arguments to use when instantiating the copy. Options that aren't given will be taken
-                from the current instance. See the :class:`Mapper` class documentation for possible choices.
+                from the current instance. See the :class:`~id_translation.mapping.Mapper` class documentation for possible choices.
 
         Returns:
             A copy of this ``Mapper`` with `overrides` applied.

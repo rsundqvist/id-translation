@@ -23,7 +23,8 @@ class DirectionalMapping(Generic[HL, HR]):  # noqa: PLW1641
     Raises:
         ValueError: If both of `left_to_right` and `right_to_left` are ``None``.
         ValueError: If verification of two-sided input fails, and ``verify=True``.
-        CardinalityError: If explicit `cardinality` < :attr:`cardinality`, and ``verify=True``.
+        ~id_translation.mapping.exceptions.CardinalityError: If explicit `cardinality` <
+            :attr:`~id_translation.mapping.DirectionalMapping.cardinality`, and ``verify=True``.
     """
 
     def __init__(
@@ -91,7 +92,8 @@ class DirectionalMapping(Generic[HL, HR]):  # noqa: PLW1641
             A dict ``{left: right}``.
 
         Raises:
-            CardinalityError: If cardinality is not :attr:`~.Cardinality.OneToOne` or :attr:`~.Cardinality.ManyToOne`.
+            ~id_translation.mapping.exceptions.CardinalityError: If cardinality is not :attr:`~id_translation.mapping.Cardinality.OneToOne` or
+                :attr:`~id_translation.mapping.Cardinality.ManyToOne`.
         """
         if not self._cardinality.one_right:  # pragma: no cover
             raise CardinalityError(f"Must have one of {(Cardinality.OneToOne, Cardinality.ManyToOne)} to flatten.")

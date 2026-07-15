@@ -7,7 +7,7 @@ from ._initialize import initialize
 
 
 def default_fetcher_factory(clazz: str, config: dict[str, Any]) -> AbstractFetcher[SourceType, IdType]:
-    """Create an :class:`.AbstractFetcher` from config."""
+    """Create an :class:`~id_translation.fetching.AbstractFetcher` from config."""
     from id_translation import fetching as default_module  # noqa: PLC0415
 
     return initialize(

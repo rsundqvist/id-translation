@@ -7,7 +7,7 @@ from ._initialize import initialize
 
 
 def default_cache_access_factory(clazz: str, config: dict[str, Any]) -> CacheAccess[SourceType, IdType]:
-    """Create a :class:`.CacheAccess` from config."""
+    """Create a :class:`~id_translation.fetching.CacheAccess` from config."""
     return initialize(
         clazz,
         config,

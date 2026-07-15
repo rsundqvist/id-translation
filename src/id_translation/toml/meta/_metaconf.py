@@ -13,7 +13,7 @@ LOGGER = logging.getLogger(__package__).getChild("Translator").getChild("config"
 class EnvConf:
     """Control environment-variable interpolation.
 
-    All keys are forwarded to :func:`.load_toml_file`.
+    All keys are forwarded to :func:`~id_translation.toml.load_toml_file`.
     """
 
     allow_interpolation: bool = True
@@ -39,13 +39,13 @@ class EquivalenceConf:
 
     .. seealso::
 
-       The :meth:`.Translator.load_persistent_instance` method.
+       The :meth:`Translator.load_persistent_instance <id_translation.Translator.load_persistent_instance>` method.
     """
 
     python_version: str = "{v.major}.{v.minor}.{v.micro}"
     """Used to format the ``'python_version'`` version using ``v=sys.version_info``."""
     extra_packages: list[str] = field(default_factory=list)
-    """Additional package whose versions are used to determine :class:`ConfigMetadata` equivalence."""
+    """Additional package whose versions are used to determine :class:`~id_translation.toml.meta.ConfigMetadata` equivalence."""
 
     @classmethod
     def from_dict(cls, config: dict[str, Any]) -> Self:
@@ -84,10 +84,10 @@ class Metaconf:
     """
 
     env: EnvConf = field(default_factory=EnvConf)
-    """Controls how and if variable substitution (on the form ``${VAR}``) is performed. See :class:`EnvConf`. """
+    """Controls how and if variable substitution (on the form ``${VAR}``) is performed. See :class:`~id_translation.toml.meta.EnvConf`. """
 
     equivalence: EquivalenceConf = field(default_factory=EquivalenceConf)
-    """Controls how equivalence checks are performed. See :class:`EquivalenceConf`."""
+    """Controls how equivalence checks are performed. See :class:`~id_translation.toml.meta.EquivalenceConf`."""
 
     @classmethod
     def from_dict(cls, config: dict[str, Any]) -> Self:

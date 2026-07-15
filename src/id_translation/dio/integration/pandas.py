@@ -42,12 +42,13 @@ class PandasIO(_dio.DataStructureIO[PandasT, _tt.NameType, _tt.SourceType, _tt.I
     Setting ``as_category=True`` converts the resultant translations to a
     `categorical <https://pandas.pydata.org/docs/user_guide/categorical.html>`_
     data type. The returned :class:`pandas.CategoricalDtype` will be :attr:`~pandas.CategoricalDtype.ordered`, with the
-    :attr:`~pandas.CategoricalDtype.categories` set to all :attr:`real translations <.MagicDict.real>`. If
+    :attr:`~pandas.CategoricalDtype.categories` set to all :attr:`real translations <id_translation.offline.MagicDict.real>`. If
     ``missing_as_nan=False``, the `categories` may also include placeholders.
 
-    Certain fetchers, such as the :class:`MemoryFetcher(return_all=True) <.MemoryFetcher>`, will return more IDs than
+    Certain fetchers, such as the :class:`MemoryFetcher(return_all=True) <id_translation.fetching.MemoryFetcher>`, will return more IDs than
     requested. In this case the `categories` may also include values not present in the input data. This may also happen
-    if data was prepared with :meth:`.Translator.go_offline`, or if multiple columns were :ref:`mapped <mapping-primer>`
+    if data was prepared with :meth:`Translator.go_offline <id_translation.Translator.go_offline>`, or if multiple columns were
+    :ref:`mapped <mapping-primer>`
     to the same source.
     """
 

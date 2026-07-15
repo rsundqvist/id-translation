@@ -60,7 +60,7 @@ class Cardinality(Enum):
             Inverse cardinality.
 
         See Also:
-            :attr:`symmetric`
+            :attr:`~id_translation.mapping.Cardinality.symmetric`
         """
         if self == Cardinality.OneToMany:
             return Cardinality.ManyToOne
@@ -77,7 +77,7 @@ class Cardinality(Enum):
             Symmetry flag.
 
         See Also:
-            :attr:`inverse`
+            :attr:`~id_translation.mapping.Cardinality.inverse`
         """
         return self in {Cardinality.OneToOne, Cardinality.ManyToMany}
 
@@ -97,7 +97,7 @@ class Cardinality(Enum):
             right_count: Number of elements on the right-hand side.
 
         Returns:
-            A :class:`Cardinality`.
+            A :class:`~id_translation.mapping.Cardinality`.
 
         Raises:
             ValueError: For counts < 1.
@@ -113,7 +113,7 @@ class Cardinality(Enum):
             strict: If ``True``, `arg` must match exactly when it is given as a string.
 
         Returns:
-            A :class:`Cardinality`.
+            A :class:`~id_translation.mapping.Cardinality`.
 
         Raises:
             ValueError: If the argument could not be converted.

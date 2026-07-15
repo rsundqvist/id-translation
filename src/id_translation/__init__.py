@@ -6,7 +6,7 @@ Environment variables
 ---------------------
 .. envvar:: ID_TRANSLATION_DISABLED
 
-   Global switch. When ``true``, the :meth:`Translator.translate`-method returns immediately.
+   Global switch. When ``true``, the :meth:`Translator.translate <id_translation.Translator.translate>`-method returns immediately.
 
    .. warning:: When set, IDs are not converted to :py:class:`str`. Type hints may be wrong.
 
@@ -18,7 +18,7 @@ Environment variables
 
 .. envvar:: ID_TRANSLATION_VERBOSE
 
-   Global switch. Set to ``true`` to overwrite the default :data:`~.logging.ENABLE_VERBOSE_LOGGING` value. Note that
+   Global switch. Set to ``true`` to overwrite the default :data:`~id_translation.logging.ENABLE_VERBOSE_LOGGING` value. Note that
    this variable is only read once (on module import). See the :doc:`documentation </documentation/translation-logging>`
    for details.
 """

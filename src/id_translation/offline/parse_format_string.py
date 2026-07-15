@@ -14,14 +14,14 @@ _END = OPTIONAL_BLOCK_END_DELIMITER
 
 
 class ParseBlockResult(_NamedTuple):
-    """Output type of :meth:`.Element.parse_block`."""
+    """Output type of :meth:`Element.parse_block <id_translation.offline.parse_format_string.Element.parse_block>`."""
 
     parsed_block: str
     """Processed parts of the block."""
     placeholders: list[str]
-    """Names of the :attr:`.Format.placeholders` in `parsed_block`, in the order in which they appear."""
+    """Names of the :attr:`Format.placeholders <id_translation.offline.Format.placeholders>` in `parsed_block`, in the order in which they appear."""
     placeholder_attributes: list[str | None]
-    """Attribute-access/indexing suffix per :attr:`placeholders` element, in order.
+    """Attribute-access/indexing suffix per :attr:`~id_translation.offline.parse_format_string.ParseBlockResult.placeholders` element, in order.
 
     Element ``i`` is the suffix for ``placeholders[i]`` (e.g. ``"name.first"`` or ``"[0]"``), or ``None`` for
     placeholders that use neither.
@@ -89,7 +89,8 @@ class Element:
     placeholder_attributes: list[tuple[str, str]] = _field(default_factory=list)
     """A list of tuples ``[(placeholder, attribute), ..]``.
 
-    Order matches :attr:`placeholders`, excluding placeholders without attribute access (i.e., the "values" will
+    Order matches :attr:`~id_translation.offline.parse_format_string.Element.placeholders`, excluding placeholders without attribute access (i.e., the
+    "values" will
     never be blank). This is essentially a ``dict`` with possible repeated keys.
     """
 
@@ -124,7 +125,9 @@ class Element:
 
         .. hint::
 
-           With `defaults`, the value of the :attr:`ParseBlockResult.parsed_block` is more or less what you'd expect if
+           With `defaults`, the value of the
+           :attr:`ParseBlockResult.parsed_block <id_translation.offline.parse_format_string.ParseBlockResult.parsed_block>` is more or less what you'd
+           expect if
            the built-in :py:meth:`str.format_map`-method allowed missing keys.
 
         Anonymous fields are not permitted.
@@ -134,14 +137,17 @@ class Element:
 
         Output with ``defaults == None``:
             When `defaults` are ``None``, placeholder names are stripped from the
-            :attr:`~.ParseBlockResult.parsed_block`.
+            :attr:`~id_translation.offline.parse_format_string.ParseBlockResult.parsed_block`.
 
             >>> block, placeholders, _ = Element.parse_block("{id!s:.8}:{name!r}")
             >>> print(f"{block=} has {placeholders=}")
             block='{!s:.8}:{!r}' has placeholders=['id', 'name']
 
-            Field names in `block` are returned as :attr:`.ParseBlockResult.placeholders`, in the order in which they
-            appeared in the input `block`. The field names of :attr:`~.ParseBlockResult.parsed_block` will be
+            Field names in `block` are returned as
+            :attr:`ParseBlockResult.placeholders <id_translation.offline.parse_format_string.ParseBlockResult.placeholders>`, in the order in which
+            they
+            appeared in the input `block`. The field names of :attr:`~id_translation.offline.parse_format_string.ParseBlockResult.parsed_block` will
+            be
             anonymous.
 
             >>> block.format(UUID(int=10**38), "Morran Borran")
@@ -149,7 +155,7 @@ class Element:
 
         Output with ``defaults != None``:
             When `defaults` are given, all placeholders in the `block` which are present in the `defaults` are replaced
-            with ``defaults[field_name]`` in the :attr:`~.ParseBlockResult.parsed_block`.
+            with ``defaults[field_name]`` in the :attr:`~id_translation.offline.parse_format_string.ParseBlockResult.parsed_block`.
 
             >>> block, placeholders, _ = Element.parse_block(
             ...     "{id!s:.8}:{name!r}",
@@ -158,8 +164,9 @@ class Element:
             >>> print(f"{block=} has {placeholders=}")
             block="{id!s:.8}:'Morran Borran'" has placeholders=['id']
 
-            Field names without defaults will be present both in :attr:`~.ParseBlockResult.placeholders`, and as named
-            fields in the :attr:`~.ParseBlockResult.parsed_block`.
+            Field names without defaults will be present both in :attr:`~id_translation.offline.parse_format_string.ParseBlockResult.placeholders`,
+            and as named
+            fields in the :attr:`~id_translation.offline.parse_format_string.ParseBlockResult.parsed_block`.
 
             >>> block.format(id=UUID(int=10**38))
             "4b3b4ca8:'Morran Borran'"
@@ -169,7 +176,7 @@ class Element:
             defaults: A dict ``{placeholder: value}``.
 
         Returns:
-            A :class:`.ParseBlockResult` tuple.
+            A :class:`~id_translation.offline.parse_format_string.ParseBlockResult` tuple.
 
         Raises:
             ValueError: If `block` contains anonymous fields.
@@ -286,7 +293,7 @@ def get_elements(fmt: str) -> list[Element]:  # noqa: PLR0912
         A list of parsed elements.
 
     Raises:
-        BadDelimiterError: For unbalanced optional block delimitation characters.
+        ~id_translation.offline.parse_format_string.BadDelimiterError: For unbalanced optional block delimitation characters.
     """
     if not fmt:
         return [Element("", [], required=True, positional_part="")]

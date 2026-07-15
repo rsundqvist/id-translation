@@ -1,7 +1,7 @@
 """Functions which return a likeness score.
 
 See Also:
-    The :class:`~.HeuristicScore` class.
+    The :class:`~id_translation.mapping.HeuristicScore` class.
 """
 
 from collections.abc import Iterable as _Iterable
@@ -86,7 +86,7 @@ def disabled(
         If `strict` is ``False``, negative infinity for all `candidates`, serving as a catch-all removal filter.
 
     Raises:
-        ScoringDisabledError: If `strict` is ``True``.
+        ~id_translation.mapping.exceptions.ScoringDisabledError: If `strict` is ``True``.
 
     See Also:
         The :ref:`override-only-mapping` documentation.

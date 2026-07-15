@@ -1,4 +1,4 @@
-"""Types that are specific to the :class:`.Translator` implementation."""
+"""Types that are specific to the :class:`~id_translation.Translator` implementation."""
 
 import typing as _t
 from collections import abc as _abc
@@ -22,7 +22,8 @@ Must be on the form ``{source: {id: name}}``.
 """
 
 SourceToPlaceholderTranslationsMakeTypes = _abc.Mapping[_tt.SourceType, _ot.MakeTypes[_tt.SourceType, _tt.IdType]]
-"""Data for translating using arbitrary placeholders; see :meth:`.PlaceholderTranslations.make`"""
+"""Data for translating using arbitrary placeholders; see
+:meth:`PlaceholderTranslations.make <id_translation.offline.types.PlaceholderTranslations.make>`"""
 
 NativeFetcherTypes: _t.TypeAlias = (
     _TranslationMap[_tt.NameType, _tt.SourceType, _tt.IdType]
@@ -40,7 +41,7 @@ FetcherTypes: _t.TypeAlias = (
 
 
 class AbstractFetcherParams(_t.TypedDict, _t.Generic[_tt.SourceType, _tt.IdType], total=False):
-    """Keyword arguments for the :class:`.AbstractFetcher` base class."""
+    """Keyword arguments for the :class:`~id_translation.fetching.AbstractFetcher` base class."""
 
     # TODO(2.0.0): move to fetching.typing submodule? Or _abstract_fetcher.py + expose in __init__.py?
 
@@ -53,7 +54,7 @@ class AbstractFetcherParams(_t.TypedDict, _t.Generic[_tt.SourceType, _tt.IdType]
 
 
 class ExtractNamesParams(_t.TypedDict, _t.Generic[_tt.NameType, _tt.SourceType, _tt.IdType], total=False):
-    """Arguments of :meth:`.Translator.extract_names`."""
+    """Arguments of :meth:`Translator.extract_names <id_translation.Translator.extract_names>`."""
 
     translatable: _t.Required[_tt.Translatable[_tt.NameType, _tt.IdType]]
     ignore_names: _tt.Names[_tt.NameType] | None
@@ -62,7 +63,7 @@ class ExtractNamesParams(_t.TypedDict, _t.Generic[_tt.NameType, _tt.SourceType, 
 
 
 class MapParams(_t.TypedDict, _t.Generic[_tt.NameType, _tt.SourceType, _tt.IdType], total=False):
-    """Arguments of :meth:`.Translator.map` and :meth:`.Translator.map_scores`."""
+    """Arguments of :meth:`Translator.map <id_translation.Translator.map>` and :meth:`~id_translation.Translator.map_scores`."""
 
     translatable: _t.Required[_tt.Translatable[_tt.NameType, _tt.IdType]]
     names: _tt.NameTypes[_tt.NameType] | None
@@ -72,7 +73,10 @@ class MapParams(_t.TypedDict, _t.Generic[_tt.NameType, _tt.SourceType, _tt.IdTyp
 
 
 class UniqueCopyParams(_t.TypedDict, _t.Generic[_tt.NameType, _tt.SourceType, _tt.IdType], total=False):
-    """Arguments of :meth:`.Translator.copy` that do not overlap with :class:`AllTranslateParams`."""
+    """Arguments of :meth:`Translator.copy <id_translation.Translator.copy>`.
+
+    Includes only arguments that do not overlap with :class:`~id_translation.translator_typing.AllTranslateParams`.
+    """
 
     fetcher: FetcherTypes[_tt.NameType, _tt.SourceType, _tt.IdType] | None
     mapper: _Mapper[_tt.NameType, _tt.SourceType, None] | None
@@ -83,13 +87,13 @@ class UniqueCopyParams(_t.TypedDict, _t.Generic[_tt.NameType, _tt.SourceType, _t
 
 
 class CopyParams(UniqueCopyParams[_tt.NameType, _tt.SourceType, _tt.IdType], total=False):
-    """All arguments of :meth:`.Translator.copy`."""
+    """All arguments of :meth:`Translator.copy <id_translation.Translator.copy>`."""
 
     fmt: _ot.FormatType
 
 
 class TranslateParams(_t.TypedDict, _t.Generic[_tt.NameType, _tt.SourceType, _tt.IdType], total=False):
-    """Keyword arguments of :meth:`.Translator.translate`.
+    """Keyword arguments of :meth:`Translator.translate <id_translation.Translator.translate>`.
 
     .. note::
 
@@ -111,7 +115,7 @@ class TranslateParams(_t.TypedDict, _t.Generic[_tt.NameType, _tt.SourceType, _tt
           else:
               # Do whatever
 
-    using :class:`AllTranslateParams` is typically not as safe as:
+    using :class:`~id_translation.translator_typing.AllTranslateParams` is typically not as safe as:
 
     .. code-block::
 
@@ -129,7 +133,7 @@ class TranslateParams(_t.TypedDict, _t.Generic[_tt.NameType, _tt.SourceType, _tt
 
     since ``func(translatable=[], copy=False)`` does not behave like
     ``Translator.translate([], copy=False)`` would. Functions that transparently wrap
-    :meth:`.Translator.translate` should probably use :py:func:`functools.wraps` instead.
+    :meth:`Translator.translate <id_translation.Translator.translate>` should probably use :py:func:`functools.wraps` instead.
     """
 
     names: _tt.NameTypes[_tt.NameType] | _tt.NameToSource[_tt.NameType, _tt.SourceType] | None
@@ -142,14 +146,14 @@ class TranslateParams(_t.TypedDict, _t.Generic[_tt.NameType, _tt.SourceType, _tt
 
 
 class AllTranslateParams(TranslateParams[_tt.NameType, _tt.SourceType, _tt.IdType], total=False):
-    """All arguments of :meth:`.Translator.translate`."""
+    """All arguments of :meth:`Translator.translate <id_translation.Translator.translate>`."""
 
     translatable: _t.Required[_tt.Translatable[_tt.NameType, _tt.IdType]]
     copy: bool
 
 
 class FetchParams(_t.TypedDict, _t.Generic[_tt.NameType, _tt.SourceType, _tt.IdType], total=False):
-    """All arguments of :meth:`.Translator.fetch`."""
+    """All arguments of :meth:`Translator.fetch <id_translation.Translator.fetch>`."""
 
     translatable: _tt.Translatable[_tt.NameType, _tt.IdType] | None
     names: _tt.NameTypes[_tt.NameType] | _tt.NameToSource[_tt.NameType, _tt.SourceType] | None
@@ -161,7 +165,7 @@ class FetchParams(_t.TypedDict, _t.Generic[_tt.NameType, _tt.SourceType, _tt.IdT
 
 
 class GoOfflineParams(FetchParams[_tt.NameType, _tt.SourceType, _tt.IdType], total=False):
-    """All arguments of :meth:`.Translator.go_offline`."""
+    """All arguments of :meth:`Translator.go_offline <id_translation.Translator.go_offline>`."""
 
     path: _AnyPath | None
 
