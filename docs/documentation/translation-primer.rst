@@ -118,6 +118,8 @@ This fetcher will look for CSV files in the `sources` sub folder of the current 
    :attr:`~Translator.sources`. All fetching is done through the
    :class:`~fetching.Fetcher` interface.
 
+.. _name-to-source-mapping:
+
 Name-to-source mapping
 ----------------------
 .. figure:: ../_images/name-to-source-mapping.drawio.png
@@ -181,6 +183,8 @@ same translation format for humans and animals.
    The ``'name'`` and ``'id'`` placeholders are :attr:`~offline.Format.required_placeholders`;
    translation will fail if they cannot be retrieved. The others -- ``'title'`` and ``'species'`` -- are
    :attr:`~offline.Format.optional_placeholders`.
+
+.. _placeholder-mapping:
 
 Placeholder mapping
 -------------------

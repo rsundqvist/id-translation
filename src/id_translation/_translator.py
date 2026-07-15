@@ -729,7 +729,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             A translated copy of `translatable` if ``copy=True``, otherwise ``None``.
 
         Examples:
-            Manual `name-to-source <../documentation/translation-primer.html#name-to-source-mapping>`__ mapping with a
+            Manual :ref:`name-to-source <name-to-source-mapping>` mapping with a
             temporary name-only :class:`~id_translation.offline.Format`.
 
             ..

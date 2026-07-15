@@ -13,7 +13,7 @@ Simple fetchers:
 Base fetchers:
     * :class:`~id_translation.fetching.Fetcher`: Top-level interface definition. Base for all fetching implementations.
     * :class:`~id_translation.fetching.AbstractFetcher`: Implements high-level operations such as
-      `placeholder mapping <../documentation/translation-primer.html#placeholder-mapping>`__.
+      :ref:`placeholder mapping <placeholder-mapping>`.
 
 Fetchers may have additional dependencies.
 """

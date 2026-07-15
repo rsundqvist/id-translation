@@ -35,7 +35,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
     """Common base class.
 
     The ``AbstractFetcher`` implements common utility for use by more specialized fetchers. It provides functions such
-    as `mapping <../documentation/translation-primer.html#placeholder-mapping>`__ and validation of the relevant
+    as :ref:`mapping <placeholder-mapping>` and validation of the relevant
     :attr:`~id_translation.offline.Format.placeholders`. It also adds extensive logging and scaffolding for the
     :ref:`caching <caching_example>` API, as well as a handful of other features.
 

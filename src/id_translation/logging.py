@@ -1,4 +1,4 @@
-"""Logging utilities; see :doc:`/documentation/translation-logging` for help."""
+"""Logging utilities; see :ref:`translation-logging` page for help."""
 
 import logging as _l
 import typing as _t
@@ -18,7 +18,7 @@ LOGGER = _l.getLogger("id_translation")
 """Namespace root logger.
 
 Level is set to ``logging.WARNING=30`` by default (or ``DEBUG`` if ``ENABLE_VERBOSE_LOGGING`` is set).
-See :doc:`/documentation/translation-logging` for details.
+See the :ref:`translation-logging` page for details.
 """
 if LOGGER.level == _l.NOTSET:
     LOGGER.setLevel(_l.DEBUG if ENABLE_VERBOSE_LOGGING else _l.WARNING)

@@ -203,6 +203,8 @@ See: :ref:`Subsection: Mapping` for details. For all mapping operations performe
 
    Under the hood, this will call :func:`~rics.misc.get_by_full_name` using ``name="my.library.SuperFetcher"``.
 
+.. _optional-fetchers:
+
 Optional fetchers
 ~~~~~~~~~~~~~~~~~
 :meth:`Optional <.Fetcher.optional>` fetchers are allowed to raise when :meth:`.Fetcher.initialize_sources` is called.

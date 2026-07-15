@@ -1,3 +1,5 @@
+.. _translation-io:
+
 Translation IO
 ==============
 The :mod:`id_translation.dio` module defines how IDs are read and written to various data structures.

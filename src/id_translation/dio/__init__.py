@@ -1,6 +1,6 @@
 """Insertion and extraction of IDs and translations.
 
-See :doc:`/documentation/translation-io` for help.
+See :ref:`translation-io` page for help.
 """
 
 from ._data_structure_io import DataStructureIO

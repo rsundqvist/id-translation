@@ -14,12 +14,12 @@ Environment variables
 
    Global switch. Set to ``true`` (not recommended) to allow the :meth:`~id_translation.toml.TranslatorFactory` to
    discard `optional` fetchers that raise when imported or initialized.
-   See the `documentation <../documentation/translator-config.html#optional-fetchers>`__ for details.
+   See the :ref:`documentation <optional-fetchers>` for details.
 
 .. envvar:: ID_TRANSLATION_VERBOSE
 
    Global switch. Set to ``true`` to overwrite the default :data:`~id_translation.logging.ENABLE_VERBOSE_LOGGING` value. Note that
-   this variable is only read once (on module import). See the :doc:`documentation </documentation/translation-logging>`
+   this variable is only read once (on module import). See the :ref:`documentation <translation-logging>`
    for details.
 """
 
