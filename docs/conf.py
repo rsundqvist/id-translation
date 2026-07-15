@@ -56,13 +56,15 @@ def skip_member(app, what, name, obj, skip, options):
 
 
 def forbid_downstream_unresolvable_references(app, env):
-    """Warn on py-domain references that may resolve here, but not in downstream projects.
+    """Warn on references that may resolve here, but not in downstream projects.
 
     Docstrings are inherited, copied, and wrapped by downstream projects (see e.g. the id-translation-project
     template). There, relative references such as ``:class:`.Format``` (including bare exception names in ``Raises:``
     sections) can only be resolved by intersphinx, which requires an exact fully-qualified match against a documented
-    name. Enforce that invariant for all py-domain references in docstrings; narrative documents are only rendered
-    here, and may use ``py:currentmodule``-relative references. The build runs with ``-W``, so violations fail it.
+    name. The same goes for the std domain: ``:ref:`` labels must exactly match a published label, and ``:doc:``
+    references never resolve downstream (``std:doc`` is in the default ``intersphinx_disabled_reftypes``). Enforce
+    that invariant for all references in docstrings; narrative documents are only rendered here, and may use
+    relative references. The build runs with ``-W``, so violations fail it.
     """
     import builtins
 
@@ -72,11 +74,19 @@ def forbid_downstream_unresolvable_references(app, env):
 
     logger = getLogger(__name__)
 
-    domain = env.get_domain("py")
+    py = env.get_domain("py")
+    std = env.get_domain("std")
+    std_object_names = {name for _, name in std.objects}
     external = {name for objects in InventoryAdapter(env).main_inventory.values() for name in objects}
 
-    def is_exact_match(target):
-        return target in domain.objects or target in domain.modules or target in external
+    def is_exact_match(node, target):
+        if node.get("refdomain") == "py":
+            return target in py.objects or target in py.modules or target in external or hasattr(builtins, target)
+        if node.get("reftype") == "doc":
+            return False  # Downstream intersphinx never resolves these; use a :ref: label instead.
+        if node.get("reftype") == "ref":
+            return target in std.labels or target in std.anonlabels or target in external
+        return target in std_object_names or target in external
 
     def source_of(node):
         while node is not None:
@@ -87,15 +97,21 @@ def forbid_downstream_unresolvable_references(app, env):
 
     for docname in sorted(env.found_docs):
         for node in env.get_doctree(docname).findall(addnodes.pending_xref):
-            if node.get("refdomain") != "py":
+            if node.get("refdomain") not in ("py", "std"):
                 continue
             if "docstring of " not in source_of(node):
                 continue
             target = node.get("reftarget", "")
-            if is_exact_match(target) or hasattr(builtins, target):
+            if is_exact_match(node, target):
                 continue
-            msg = f"Reference {target!r} does not exactly match any documented name, so it will not resolve in"
-            logger.warning(msg + " downstream projects. Use a fully qualified name.", location=node)
+            if node.get("reftype") == "doc":
+                msg = f":doc: reference {target!r} cannot be resolved in downstream projects. Use a :ref: label."
+            else:
+                msg = (
+                    f"Reference {target!r} does not exactly match any documented name, so it will not resolve in"
+                    " downstream projects. Use a fully qualified name."
+                )
+            logger.warning(msg, location=node)
 
 
 def setup(app):  # noqa
