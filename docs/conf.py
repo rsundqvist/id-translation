@@ -229,7 +229,6 @@ exclude_patterns = [
     ".DS_Store",
     "**.ipynb_checkpoints",
 ]
-# shutil.rmtree("/tmp/example/", ignore_errors=True)  # noqa: 1S108
 
 # -- Options for HTML output ---------------------------------------------------
 
@@ -338,17 +337,11 @@ intersphinx_mapping = {
     "dask": ("https://docs.dask.org/en/latest/", None),
 }
 
-# -- Gallery configuration -----------------------------------------------------
-sphinx_gallery_conf = {
-    "sphinx_gallery_conf": "*.png",
-    "gallery_dirs": ["_tiles"],
-}
-
 # -- Nbsphinx ------------------------------------------------------------------
 nbsphinx_execute = "never"
 shutil.copytree("../notebooks/demo/", "documentation/examples/notebooks", dirs_exist_ok=True)
 
-# -- Randoms stuff -------------------------------------------------------------
+# -- Random stuff --------------------------------------------------------------
 split_changelog("changelog", "../CHANGELOG.md")
 
 root = "documentation/examples/dvdrental"

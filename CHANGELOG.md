@@ -21,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   for editor and CI validation.
 - Add `PartialCacheHit`; returning it from `CacheAccess.load()` makes the fetcher fetch (and cache) only the IDs the
   cache did not cover, instead of re-fetching the whole request.
+- Add a [migration guide](https://id-translation.readthedocs.io/en/stable/documentation/migration-guide.html) for
+  adopting `id-translation` in existing applications.
 
 ### Changed
 - Links in warnings and exceptions now link to the current version in the docs (instead of the _'stable'_ version).

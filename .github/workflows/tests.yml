@@ -12,7 +12,6 @@ on:
       - master
       - ci/*
   pull_request:
-    branches:
 
 env:
   POLARS_SKIP_CPU_CHECK: true

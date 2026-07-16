@@ -37,12 +37,16 @@ print(
 )
 ```
 
-The template generates an installable `{your-namespace}.id_translation` module, with functions such as the one used 
+The template generates an installable `{your_namespace}.id_translation` module, with functions such as the one used 
 above. Check out the [demo project](https://github.com/rsundqvist/id-translation-project/tree/master/demo/bci-id-translation)
-(and its 📚[generated documentation](https://rsundqvist.github.io/id-translation-project/)) to get a preview of what Your
+(and its 📚[generated documentation](https://rsundqvist.github.io/id-translation-project/)) to get a preview of what your
 generated project might look like, or continue to the next section for a brief feature overview.
 
+Already have an application that maps IDs by hand? See the [migration guide] instead -- it walks through adding
+`id-translation` to an existing codebase.
+
 [id-translation-project]: https://github.com/rsundqvist/id-translation-project/
+[migration guide]: https://id-translation.readthedocs.io/en/stable/documentation/migration-guide.html
 
 # Highlighted Features
 - Convenient interface: [Translator.translate()].
@@ -59,11 +63,10 @@ generated project might look like, or continue to the next section for a brief f
 [Name-to-source]: https://id-translation.readthedocs.io/en/stable/documentation/translation-primer.html#name-to-source-mapping
 [Placeholder-to-column]: https://id-translation.readthedocs.io/en/stable/documentation/translation-primer.html#placeholder-mapping
 [TOML]: https://id-translation.readthedocs.io/en/stable/documentation/translator-config.html
-[cached instances]: https://id-translation.readthedocs.io/en/stable/api/id_translation.Translator.load_persistent_instance.html
 [Translator.translate()]: https://id-translation.readthedocs.io/en/stable/api/id_translation.Translator.translate.html
 
 ## Supported types
-- Supported ID types: `int`, `string`, and `UUID`. Optional heuristics for UUID-like strings.
+- Supported ID types: `int`, `str`, and `UUID`. Optional heuristics for UUID-like strings.
 - Supports translation of built-in collections: `list`, `dict`, `set`, `tuple`.
 - Supports translation of [pandas types][pandas], including `pandas.MultiIndex` types.
 - Optional and [user-extensible] integration of data types, such as [polars], [pyarrow], and [dask].
