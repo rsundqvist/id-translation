@@ -198,7 +198,12 @@ def _merge(
     cached: PlaceholderTranslations[SourceType],
     fetched: PlaceholderTranslations[SourceType],
 ) -> PlaceholderTranslations[SourceType]:
-    """Concatenate the cached and freshly-fetched rows of a partial hit (same source and layout)."""
+    """Concatenate the cached and freshly-fetched rows of a partial hit (same source and layout).
+
+    Fetchers may over-return (e.g. ``SqlFetcher`` switching from ``IN`` to ``BETWEEN`` for dense requests), so both
+    sides can hold rows for the same ID. Fetched rows go last: downstream id-keyed builds are last-wins, so fresh rows
+    shadow stale cached duplicates without a dedup pass over the (potentially much larger) fetched side.
+    """
     if cached.placeholders != fetched.placeholders:
         msg = (
             f"Cannot merge partial cache hit for {fetched.source!r}: cached layout {cached.placeholders} does not "

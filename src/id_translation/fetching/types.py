@@ -55,6 +55,9 @@ class PartialCacheHit(_t.Generic[_tt.SourceType, _tt.IdType]):
 
     Returning this -- instead of a full :class:`~id_translation.offline.types.PlaceholderTranslations` (complete hit) or ``None`` (miss) -- tells the
     :class:`~id_translation.fetching.AbstractFetcher` to fetch only the *missing* IDs and merge them with `translations`.
+
+    Fetchers may return more than the requested complement (e.g. a range query). When the fetcher and the cache both
+    hold a row for the same ID, the fetched row wins.
     """
 
     translations: _ot.PlaceholderTranslations[_tt.SourceType]

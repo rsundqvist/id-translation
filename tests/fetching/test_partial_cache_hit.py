@@ -155,3 +155,22 @@ def test_partial_hit_rows_without_id_placeholder():
 
     with pytest.raises(FetcherError, match="no 'id' placeholder"):
         translator.translate([1, 2], names="people")
+
+
+def test_fetched_rows_win_over_stale_cached_rows():
+    # Fetchers may over-return (e.g. SqlFetcher range queries); fresh rows must shadow stale cached ones.
+    class RangeFetcher(RecordingFetcher):
+        def fetch_translations(self, instr):
+            self.calls.append((tuple(instr.placeholders), None if instr.ids is None else set(instr.ids)))
+            records = [tuple(i if c == ID else PEOPLE[i][c] for c in instr.placeholders) for i in sorted(PEOPLE)]
+            return PlaceholderTranslations(
+                "people", tuple(instr.placeholders), records, id_pos=instr.placeholders.index(ID)
+            )
+
+    stale = PlaceholderTranslations("people", (ID, "name"), [(1, "STALE")], id_pos=0)
+    cache = StubCache(PartialCacheHit(stale))
+    fetcher = RangeFetcher(cache_access=cache, allow_fetch_all=True)
+    translator: Translator[str, str, int] = Translator(fetcher, fmt="{id}:{name}")
+
+    assert translator.translate([1, 2], names="people") == ["1:Alice", "2:Bob"]
+    assert fetcher.calls == [((ID, "name"), {2})]
