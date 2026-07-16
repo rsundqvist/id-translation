@@ -46,11 +46,12 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
     """Fetch data from a SQL source.
 
     Args:
-        connection_string: A SQLAlchemy connection string. Passed verbatim to :meth:`~id_translation.fetching.SqlFetcher.create_engine`, so subclasses
-            that
-            override it may reinterpret the value when needed (e.g. as a database slug).
+        connection_string: A SQLAlchemy connection string or :class:`~sqlalchemy.engine.URL`. Passed verbatim to
+            :meth:`~id_translation.fetching.SqlFetcher.create_engine`, so subclasses that override it may reinterpret
+            the value when needed (e.g. as a database slug).
         password: Password to insert into the connection string. Will be escaped to allow for special characters. If
-            given, the connection string must contain a password key, eg; ``dialect://user:{password}@host:port``.
+            given, the connection string must contain a password key, eg; ``dialect://user:{password}@host:port``. A
+            :class:`~sqlalchemy.engine.URL` has no such key; its :attr:`~sqlalchemy.engine.URL.password` is set instead.
         whitelist_tables: The only tables the fetcher may access.
         blacklist_tables: The only tables the fetcher may *not* access.
         schema: Database schema to use. Typically needed only if `schema` is not the default schema for the user
@@ -81,7 +82,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
 
     def __init__(
         self,
-        connection_string: str,
+        connection_string: str | sqlalchemy.engine.URL,
         password: str | None = None,
         whitelist_tables: Iterable[str] | None = None,
         blacklist_tables: Iterable[str] = (),
@@ -122,7 +123,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
 
     def _create_engine(
         self,
-        connection_string: str,
+        connection_string: str | sqlalchemy.engine.URL,
         password: str | None = None,
     ) -> tuple[sqlalchemy.Engine | None, str]:
         engine: sqlalchemy.Engine | None
@@ -302,13 +303,14 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         This function attempts cast the `id_column` to a suitable type by looking at the type of the column and the
         `ids_are_uuid_like`-flag.
 
-        If the column is already UUID-like (as determined by :meth:`~id_translation.fetching.SqlFetcher.get_metadata`), the column is always returned
-        as-is.
+        If the column is already UUID-like (as determined by :meth:`~id_translation.fetching.SqlFetcher.get_metadata`),
+        the column is always returned as-is.
 
         Args:
             id_column: The ID ``sqlalchemy.sql.Column`` of the table.
             ids_are_uuid_like: One of ``True`` and ``'unknown'`` (never ``False``). The latter typically means that
-                :meth:`~id_translation.fetching.AbstractFetcher.fetch_all` was called, but could also be a normal "translation" call without IDs.
+                :meth:`~id_translation.fetching.AbstractFetcher.fetch_all` was called, but could also be a normal
+                translation call without IDs.
 
         Returns:
             The `id_column` with or without a cast applied.
@@ -388,7 +390,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
     @classmethod
     def create_engine(
         cls,
-        connection_string: str,
+        connection_string: str | sqlalchemy.engine.URL,
         password: str | None,
         engine_kwargs: dict[str, Any],
     ) -> sqlalchemy.engine.Engine:
@@ -399,7 +401,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         arguments and the behaviour of this function, see the :class:`class docstring <id_translation.fetching.SqlFetcher>`.
 
         Args:
-            connection_string: A SQLAlchemy connection string.
+            connection_string: A SQLAlchemy connection string or :class:`~sqlalchemy.engine.URL`.
             password: Password to insert into the connection string.
             engine_kwargs: A dict of keyword arguments for :func:`sqlalchemy.create_engine`.
 
@@ -412,10 +414,17 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         )
 
     @classmethod
-    def parse_connection_string(cls, connection_string: str, password: str | None) -> str:
+    def parse_connection_string(
+        cls,
+        connection_string: str | sqlalchemy.engine.URL,
+        password: str | None,
+    ) -> str | sqlalchemy.engine.URL:
         """Parse a connection string."""
         if password:
-            if "{password}" in connection_string:
+            if isinstance(connection_string, sqlalchemy.engine.URL):
+                # A URL has no {password} key; set the field instead. SQLAlchemy escapes it when rendering.
+                connection_string = connection_string.set(password=password)
+            elif "{password}" in connection_string:
                 connection_string = connection_string.format(password=quote_plus(password))
             else:
                 emit_warning("A password was specified, but the connection string does not have a {password} key.")

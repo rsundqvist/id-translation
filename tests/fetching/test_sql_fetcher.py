@@ -213,3 +213,36 @@ def test_disconnected(connection_string):
     with pytest.raises(ConnectionStatusError, match=r"disconnected: 'sqlite"):
         fetcher.initialize_sources(force=True)
     assert fetcher.placeholders == expected_placeholders
+
+
+class TestUrlConnectionString:
+    """`connection_string` accepts a `sqlalchemy.engine.URL`, not just a string."""
+
+    def test_fetch_translations(self, connection_string):
+        fetcher = SqlFetcher(sqlalchemy.make_url(connection_string))
+        try:
+            assert sorted(fetcher.sources) == ["animals", "big_table", "huge_table", "humans"]
+            instr: FetchInstruction[str, int] = FetchInstruction(
+                "humans", ("id", "name"), {"id"}, {}, {1999}, -1, False
+            )
+            assert tuple(fetcher.fetch_translations(instr).records) == ((1999, "Sofia"),)
+        finally:
+            fetcher.close()
+
+    def test_password_is_set_on_the_url(self):
+        url = sqlalchemy.make_url("postgresql+pg8000://user@host/db")
+
+        actual = RealSqlFetcher.parse_connection_string(url, "super/secret")
+
+        assert isinstance(actual, sqlalchemy.engine.URL)
+        assert actual.password == "super/secret"  # noqa: S105  # Escaping is SQLAlchemy's job when rendering.
+
+    def test_string_password_key_is_unaffected(self):
+        actual = RealSqlFetcher.parse_connection_string("postgresql+pg8000://user:{password}@host/db", "super/secret")
+
+        assert actual == "postgresql+pg8000://user:super%2Fsecret@host/db"
+
+    def test_url_does_not_warn_about_the_password_key(self, recwarn):
+        RealSqlFetcher.parse_connection_string(sqlalchemy.make_url("postgresql+pg8000://user@host/db"), "secret")
+
+        assert [str(w.message) for w in recwarn] == []

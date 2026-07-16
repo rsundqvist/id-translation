@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `Format.placeholder_attributes` property.
 - Add `FetchInstruction.placeholder_attributes` property + `AbstractFetcher` handling.
 - Add SQLAlchemy ORM fetcher example.
+- `SqlFetcher(connection_string=...)` now accepts a `sqlalchemy.engine.URL`. Passing a `password` sets `URL.password`
+  rather than filling the `{password}` key, which URLs do not have.
 - Add the `add_skip_file_prefix()` function to control warning stack levels.
 - Add `translator_typing.GoOfflineParams` typed dict.
 - Add `ConcurrentOperationWarning` and light-weight detection in relevant `AbstractFetcher` methods. Also added 🧵 notes
