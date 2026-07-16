@@ -138,3 +138,20 @@ def test_partial_hit_with_numpy_array_records():
 
     assert translator.translate([1, 2, 3], names="people") == ["1:Alice", "2:Bob", "3:Cara"]
     assert fetcher.calls == [((ID, "name"), {2, 3})]
+
+
+def test_default_id_pos_is_not_trusted():
+    # Caches are not required to set id_pos; the default (-1) points at the wrong column.
+    cached_pht = PlaceholderTranslations("people", (ID, "name"), [(1, "Alice")])  # id_pos not set
+    translator, fetcher, _ = make(PartialCacheHit(cached_pht))
+
+    assert translator.translate([1, 2], names="people") == ["1:Alice", "2:Bob"]
+    assert fetcher.calls == [((ID, "name"), {2})]  # 1 is covered by the cached row
+
+
+def test_partial_hit_rows_without_id_placeholder():
+    cached_pht = PlaceholderTranslations("people", ("name",), [("Alice",)])
+    translator, _, _ = make(PartialCacheHit(cached_pht))
+
+    with pytest.raises(FetcherError, match="no 'id' placeholder"):
+        translator.translate([1, 2], names="people")

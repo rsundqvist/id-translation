@@ -177,7 +177,18 @@ class CacheCoordinator(Generic[SourceType, IdType]):
 def _covered_ids(hit: PartialCacheHit[SourceType, IdType]) -> set[IdType]:
     """Return the requested IDs a partial hit satisfies: the rows it holds, plus any it explicitly vouches for."""
     rows = hit.translations
-    covered = {row[rows.id_pos] for row in rows.records}
+
+    if len(rows.records) == 0:
+        covered: set[IdType] = set()
+    else:
+        # Caches are not required to set `id_pos` (default -1 = the wrong column); derive it like _normalize does.
+        try:
+            id_pos = rows.placeholders.index(ID)
+        except ValueError:
+            msg = f"Cannot compute coverage for {rows.source!r}: partial-hit rows have no {ID!r} placeholder."
+            raise exceptions.FetcherError(msg) from None
+        covered = {row[id_pos] for row in rows.records}
+
     if hit.covered:
         covered = covered | hit.covered
     return covered
