@@ -4,10 +4,12 @@ import typing as _t
 import warnings as _warnings
 from collections import abc as _abc
 from contextlib import contextmanager as _contextmanager
+from uuid import UUID as _UUID
 
 import numpy as _np
 import pandas as _pd
 
+from id_translation import _uuid_utils
 from id_translation import dio as _dio
 from id_translation import types as _tt
 from id_translation.dio.default import _sequence
@@ -157,6 +159,33 @@ class PandasIO(_dio.DataStructureIO[PandasT, _tt.NameType, _tt.SourceType, _tt.I
         except TypeError as e:
             return str(e)
 
+    @staticmethod
+    def _join_map(pvt: _PandasVectorT, magic_dict: _MagicDict[_tt.IdType]) -> dict[_tt.IdType, str]:
+        """The dict to join `pvt` against: the backing dict, or a key-normalizing view of it.
+
+        Joining `real` directly requires that `pvt` uses the same ID representation as its keys. UUID heuristics
+        exist because it often does not, so normalize once per unique ID instead of letting every row miss the join
+        and fall back to the per-ID Python path.
+        """
+        real = magic_dict.real
+        if not magic_dict.enable_uuid_heuristics or len(pvt) == 0 or isinstance(next(iter(pvt)), _UUID):
+            return real  # Heuristics are inert, or `pvt` already holds UUIDs (as `real` does).
+
+        normalized: dict[_tt.IdType, str] = {}
+        for idx in pvt.unique().tolist():
+            # Exact key first, then the cast key -- `real_get` resolves in that order, and `real` may hold both (a
+            # transformer can add keys without going through `MagicDict.__setitem__`). Cast-key-first would shadow
+            # the exact match and translate differently than the scalar path.
+            if idx in real:
+                normalized[idx] = real[idx]
+            elif (key := _uuid_utils.try_cast_one(idx)) in real:
+                normalized[idx] = real[key]
+
+        # Never return an empty map: pandas infers the result dtype from the mapped values, so an empty one yields
+        # `object` (which propagates -- it poisons dask's meta inference). Any hit `real` adds back is a real hit;
+        # misses are handled by the caller either way.
+        return normalized or real
+
     def _translate_pandas_vector(
         self,
         pvt: _PandasVectorT,
@@ -179,15 +208,28 @@ class PandasIO(_dio.DataStructureIO[PandasT, _tt.NameType, _tt.SourceType, _tt.I
 
         # Optimization for single-name vectors. Faster than SequenceIO for pretty much every size.
         magic_dict: _MagicDict[_tt.IdType] = tmap[names[0]]
-        get_item = magic_dict.real_get if self._missing_as_nan else magic_dict.__getitem__
-        mapping: dict[_tt.IdType, str | None] = {idx: get_item(idx) for idx in pvt.unique().tolist()}
 
-        rv = pvt.map(mapping)
+        # Join against the backing dict, then run the MagicDict logic (defaults, transformers) only for the IDs the
+        # join missed. Real translations are never NaN, so NaN means "not a direct hit".
+        join_map = self._join_map(pvt, magic_dict)
+        rv = pvt.map(join_map)
+
+        extra: dict[_tt.IdType, str | None] = {}
+        mask = rv.isna()
+        if mask.any():
+            get_item = magic_dict.real_get if self._missing_as_nan else magic_dict.__getitem__
+            extra = {idx: get_item(idx) for idx in pvt[mask].unique().tolist()}
+            if isinstance(pvt.dtype, _pd.CategoricalDtype):
+                # Combining two categoricals with different categories upcasts to object, so remap in one pass
+                # instead. Cheap: `map` resolves a categorical per category, not per row.
+                rv = pvt.map({**join_map, **extra})
+            else:
+                rv = rv.where(~mask, pvt.map(extra))
 
         if self._as_category:
             translations = {*magic_dict.real.values()}
             if not self._missing_as_nan:
-                translations.update(mapping.values())  # type: ignore[arg-type]
+                translations.update(extra.values())  # type: ignore[arg-type]
 
             categories = sorted(translations)
             dtype = _pd.CategoricalDtype(categories, ordered=True)

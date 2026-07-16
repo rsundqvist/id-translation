@@ -84,7 +84,8 @@ def test_large_series(translation_map, monkeypatch):
     series_io: DIO[int, str] = resolve_io(large_series)
     large_series_result = series_io.insert(large_series, [NAME], translation_map, copy=True)
     assert large_series_result is not None
-    assert num_getitem_calls == len(large_list) + large_series.nunique()
+    n_misses = 1  # id=500: direct hits are joined against MagicDict.real without per-id lookups.
+    assert num_getitem_calls == len(large_list) + n_misses
 
     assert TRANSLATED[NAME] * 1000 == large_list_result
     assert large_list_result == large_series_result.to_list()

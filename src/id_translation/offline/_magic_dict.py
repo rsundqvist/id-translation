@@ -101,7 +101,7 @@ class MagicDict(MutableMapping[IdType, str]):
 
         self._real: TranslatedIds[IdType] = real_translations
         self._default = self._verify_default_value(default_value)
-        self._cast_key = enable_uuid_heuristics
+        self._enable_uuid_heuristics = enable_uuid_heuristics
         self._transformer = transformer
 
     def get(self, key: IdType, /, _: Any = None) -> str:
@@ -140,12 +140,24 @@ class MagicDict(MutableMapping[IdType, str]):
         return self._real
 
     @property
+    def enable_uuid_heuristics(self) -> bool:
+        """``True`` when UUID heuristics are engaged, i.e. when lookups cast ``UUID``-like keys before matching.
+
+        Forcibly ``False`` when the `real_translations` are not ``UUID``-like. Consumers that join against
+        :attr:`~id_translation.offline.MagicDict.real` directly must cast their keys the same way, or ``UUID``-like
+        keys in another representation will not match. The backing dict is *not* guaranteed to be uniformly
+        ``UUID``-keyed, so resolve the exact key before the cast key -- as
+        :meth:`~id_translation.offline.MagicDict.real_get` does.
+        """
+        return self._enable_uuid_heuristics
+
+    @property
     def default_value(self) -> str:
         """Return the default string value to return for unknown keys."""
         return self._default
 
     def _try_stringify(self, key: IdType) -> Any:
-        return _uuid_utils.try_cast_one(key) if self._cast_key else key
+        return _uuid_utils.try_cast_one(key) if self._enable_uuid_heuristics else key
 
     def __getitem__(self, key: IdType) -> str:
         value = self.real_get(key)

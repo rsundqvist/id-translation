@@ -11,6 +11,7 @@ from id_translation.dio.integration.pandas import PandasIO as _PandasIO
 from id_translation.dio.integration.pandas import PandasT
 from id_translation.offline import TranslationMap
 from id_translation.offline.types import PlaceholderTranslations
+from id_translation.transform.types import Transformer
 from id_translation.types import IdTypes
 
 PandasIO = _PandasIO[PandasT, str, str, int | str]
@@ -308,3 +309,103 @@ class TestAsCategory:
         # Not categorical when as_category is False
         assert not isinstance(result.dtype, pd.CategoricalDtype)
         assert result.to_list() == ["1:StrOne", "<Failed: id=str>"]
+
+
+class TestUuidJoin:
+    """UUID heuristics key the backing dict by UUID objects; the join must normalize to match."""
+
+    UUIDS = ["aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee", "11111111-2222-3333-4444-555555555555"]
+
+    def translator(self, ids):
+        data = {"src": {"id": ids, "name": ["first", "second"]}}
+        return Translator(data, fmt="{id}:{name}", enable_uuid_heuristics=True)
+
+    @pytest.mark.parametrize("source_kind", [str, str.upper, UUID])
+    @pytest.mark.parametrize("lookup_kind", [str, str.upper, UUID])
+    def test_join_hits_for_all_representations(self, source_kind, lookup_kind):
+        source_ids = [source_kind(u) for u in self.UUIDS]
+        translator = self.translator(source_ids)
+        series = pd.Series([lookup_kind(u) for u in self.UUIDS], name="src")
+
+        actual = translator.translate(series)
+
+        # Heuristics normalize the lookup keys, but {id} renders the ID as the source provided it.
+        expected = [f"{i}:{n}" for i, n in zip(source_ids, ["first", "second"], strict=True)]
+        assert actual.to_list() == expected
+
+    def test_non_uuid_ids_are_untouched(self):
+        translator = self.translator(self.UUIDS)
+        series = pd.Series(["not-a-uuid", self.UUIDS[0]], name="src")
+
+        actual = translator.translate(series)
+
+        assert actual.to_list() == ["<Failed: id='not-a-uuid'>", f"{self.UUIDS[0]}:first"]
+
+    def test_transformer_injected_key_survives_the_join(self):
+        """A transformer may write keys straight into the backing dict, skipping MagicDict key normalization."""
+        injected = "11111111-2222-3333-4444-555555555555"
+
+        class InjectingTransformer(Transformer[str]):
+            def update_ids(self, ids, /): ...
+
+            def update_translations(self, translations, /):
+                translations[injected] = "injected"  # A str key in an otherwise UUID-keyed dict.
+
+            def try_add_missing_key(self, key, /, *, translations): ...
+
+        data = {"src": {"id": [self.UUIDS[0]], "name": ["first"]}}
+        translator: Translator[str, str, str] = Translator(
+            data, fmt="{id}:{name}", enable_uuid_heuristics=True, transformers={"src": InjectingTransformer()}
+        )
+
+        # Alone, the normalized map is empty; alongside a normal ID, it is not. Both must resolve.
+        assert translator.translate(pd.Series([injected], name="src")).to_list() == ["injected"]
+        assert translator.translate(pd.Series([self.UUIDS[0], injected], name="src")).to_list() == [
+            f"{self.UUIDS[0]}:first",
+            "injected",
+        ]
+
+    def test_transformer_override_wins_over_the_cast_key(self):
+        """A transformer key that collides with a source ID must shadow it, as it does on the scalar path."""
+        overridden = self.UUIDS[0]
+
+        class OverridingTransformer(Transformer[str]):
+            def update_ids(self, ids, /): ...
+
+            def update_translations(self, translations, /):
+                translations[overridden] = "override"  # Collides: `real` also holds UUID(overridden).
+
+            def try_add_missing_key(self, key, /, *, translations): ...
+
+        data = {"src": {"id": [overridden], "name": ["first"]}}
+        translator: Translator[str, str, str] = Translator(
+            data, fmt="{id}:{name}", enable_uuid_heuristics=True, transformers={"src": OverridingTransformer()}
+        )
+
+        # The vectorized path must agree with the scalar one, which resolves the exact key before the cast key.
+        assert translator.translate(overridden, names="src") == "override"
+        assert translator.translate([overridden], names="src") == ["override"]
+        assert translator.translate(pd.Series([overridden], name="src")).to_list() == ["override"]
+
+
+class TestCategoricalInput:
+    """Translating a categorical vector must not change its dtype, whatever the hit/miss ratio."""
+
+    @pytest.fixture
+    def translator(self) -> Translator[str, str, int]:
+        return Translator({"src": {"id": [1, 2], "name": ["one", "two"]}}, fmt="{id}:{name}")
+
+    @pytest.mark.parametrize(
+        "ids, expected",
+        [
+            ([1, 2], ["1:one", "2:two"]),
+            ([1, 99], ["1:one", "<Failed: id=99>"]),
+            ([98, 99], ["<Failed: id=98>", "<Failed: id=99>"]),
+        ],
+        ids=["all-hit", "one-miss", "all-miss"],
+    )
+    def test_dtype_is_preserved(self, translator, ids, expected):
+        actual = translator.translate(pd.Series(ids, name="src", dtype="category"))
+
+        assert isinstance(actual.dtype, pd.CategoricalDtype)
+        assert actual.to_list() == expected

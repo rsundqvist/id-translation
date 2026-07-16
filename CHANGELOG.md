@@ -23,8 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   cache did not cover, instead of re-fetching the whole request.
 - Add a [migration guide](https://id-translation.readthedocs.io/en/stable/documentation/migration-guide.html) for
   adopting `id-translation` in existing applications.
+- Add `MagicDict.enable_uuid_heuristics`; tells consumers that join against `MagicDict.real` to cast their keys.
 
 ### Changed
+- Faster `Translator.translate()` for large inputs: `pandas` vectors are joined against the backing dict instead of
+  looked up per unique ID (~1.6x; ~1.5x for `uuid.UUID`-typed vectors, neutral for `UUID`-like strings).
 - Links in warnings and exceptions now link to the current version in the docs (instead of the _'stable'_ version).
 - Raise `DataStructureIOError` instead of generic `ValueError` in `DataStructureIO.get_rank()` for unregistered types.
 - Changed translation aborted-warnings.
