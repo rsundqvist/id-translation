@@ -364,3 +364,21 @@ def test_init_logging(multi_fetcher, caplog):
 
     if index < len(checkers):
         raise AssertionError(f"Did not finish: {index=} | checker={checkers[index - 1]}")
+
+
+def test_discovery_failure_does_not_escape_the_discard_handler():
+    """Formatting a fetcher must not trigger discovery: the handler formats the child it is discarding."""
+
+    class Boom(MemoryFetcher[str, int]):
+        def _initialize_sources(self, task_id: int) -> dict[str, list[str]]:
+            del task_id
+            raise ConnectionError("discovery failed")
+
+    bad = Boom({"a": {"id": [1], "name": ["a"]}}, optional=True)
+    good = MemoryFetcher[str, int]({"b": {"id": [1], "name": ["b"]}})
+
+    multi_fetcher = MultiFetcher(bad, good)
+    multi_fetcher.initialize_sources()
+
+    assert multi_fetcher.sources == ["b"], "the optional child must be discarded, not re-raise"
+    assert "<uninitialized>" in str(bad), "formatting must not attempt discovery either"

@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Any, Unpack
 from ..offline.types import PlaceholderTranslations, SourcePlaceholderTranslations
 from ..translator_typing import AbstractFetcherParams
 from ..types import ID, IdType, SourceType
-from ._abstract_fetcher import AbstractFetcher
+from ._abstract_fetcher import AbstractFetcher, format_sources
 from .types import FetchInstruction
 
 if TYPE_CHECKING:
@@ -86,10 +86,5 @@ class MemoryFetcher(AbstractFetcher[SourceType, IdType]):
         return PlaceholderTranslations(instr.source, placeholders, records, id_pos)
 
     def __str__(self) -> str:
-        class NoSources:
-            def __repr__(self) -> str:
-                return "<no sources>"
-
-        sources = self.sources or NoSources()
         return_all = self.return_all
-        return f"{type(self).__name__}({sources=}, {return_all=})"
+        return f"{type(self).__name__}(sources={format_sources(self._placeholders)}, {return_all=})"
