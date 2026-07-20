@@ -442,21 +442,24 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
         context: ContextType | None,
         kwargs: dict[str, Any],
         task_id: int | None,
-    ) -> set[CandidateType]:
+    ) -> list[CandidateType]:
         candidates = list(candidates)
-        filtered_candidates = set(candidates)
+        filtered_candidates = candidates
 
         for filter_function, function_kwargs in self._filters:
             if "task_id" in function_kwargs:
                 function_kwargs["task_id"] = task_id
-            filtered_candidates = filter_function(value, filtered_candidates, context, **function_kwargs, **kwargs)
+            kept = filter_function(value, filtered_candidates, context, **function_kwargs, **kwargs)
 
-            not_in_original_candidates = filtered_candidates.difference(candidates)
+            not_in_original_candidates = kept.difference(candidates)
             if not_in_original_candidates:
                 raise BadFilterError(
                     f"Filter {tname(filter_function)}({value}, candidates, **{kwargs}) created new"
                     f"candidates: {not_in_original_candidates}"
                 )
+
+            # Filters return sets; restore caller order since score functions may be order-sensitive.
+            filtered_candidates = [c for c in candidates if c in kept]
 
             if not filtered_candidates:
                 break

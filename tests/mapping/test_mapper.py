@@ -114,6 +114,34 @@ def test_bad_filter(candidates):
         mapper.apply((3, 4), candidates)
 
 
+def test_score_function_receives_candidates_in_caller_order():
+    received: list[list[int]] = []
+
+    def score_function(_value: str, candidates: Iterable[int], _context: None) -> Iterable[float]:
+        received.append(list(candidates))
+        return [1.0] * len(received[-1])
+
+    # Small ints hash to themselves; an unordered set of these candidates would iterate as [0, 1, 2, 3].
+    candidates = [3, 1, 2, 0]
+
+    Mapper(score_function).compute_scores(["v"], candidates)
+    assert received == [[3, 1, 2, 0]]
+
+    received.clear()
+    mapper: Mapper[str, int, None] = Mapper(
+        score_function,
+        filter_functions=[(lambda _value, candidates, _context: set(candidates) - {2}, {})],
+    )
+    mapper.compute_scores(["v"], candidates)
+    assert received == [[3, 1, 0]]
+
+
+def test_tied_scores_prefer_earlier_candidates():
+    mapper: Mapper[str, str, None] = Mapper(score_function="modified_hamming", min_score=0.1)
+    assert mapper.apply(["aa"], ["ba", "ca"]).flatten() == {"aa": "ba"}
+    assert mapper.apply(["aa"], ["ca", "ba"]).flatten() == {"aa": "ca"}
+
+
 @pytest.mark.parametrize(
     "values, expected",
     [
