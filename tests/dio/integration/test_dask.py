@@ -97,3 +97,21 @@ def test_inplace_raises(translator, df, cls):
 
     with pytest.raises(NotInplaceTranslatableError):
         translator.translate(translatable, copy=False)
+
+
+@pytest.mark.parametrize(
+    ("ordered", "expected_categories"),
+    [("name", ["a", "b", "c"]), ("id", ["c", "a", "b"])],
+)
+def test_series_cat_ordered(ordered, expected_categories):
+    """The `ordered` keyword must reach the per-partition `PandasIO`, giving every partition the same dtype."""
+    import pandas as pd
+
+    translator = Translator[str, str, int]({"s": {1: "c", 2: "a", 10: "b"}}, fmt="{name}")
+    series = dd.from_pandas(pd.Series([1, 2, 10], name="s"), npartitions=2)
+
+    actual: dd.Series = translator.translate(series, io_kwargs={"as_category": True, "ordered": ordered})
+    pd_series = actual.compute()
+
+    assert pd_series.cat.categories.to_list() == expected_categories
+    assert pd_series.to_list() == ["c", "a", "b"]

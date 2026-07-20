@@ -26,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add a [migration guide](https://id-translation.readthedocs.io/en/stable/documentation/migration-guide.html) for
   adopting `id-translation` in existing applications.
 - Add `MagicDict.enable_uuid_heuristics`; tells consumers that join against `MagicDict.real` to cast their keys.
+- Add `PandasIO(ordered=...)`; sets the `as_category=True` category order to `'name'` (default) or `'id'`, or to `False`
+  to sort by name without marking the `CategoricalDtype` as `ordered`.
 
 ### Changed
 - Faster `Translator.translate()` for large inputs: `pandas` vectors are joined against the backing dict instead of

@@ -8,7 +8,7 @@ import pytest
 from id_translation import Translator
 from id_translation.dio.exceptions import NotInplaceTranslatableError
 from id_translation.dio.integration.pandas import PandasIO as _PandasIO
-from id_translation.dio.integration.pandas import PandasT
+from id_translation.dio.integration.pandas import PandasT, _is_missing, _sorted_ids
 from id_translation.offline import TranslationMap
 from id_translation.offline.types import PlaceholderTranslations
 from id_translation.transform.types import Transformer
@@ -311,6 +311,82 @@ class TestAsCategory:
         assert result.to_list() == ["1:StrOne", "<Failed: id=str>"]
 
 
+@pytest.mark.filterwarnings("ignore::pandas.errors.Pandas4Warning")
+class TestOrdered:
+    """IDs are chosen so that ID order and translated-name order disagree."""
+
+    @pytest.mark.parametrize(
+        "ordered, expected_categories, expected_ordered",
+        [
+            ("name", ["a", "b", "c"], True),
+            ("id", ["c", "a", "b"], True),
+            (False, ["a", "b", "c"], False),
+        ],
+    )
+    def test_categories(self, ordered_tmap, ordered, expected_categories, expected_ordered):
+        series = pd.Series([1, 2, 10], name="s")
+        io = PandasIO[pd.Series](as_category=True, ordered=ordered)
+        result = io.insert(series, names=["s"], tmap=ordered_tmap, copy=True)
+        assert result is not None
+
+        assert result.cat.categories.to_list() == expected_categories
+        assert result.dtype.ordered is expected_ordered
+        assert result.to_list() == ["c", "a", "b"]
+
+    def test_default_is_name(self, ordered_tmap):
+        series = pd.Series([1, 2, 10], name="s")
+        io = PandasIO[pd.Series](as_category=True)
+        result = io.insert(series, names=["s"], tmap=ordered_tmap, copy=True)
+        assert result is not None
+
+        assert result.cat.categories.to_list() == ["a", "b", "c"]
+        assert result.dtype.ordered is True
+
+    def test_id_order_keeps_placeholders(self, ordered_tmap):
+        series = pd.Series([1, 2, 10, -1], name="s")
+        io = PandasIO[pd.Series](as_category=True, ordered="id", missing_as_nan=False)
+        result = io.insert(series, names=["s"], tmap=ordered_tmap, copy=True)
+        assert result is not None
+
+        # The unknown ID sorts by its own ID, ahead of the real translations.
+        assert result.cat.categories.to_list() == ["<Failed: id=-1>", "c", "a", "b"]
+
+    def test_id_order_dedupes_shared_translations(self, ordered_tmap):
+        """Categories must be unique even when several IDs translate to the same name."""
+        series = pd.Series([1, 2, 3, 10], name="s")
+        io = PandasIO[pd.Series](as_category=True, ordered="id")
+        result = io.insert(series, names=["s"], tmap=ordered_tmap, copy=True)
+        assert result is not None
+
+        assert result.cat.categories.to_list() == ["c", "a", "b"]
+        assert result.to_list() == ["c", "a", "a", "b"]
+
+    def test_id_order_sorts_comparable_mixed_types_by_value(self, ordered_tmap):
+        """Known IDs are `int` (from `real`), the unknown one `float` (from `extra`); they must sort by value."""
+        series = pd.Series([1.0, 5.0, 10.0], name="s")
+        io = PandasIO[pd.Series](as_category=True, ordered="id", missing_as_nan=False)
+        result = io.insert(series, names=["s"], tmap=ordered_tmap, copy=True)
+        assert result is not None
+
+        # Grouping by type name would put the lone float ahead of every int.
+        assert result.cat.categories.to_list() == ["c", "a", "<Failed: id=5.0>", "b"]
+
+    @pytest.mark.parametrize("ordered", [True, "nope", None])
+    def test_bad_value(self, ordered):
+        with pytest.raises(ValueError, match="expected 'name', 'id' or False"):
+            PandasIO[pd.Series](as_category=True, ordered=ordered)
+
+    @pytest.fixture(scope="class")
+    def ordered_tmap(self) -> TranslationMap[str, str, IdTypes]:
+        # ID 3 shares a translation with ID 2.
+        translations = PlaceholderTranslations.from_dict("s", {1: "c", 2: "a", 3: "a", 10: "b"})
+        return TranslationMap(
+            source_translations={translations.source: translations},
+            fmt="{name}",
+            default_fmt="<Failed: id={id}>",
+        )
+
+
 class TestUuidJoin:
     """UUID heuristics key the backing dict by UUID objects; the join must normalize to match."""
 
@@ -409,3 +485,188 @@ class TestCategoricalInput:
 
         assert isinstance(actual.dtype, pd.CategoricalDtype)
         assert actual.to_list() == expected
+
+
+@pytest.mark.filterwarnings("ignore::pandas.errors.Pandas4Warning")
+class TestObservedCategories:
+    """``observed=True`` derives categories from the data, not from everything the fetcher returned."""
+
+    @pytest.fixture
+    def ordered_tmap(self) -> TranslationMap[str, str, IdTypes]:
+        translations = PlaceholderTranslations.from_dict("s", {1: "c", 2: "a", 3: "a", 10: "b"})
+        return TranslationMap(
+            source_translations={translations.source: translations},
+            fmt="{name}",
+            default_fmt="<Failed: id={id}>",
+        )
+
+    def test_unused_categories_are_dropped(self, ordered_tmap):
+        series = pd.Series([1, 10], name="s")  # ID 2 -> 'a' is never used.
+        io = PandasIO[pd.Series](as_category=True, observed=True)
+        result = io.insert(series, names=["s"], tmap=ordered_tmap, copy=True)
+        assert result is not None
+
+        assert result.cat.categories.to_list() == ["b", "c"]
+        assert result.to_list() == ["c", "b"]
+
+    def test_off_by_default(self, ordered_tmap):
+        series = pd.Series([1, 10], name="s")
+        io = PandasIO[pd.Series](as_category=True)
+        result = io.insert(series, names=["s"], tmap=ordered_tmap, copy=True)
+        assert result is not None
+
+        assert result.cat.categories.to_list() == ["a", "b", "c"]
+
+    def test_order_is_preserved(self, ordered_tmap):
+        series = pd.Series([1, 10], name="s")
+        io = PandasIO[pd.Series](as_category=True, ordered="id", observed=True)
+        result = io.insert(series, names=["s"], tmap=ordered_tmap, copy=True)
+        assert result is not None
+
+        assert result.cat.categories.to_list() == ["c", "b"], "ID order, not alphabetical"
+        assert result.dtype.ordered is True
+
+    def test_absent_ids_do_not_decide_order(self):
+        """Categories come from the data; an ID that is not in it must not place a translation it shares."""
+        translations = PlaceholderTranslations.from_dict("s", {1: "A", 2: "B", 3: "A"})
+        tmap: TranslationMap[str, str, int | str] = TranslationMap(
+            source_translations={translations.source: translations},
+            fmt="{name}",
+            default_fmt="<Failed: id={id}>",
+        )
+        series = pd.Series([2, 3], name="s")  # The absent ID 1 also translates to 'A'.
+        io = PandasIO[pd.Series](as_category=True, ordered="id", observed=True)
+        result = io.insert(series, names=["s"], tmap=tmap, copy=True)
+        assert result is not None
+
+        assert result.cat.categories.to_list() == ["B", "A"]
+        assert result.to_list() == ["B", "A"]
+
+    def test_placeholders_are_kept(self, tmap):
+        series = pd.Series(["1", "a"], name="str_source")
+        io = PandasIO[pd.Series](as_category=True, missing_as_nan=False, observed=True)
+        result = io.insert(series, names=["str_source"], tmap=tmap, copy=True)
+        assert result is not None
+
+        assert result.cat.categories.to_list() == ["1:StrOne", "<Failed: id=str>"]
+
+
+@pytest.mark.filterwarnings("ignore::pandas.errors.Pandas4Warning")
+def test_nan_ids_do_not_make_category_order_row_dependent():
+    """Under `observed` the ID order follows the data, so NaN must not float where it lands."""
+    translator: Translator[str, str, int] = Translator({"animals": {0: "Tarzan", 1: "Morris", 2: "Simba"}})
+    io_kwargs = {"as_category": True, "observed": True, "missing_as_nan": False, "ordered": "id"}
+
+    first = translator.translate(pd.Series([0.0, float("nan"), 2.0], name="animals"), io_kwargs=io_kwargs)
+    shuffled = translator.translate(pd.Series([float("nan"), 0.0, 2.0], name="animals"), io_kwargs=io_kwargs)
+
+    assert first.dtype == shuffled.dtype, "same IDs in a different order must give the same dtype"
+    assert list(first.dtype.categories) == ["0:Tarzan", "2:Simba", "<Failed: id=nan>"], "NaN sorts last"
+
+
+def test_observed_skip_unknown_ids():
+    """`missing_as_nan=True` is the default here, so unknown IDs are NaN and must not become a category."""
+    translator: Translator[str, str, int] = Translator({"animals": {0: "Tarzan", 1: "Morris", 2: "Simba"}})
+    df = pd.DataFrame({"animals": [0, -1, 2]})
+
+    actual = translator.translate(df, io_kwargs={"as_category": True, "observed": True})
+
+    assert actual["animals"].tolist() == ["0:Tarzan", np.nan, "2:Simba"]
+    assert actual["animals"].dtype.categories.to_list() == ["0:Tarzan", "2:Simba"], "NaN is not a category"
+
+
+def test_sorted_ids_groups_incomparable_types_by_name():
+    """Types group by name and sort naturally within each group -- not merely "does not crash"."""
+    translations: dict[IdTypes, str] = {"b": "x", 2: "y", "a": "z", 10: "w", UUID(int=1): "v"}
+    actual = _sorted_ids(translations)
+
+    assert actual == [UUID(int=1), 2, 10, "a", "b"], "grouped by type name, sorted naturally within each"
+
+
+def test_sorted_ids_orders_several_missing_ids():
+    actual = _sorted_ids({pd.NaT: "a", None: "b", pd.NA: "c", 1: "d"})
+
+    assert actual[0] == 1
+    assert [str(idx) for idx in actual[1:]] == sorted(["NaT", "None", "<NA>"]), "missing IDs sort among themselves"
+
+
+@pytest.mark.parametrize("array_like", [[1, 2], (1, 2), np.array([1, 2])])
+def test_is_missing_tolerates_array_like_ids(array_like):
+    """`pandas.isna` returns an array for these; truth-testing it raises, and that must not escape."""
+    assert _is_missing(array_like) is False
+
+
+@pytest.mark.parametrize("missing", [float("nan"), None, pd.NA, pd.NaT])
+def test_sorted_ids_puts_every_null_like_id_last(missing):
+    """`pd.NA` raises on truth-testing, so the null check must not rely on comparing the ID to itself."""
+    actual = _sorted_ids({missing: "m", 1: "a", 0: "b"})
+
+    assert actual[:2] == [0, 1], "real IDs keep their order"
+    assert actual[2] is missing
+
+
+class TestUuidCategories:
+    """The backing dict is keyed by ``UUID``; the input often is not. Categories must survive the mismatch."""
+
+    # Letter-bearing, so the `str.upper` parametrization actually exercises case-insensitive matching.
+    UUIDS = [
+        "0000000a-bbbb-cccc-dddd-eeeeeeeeeeee",
+        "0000000b-bbbb-cccc-dddd-eeeeeeeeeeee",
+        "0000000c-bbbb-cccc-dddd-eeeeeeeeeeee",
+    ]
+    UNKNOWN = "0000dead-bbbb-cccc-dddd-eeeeeeeeeeee"
+
+    @pytest.fixture(scope="class")
+    def translator(self) -> Translator[str, str, str]:
+        data = {"src": {"id": self.UUIDS, "name": ["first", "second", "third"]}}
+        return Translator(data, fmt="{name}", default_fmt="<Failed: id={id}>", enable_uuid_heuristics=True)
+
+    @staticmethod
+    def as_kind(kind, ids):
+        if kind is pd.DataFrame:
+            return pd.DataFrame({"src": ids})
+        return kind(ids, name="src")
+
+    @staticmethod
+    def dtype_of(kind, translated):
+        return translated["src"].dtype if kind is pd.DataFrame else translated.dtype
+
+    @pytest.mark.parametrize("cls", [pd.Series, pd.Index, pd.DataFrame])
+    @pytest.mark.parametrize("lookup_kind", [str, str.upper, UUID])
+    def test_observed_match_str_input(self, translator, cls, lookup_kind):
+        """Filtering on IDs would compare `str` input against `UUID` keys and drop everything."""
+        translatable = self.as_kind(cls, [lookup_kind(u) for u in self.UUIDS[:2]])
+
+        actual = translator.translate(translatable, io_kwargs={"as_category": True, "observed": True})
+
+        dtype = self.dtype_of(cls, actual)
+        assert isinstance(dtype, pd.CategoricalDtype)
+        assert dtype.categories.to_list() == ["first", "second"], "'third' is unused, the rest must survive"
+        assert list(actual["src"] if cls is pd.DataFrame else actual) == ["first", "second"]
+
+    @pytest.mark.parametrize("cls", [pd.Series, pd.Index, pd.DataFrame])
+    def test_all_categories_are_kept_without_observed(self, translator, cls):
+        translatable = self.as_kind(cls, self.UUIDS[:2])
+
+        actual = translator.translate(translatable, io_kwargs={"as_category": True})
+
+        assert self.dtype_of(cls, actual).categories.to_list() == ["first", "second", "third"]
+
+    @pytest.mark.parametrize("observed", [False, True])
+    def test_id_order_with_mixed_key_types(self, translator, observed):
+        """`extra` is keyed by the input representation, so `real` (UUID) and `extra` (str) keys may mix."""
+        series = pd.Series([*self.UUIDS[:2], self.UNKNOWN], name="src")
+
+        actual = translator.translate(
+            series,
+            io_kwargs={
+                "as_category": True,
+                "ordered": "id",
+                "missing_as_nan": False,
+                "observed": observed,
+            },
+        )
+
+        expected = ["first", "second"] if observed else ["first", "second", "third"]
+        assert actual.cat.categories.to_list() == [*expected, f"<Failed: id={self.UNKNOWN}>"]
+        assert actual.dtype.ordered is True

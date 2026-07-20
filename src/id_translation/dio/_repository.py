@@ -133,6 +133,7 @@ class Repository:
             try:
                 return io_class(**io_kwargs)
             except Exception as exc:
+                # TODO(2.0.0): Raise by default; add an envvar to downgrade to this warning.
                 # TODO(python-3.13): Use signature(io_class).format() to pretty-print io_class.__init__ parameters.
                 _LOGGER.warning(
                     f"Ignoring {io_kwargs=} since {io_class.__qualname__}(**io_kwargs) raises {type(exc).__name__}.",

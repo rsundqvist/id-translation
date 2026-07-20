@@ -12,6 +12,7 @@ from id_translation import types as _tt
 from id_translation.dio import DataStructureIO as _DataStructureIO
 from id_translation.dio.exceptions import NotInplaceTranslatableError as _NotInplaceTranslatableError
 from id_translation.dio.integration.pandas import PandasIO as _PandasIO
+from id_translation.dio.integration.pandas import _Ordered
 from id_translation.offline import TranslationMap as _TranslationMap
 
 DaskT = _t.TypeVar("DaskT", _dd.DataFrame, _dd.Series)
@@ -29,11 +30,15 @@ class DaskIO(_DataStructureIO[DaskT, str, _tt.SourceType, _tt.IdType]):
     """Optional IO implementation for ``dask`` types.
 
     Args:
-        missing_as_nan: If set, unknown IDs will be `NaN`. Forwarded to :class:`~id_translation.dio.integration.pandas.PandasIO`.
-        as_category: Set `dtype='category'` in the result. Forwarded to :class:`~id_translation.dio.integration.pandas.PandasIO`.
+        missing_as_nan: If set, unknown IDs will be `NaN`. Forwarded to
+            :class:`~id_translation.dio.integration.pandas.PandasIO`.
+        as_category: Set `dtype='category'` in the result. Forwarded to
+            :class:`~id_translation.dio.integration.pandas.PandasIO`.
+        ordered: Category sort order. Forwarded to :class:`~id_translation.dio.integration.pandas.PandasIO`.
 
     Notes:
-        Combining ``missing_as_nan=False`` with ``as_category=True`` can be unpredictable in distributed contexts.
+        Partitions are translated independently. Combining ``missing_as_nan=False`` with ``as_category=True`` can be
+        unpredictable in distributed contexts. The ``observed`` keyword is not supported (always ``False``).
     """
 
     def __init__(
@@ -41,10 +46,12 @@ class DaskIO(_DataStructureIO[DaskT, str, _tt.SourceType, _tt.IdType]):
         *,
         missing_as_nan: bool | None = None,
         as_category: bool = False,
+        ordered: _Ordered = "name",
     ) -> None:
         self._part_io = PartitionIO[_t.Any, _tt.SourceType, _tt.IdType](
             missing_as_nan=missing_as_nan,
             as_category=as_category,
+            ordered=ordered,
         )
 
     priority = 1980  # TODO(2.0.0): Require explicit register()
