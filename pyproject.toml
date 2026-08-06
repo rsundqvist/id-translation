@@ -72,7 +72,7 @@ docs = [
     "log-lexer",
 ]
 notebooks = [
-    "jupyterlab~=4.5.5",
+    "jupyterlab>=4.5.5,<4.7.0",
     "ipywidgets",
     "jupyterlab-execute-time",
     "tqdm",
