@@ -22,7 +22,7 @@ jobs:
     name: Linting
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Set up Python 3.11 with uv
         uses: astral-sh/setup-uv@v7
@@ -47,7 +47,7 @@ jobs:
         python-version: [ '3.11', '3.12', '3.13', '3.14' ]
         experimental: [ false ]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Set up Python ${{ matrix.python-version }} with uv
         uses: astral-sh/setup-uv@v7
@@ -92,7 +92,7 @@ jobs:
     # step-level continue-on-error (not job-level) so the job stays green and doesn't emit a
     # "job failed" notification; a failing race test is re-surfaced as a warning in the run summary.
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Set up free-threaded Python 3.14t with uv
         uses: astral-sh/setup-uv@v7
@@ -115,7 +115,7 @@ jobs:
     needs: tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Set up Python 3.14 with uv
         uses: astral-sh/setup-uv@v7
