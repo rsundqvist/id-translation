@@ -1,10 +1,18 @@
+from collections.abc import Iterable as _Iterable
 from typing import Any as _Any
 
 DOC_LINK: str
 
 __all__ = [
     "DOC_LINK",
+    "add_hints",
 ]
+
+
+def add_hints(exc: BaseException, hints: str | _Iterable[str]) -> None:
+    """Attach `hints` to `exc` as PEP 678 notes, each prefixed with ``Hint: ``."""
+    for hint in (hints,) if isinstance(hints, str) else hints:
+        exc.add_note(f"Hint: {hint}")
 
 
 def __getattr__(name: str) -> _Any:

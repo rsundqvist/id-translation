@@ -121,18 +121,19 @@ class Cardinality(Enum):
         return arg if isinstance(arg, Cardinality) else _from_generous_string(arg, strict)
 
 
-def _parsing_failure_message(arg: str, strict: bool) -> str:
+def _parsing_failure(arg: str, strict: bool) -> ValueError:
     options = tuple([c.value for c in Cardinality])
     alternatively = tuple([c.name for c in Cardinality])
-    strict_hint = "."
+    exc = ValueError(f"Could not convert {arg=} to Cardinality. Correct input {options=} or {alternatively!r}")
+
     if strict:
         try:
-            strict = False
-            Cardinality.parse(arg, strict=strict)
-            strict_hint = f". Hint: set {strict=} to allow this input."
+            Cardinality.parse(arg, strict=False)
+            exc.add_note("Hint: set strict=False to allow this input.")
         except ValueError:
             pass
-    return f"Could not convert {arg=} to Cardinality{strict_hint} Correct input {options=} or {alternatively!r}"
+
+    return exc
 
 
 _MATRIX = (
@@ -178,4 +179,4 @@ def _from_generous_string(s: str, strict: bool) -> Cardinality:
     for c in Cardinality:
         if s in {c.value, c.name}:
             return c
-    raise ValueError(_parsing_failure_message(s, strict))
+    raise _parsing_failure(s, strict)

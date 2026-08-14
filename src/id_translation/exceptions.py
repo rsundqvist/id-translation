@@ -1,6 +1,9 @@
 """General errors for the translation suite."""
 
+from collections.abc import Iterable as _Iterable
 from warnings import simplefilter as _simplefilter
+
+from ._utils import add_hints as _add_hints
 
 
 class ConfigurationError(TypeError):
@@ -14,9 +17,26 @@ class ConfigurationChangedError(Exception):
 class ConnectionStatusError(ConnectionError):
     """Raised when trying to perform operations in a bad online/offline state."""
 
+    # TODO(2.0.0): Drop the `msg` default; it exists only to keep zero-arg `raise ConnectionStatusError()` calls
+    #  working after `msg` became a real constructor arg. Keep the `ConnectionError`/`OSError` base -- it's
+    #  deliberate (see 0.8.0 changelog) so callers can catch generic connection errors; the two/three-arg
+    #  `OSError(errno, strerror[, filename])` form is not supported and isn't expected to be used here.
+
+    def __init__(self, msg: str = "", *, hints: str | _Iterable[str] = ()) -> None:
+        super().__init__(msg)
+        _add_hints(self, hints)
+
 
 class TranslationError(Exception):
     """Base class for translation errors."""
+
+    # TODO(2.0.0): Inherit from a common `IdTranslationError` shared by all id-translation exceptions.
+    # TODO(2.0.0): Drop the `msg` default; it exists only to keep zero-arg `raise TranslationError()`-style calls
+    #  working after `msg` became a real constructor arg.
+
+    def __init__(self, msg: str = "", *, hints: str | _Iterable[str] = ()) -> None:
+        super().__init__(msg)
+        _add_hints(self, hints)
 
 
 class MissingNamesError(TranslationError):

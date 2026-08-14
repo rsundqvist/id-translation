@@ -100,14 +100,12 @@ class Repository:
             self._enabled.remove(io_class)
             self._disabled.add(io_class)
 
-        exc = UntranslatableTypeError(type(arg))
-        for io_class in sorted(self._disabled, key=lambda io_class: abs(io_class.priority), reverse=True):
-            if io_class.handles_type(arg):
-                exc.add_note(
-                    f"Hint: Eligible implementation '{pretty_io_name(io_class)}' is disabled (priority={io_class.priority} < 0)."
-                )
-
-        raise exc
+        hints = [
+            f"Eligible implementation '{pretty_io_name(io_class)}' is disabled (priority={io_class.priority} < 0)."
+            for io_class in sorted(self._disabled, key=lambda io_class: abs(io_class.priority), reverse=True)
+            if io_class.handles_type(arg)
+        ]
+        raise UntranslatableTypeError(type(arg), hints=hints)
 
     def _initialize(
         self,

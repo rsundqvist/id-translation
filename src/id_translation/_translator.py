@@ -996,7 +996,8 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         """Return the :class:`~id_translation.fetching.Fetcher` instance used to retrieve translations."""
         if not self.online:
             raise ConnectionStatusError(
-                "Cannot fetch new translations.\nHint: Use the Translator.cache-property to access the data."
+                "Cannot fetch new translations.",
+                hints="Use the Translator.cache-property to access the data.",
             )
 
         return self._fetcher

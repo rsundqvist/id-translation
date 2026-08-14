@@ -56,10 +56,6 @@ class BadDelimiterError(MalformedOptionalBlockError):
  {problem_locations}""".strip()
             )
         else:
-            hint = (
-                f"Hint: Use double characters to escape '{_START}' and '{_END}', "
-                f"e.g. '{_START * 2}' to render a single '{_START}'-character."
-            )
             info = (
                 "there is no block to close"
                 if open_idx == -1
@@ -69,8 +65,11 @@ class BadDelimiterError(MalformedOptionalBlockError):
             super().__init__(
                 f"""Malformed optional block. Got '{format_string[idx]}' at i={idx}, but {info}.
     '{format_string}'
-     {problem_locations}
-{hint}""".strip()
+     {problem_locations}""".strip()
+            )
+            self.add_note(
+                f"Hint: Use double characters to escape '{_START}' and '{_END}', "
+                f"e.g. '{_START * 2}' to render a single '{_START}'-character."
             )
 
 
@@ -198,10 +197,10 @@ class Element:
                 parts.append(literal_text.replace("{", "{{").replace("}", "}}"))
 
             if field_name == "":
-                msg = f"Bad {block=}; anonymous fields are not permitted."
-                msg += "\n- Hint: Replace '{}' with '{field_name}' to give this field a name"
-                msg += "\n- Hint: Replace '{}' with '{{}}' to render literal curly braces"
-                raise ValueError(msg)
+                exc = ValueError(f"Bad {block=}; anonymous fields are not permitted.")
+                exc.add_note("Hint: Replace '{}' with '{field_name}' to give this field a name")
+                exc.add_note("Hint: Replace '{}' with '{{}}' to render literal curly braces")
+                raise exc
 
             if field_name:
                 placeholder, attribute = cls._parse_field_name(field_name)

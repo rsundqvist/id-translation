@@ -666,17 +666,18 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         return translations
 
     def _verify_placeholders(self, reverse_mappings: dict[str, str], source: SourceType, unmapped: set[str]) -> None:
-        hint = ""
+        hints = []
         if unmapped.intersection(reverse_mappings.values()):
             r = reverse_dict(reverse_mappings)
             bad_mappings = {b: r[b] for b in unmapped if b in r}
-            hint = (
-                f"\nHint: Mapping {bad_mappings} for required placeholders (keys) were made to placeholders that do not"
+            hints.append(
+                f"Mapping {bad_mappings} for required placeholders (keys) were made to placeholders that do not"
                 f" exist. The override configuration {self.mapper._overrides} may be incorrect."
             )
         raise exceptions.UnknownPlaceholderError(
             f"Required placeholders {unmapped} not recognized. For {source=}, known placeholders are: "
-            f"{sorted(self.placeholders[source])} for {self}.{hint}"
+            f"{sorted(self.placeholders[source])} for {self}.",
+            hints=hints,
         )
 
     def _make_fetch_instruction(

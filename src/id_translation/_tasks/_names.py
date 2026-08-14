@@ -39,10 +39,9 @@ class NamesTask(BaseTask[NameType, SourceType, IdType]):
         )
 
         if not (names is None or ignore_names is None):
-            raise ValueError(
-                f"Explicit {names=} cannot be used with {ignore_names=}."
-                f"\nHint: Set names=None to use automatic name extraction with user-defined ignored names."
-            )
+            exc = ValueError(f"Explicit {names=} cannot be used with {ignore_names=}.")
+            exc.add_note("Hint: Set names=None to use automatic name extraction with user-defined ignored names.")
+            raise exc
 
         names, override_function = _handle_input_names(names, override_function)
 
@@ -79,8 +78,8 @@ class NamesTask(BaseTask[NameType, SourceType, IdType]):
         names: list[NameType] | None = self.io.names(self.translatable)
         if names is None:
             raise MissingNamesError(
-                f"Failed to derive names for {self.type_name}-type data."
-                "\nHint: Use the 'names'-argument to specify names to translate."
+                f"Failed to derive names for {self.type_name}-type data.",
+                hints="Use the 'names'-argument to specify names to translate.",
             )
         self._extracted_names = names
         return self._extracted_names
@@ -140,10 +139,9 @@ class _UserDefinedNameToSourceMapping(Generic[NameType, SourceType]):
     def __init__(self, name_to_source: NameToSource[NameType, SourceType]) -> None:
         for name, source in name_to_source.items():
             if source is None:
-                raise ValueError(
-                    f"Bad name-to-source mapping: {name!r} -> {source!r}."
-                    f"\nHint: Remove None-values from names={name_to_source}."
-                )
+                exc = ValueError(f"Bad name-to-source mapping: {name!r} -> {source!r}.")
+                exc.add_note(f"Hint: Remove None-values from names={name_to_source}.")
+                raise exc
         self._name_to_source = name_to_source
 
     def __call__(self, name: NameType, _sources: set[SourceType], _context: None) -> SourceType | None:

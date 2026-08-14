@@ -135,8 +135,8 @@ class MappingTask(NamesTask[NameType, SourceType, IdType]):
             for value, candidates in result.left_to_right.items():
                 if len(candidates) > 1:
                     raise MappingError(
-                        f"Name-to-source mapping {name_to_source} is ambiguous; {value} -> {candidates}."
-                        f"\nHint: Choose a different cardinality such that Mapper.cardinality.many_right is False."
+                        f"Name-to-source mapping {name_to_source} is ambiguous; {value} -> {candidates}.",
+                        hints="Choose a different cardinality such that Mapper.cardinality.many_right is False.",
                     )
 
         self.add_timing("map", seconds)

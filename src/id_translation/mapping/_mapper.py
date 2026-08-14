@@ -182,9 +182,10 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
         logger = self.logger
 
         if self.on_unmapped == "raise":
-            msg += "\nHint: Set on_unmapped='warn' or on_unmapped='ignore' to allow unmapped values."
             logger.error(msg, extra={"task_id": task_id})
-            raise UnmappedValuesError(msg)
+            raise UnmappedValuesError(
+                msg, hints="Set on_unmapped='warn' or on_unmapped='ignore' to allow unmapped values."
+            )
         elif self.on_unmapped == "warn":
             logger.warning(msg, extra={"task_id": task_id})
             msg += (

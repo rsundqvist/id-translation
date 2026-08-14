@@ -80,7 +80,7 @@ class HexFetcher(AbstractFetcher[str, int]):
     def _run(placeholders: list[str], ids: Iterable[int] | None, source: str) -> Iterable[tuple[Any, ...]]:
         ids = tuple(range(-10, 10) if ids is None else ids)
         if max(ids) > 9 or min(ids) < -10:
-            raise UnknownIdError()
+            raise UnknownIdError(f"Id(s) out of range in {ids=}; the TestFetcher only knows -10..9.")
 
         funcs = {
             "hex": hex,

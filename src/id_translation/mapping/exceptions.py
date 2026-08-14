@@ -1,12 +1,17 @@
 """Mapping errors."""
 
+from collections.abc import Iterable as _Iterable
 from typing import Any as _Any
+
+from .._utils import add_hints as _add_hints
 
 
 class MappingError(Exception):
     """Base exception class for all mapping-related issues."""
 
-    def __init__(self, msg: str, *, ref: str = "") -> None:
+    # TODO(2.0.0): Inherit from a common `IdTranslationError` shared by all id-translation exceptions.
+
+    def __init__(self, msg: str, *, ref: str = "", hints: str | _Iterable[str] = ()) -> None:
         super().__init__(msg)
 
         from id_translation._utils import DOC_LINK  # noqa: PLC0415
@@ -23,6 +28,8 @@ class MappingError(Exception):
             expected = enable_verbose_debug_messages.__module__ + "." + enable_verbose_debug_messages.__name__
             assert func == expected  # noqa: S101
         self.add_note(f"Hint: Use `{func}` to see why mapping failed.")
+
+        _add_hints(self, hints)
 
 
 class UnmappedValuesError(MappingError):
@@ -66,10 +73,10 @@ class AmbiguousScoreError(MappingError):
     """Indicates that the scoring logic has produces ambiguous scores."""
 
     def __init__(self, kind: str, key: _Any, match0: _Any, match1: _Any, cardinality: str, scores: str) -> None:
-        hint = f"\n{scores}\nInspect the matrix above for details. You may wish to use a different scoring method."
         super().__init__(
             f"Ambiguous mapping of {kind}={key!r}; matches ({match0}) and ({match1}) "
-            f"are in conflict since {cardinality=}.{hint}"
+            f"are in conflict since {cardinality=}.\n{scores}",
+            hints="Inspect the matrix above for details. You may wish to use a different scoring method.",
         )
 
 
