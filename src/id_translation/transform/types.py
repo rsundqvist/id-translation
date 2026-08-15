@@ -12,8 +12,8 @@ class Transformer(_t.Protocol[_IdType]):
 
     .. warning::
 
-       The :meth:`~id_translation.transform.types.Transformer.update_ids`-method is **not** called when the :class:`~id_translation.Translator` is
-       working offline.
+       The :meth:`~id_translation.transform.types.Transformer.update_ids`-method is **not** called when the
+       :class:`~id_translation.Translator` is working offline.
 
     Transformers are persistent entities owned by a single :class:`~id_translation.Translator` instance. See the
     :class:`~id_translation.transform.BitmaskTransformer` for a concrete example.
@@ -50,7 +50,8 @@ class Transformer(_t.Protocol[_IdType]):
 
         Args:
             key: An ID which is not present in the `translations`.
-            translations: A mutable mapping of translations. Typically, the :class:`~id_translation.offline.MagicDict` caller itself.
+            translations: A mutable mapping of translations. Typically, the :class:`~id_translation.offline.MagicDict`
+                caller itself.
         """
 
 

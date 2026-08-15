@@ -97,17 +97,16 @@ Examples:
 
        Users may not override the `fixed_params` of the helper instance.
 
-    The helper uses :meth:`TranslationHelper.convert_user_params <id_translation.utils.translation_helper.TranslationHelper.convert_user_params>`
-    internally, which may also be used to validate the
-    configuration.
+    The helper uses
+    :meth:`TranslationHelper.convert_user_params <id_translation.utils.translation_helper.TranslationHelper.convert_user_params>`
+    internally, which may also be used to validate the configuration.
 
     **Documenting user arguments**
 
     Initialized helpers provide methods creating
-    :meth:`user_params <id_translation.utils.translation_helper.TranslationHelper.make_user_params_docstring>`
-    and :meth:`type error <id_translation.utils.translation_helper.TranslationHelper.make_type_error_docstring>` docstrings, which may be used as part
-    of the docstring of
-    functions that use translation helpers.
+    :meth:`user_params <id_translation.utils.translation_helper.TranslationHelper.make_user_params_docstring>` and
+    :meth:`type error <id_translation.utils.translation_helper.TranslationHelper.make_type_error_docstring>` docstrings,
+    which may be used as part of the docstring of functions that use translation helpers.
 
     >>> example.__doc__.format(  # doctest: +SKIP
     ...     translate=helper.make_user_params_docstring(),
@@ -154,12 +153,14 @@ class TranslationHelper(_t.Generic[_tt.NameType, _tt.SourceType, _tt.IdType]):
         translator_or_factory: A callable ``() -> Translator``, or an initialized :class:`~id_translation.Translator`.
         user_params_name: Used for reporting errors.
         **fixed_params: Fixed parameters for :meth:`Translator.translate <id_translation.Translator.translate>`. Attempting to override these in
-            :meth:`TranslationHelper.apply <id_translation.utils.translation_helper.TranslationHelper.apply>` will raise an error.
+            :meth:`TranslationHelper.apply <id_translation.utils.translation_helper.TranslationHelper.apply>` will raise
+            an error.
 
     Notes:
         The https://github.com/rsundqvist/id-translation-project/ template includes functions such as
-        :func:`~big_corporation_inc.id_translation.get_singleton`, which are suitable :class:`~id_translation.Translator` suppliers.
-        See the `Big Corporation Inc. <https://rsundqvist.github.io/id-translation-project/>`_ sample docs for more.
+        :func:`~big_corporation_inc.id_translation.get_singleton`, which are suitable
+        :class:`~id_translation.Translator` suppliers. See the
+        `Big Corporation Inc. <https://rsundqvist.github.io/id-translation-project/>`_ sample docs for more.
 
     .. seealso:: The :ref:`Typing rules` and :ref:`Examples <translation-helper-examples>` sections.
     """
@@ -231,8 +232,8 @@ class TranslationHelper(_t.Generic[_tt.NameType, _tt.SourceType, _tt.IdType]):
                 user passes any reserved or fixed keys, a :class:`TypeError` is raised.
 
         Returns:
-            The original `translatable` if `user_params` is ``False``. Otherwise, return a translated copy or
-            ``None`` based on the `copy`-setting (see :meth:`Translator.translate <id_translation.Translator.translate>`).
+            The original `translatable` if `user_params` is ``False``. Otherwise, return a translated copy or ``None``
+            based on the `copy`-setting (see :meth:`Translator.translate <id_translation.Translator.translate>`).
 
         Raises:
             TypeError: If reserved or fixed keys are passed in the `user_params`.
@@ -419,9 +420,11 @@ class TranslationHelper(_t.Generic[_tt.NameType, _tt.SourceType, _tt.IdType]):
         """Convenience method for creating multiple docstrings.
 
         Args:
-            user_params_key: Key for :meth:`~id_translation.utils.translation_helper.TranslationHelper.make_user_params_docstring` output. Default is
-                `user_params_name`.
-            type_error_key: Key for :meth:`~id_translation.utils.translation_helper.TranslationHelper.make_type_error_docstring` output.
+            user_params_key: Key for
+                :meth:`~id_translation.utils.translation_helper.TranslationHelper.make_user_params_docstring` output.
+                Default is `user_params_name`.
+            type_error_key: Key for
+                :meth:`~id_translation.utils.translation_helper.TranslationHelper.make_type_error_docstring` output.
 
         Returns:
             A dict of docstrings.

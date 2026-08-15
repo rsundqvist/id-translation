@@ -39,10 +39,10 @@ class BitmaskTransformer(_Transformer[IdType]):
         joiner: A string used to join bitmask flag labels.
         overrides: A dict ``{id: translation}``. Use to add or override the translation source.
         force_decomposition: If ``True``, ignore composite values in the translation source.
-        force_real_translations: If ``True``, convert :class:`~id_translation.offline.MagicDict` instances to plain ``dict`` using the
-            :attr:`MagicDict.real <id_translation.offline.MagicDict.real>` attribute. Results such as ``'<Failed: id=2> & 4:name-of-4'`` are possible
-            when
-            ``False``, and will be considered hits by :meth:`translate(max_fails \< 1) <id_translation.Translator.translate>` calls.
+        force_real_translations: If ``True``, convert :class:`~id_translation.offline.MagicDict` instances to plain
+            ``dict`` using the :attr:`MagicDict.real <id_translation.offline.MagicDict.real>` attribute. Results such as
+            ``'<Failed: id=2> & 4:name-of-4'`` are possible when ``False``, and will be considered hits by
+            :meth:`translate(max_fails \< 1) <id_translation.Translator.translate>` calls.
 
     Examples:
         Basic usage.
@@ -71,11 +71,11 @@ class BitmaskTransformer(_Transformer[IdType]):
         ('1:name-of-1 & 4:name-of-4', '<Failed: id=2> & 4:name-of-4')
 
         The translation "succeeded", even though ``max_fails=0.0`` and ``6 = '<Failed: id=2> & 4:name-of-4'`` was only a
-        partial success. This would've raised :class:`an error <id_translation.exceptions.TooManyFailedTranslationsError>` if
-        `force_real_translations` was not set. The transformer adds :attr:`~id_translation.offline.MagicDict.real` mappings for all composite
-        IDs, so the :class:`~id_translation.Translator` won't detect any issues when using
-        :meth:`MagicDict.real_contains <id_translation.offline.MagicDict.real_contains>` to verify
-        the results.
+        partial success. This would've raised
+        :class:`an error <id_translation.exceptions.TooManyFailedTranslationsError>` if `force_real_translations` was
+        not set. The transformer adds :attr:`~id_translation.offline.MagicDict.real` mappings for all composite IDs, so
+        the :class:`~id_translation.Translator` won't detect any issues when using
+        :meth:`MagicDict.real_contains <id_translation.offline.MagicDict.real_contains>` to verify the results.
     """
 
     def __init__(
@@ -147,7 +147,8 @@ class BitmaskTransformer(_Transformer[IdType]):
     def decompose_bitmask(cls, i: int, /) -> list[int]:
         """Decompose a bitmask into powers of two.
 
-        If `i` is not :attr:`decomposable <id_translation.transform.BitmaskTransformer.is_decomposable>`, an empty list is returned.
+        If `i` is not :attr:`decomposable <id_translation.transform.BitmaskTransformer.is_decomposable>`, an empty list
+        is returned.
 
         Args:
             i: Any integer.

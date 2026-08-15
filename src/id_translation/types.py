@@ -2,7 +2,8 @@
 
 .. hint::
 
-   Use :func:`~id_translation.dio.register_io` to register custom :class:`~id_translation.dio.DataStructureIO` implementations.
+   Use :func:`~id_translation.dio.register_io` to register custom :class:`~id_translation.dio.DataStructureIO`
+   implementations.
 
 Rules of thumb
 --------------

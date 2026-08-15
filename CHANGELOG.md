@@ -8,41 +8,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Add `id_translation.logging.EMIT_LOGGED_WARNINGS`; set to `False` to disable warnings that are emitted as logs.
-- Add `Format.placeholder_attributes` property.
-- Add `FetchInstruction.placeholder_attributes` property + `AbstractFetcher` handling.
-- Add SQLAlchemy ORM fetcher example.
-- `SqlFetcher(connection_string=...)` now accepts a `sqlalchemy.engine.URL`. Passing a `password` sets `URL.password`
-  rather than filling the `{password}` key, which URLs do not have.
-- Add the `add_skip_file_prefix()` function to control warning stack levels.
-- Add `translator_typing.GoOfflineParams` typed dict.
-- Add `ConcurrentOperationWarning` and light-weight detection in relevant `AbstractFetcher` methods. Also added 🧵 notes
-  to docstrings and updated the concurrency call-sites table.
-- Add JSON Schemas for the TOML configuration format (main, auxiliary fetcher, and `metaconf.toml`), published to
-  versioned [Read the Docs](https://id-translation.readthedocs.io/en/stable/documentation/translator-config.html) URLs
-  for editor and CI validation.
-- Add `PartialCacheHit`; returning it from `CacheAccess.load()` makes the fetcher fetch (and cache) only the IDs the
-  cache did not cover, instead of re-fetching the whole request.
-- Add a [migration guide](https://id-translation.readthedocs.io/en/stable/documentation/migration-guide.html) for
-  adopting `id-translation` in existing applications.
-- Add `MagicDict.enable_uuid_heuristics`; tells consumers that join against `MagicDict.real` to cast their keys.
-- Add `PandasIO(ordered=...)`; sets the `as_category=True` category order to `'name'` (default) or `'id'`, or to `False`
-  to sort by name without marking the `CategoricalDtype` as `ordered`.
+- Categorical `pandas` translation (`io_kwargs`):
+  * Add `PandasIO(ordered=...)`; category order `'name'` (default) or `'id'`, or `False` for an unordered
+    `CategoricalDtype`.
+  * Add `PandasIO(observed=...)`; keep only categories present in the data, instead of every value the fetcher
+    returned. Combining with `ordered='id'` is expensive for large frames.
+- Configuration:
+  * Add JSON Schemas for the TOML format (main, auxiliary fetcher, and `metaconf.toml`), published to versioned
+    [Read the Docs](https://id-translation.readthedocs.io/en/stable/documentation/translator-config.html) URLs for
+    editor and CI validation.
+  * Add a [migration guide](https://id-translation.readthedocs.io/en/stable/documentation/migration-guide.html) for
+    adopting `id-translation` in existing applications.
+- Fetching:
+  * `SqlFetcher(connection_string=...)` now accepts a `sqlalchemy.engine.URL`.
+  * Add SQLAlchemy ORM fetcher example.
+  * Add `MultiFetcher.unresolved_children`; optional children discarded because source discovery raised, and whose
+    sources are therefore unknown.
+- Warnings:
+  * Add `add_skip_file_prefix()`; wrapper libraries can point warnings at their callers.
+  * Add `id_translation.logging.EMIT_LOGGED_WARNINGS`.
+  * Add `ConcurrentOperationWarning` and light-weight detection in relevant `AbstractFetcher` methods.
+- Extension APIs (custom `Fetcher`/`CacheAccess`/`DataStructureIO` implementations):
+  * Add `placeholder_attributes` property to `Format` and `FetchInstruction`.
+  * Add `PartialCacheHit`; lets `CacheAccess.load()` request fetching of only the missing IDs.
+  * Add `MagicDict.enable_uuid_heuristics`; tells consumers that join against `MagicDict.real` to cast their keys.
+  * Add `translator_typing.GoOfflineParams` typed dict.
 
 ### Changed
-- Faster `Translator.translate()` for large inputs: `pandas` vectors are joined against the backing dict instead of
-  looked up per unique ID (~1.6x; ~1.5x for `uuid.UUID`-typed vectors, neutral for `UUID`-like strings).
-- Links in warnings and exceptions now link to the current version in the docs (instead of the _'stable'_ version).
+- Check before upgrading:
+  * Repeated `[transform.'<source>']`-sections now chain instead of raising `ConfigurationError`. Auxiliary fetcher
+    files run before the main file.
+  * A discarded `optional` fetcher now takes its file's `[transform]`-section with it in the main configuration too,
+    as it already did for auxiliary files.
+  * Aborted translations emit `TranslationAbortedWarning` instead of `MappingWarning`, and are no longer logged.
+  * `SqlFetcher` creates its engine on the first `initialize_sources()` call instead of in `__init__`; bad connection
+    strings surface there rather than at construction.
+  * `FetcherError`, `ConnectionStatusError`, and `TranslationError` now take `msg` as a real constructor argument
+    (defaults to `""`; will become required in `2.0.0`) instead of forwarding it via `*args`.
+- Transformers: `Translator.copy()` clones transformers per distinct instance rather than per source, so one
+  registered for several sources stays a single instance in the copy.
+- Performance: faster `Translator.translate()` for large `pandas` inputs (~1.6x; ~1.5x for `uuid.UUID`-typed vectors,
+  neutral for `UUID`-like strings).
+- Warnings: links in warnings and exceptions now point to the current docs version (instead of _'stable'_).
 - Raise `DataStructureIOError` instead of generic `ValueError` in `DataStructureIO.get_rank()` for unregistered types.
-- Changed translation aborted-warnings.
-  * Add new `TranslationAbortedWarning` type.
-  * Emit as `TranslationAbortedWarning` instead of `MappingWarning`.
-  * No longer emitted as logs.
 
 ### Fixed
+- `Mapper`: score functions now receive candidates in caller order; `modified_hamming` tie-breaking no longer
+  varies with `PYTHONHASHSEED`.
+- Transformers: a falsy `Transformer` -- e.g. one that is also an empty `Sequence` -- is no longer half-applied:
+  `update_ids()` ran, but `update_translations()` and `try_add_missing_key()` were skipped.
+- `AbstractFetcher.__str__()` no longer triggers source discovery. Formatting a fetcher whose discovery raises used to
+  re-raise, e.g. escaping the `MultiFetcher` optional-child discard handler. Uninitialized fetchers render as
+  `sources=<uninitialized>` instead of `sources=<no sources>`.
 - Fixed exit event keys in `AbstractFetcher.fetch_all()` and `Translator.go_offline()`.
-- `SqlFetcher` defers engine creation to the first `initialize_sources()` call, so runtime errors from an overridden
-  `create_engine()` (e.g. a bad slug or unreachable database) surface there rather than at construction.
 
 ## [1.2.1] - 2026-05-09
 

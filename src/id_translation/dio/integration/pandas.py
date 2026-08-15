@@ -42,6 +42,11 @@ class PandasIO(_dio.DataStructureIO[PandasT, _tt.NameType, _tt.SourceType, _tt.I
         ordered: Category sort order. Ignored unless ``as_category=True``. See :ref:`Categorical translation`.
         observed: Keep only categories present in the data. Ignored unless ``as_category=True``.
 
+    Missing IDs (``NaN``, ``NA``, ``NaT``) are pass-throughs: they are never fetched, and are not counted by
+    :meth:`translate(max_fails=...) <id_translation.Translator.translate>` verification. Missing values in nullable
+    dtypes stay missing in the result; plain ``float`` ``NaN`` is rendered like an unknown ID, but is still not
+    counted.
+
     Categorical translation
     -----------------------
     Setting ``as_category=True`` converts the resultant translations to a

@@ -131,9 +131,9 @@ class TranslateParams(_t.TypedDict, _t.Generic[_tt.NameType, _tt.SourceType, _tt
        def func(translatable, copy, **kwargs: Unpack[TranslateParams]):
            "Implementation as above"
 
-    since ``func(translatable=[], copy=False)`` does not behave like
-    ``Translator.translate([], copy=False)`` would. Functions that transparently wrap
-    :meth:`Translator.translate <id_translation.Translator.translate>` should probably use :py:func:`functools.wraps` instead.
+    since ``func(translatable=[], copy=False)`` does not behave like ``Translator.translate([], copy=False)`` would.
+    Functions that transparently wrap :meth:`Translator.translate <id_translation.Translator.translate>` should probably
+    use :py:func:`functools.wraps` instead.
     """
 
     names: _tt.NameTypes[_tt.NameType] | _tt.NameToSource[_tt.NameType, _tt.SourceType] | None

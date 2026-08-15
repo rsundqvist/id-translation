@@ -44,8 +44,8 @@ class Fetcher(Generic[SourceType, IdType], HasSources[SourceType]):
     def optional(self) -> bool:
         """Return ``True`` if this fetcher has been marked as `optional`.
 
-        In multi-fetcher mode, optional fetchers may be discarded if :attr:`~id_translation.types.HasSources.sources` cannot be resolved
-        (raises an exception). Default value is ``False``.
+        In multi-fetcher mode, optional fetchers may be discarded if :attr:`~id_translation.types.HasSources.sources`
+        cannot be resolved (raises an exception). Default value is ``False``.
 
         Returns:
             Optionality status.
@@ -77,9 +77,11 @@ class Fetcher(Generic[SourceType, IdType], HasSources[SourceType]):
             A mapping ``{source: PlaceholderTranslations}`` of translation elements.
 
         Raises:
-            ~id_translation.fetching.exceptions.UnknownPlaceholderError: For placeholder(s) that are unknown to the ``Fetcher``.
+            ~id_translation.fetching.exceptions.UnknownPlaceholderError: For placeholder(s) that are unknown to the
+                ``Fetcher``.
             ~id_translation.fetching.exceptions.UnknownSourceError: For sources(s) that are unknown to the ``Fetcher``.
-            ~id_translation.fetching.exceptions.ForbiddenOperationError: If trying to fetch all IDs when not possible or permitted.
+            ~id_translation.fetching.exceptions.ForbiddenOperationError: If trying to fetch all IDs when not possible or
+                permitted.
             ~id_translation.fetching.exceptions.ImplementationError: For errors made by the inheriting implementation.
 
         See Also:
@@ -121,7 +123,9 @@ class Fetcher(Generic[SourceType, IdType], HasSources[SourceType]):
             🔑 This is a key event method. See :ref:`key-events` for details.
 
         Raises:
-            ~id_translation.fetching.exceptions.ForbiddenOperationError: If fetching all IDs is not possible or permitted.
-            ~id_translation.fetching.exceptions.UnknownPlaceholderError: For placeholder(s) that are unknown to the ``Fetcher``.
+            ~id_translation.fetching.exceptions.ForbiddenOperationError: If fetching all IDs is not possible or
+                permitted.
+            ~id_translation.fetching.exceptions.UnknownPlaceholderError: For placeholder(s) that are unknown to the
+                ``Fetcher``.
             ~id_translation.fetching.exceptions.ImplementationError: For errors made by the inheriting implementation.
         """

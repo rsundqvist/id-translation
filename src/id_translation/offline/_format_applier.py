@@ -78,7 +78,8 @@ class FormatApplier(Generic[NameType, SourceType, IdType]):
 
         .. note::
 
-           This method does not accept strings. Use :meth:`Format.parse <id_translation.offline.Format.parse>` to convert raw formats.
+           This method does not accept strings. Use :meth:`Format.parse <id_translation.offline.Format.parse>` to
+           convert raw formats.
 
         Args:
             fmt: Translation :class:`~id_translation.offline.Format` to use.
@@ -177,7 +178,8 @@ class FormatApplier(Generic[NameType, SourceType, IdType]):
     def placeholders(self) -> list[str]:
         """List of placeholder names.
 
-        See :attr:`PlaceholderTranslations.placeholders <id_translation.offline.types.PlaceholderTranslations.placeholders>`.
+        See
+        :attr:`PlaceholderTranslations.placeholders <id_translation.offline.types.PlaceholderTranslations.placeholders>`.
         """
         return list(self._placeholders)
 

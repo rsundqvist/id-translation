@@ -79,7 +79,8 @@ class Metaconf:
         # python_version = "{v.major}.{v.minor}"  # Uncomment to allow any patch version
         extra_packages = ["bci-id-translation"]
 
-    The sample above comes from the https://github.com/rsundqvist/id-translation-project/tree/master/demo/bci-id-translation demo.
+    The sample above comes from the
+    https://github.com/rsundqvist/id-translation-project/tree/master/demo/bci-id-translation demo.
 
     """
 

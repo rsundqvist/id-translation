@@ -51,10 +51,12 @@ class PartialCacheHit(_t.Generic[_tt.SourceType, _tt.IdType]):
 
     .. attention::
 
-       Not supported for :attr:`FetchInstruction.fetch_all <id_translation.fetching.types.FetchInstruction.fetch_all>` instructions.
+       Not supported for :attr:`FetchInstruction.fetch_all <id_translation.fetching.types.FetchInstruction.fetch_all>`
+       instructions.
 
-    Returning this -- instead of a full :class:`~id_translation.offline.types.PlaceholderTranslations` (complete hit) or ``None`` (miss) -- tells the
-    :class:`~id_translation.fetching.AbstractFetcher` to fetch only the *missing* IDs and merge them with `translations`.
+    Returning this -- instead of a full :class:`~id_translation.offline.types.PlaceholderTranslations` (complete hit) or
+    ``None`` (miss) -- tells the :class:`~id_translation.fetching.AbstractFetcher` to fetch only the *missing* IDs and
+    merge them with `translations`.
 
     Fetchers may return more than the requested complement (e.g. a range query). When the fetcher and the cache both
     hold a row for the same ID, the fetched row wins.
@@ -81,7 +83,8 @@ class PartialCacheHit(_t.Generic[_tt.SourceType, _tt.IdType]):
 
         .. hint::
 
-           Use the :attr:`CacheAccess.parent <id_translation.fetching.CacheAccess.parent>` to access e.g. available placeholders.
+           Use the :attr:`CacheAccess.parent <id_translation.fetching.CacheAccess.parent>` to access e.g. available
+           placeholders.
 
         The fetcher fetches the complement using at least these placeholders, so a cache keeps its stored layout
         cohesive (avoiding a per-request layout split) simply by returning that layout here -- even when `translations`

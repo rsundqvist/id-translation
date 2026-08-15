@@ -30,7 +30,8 @@ class TranslationMap(
         default_fmt: Alternative format specification to use instead of `fmt` for fallback translation.
         default_fmt_placeholders: Per-source default placeholder values.
         enable_uuid_heuristics: Improves matching when :py:class:`~uuid.UUID`-like IDs are in use.
-        transformers: A dict ``{source: transformer}`` of initialized :class:`~id_translation.transform.types.Transformer` instances.
+        transformers: A dict ``{source: transformer}`` of initialized
+            :class:`~id_translation.transform.types.Transformer` instances.
 
     """
 
@@ -63,8 +64,8 @@ class TranslationMap(
     def to_dicts(self) -> dict[SourceType, dict[str, Sequence[Any]]]:
         """Get the underlying data used for translations as dicts.
 
-        This is equivalent using :meth:`~id_translation.offline.TranslationMap.to_pandas`, then calling ``DataFrame.to_dict(orient='list')`` on each
-        frame.
+        This is equivalent using :meth:`~id_translation.offline.TranslationMap.to_pandas`, then calling
+        ``DataFrame.to_dict(orient='list')`` on each frame.
 
         Returns:
             A dict ``{source: {placeholder: [values...]}}``.
@@ -85,7 +86,8 @@ class TranslationMap(
     def to_translations(self, fmt: FormatType | None = None) -> dict[SourceType, MagicDict[IdType]]:
         """Create translations for all sources.
 
-        Returned values are of type :class:`~id_translation.offline.MagicDict`. To convert to regular built-in dicts, run
+        Returned values are of type :class:`~id_translation.offline.MagicDict`. To convert to regular built-in dicts,
+        run
 
         .. code-block::
 
@@ -242,7 +244,8 @@ class TranslationMap(
     def reverse_mode(self) -> bool:
         """Return reversed mode status flag.
 
-         If set, the mappings returned by :meth:`~id_translation.offline.TranslationMap.apply` (and therefore also ``__getitem__``) are reversed.
+         If set, the mappings returned by :meth:`~id_translation.offline.TranslationMap.apply` (and therefore also
+         ``__getitem__``) are reversed.
 
         Returns:
             Reversal status flag.

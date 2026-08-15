@@ -28,13 +28,14 @@ class PandasFetcher(AbstractFetcher[str, IdType]):
     .. hint::
 
        When using **remote file systems**, :attr:`~id_translation.fetching.AbstractFetcher.sources` are resolved using
-       `AbstractFileSystem.glob()`_. If resolution fails, consider overriding the :meth:`~id_translation.fetching.PandasFetcher.find_sources`-method.
+       `AbstractFileSystem.glob()`_. If resolution fails, consider overriding the
+       :meth:`~id_translation.fetching.PandasFetcher.find_sources`-method.
 
     Args:
         read_function: A function ``(str) -> DataFrame``. Derive from `read_path_format` if ``None``. Strings are
             resolved by :func:`~rics.misc.get_by_full_name` (with ``default_module=pandas``).
-        read_path_format: A string on the form ``protocol://path/to/sources/{}.<ext>``, or a callable to apply
-            to a source before passing them to `read_function`.
+        read_path_format: A string on the form ``protocol://path/to/sources/{}.<ext>``, or a callable to apply to a
+            source before passing them to `read_function`.
         read_function_kwargs: Additional keyword arguments for `read_function`.
         **kwargs: See :class:`~id_translation.fetching.AbstractFetcher`.
 

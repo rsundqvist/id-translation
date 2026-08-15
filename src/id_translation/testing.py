@@ -52,8 +52,8 @@ class TestMapper(_Mapper[ValueType, ValueType, ContextType]):  # TODO(2.0.0): Ba
 class TestFetcher(_Fetcher[SourceType, IdType]):
     """Dummy ``Fetcher`` implementation.
 
-    A "happy path" fetcher implementation for testing purposes. Returns generated names for all IDs and placeholders,
-    so translation retrieval will never fail when using this fetcher.
+    A "happy path" fetcher implementation for testing purposes. Returns generated names for all IDs and placeholders, so
+    translation retrieval will never fail when using this fetcher.
     """
 
     def __init__(self, sources: _Collection[SourceType] | None = None) -> None:

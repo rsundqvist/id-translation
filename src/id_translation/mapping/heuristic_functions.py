@@ -31,8 +31,8 @@ def like_database_table(
         tables: Database tables used as possible translation sources.
         context: Ignored.
         plural_to_singular: Convert plural-form to singular form. Pass a ``dict`` to specify custom transformations,
-            backed by the default transformer. See :class:`~id_translation.mapping.heuristic_functions.NounTransformer` for details. Set to ``False``
-            to disable.
+            backed by the default transformer. See :class:`~id_translation.mapping.heuristic_functions.NounTransformer`
+            for details. Set to ``False`` to disable.
 
             To use a custom transformer, pass a callable ``(str) -> str``, or the fully qualified name of such a
             callable. The callable will be resolved using :func:`rics.misc.get_by_full_name`, then cached.
@@ -77,8 +77,8 @@ def smurf_columns(
 ) -> set[str]:
     """Short-circuit `placeholder` to a matching smurf column.
 
-    The smurf naming convention (or anti-pattern, depending on who you ask) refers the practice of including the name
-    of the table in the column name, especially for the primary key ID column.
+    The smurf naming convention (or anti-pattern, depending on who you ask) refers the practice of including the name of
+    the table in the column name, especially for the primary key ID column.
 
     Typical columns one might encounter are ``country.country_id`` and ``cities.city_name``. Note that, for the latter
     match to be made, you must pass ``plural_to_singular=True | dict``.
@@ -89,11 +89,11 @@ def smurf_columns(
     Args:
         placeholder: A :class:`~id_translation.offline.Format` placeholder.
         columns: The columns of a database table.
-        table: A ``Translator`` :attr:`source <id_translation.Translator.sources>` table to which
-            the `columns` (or :attr:`~id_translation.Translator.placeholders`) belong.
+        table: A ``Translator`` :attr:`source <id_translation.Translator.sources>` table to which the `columns` (or
+            :attr:`~id_translation.Translator.placeholders`) belong.
         plural_to_singular: Convert plural-form to singular form. Pass a ``dict`` to specify custom transformations,
-            backed by the default transformer. See :class:`~id_translation.mapping.heuristic_functions.NounTransformer` for details. Set to ``False``
-            to disable.
+            backed by the default transformer. See :class:`~id_translation.mapping.heuristic_functions.NounTransformer`
+            for details. Set to ``False`` to disable.
 
             To use a custom transformer, pass a callable ``(str) -> str``, or the fully qualified name of such a
             callable. The callable will be resolved using :func:`rics.misc.get_by_full_name`, then cached.
@@ -133,7 +133,8 @@ def smurf_columns(
         {'goose_id'}
 
     Notes:
-        This function acts similarly to chained calls to :func:`~id_translation.mapping.heuristic_functions.value_fstring_alias`, using
+        This function acts similarly to chained calls to
+        :func:`~id_translation.mapping.heuristic_functions.value_fstring_alias`, using
         ``fstring="{context}", for_value="name"`` and ``fstring="{context}_{value}"``, but is more powerful since it is
         able to preprocess the inputs.
 
@@ -171,8 +172,8 @@ def short_circuit(
     """Short-circuit `value` to the target candidate if the target and regex conditions are met.
 
     If `target_candidate` is in `candidates` and `value` matches the given `value_regex`, a single-element set
-    ``{target_candidate}`` is returned which will trigger short-circuiting in the calling ``Mapper``. If either of
-    these conditions fail, an empty set is returned and the mapping procedure will continue.
+    ``{target_candidate}`` is returned which will trigger short-circuiting in the calling ``Mapper``. If either of these
+    conditions fail, an empty set is returned and the mapping procedure will continue.
 
     Args:
         value: A value to map.
@@ -269,9 +270,8 @@ def value_fstring_alias(
         >>> value_fstring_alias("id", ["dog_id"], "dog", fstring="{context}_{value}")
         ('dog_id', ['dog_id'])
 
-        In cases such as these, consider using :func:`~id_translation.mapping.heuristic_functions.smurf_columns` instead, which will work both for
-        ``table="dog"``
-        (as above), and with ``table="dogs"``.
+        In cases such as these, consider using :func:`~id_translation.mapping.heuristic_functions.smurf_columns`
+        instead, which will work both for ``table="dog"`` (as above), and with ``table="dogs"``.
     """
     if not for_value and "{value}" not in fstring:
         # No longer a function of the value.
@@ -369,7 +369,8 @@ class NounTransformer:
         >>> nt("bus"), nt("news")
         ('bu', 'new')
 
-        See :attr:`~id_translation.mapping.heuristic_functions.NounTransformer.PLURAL_TO_SINGULAR_SUFFIXES` for affected suffixes.
+        See :attr:`~id_translation.mapping.heuristic_functions.NounTransformer.PLURAL_TO_SINGULAR_SUFFIXES` for affected
+        suffixes.
 
     Notes:
         This is not :class:`~id_translation.transform.types.Transformer` implementation, in spite of the name.

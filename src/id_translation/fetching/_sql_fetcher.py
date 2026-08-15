@@ -163,7 +163,8 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
 
         Args:
             select: A ``sqlalchemy.sql.Select`` element. If returned as-is, all IDs in the table will be fetched.
-            ids: Set of IDs to fetch. Will be ``None`` if :meth:`~id_translation.fetching.AbstractFetcher.fetch_all` was called.
+            ids: Set of IDs to fetch. Will be ``None`` if :meth:`~id_translation.fetching.AbstractFetcher.fetch_all` was
+                called.
             id_column: The ID ``sqlalchemy.sql.Column`` of the `table`, from which `ids` are fetched.
             table: Table to `select` from.
 
@@ -271,7 +272,8 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
 
         Args:
             id_column: The ID ``sqlalchemy.sql.Column`` of the table.
-            ids: Set of IDs to fetch. Will be ``None`` if :meth:`~id_translation.fetching.AbstractFetcher.fetch_all` was called.
+            ids: Set of IDs to fetch. Will be ``None`` if :meth:`~id_translation.fetching.AbstractFetcher.fetch_all` was
+                called.
 
         Returns:
             One of ``True``, ``False`` and ``None``. See above for explanation.
@@ -396,9 +398,10 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
     ) -> sqlalchemy.engine.Engine:
         """Factory method that creates the :attr:`~id_translation.fetching.SqlFetcher.engine`.
 
-        Called lazily on the first :meth:`~id_translation.fetching.AbstractFetcher.initialize_sources` call (not from ``__init__``), so any
-        runtime work done here surfaces there rather than at construction. For a more detailed description of the
-        arguments and the behaviour of this function, see the :class:`class docstring <id_translation.fetching.SqlFetcher>`.
+        Called lazily on the first :meth:`~id_translation.fetching.AbstractFetcher.initialize_sources` call (not from
+        ``__init__``), so any runtime work done here surfaces there rather than at construction. For a more detailed
+        description of the arguments and the behaviour of this function, see the
+        :class:`class docstring <id_translation.fetching.SqlFetcher>`.
 
         Args:
             connection_string: A SQLAlchemy connection string or :class:`~sqlalchemy.engine.URL`.

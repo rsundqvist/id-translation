@@ -18,20 +18,20 @@ and has accumulated enough of them to be worth consolidating.
 * **placeholder** -- a column a source provides (``id``, ``name``, ``email``, ...). ``fmt`` strings reference these,
   e.g. ``fmt = "{name}"``.
 * **name** -- overloaded: in ``translate(names=...)`` a *name* is the **field that holds IDs**
-  (e.g. ``customer_id``), *not* the label; the label is usually the ``name`` *placeholder*. Context disambiguates.
+  (e.g. ``customer_id``), *not* the label; the label is usually the ``name`` *placeholder*.
 
 Is it worth it?
 ---------------
-``id-translation`` competes with a ``dict``, not with nothing. For a single, stable mapping in one place, a dict is the
-right answer -- reach for this library only once *translation* has become a cross-cutting concern. Good signs you are
-past that line:
+``id-translation`` competes with a ``dict``, not with nothing. For a single, stable mapping in one place, a ``dict`` is
+the right answer -- reach for this library only once *translation* has become a cross-cutting concern. Good signs you
+are past that line:
 
 * the same mapping is duplicated in more than one place (and has drifted, or will);
 * you resolve IDs one row at a time -- an ``N+1`` loop -- over a large structure;
 * labels come from a *mix* of sources: a database, a static map, a CSV;
 * the label format is copy-pasted across modules.
 
-Below that line, keep the dict.
+Below that line, keep the ``dict``.
 
 1. List your sources
 --------------------
@@ -58,7 +58,7 @@ string (with optional ``${VAR}`` :ref:`environment-variable interpolation <trans
 .. code-block:: toml
 
    [fetching.SqlFetcher]
-   connection_string = "postgresql+psycopg://reporter:${DB_PASSWORD}@db.internal:5432/app"
+   connection_string = "postgresql://reporter:${DB_PASSWORD}@db.internal/app"
    whitelist_tables = ["customers", "countries"]
 
 Interpolation is a plain string substitution, so a password containing URL-reserved characters (``@``, ``:``, ``/``,
@@ -68,7 +68,7 @@ Interpolation is a plain string substitution, so a password containing URL-reser
 .. code-block:: toml
 
    [fetching.SqlFetcher]
-   connection_string = "postgresql+psycopg://reporter:{password}@db.internal:5432/app"
+   connection_string = "postgresql://reporter:{password}@db.internal/app"
    password = "${DB_PASSWORD}"
 
 To reuse an engine your application already manages, subclass ``SqlFetcher`` and override its
@@ -212,8 +212,43 @@ conventionally-named ``customer_id`` needs no ``names=`` entry. Keep explicit ov
 .. seealso::
 
    The ``DataFrame`` you just translated is only one of the structures the :mod:`~id_translation.dio` framework handles;
-   see the :ref:`table of bundled integrations <io-implementations>` for the full set, from ``dict``\ s and lists to
-   ``polars`` and ``dask`` frames.
+   see the :ref:`table of bundled integrations <io-implementations>` for the full set, from ``dict``\ s and ``list``\ s
+   to ``polars`` and ``dask`` frames.
 
 The :doc:`translation-io` system is extensible. You can create your own custom integration, or change how certain
 :class:`built-in <.PandasIO>` IO implementations behave by using the `io_kwargs` argument.
+
+Q&A
+---
+Questions that tend to come up mid-migration.
+
+**What do untranslated IDs look like?**
+    Unknown IDs are rendered with a fallback :class:`~id_translation.offline.Format` -- ``'<Failed: id=1>'`` by
+    default. Configure it in the :ref:`[unknown_ids] <Section: Unknown IDs>` section, e.g. ``fmt = "Unknown"``, or
+    ``fmt = "{id}"`` to leave IDs as-is. Missing IDs (``NaN`` in a ``DataFrame``) are pass-throughs and are never
+    translated; a ``None`` in a builtin collection is an ordinary -- unknown -- ID.
+
+**How do I know the migration is complete?**
+    Pass :meth:`translate(df, max_fails=0.0) <id_translation.Translator.translate>` while validating;
+    :class:`~id_translation.exceptions.TooManyFailedTranslationsError` is raised if any ID fails to resolve. Relax or
+    drop the argument (default ``1.0``) once the configuration is trusted.
+
+**A column comes back untranslated -- why?**
+    Derived names that fail to map to a source are skipped silently. Call
+    :meth:`translator.map(df) <id_translation.Translator.map>` to inspect the name-to-source decision without
+    translating, and use :func:`~id_translation.logging.enable_verbose_debug_messages` to see why a match was
+    rejected. The :ref:`mapping primer <mapping-primer>` explains the procedure.
+
+**When does fetching happen?**
+    On every :meth:`~id_translation.Translator.translate` call, for just the IDs being translated. Read-heavy
+    services may prefer :meth:`~id_translation.Translator.go_offline`: it stores a snapshot in memory, after which
+    the instance stops fetching entirely and is safe to share between threads.
+
+**The IDs are UUIDs.**
+    Set ``enable_uuid_heuristics = true`` under ``[translator]``. IDs that are :class:`~uuid.UUID` in one place and
+    strings in another -- or strings in a different case -- will then match anyway.
+
+**A column packs several flags into one ID.**
+    Translate composite IDs such as bitmasks with a :class:`~id_translation.transform.BitmaskTransformer`, declared
+    in :ref:`config <translator-config-transform>` or registered in code with
+    :meth:`~id_translation.Translator.register_transformer`.

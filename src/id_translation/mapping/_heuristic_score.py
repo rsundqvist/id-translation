@@ -15,8 +15,8 @@ class HeuristicScore(Generic[ValueType, CandidateType, ContextType]):
     Instances are callable. Signature is given by :attr:`~id_translation.mapping.types.ScoreFunction`.
 
     Short-circuiting:
-        A mechanism for forced matching. Score is set to `+∞` for short-circuited candidates, and `-∞` for the rest.
-        No further matching will be performed after this point, so ensure that all desired candidates are returned by
+        A mechanism for forced matching. Score is set to `+∞` for short-circuited candidates, and `-∞` for the rest. No
+        further matching will be performed after this point, so ensure that all desired candidates are returned by
         chosen filters.
 
     Procedure:

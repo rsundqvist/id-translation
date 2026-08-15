@@ -92,7 +92,8 @@ class DirectionalMapping(Generic[HL, HR]):  # noqa: PLW1641
             A dict ``{left: right}``.
 
         Raises:
-            ~id_translation.mapping.exceptions.CardinalityError: If cardinality is not :attr:`~id_translation.mapping.Cardinality.OneToOne` or
+            ~id_translation.mapping.exceptions.CardinalityError: If cardinality is not
+                :attr:`~id_translation.mapping.Cardinality.OneToOne` or
                 :attr:`~id_translation.mapping.Cardinality.ManyToOne`.
         """
         if not self._cardinality.one_right:  # pragma: no cover

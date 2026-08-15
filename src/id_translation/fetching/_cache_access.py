@@ -40,15 +40,16 @@ class CacheAccess(ABC, Generic[SourceType, IdType]):
         * ``None`` (a miss). The ``AbstractFetcher`` calls :meth:`~id_translation.fetching.AbstractFetcher.fetch_translations` for all IDs and
           then :meth:`~id_translation.fetching.CacheAccess.store`.
         * A :class:`~id_translation.fetching.types.PartialCacheHit`. The fetcher fetches only the *missing* IDs, merges them with the cached rows,
-          and calls :meth:`~id_translation.fetching.CacheAccess.store` with the freshly fetched complement. Not supported for
-          :attr:`~id_translation.fetching.types.FetchInstruction.fetch_all` instructions (return ``None`` or a complete hit instead).
+          and calls :meth:`~id_translation.fetching.CacheAccess.store` with the freshly fetched complement. Not
+          supported for :attr:`~id_translation.fetching.types.FetchInstruction.fetch_all` instructions (return ``None``
+          or a complete hit instead).
 
         Args:
             instr: A :class:`~id_translation.fetching.types.FetchInstruction`.
 
         Returns:
-            Cached :class:`~id_translation.offline.types.PlaceholderTranslations`, a :class:`~id_translation.fetching.types.PartialCacheHit`, or
-            ``None``.
+            Cached :class:`~id_translation.offline.types.PlaceholderTranslations`, a
+            :class:`~id_translation.fetching.types.PartialCacheHit`, or ``None``.
         """
 
     @abstractmethod
@@ -61,7 +62,8 @@ class CacheAccess(ABC, Generic[SourceType, IdType]):
 
         .. note::
 
-           This method will never be called with translations that were returned by :meth:`~id_translation.fetching.CacheAccess.load`.
+           This method will never be called with translations that were returned by
+           :meth:`~id_translation.fetching.CacheAccess.load`.
 
         In other words, this method will only be called if ``CacheAccess.load(instr)`` returns ``None``.
 
@@ -70,8 +72,8 @@ class CacheAccess(ABC, Generic[SourceType, IdType]):
            The ``CacheAccess`` is under no obligation to actually store `translations`.
 
         For example, implementations may choose only to cache data when the
-        :attr:`FetchInstruction.fetch_all <id_translation.fetching.types.FetchInstruction.fetch_all>`-property
-        of the given `instr` is ``True``.
+        :attr:`FetchInstruction.fetch_all <id_translation.fetching.types.FetchInstruction.fetch_all>`-property of the
+        given `instr` is ``True``.
 
         Args:
             instr: The :class:`~id_translation.fetching.types.FetchInstruction` which produced the `translations`.
@@ -83,8 +85,8 @@ class CacheAccess(ABC, Generic[SourceType, IdType]):
     def parent(self) -> Fetcher[SourceType, IdType]:
         """Parent :class:`~id_translation.fetching.Fetcher` instance.
 
-        The owner, typically an :class:`~id_translation.fetching.AbstractFetcher`, should call :meth:`~id_translation.fetching.CacheAccess.set_parent`
-        during initialization.
+        The owner, typically an :class:`~id_translation.fetching.AbstractFetcher`, should call
+        :meth:`~id_translation.fetching.CacheAccess.set_parent` during initialization.
 
         Returns:
             The fetcher that owns this ``CacheAccess``.

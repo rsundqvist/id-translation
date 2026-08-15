@@ -21,8 +21,8 @@ class Format:
 
     .. hint::
 
-       Double the wanted bracket character to render as a literal, analogous to ``'{{'`` and ``'}}'``
-       in plain Python f-strings. See the example below for a demonstration.
+       Double the wanted bracket character to render as a literal, analogous to ``'{{'`` and ``'}}'`` in plain Python
+       f-strings. See the example below for a demonstration.
 
     Args:
         fmt: A translation fstring.
@@ -37,9 +37,8 @@ class Format:
         >>> Format(Format.DEFAULT).fstring().format(id=1, name="First")
         '1:First'
 
-        Using :meth:`Format.fstring <id_translation.offline.Format.fstring>` and :py:meth:`str.format` is flexible but verbose. Formats can be applied
-        either
-        through :meth:`Format.format <id_translation.offline.Format.format>`...
+        Using :meth:`Format.fstring <id_translation.offline.Format.fstring>` and :py:meth:`str.format` is flexible but
+        verbose. Formats can be applied either through :meth:`Format.format <id_translation.offline.Format.format>`...
 
         >>> fmt = Format(Format.DEFAULT_FAILED)
         >>> fmt.format(id=1, name="First")
@@ -82,7 +81,8 @@ class Format:
         >>> fmt(id=1, name="Morris", is_nice=True)
         '1:[Morris], nice=True'
 
-    The :class:`~id_translation.Translator` will automatically add optional placeholders, if they are present in the source.
+    The :class:`~id_translation.Translator` will automatically add optional placeholders, if they are present in the
+    source.
 
     .. note::
        Python format specifications and conversions are preserved.
@@ -127,7 +127,8 @@ class Format:
         """Create a format string for the given placeholders.
 
         Args:
-            placeholders: Keys to keep. Passing ``None`` is equivalent to passing :attr:`~id_translation.offline.Format.required_placeholders`.
+            placeholders: Keys to keep. Passing ``None`` is equivalent to passing
+                :attr:`~id_translation.offline.Format.required_placeholders`.
             positional: If ``True``, remove names to return a positional fstring.
 
         Returns:
@@ -153,8 +154,8 @@ class Format:
         """Get a partially formatted :meth:`~id_translation.offline.Format.fstring`.
 
         Args:
-            defaults: Keys which should be replaced with real values. Keys which are **not** part of `defaults` will
-                be left as-is.
+            defaults: Keys which should be replaced with real values. Keys which are **not** part of `defaults` will be
+                left as-is.
 
         Returns:
             A partially formatted fstring.
@@ -186,8 +187,7 @@ class Format:
 
         .. note::
 
-           Includes indexing operations. See the :ref:`🚀 examples page
-           <orm_example>` for usage.
+           Includes indexing operations. See the :ref:`🚀 examples page <orm_example>` for usage.
 
         Returns:
             A dict ``{placeholder: {attribute, ...}}``.

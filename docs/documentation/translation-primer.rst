@@ -61,7 +61,7 @@ The `"Bite report"` to translate is shown below.
    :file: examples/notebooks/translation-primer/biting-victims-2019-05-11.csv
    :header-rows: 1
 
-The first columns indicates who was bitten (a human), the second who bit them (an animal). Since bites are a frequent
+The first column indicates who was bitten (a human), the second who bit them (an animal). Since bites are a frequent
 occurrence, the zoo uses integers IDs instead of plaintext for their bite reports to save space. The :class:`Translator`
 doesn't work on files, so we'll translate a :class:`pandas.DataFrame` instead.
 
@@ -103,7 +103,7 @@ interpret CSV files. The :class:`~fetching.PandasFetcher` is built to perform su
 
 .. code-block:: python
 
-   from fetching import PandasFetcher
+   from id_translation.fetching import PandasFetcher
    fetcher = PandasFetcher(
        read_function=read_csv,
        # Look for .csv-files in the 'sources' sub folder of the current working directory
@@ -135,7 +135,7 @@ to one source each.
 
   .. code-block:: python
 
-     from mapping import HeuristicScore
+     from id_translation.mapping import HeuristicScore
      score_function = HeuristicScore("equality", heuristics=["like_database_table"])
 
 * Mapping `bitten_by → animals`. This is an impossible mapping without high-level understanding of the context. Using
@@ -149,7 +149,7 @@ We're now ready to create the :class:`~mapping.Mapper` instance.
 
 .. code-block:: python
 
-   from mapping import Mapper
+   from id_translation.mapping import Mapper
    mapper = Mapper(score_function, overrides=overrides)
 
 .. note::
@@ -172,7 +172,7 @@ We would like the translations to include as much information as possible, and a
 
    translation_format = "[{title}. ]{name} (id={id})[ the {species}]"
 
-The use of optional blocks (placeholders and string literals surrounded by angle brackets ``[..]``) allows us to use the
+The use of optional blocks (placeholders and string literals surrounded by square brackets ``[..]``) allows us to use the
 same translation format for humans and animals.
 
 .. note::
@@ -235,7 +235,7 @@ applications that use multiple fetchers.
    # Amend the fetcher we created earlier.
    fetcher = PandasFetcher(
       read_function=read_csv,
-      read_path_format="./source/{}.csv",
+      read_path_format="./sources/{}.csv",
       mapper=Mapper(smurf_score),  # Add the mapper.
    )
 

@@ -28,16 +28,17 @@ class ConfigMetadata(BaseMetadata):
         - They have the same number of auxiliary (`"extra"`) fetcher configurations, and
         - All auxiliary fetcher configurations are equal after parsing.
 
-    The :class:`~id_translation.toml.meta.Metaconf` is not explicitly included in the equivalence check, but changing it will invalidate cached
-    instances. Environment variable changes may also invalidate the cache if
-    :attr:`EnvConf.allow_interpolation <id_translation.toml.meta.EnvConf.allow_interpolation>` is set
-    and interpolations such as ``${VAR}`` are present.
+    The :class:`~id_translation.toml.meta.Metaconf` is not explicitly included in the equivalence check, but changing it
+    will invalidate cached instances. Environment variable changes may also invalidate the cache if
+    :attr:`EnvConf.allow_interpolation <id_translation.toml.meta.EnvConf.allow_interpolation>` is set and interpolations
+    such as ``${VAR}`` are present.
 
     Args:
         main: Absolute path and fingerprint of the main translation configuration."
         extra_fetchers: Absolute path and fingerprint of configuration files for auxiliary fetchers.
         clazz: String representation of the class type.
-        metaconf: A :class:`~id_translation.toml.meta.Metaconf` instance that determines, among other things, how other config paths are processed.
+        metaconf: A :class:`~id_translation.toml.meta.Metaconf` instance that determines, among other things, how other
+            config paths are processed.
         kwargs: Forwarded to base class.
     """
 

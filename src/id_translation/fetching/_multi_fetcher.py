@@ -33,8 +33,10 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         max_workers: Number of threads to use for fetching. Fetch instructions will be dispatched using a
              :py:class:`~concurrent.futures.ThreadPoolExecutor`. Individual fetchers will be called at most once per
              ``fetch()`` or ``fetch_all()`` call made with the ``MultiFetcher``.
-        on_source_conflict: Action to take when multiple fetchers :meth:`claim <id_translation.fetching.Fetcher.initialize_sources>` the same source.
-        fetcher_discarded_log_level: Level used when discarding :attr:`~id_translation.fetching.Fetcher.optional` fetchers.
+        on_source_conflict: Action to take when multiple fetchers
+            :meth:`claim <id_translation.fetching.Fetcher.initialize_sources>` the same source.
+        fetcher_discarded_log_level: Level used when discarding :attr:`~id_translation.fetching.Fetcher.optional`
+            fetchers.
     """
 
     def __init__(
@@ -109,10 +111,9 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         """Perform source discovery.
 
         Perform source discovery for all :attr:`~id_translation.fetching.MultiFetcher.children`, discarding
-        :attr:`optional <id_translation.fetching.Fetcher.optional>` children that
-        raise or do not return any sources when their respective
-        :meth:`Fetcher.initialize_sources <id_translation.fetching.Fetcher.initialize_sources>` methods are
-        called.
+        :attr:`optional <id_translation.fetching.Fetcher.optional>` children that raise or do not return any sources
+        when their respective :meth:`Fetcher.initialize_sources <id_translation.fetching.Fetcher.initialize_sources>`
+        methods are called.
 
         Args:
             task_id: Used for logging.

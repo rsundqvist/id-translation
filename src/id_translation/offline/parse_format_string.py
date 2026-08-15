@@ -125,9 +125,8 @@ class Element:
         .. hint::
 
            With `defaults`, the value of the
-           :attr:`ParseBlockResult.parsed_block <id_translation.offline.parse_format_string.ParseBlockResult.parsed_block>` is more or less what you'd
-           expect if
-           the built-in :py:meth:`str.format_map`-method allowed missing keys.
+           :attr:`ParseBlockResult.parsed_block <id_translation.offline.parse_format_string.ParseBlockResult.parsed_block>`
+           is more or less what you'd expect if the built-in :py:meth:`str.format_map`-method allowed missing keys.
 
         Anonymous fields are not permitted.
 
@@ -143,18 +142,17 @@ class Element:
             block='{!s:.8}:{!r}' has placeholders=['id', 'name']
 
             Field names in `block` are returned as
-            :attr:`ParseBlockResult.placeholders <id_translation.offline.parse_format_string.ParseBlockResult.placeholders>`, in the order in which
-            they
-            appeared in the input `block`. The field names of :attr:`~id_translation.offline.parse_format_string.ParseBlockResult.parsed_block` will
-            be
-            anonymous.
+            :attr:`ParseBlockResult.placeholders <id_translation.offline.parse_format_string.ParseBlockResult.placeholders>`,
+            in the order in which they appeared in the input `block`. The field names of
+            :attr:`~id_translation.offline.parse_format_string.ParseBlockResult.parsed_block` will be anonymous.
 
             >>> block.format(UUID(int=10**38), "Morran Borran")
             "4b3b4ca8:'Morran Borran'"
 
         Output with ``defaults != None``:
-            When `defaults` are given, all placeholders in the `block` which are present in the `defaults` are replaced
-            with ``defaults[field_name]`` in the :attr:`~id_translation.offline.parse_format_string.ParseBlockResult.parsed_block`.
+            When `defaults` are given, all placeholders in the `block` which are present in the `defaults` are
+            replaced with ``defaults[field_name]`` in the
+            :attr:`~id_translation.offline.parse_format_string.ParseBlockResult.parsed_block`.
 
             >>> block, placeholders, _ = Element.parse_block(
             ...     "{id!s:.8}:{name!r}",
@@ -163,9 +161,9 @@ class Element:
             >>> print(f"{block=} has {placeholders=}")
             block="{id!s:.8}:'Morran Borran'" has placeholders=['id']
 
-            Field names without defaults will be present both in :attr:`~id_translation.offline.parse_format_string.ParseBlockResult.placeholders`,
-            and as named
-            fields in the :attr:`~id_translation.offline.parse_format_string.ParseBlockResult.parsed_block`.
+            Field names without defaults will be present both in
+            :attr:`~id_translation.offline.parse_format_string.ParseBlockResult.placeholders`, and as named fields in
+            the :attr:`~id_translation.offline.parse_format_string.ParseBlockResult.parsed_block`.
 
             >>> block.format(id=UUID(int=10**38))
             "4b3b4ca8:'Morran Borran'"
@@ -292,7 +290,8 @@ def get_elements(fmt: str) -> list[Element]:  # noqa: PLR0912
         A list of parsed elements.
 
     Raises:
-        ~id_translation.offline.parse_format_string.BadDelimiterError: For unbalanced optional block delimitation characters.
+        ~id_translation.offline.parse_format_string.BadDelimiterError: For unbalanced optional block delimitation
+            characters.
     """
     if not fmt:
         return [Element("", [], required=True, positional_part="")]

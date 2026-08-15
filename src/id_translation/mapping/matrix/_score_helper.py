@@ -110,9 +110,10 @@ class ScoreHelper(Generic[ValueType, CandidateType]):
         """Create a ``DirectionalMapping`` with a given target ``Cardinality``.
 
         Args:
-            cardinality: Explicit cardinality to set, see :attr:`~id_translation.mapping.DirectionalMapping.cardinality`. If ``None``, use the
-                actual cardinality when selecting all matches with scores :attr:`at or above <id_translation.mapping.matrix.ScoreHelper.above>` the
-                minimum.
+            cardinality: Explicit cardinality to set, see
+                :attr:`~id_translation.mapping.DirectionalMapping.cardinality`. If ``None``, use the actual cardinality
+                when selecting all matches with scores
+                :attr:`at or above <id_translation.mapping.matrix.ScoreHelper.above>` the minimum.
 
         Returns:
             A ``DirectionalMapping``.

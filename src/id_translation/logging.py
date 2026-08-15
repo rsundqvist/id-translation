@@ -53,7 +53,8 @@ def enable_verbose_debug_messages(
       `verbose <../_static/logging/verbose-rainbow.html>`_.
 
     Args:
-        level: Log level. If `'verbose'` (default), set :attr:`~id_translation.logging.ENABLE_VERBOSE_LOGGING` to ``True``.
+        level: Log level. If `'verbose'` (default), set :attr:`~id_translation.logging.ENABLE_VERBOSE_LOGGING` to
+            ``True``.
         use_custom_handler: Set to ``False`` to use existing handlers. If `'auto'` (default), use existing handlers if
             one is found (see :py:meth:`logging.Logger.hasHandlers`). If ``True``, propagation is disabled for the
             :data:`namespace root logger <id_translation.logging.LOGGER>`.

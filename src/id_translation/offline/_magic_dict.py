@@ -22,8 +22,8 @@ class MagicDict(MutableMapping[IdType, str]):
         enable_uuid_heuristics: Improves matching when :py:class:`~uuid.UUID`-like IDs are in use. Forcibly set to
             ``False`` if any of the `real_translations` are not ``UUID``-like.
         transformer: Initialized :class:`~id_translation.transform.types.Transformer` instance. The
-            :meth:`Transformer.update_translations <id_translation.transform.types.Transformer.update_translations>`-method is
-            called after UUID heuristics are applied.
+            :meth:`Transformer.update_translations <id_translation.transform.types.Transformer.update_translations>`-method
+            is called after UUID heuristics are applied.
 
     Examples:
         **Similarities with the built-in dict**
@@ -81,7 +81,8 @@ class MagicDict(MutableMapping[IdType, str]):
         >>> magic["unknown"], magic["Hello"]
         ("<Failed: id='unknown'>", 'World!')
 
-        To further customize ID matching behaviour, refer to the :class:`~id_translation.transform.types.Transformer` interface.
+        To further customize ID matching behaviour, refer to the :class:`~id_translation.transform.types.Transformer`
+        interface.
     """
 
     LOGGER = logging.getLogger(__package__).getChild("MagicDict")
@@ -115,14 +116,13 @@ class MagicDict(MutableMapping[IdType, str]):
         """Attempt to get an actual translation.
 
         This method behaves like ``MagicDict.__getitem__``, applying all appropriate heuristics **except** for falling
-        back to the :attr:`~id_translation.offline.MagicDict.default_value`. Returns ``None`` if the `key` cannot be mapped to a real value, like the
-        regular ``dict.get`` method would.
+        back to the :attr:`~id_translation.offline.MagicDict.default_value`. Returns ``None`` if the `key` cannot be
+        mapped to a real value, like the regular ``dict.get`` method would.
 
-        To bypass the heuristics, use :attr:`~id_translation.offline.MagicDict.real` and :meth:`dict.get` instead. Note that the backing dict may
-        still
-        contain mappings added by transformers, since the
-        :meth:`Transformer.update_translations <id_translation.transform.types.Transformer.update_translations>` interface is called
-        during initialization.
+        To bypass the heuristics, use :attr:`~id_translation.offline.MagicDict.real` and :meth:`dict.get` instead. Note
+        that the backing dict may still contain mappings added by transformers, since the
+        :meth:`Transformer.update_translations <id_translation.transform.types.Transformer.update_translations>`
+        interface is called during initialization.
         """
         if key in self._real:
             return self._real[key]
@@ -144,10 +144,9 @@ class MagicDict(MutableMapping[IdType, str]):
         """``True`` when UUID heuristics are engaged, i.e. when lookups cast ``UUID``-like keys before matching.
 
         Forcibly ``False`` when the `real_translations` are not ``UUID``-like. Consumers that join against
-        :attr:`~id_translation.offline.MagicDict.real` directly must cast their keys the same way, or ``UUID``-like
-        keys in another representation will not match. The backing dict is *not* guaranteed to be uniformly
-        ``UUID``-keyed, so resolve the exact key before the cast key -- as
-        :meth:`~id_translation.offline.MagicDict.real_get` does.
+        :attr:`~id_translation.offline.MagicDict.real` directly must cast their keys the same way, or ``UUID``-like keys
+        in another representation will not match. The backing dict is *not* guaranteed to be uniformly ``UUID``-keyed,
+        so resolve the exact key before the cast key -- as :meth:`~id_translation.offline.MagicDict.real_get` does.
         """
         return self._enable_uuid_heuristics
 

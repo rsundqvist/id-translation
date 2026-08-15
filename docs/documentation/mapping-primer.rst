@@ -9,8 +9,8 @@ the :ref:`Name-to-source <Name-to-source mapping>` and :ref:`Placeholder <Placeh
    If you haven't already, consider checking out the :ref:`translation-primer` before continuing.
 
 There are two principal steps involved in the mapping procedure: The :ref:`Step 1/2: Scoring procedure`
-(:attr:`~.Mapper.compute_scores`) and the subsequent :ref:`Step 2/2: Matching procedure`
-(:attr:`~.Mapper.to_directional_mapping`). The :class:`.Translator` and :class:`.AbstractFetcher` classes use
+(:meth:`~.Mapper.compute_scores`) and the subsequent :ref:`Step 2/2: Matching procedure`
+(:meth:`~.Mapper.to_directional_mapping`). The :class:`.Translator` and :class:`.AbstractFetcher` classes use
 :meth:`.Mapper.apply`, which combines these two methods.
 
 Step 1/2: Scoring procedure
@@ -49,7 +49,7 @@ Score computations
 ~~~~~~~~~~~~~~~~~~
 4. Compute value-candidate match scores (type: :attr:`~id_translation.mapping.types.ScoreFunction`). Higher is better.
 
-5. If there are any Heuristics (type: :class:`~id_translation.mapping._heuristic_score.HeuristicScore`), apply..
+5. If there are any Heuristics (type: :class:`~id_translation.mapping.HeuristicScore`), apply..
 
     a. Short-circuiting (type: :attr:`~id_translation.mapping.types.FilterFunction`); reinterpret a ``FilterFunction``
        such that the returned candidates (if any) are treated as overrides.
@@ -94,21 +94,25 @@ When a single match out of multiple viable options must be chosen due to cardina
 determined by the iteration order of `values` and `candidates`. The first value will prefer the first candidate, and so
 on. This logic does `not` consider future matches.
 
->>> mapper = Mapper(cardinality='1:1', score_function=lambda value, *_: [1, 0] if value == 'v1' else [1, 1])
->>> mapper.compute_scores(['v0', 'v1'], ['c0', 'c1'])
-candidates   c0   c1
+>>> SCORES = {"v0": {"c0": 1.00, "c1": 0.95}, "v1": {"c0": 0.92, "c1": 0.00}}
+>>> mapper = Mapper(
+...     cardinality="1:1",
+...     score_function=lambda value, candidates, _: [SCORES[value][c] for c in candidates],
+... )
+>>> mapper.compute_scores(["v0", "v1"], ["c0", "c1"]).to_pandas()
+candidates    c0    c1
 values
-v0          1.0  1.0
-v1          0.0  1.0
->>> mapper.apply(['v0', 'v1'], ['c0', 'c1']).flatten()
-{'val0': 'cand0'}
+v0          1.00  0.95
+v1          0.92  0.00
+>>> mapper.apply(["v0", "v1"], ["c0", "c1"]).flatten()
+{'v0': 'c0'}
 
-Note that `val1` was left without a match, even though it could've been assigned to `cand0` if the equally viable
-matching `val0 → cand1` had been chosen first.
+Note that `v1` was left without a match, even though it could've been assigned to `c0` if the slightly weaker
+matching `v0 → c1` had been chosen first.
 
 .. note::
-   A score matrix like this will raise :class:`.AmbiguousScoreError` for any cardinality that requires a single
-   candidate (including `1:1`).
+   The scores above are deliberately distinct. Tied scores raise :class:`.AmbiguousScoreError` for any
+   cardinality that requires a single candidate (e.g. `1:1` above).
 
 Troubleshooting
 ---------------
@@ -132,7 +136,7 @@ to have a specific number of legs.
         'cat' -> '4'; score=1.000 (superseded on candidate=4).
 
 In the case above, `dog` was selected over `cat` to because it was given first in the `values` vector. Matches that
-would not have been made regardless (e.g. score below `min_score` are not shown in the `accept`-message.
+would not have been made regardless (e.g. score below `min_score`) are not shown in the `accept`-message.
 
 .. code-block:: log
    :caption: Explanation of why a match was not made.
@@ -144,7 +148,7 @@ would not have been made regardless (e.g. score below `min_score` are not shown 
         'cat' -> '3'; score=0.000 < 0.9 (below threshold).
 
 The severity of unmapped values is determined by the :attr:`.Mapper.on_unmapped` attribute. The
-:data:`~id_translation.logging.ENABLE_VERBOSE_LOGGING` flag also enables detailed output from a other loggers in the
+:data:`~id_translation.logging.ENABLE_VERBOSE_LOGGING` flag also enables detailed output from other loggers in the
 `mapping` namespace.
 
 .. code-block:: log
@@ -170,7 +174,7 @@ Score-based mapping is a convenient solution, especially for name-to-source mapp
 
 .. note::
 
-   Identity mappings always kept (no need for ``id = "id"`` overrides). To block these matches, you may create a dummy
+   Identity mappings are always kept (no need for ``id = "id"`` overrides). To block these matches, you may create a dummy
    override such as ``id = "_"`` for affected sources.
 
 Names in sources (e.g. SQL table column names), on the other hand, tend to change a lot less. Scoring may then add an

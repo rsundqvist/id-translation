@@ -62,8 +62,8 @@ def get_resolution_order(*, real: bool = False) -> list[AnyIoType]:
 def register_io(io: AnyIoType) -> None:
     """Register a new IO implementation.
 
-    Classes are polled through :meth:`DataStructureIO.handles_type <id_translation.dio.DataStructureIO.handles_type>` in based on
-    :attr:`DataStructureIO.priority <id_translation.dio.DataStructureIO.priority>`.
+    Classes are polled through :meth:`DataStructureIO.handles_type <id_translation.dio.DataStructureIO.handles_type>` in
+    based on :attr:`DataStructureIO.priority <id_translation.dio.DataStructureIO.priority>`.
 
     Args:
         io: A :class:`~id_translation.dio.DataStructureIO` type
@@ -74,7 +74,8 @@ def register_io(io: AnyIoType) -> None:
 def is_registered(io: AnyIoType) -> bool:
     """Return IO implementation registration status.
 
-    Implementations should register themselves using :meth:`DataStructureIO.register <id_translation.dio.DataStructureIO.register>`.
+    Implementations should register themselves using
+    :meth:`DataStructureIO.register <id_translation.dio.DataStructureIO.register>`.
 
     Args:
         io: A :class:`~id_translation.dio.DataStructureIO` type.
@@ -86,8 +87,8 @@ def load_integrations() -> None:
     """Discover, load, and register entrypoint integrations.
 
     Reset the registry, then load entrypoints in the
-    :const:`{_ENTRYPOINT_GROUP!r} <id_translation.dio.ENTRYPOINT_GROUP>`
-    entrypoint group (see :py:func:`importlib.metadata.entry_points` for details).
+    :const:`{_ENTRYPOINT_GROUP!r} <id_translation.dio.ENTRYPOINT_GROUP>` entrypoint group (see
+    :py:func:`importlib.metadata.entry_points` for details).
 
     Will skip integrations that raise :class:`ImportError` when loaded (except circular imports).
 

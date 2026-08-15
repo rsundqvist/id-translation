@@ -42,7 +42,8 @@ class DataStructureIO(Generic[TranslatableT, NameType, SourceType, IdType]):
     def get_rank(cls) -> int:
         """Return the rank of this implementation.
 
-        See :func:`dio.get_resolution_order <id_translation.dio.get_resolution_order>` for details. The highest possible rank is 0.
+        See :func:`dio.get_resolution_order <id_translation.dio.get_resolution_order>` for details. The highest possible
+        rank is 0.
 
         Returns:
             Implementation rank.
@@ -107,5 +108,6 @@ class DataStructureIO(Generic[TranslatableT, NameType, SourceType, IdType]):
             A copy of `translatable` if ``copy=True``, ``None`` otherwise.
 
         Raises:
-            ~id_translation.dio.exceptions.NotInplaceTranslatableError: If ``copy=False`` for a type which is not translatable in-place.
+            ~id_translation.dio.exceptions.NotInplaceTranslatableError: If ``copy=False`` for a type which is not
+                translatable in-place.
         """
