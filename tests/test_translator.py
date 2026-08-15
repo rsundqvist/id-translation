@@ -213,6 +213,21 @@ def test_store_and_restore(hex_fetcher, tmp_path):
     assert translated_by_restored == translated_data
 
 
+def test_restore_snapshot_without_a_fetcher_key(hex_fetcher):
+    """Offline snapshots used to record their state by omitting `_fetcher`; those must still restore as offline."""
+    translator: UnitTestTranslator = UnitTestTranslator(hex_fetcher, fmt="{id}:{hex}")
+    data = {"positive_numbers": list(range(0, 5))}
+    expected = translator.go_offline(data).translate(data)
+
+    state: dict[str, Any] = translator.__getstate__()  # type: ignore[assignment]
+    del state["_fetcher"]  # The state an older snapshot unpickles into.
+    revived: UnitTestTranslator = UnitTestTranslator.__new__(UnitTestTranslator)
+    revived.__setstate__(state)
+
+    assert revived.online is False
+    assert revived.translate(data) == expected
+
+
 def test_store_with_explicit_values(hex_fetcher):
     data = {
         "positive_numbers": list(range(0, 5)),

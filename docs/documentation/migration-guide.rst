@@ -250,5 +250,5 @@ Questions that tend to come up mid-migration.
 
 **A column packs several flags into one ID.**
     Translate composite IDs such as bitmasks with a :class:`~id_translation.transform.BitmaskTransformer`, declared
-    in :ref:`config <translator-config-transform>` or registered in code with
-    :meth:`~id_translation.Translator.register_transformer`.
+    in :ref:`config <translator-config-transform>` or passed in code through the ``transformers`` argument of
+    :class:`~id_translation.Translator`.

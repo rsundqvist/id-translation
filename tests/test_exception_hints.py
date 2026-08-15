@@ -130,7 +130,8 @@ def _collect_violations(src_root: Path) -> list[str]:
     violations: list[str] = []
 
     for path in sorted(src_root.rglob("*.py")):
-        source = path.read_text()
+        # Default locale encoding isn't UTF-8 on Windows; breaks with non-ASCII docstrings (e.g. emoji in logging.py).
+        source = path.read_text(encoding="utf-8")
         if not _HINT_WORD.search(source):
             continue
 

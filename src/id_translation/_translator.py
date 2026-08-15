@@ -157,7 +157,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         self._enable_uuid_heuristics = enable_uuid_heuristics
 
         self._cached_tmap: TranslationMap[NameType, SourceType, IdType] | None = None
-        self._fetcher: Fetcher[SourceType, IdType]
+        self._fetcher: Fetcher[SourceType, IdType] | None = None
         if fetcher is None:
             self._fetcher = TestFetcher([])  # No explicit sources
             if mapper:  # pragma: no cover
@@ -184,6 +184,17 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
         self._config_metadata: meta.ConfigMetadata | None = None
         self._translated_names: tuple[int, NameToSource[NameType, SourceType]] | None = None
+
+    def __setstate__(self, state: Any) -> None:
+        slots: dict[str, Any] = {}
+        if isinstance(state, tuple):  # A subclass with `__slots__`; `object.__getstate__` reports it separately.
+            state, slots = state[0] or {}, state[1] or {}
+
+        # Offline snapshots used to record their state by omitting the fetcher rather than by nulling it.
+        state.setdefault("_fetcher", None)
+        self.__dict__.update(state)
+        for key, value in slots.items():
+            setattr(self, key, value)
 
     @classmethod
     def from_config(
@@ -1004,12 +1015,14 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
     @property
     def online(self) -> bool:
         """Return connectivity status. If ``False``, no new translations may be fetched."""
-        return hasattr(self, "_fetcher")
+        return self._fetcher is not None
 
     @property
     def fetcher(self) -> Fetcher[SourceType, IdType]:
         """Return the :class:`~id_translation.fetching.Fetcher` instance used to retrieve translations."""
-        if not self.online:
+        # Not `self.online`: narrowing the attribute here is what lets the rest of the class use this property
+        # without a guard of its own.
+        if self._fetcher is None:
             raise ConnectionStatusError(
                 "Cannot fetch new translations.",
                 hints="Use the Translator.cache-property to access the data.",
@@ -1225,7 +1238,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             task_id=task_id,
         )
         self.fetcher.close()
-        del self._fetcher
+        self._fetcher = None
         self._cached_tmap = translation_map
 
         if path:
