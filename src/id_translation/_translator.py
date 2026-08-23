@@ -1,7 +1,7 @@
 import inspect
 import logging
 import pickle
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from copy import deepcopy
 from datetime import timedelta
 from functools import cache
@@ -23,12 +23,19 @@ from rics.env.read import read_bool
 from rics.misc import tname
 from rics.paths import AnyPath, any_path_to_path
 from rics.strings import format_seconds as fmt_sec
+from rics.types import LiteralHelper
 
 from . import logging as _logging
 from ._tasks import MappingTask, NamesTask, TranslationTask
 from ._utils.emit_warning import emit_warning
-from .exceptions import ConfigurationChangedError, ConnectionStatusError, MissingNamesError, TranslationDisabledWarning
-from .fetching import Fetcher
+from .exceptions import (
+    ConfigurationChangedError,
+    ConnectionStatusError,
+    MissingNamesError,
+    TransformerConflictError,
+    TranslationDisabledWarning,
+)
+from .fetching import Fetcher, MultiFetcher
 from .fetching.types import IdsToFetch
 from .mapping import Mapper
 from .mapping.matrix import ScoreMatrix
@@ -42,7 +49,9 @@ from .offline.types import (
 )
 from .testing import TestFetcher, TestMapper
 from .toml import TranslatorFactory, meta
-from .transform.types import Transformers
+from .transform import TransformerStack, as_transformer
+from .transform._impl.stack import has_member
+from .transform.types import OnExistingTransformer, Transformer, Transformers, TransformersArg
 from .translator_typing import CopyParams, FetcherTypes
 from .types import (
     ID,
@@ -69,7 +78,16 @@ from .types import (
 LOGGER = logging.getLogger(__package__).getChild("Translator")
 
 
+ON_EXISTING_HELPER: LiteralHelper[OnExistingTransformer] = LiteralHelper(
+    OnExistingTransformer,
+    default_name="on_existing",
+    type_name="OnExistingTransformer",
+)
+
+
 ID_TRANSLATION_DISABLED = "ID_TRANSLATION_DISABLED"
+
+_ON_EXISTING_CONFLICT_HINT = "Hint: Pass on_existing='append' to chain onto it, or 'overwrite' to replace it."
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -95,7 +113,10 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         default_fmt_placeholders: Shared and/or source-specific default placeholder values for unknown IDs. See
             :meth:`InheritedKeysDict.make() <rics.collections.dicts.InheritedKeysDict.make>` for details.
         enable_uuid_heuristics: Improves matching when :py:class:`~uuid.UUID`-like IDs are in use.
-        transformers: A dict ``{source: transformer}`` of initialized :class:`~id_translation.transform.types.Transformer` instances.
+        transformers: A dict ``{source: transformer}`` of initialized
+            :class:`~id_translation.transform.types.Transformer` instances. Values may be a sequence to chain per
+            source. Equivalent to calling :meth:`~id_translation.Translator.register_transformer` for each key, which
+            is the way to register once the :attr:`~id_translation.types.HasSources.sources` are known.
 
     .. _translator-docstring-example:
     Examples:
@@ -148,16 +169,29 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         default_fmt: FormatType = Format.DEFAULT_FAILED,
         default_fmt_placeholders: MakeType[SourceType, str, Any] | None = None,
         enable_uuid_heuristics: bool = False,
-        transformers: Transformers[SourceType, IdType] | None = None,
+        transformers: TransformersArg[SourceType, IdType] | None = None,
     ) -> None:
-        self._transformers = {} if transformers is None else transformers
+        # The data source, assigned below. Declared first because `_register_transformer` reads both to decide
+        # whether the sources are known yet, and the loop below runs before either has an answer.
+        self._fetcher: Fetcher[SourceType, IdType] | None = None
+        self._cached_tmap: TranslationMap[NameType, SourceType, IdType] | None = None
+
+        self._transformers: Transformers[SourceType, IdType] = {}
+        # Registrations not yet checked against the known sources; see `_warn_on_transformers_for_unknown_sources`.
+        # The transitions that turn this instance into a snapshot discard what is queued instead of checking it,
+        # which is what exempts those registrations for good.
+        self._unverified_sources: list[SourceType] = []
+        # Whether the `Fetcher.get_transformer` pass has run; see `_apply_fetcher_transformers`. Nothing is
+        # cached from it, so a pass that raised simply runs again.
+        self._transformers_queried: bool = False
+        for source, transformer in (transformers or {}).items():
+            # Not the public method: an override may rely on attributes this constructor has not created yet.
+            self._register_transformer(source, transformer, on_existing="raise")
 
         self._fmt = Format.parse(fmt)
         self._default_fmt_placeholders, self._default_fmt = _handle_default(default_fmt, default_fmt_placeholders)
         self._enable_uuid_heuristics = enable_uuid_heuristics
 
-        self._cached_tmap: TranslationMap[NameType, SourceType, IdType] | None = None
-        self._fetcher: Fetcher[SourceType, IdType] | None = None
         if fetcher is None:
             self._fetcher = TestFetcher([])  # No explicit sources
             if mapper:  # pragma: no cover
@@ -185,11 +219,37 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         self._config_metadata: meta.ConfigMetadata | None = None
         self._translated_names: tuple[int, NameToSource[NameType, SourceType]] | None = None
 
+        if isinstance(fetcher, dict):
+            # `initialize_sources()` never runs offline, so this is the only check inline data gets; see
+            # `register_transformer` for why a snapshot is exempt.
+            self._warn_on_transformers_for_unknown_sources()
+        elif isinstance(fetcher, TranslationMap):
+            # A snapshot may cover a subset of the original sources on purpose, so what the constructor registered is
+            # dropped unchecked rather than reported. Registrations made from here on are queued and checked as usual.
+            self._unverified_sources.clear()
+
+    def __getstate__(self) -> Any:
+        # `go_offline()` guarantees a serializable instance. Delegates, since a subclass may declare `__slots__`;
+        # `object.__getstate__` reports that state as the second element of a tuple, which the plain-`__dict__`
+        # case does not use.
+        state = super().__getstate__()
+        instance_dict, slots = state if isinstance(state, tuple) else (state, None)
+
+        instance_dict = dict(instance_dict or {})
+
+        return (instance_dict, slots) if slots else instance_dict
+
     def __setstate__(self, state: Any) -> None:
         slots: dict[str, Any] = {}
-        if isinstance(state, tuple):  # A subclass with `__slots__`; `object.__getstate__` reports it separately.
+        if isinstance(state, tuple):  # A subclass with `__slots__`; see `__getstate__`.
             state, slots = state[0] or {}, state[1] or {}
 
+        # Snapshots written by older versions predate fetcher-provided transformers; see `restore`. `False` is
+        # right for those: nothing was ever asked, and restored instances are offline, so the state is inert until the
+        # copy is given a fetcher. The empty queue is not inert: it is read while offline, and an old snapshot's
+        # registrations were exempt in all but name, as `go_offline` says.
+        state.setdefault("_transformers_queried", False)
+        state.setdefault("_unverified_sources", [])
         # Offline snapshots used to record their state by omitting the fetcher rather than by nulling it.
         state.setdefault("_fetcher", None)
         self.__dict__.update(state)
@@ -231,17 +291,30 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
         This method does nothing if the ``Translator`` isn't :attr:`~id_translation.Translator.online`.
 
+        .. warning::
+
+           Fetcher-provided transformers are queried by the first call only (ignores `force`).
+
         Args:
             task_id: Used for logging.
             force: If ``True``, perform full discovery even if sources are already known.
 
         Returns:
             Self, for chained assignment.
+
+        See Also:
+            🧵 Call this before sharing a ``Translator`` between threads; see :ref:`thread-safety`.
         """
         if self.online:
             if task_id is None:
                 task_id = _logging.generate_task_id()
+
+            if force:
+                self._unverified_sources = [*self._transformers]
+
             self.fetcher.initialize_sources(task_id, force=force)
+            self._apply_fetcher_transformers()
+
         return self
 
     def copy(self, **overrides: Unpack[CopyParams[NameType, SourceType, IdType]]) -> Self:
@@ -257,6 +330,17 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
         Notes:
             User types are copied using :func:`copy.deepcopy`.
+
+            Fetcher-provided transformers already derived by this instance are carried over via the `transformers`
+            argument, and are not derived again; see :meth:`Fetcher.get_transformer()
+            <id_translation.fetching.Fetcher.get_transformer>`. Overriding `fetcher` with a *different* instance
+            has never been queried, so the copy derives that fetcher's transformers on first use; anything it
+            provides for a carried-over source chains ahead of it.
+
+            Passing `transformers` explicitly replaces that set wholesale -- including anything the fetcher provided
+            -- and the copy does not query the fetcher for more. Pass
+            :attr:`~id_translation.Translator.transformers` to keep the current set, or ``None`` to start empty and
+            derive on first use, as the constructor does.
         """
         cls = type(self)
 
@@ -280,25 +364,58 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                         f"Failed to clone fetcher (TypeError: {e}). Caller instance will be reused."
                         f"\nHint: To suppress this warning: {cls.__name__}.copy(fetcher={cls.__name__}.fetcher)"
                     )
-                    emit_warning(msg, category=UserWarning)
+                    emit_warning(msg)
                     kwargs["fetcher"] = self.fetcher
             else:
                 kwargs["fetcher"] = self.cache
 
         if "transformers" not in kwargs:
-            try:
-                kwargs["transformers"] = {
-                    source: deepcopy(transformer) for source, transformer in self.transformers.items()
-                }
-            except TypeError as e:
-                msg = (
-                    f"Failed to clone transformers (TypeError: {e}). Caller instance will be reused."
-                    f"\nHint: To suppress this warning: {cls.__name__}.copy(transformers={cls.__name__}.transformers)"
-                )
-                emit_warning(msg, category=UserWarning)
-                kwargs["transformers"] = self.transformers
+            kwargs["transformers"] = self._copy_transformers()
+            # Derived results travel with the copies; a second pass over the same fetcher would self-conflict. Only a
+            # *different* fetcher is unqueried -- reusing this one (what the failed-deepcopy hint recommends) is not.
+            same_source = "fetcher" not in overrides or overrides["fetcher"] is self._fetcher
+            settled = same_source and self._transformers_queried
+        else:
+            # An explicit set is complete, so it settles the question either way -- without this, the same call
+            # would query or not depending on whether the caller had translated yet. `None` means "derive on first
+            # use", exactly as it does in the constructor.
+            settled = kwargs["transformers"] is not None
 
-        return cls(**kwargs)
+        new = cls(**kwargs)
+        new._transformers_queried = settled
+        return new
+
+    def _copy_transformers(self) -> Transformers[SourceType, IdType]:
+        try:
+            # One `deepcopy` call shares one memo internally, so sharing is preserved at any depth for free.
+            return deepcopy(self._transformers)
+        except TypeError:
+            pass  # Retry per source below, to attribute the failure and reuse only what cannot be cloned.
+
+        retval: Transformers[SourceType, IdType] = {}
+        # Not a `deepcopy` memo: mapping a failed clone to its original there would splice the original into any
+        # later copy that embeds it -- silently, and only for the registration orders where the failure came first.
+        clones: dict[int, Transformer[IdType]] = {}
+
+        for source, transformer in self._transformers.items():
+            if (clone := clones.get(id(transformer))) is None:
+                try:
+                    clone = deepcopy(transformer)
+                except TypeError as e:
+                    cls = self.__class__.__name__
+                    emit_warning(
+                        f"Failed to clone the transformer for {source!r} (TypeError: {e})."
+                        " Caller instance will be reused."
+                        f"\nHint: {cls}.copy(transformers={cls}.transformers) also disables fetcher-provided"
+                        " discovery on the copy; see Translator.copy().",
+                    )
+                    clone = transformer
+
+                clones[id(transformer)] = clone
+
+            retval[source] = clone
+
+        return retval
 
     if TYPE_CHECKING:
 
@@ -1216,6 +1333,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
         start = perf_counter()
         task_id = _logging.generate_task_id(start)
+        self.initialize_sources(task_id)
 
         if LOGGER.isEnabledFor(logging.DEBUG):
             LOGGER.debug(
@@ -1243,6 +1361,9 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         self.fetcher.close()
         self._fetcher = None
         self._cached_tmap = translation_map
+        # This produces the same kind of snapshot as building from one directly; see the `TranslationMap` branch in
+        # `__init__`. The registrations up to this point may cover only a subset of sources on purpose.
+        self._unverified_sources.clear()
 
         if path:
             path = any_path_to_path(path).expanduser()
@@ -1452,20 +1573,196 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
     @property
     def transformers(self) -> Transformers[SourceType, IdType]:
-        """Get a dict ``{source: transformer}`` of :class:`~id_translation.transform.types.Transformer` instances used by this ``Translator``."""
+        """Get a dict ``{source: transformer}``.
+
+        The ``Translator`` is the sole owner of transformers; see
+        :meth:`~id_translation.Translator.register_transformer` to add them.
+
+        .. note::
+
+           Mutating the returned dict bypasses chain normalization and is **deprecated**; this will become a read-only
+           view in ``2.0.0``. Use :meth:`~id_translation.Translator.register_transformer` instead.
+
+        Returns:
+            A dict with one transformer per source. Chains are a single
+            :class:`~id_translation.transform.TransformerStack`.
+        """
+        # TODO(2.0.0): Return MappingProxyType(self._transformers); returning the live dict is a 1.x compatibility
+        #  concession, since callers may hold it or mutate it.
         return self._transformers
 
+    def register_transformer(
+        self,
+        source: SourceType,
+        transformer: Transformer[IdType] | Sequence[Transformer[IdType]],
+        *,
+        on_existing: OnExistingTransformer = "raise",
+    ) -> None:
+        """Register `transformer` for `source`.
+
+        Creates a :class:`~id_translation.transform.TransformerStack` when called multiple times with
+        ``on_existing='append'``. A warning is emitted if duplicates are detected.
+
+        The fetcher may :meth:`provide <id_translation.fetching.Fetcher.get_transformer>` transformers of its own.
+        The first :meth:`~id_translation.Translator.initialize_sources` call queries each discovered source and
+        chains what it gets ahead of anything registered here, so a call made after that point sees the whole
+        chain -- and ``on_existing='overwrite'`` replaces it.
+
+        Args:
+            source: The source to transform.
+            transformer: A :class:`~id_translation.transform.types.Transformer`, or a sequence of them to chain in the
+                given order.
+            on_existing: Action to take when `source` already has a transformer. Use ``'append'`` to chain onto it, or
+                ``'overwrite'`` to discard it.
+
+        Raises:
+            ValueError: If `transformer` is an empty sequence.
+            ~id_translation.exceptions.TransformerConflictError: If `source` is already registered and
+                ``on_existing='raise'``.
+        """
+        self._register_transformer(source, transformer, on_existing)
+
+    def _register_transformer(
+        self,
+        source: SourceType,
+        transformer: Transformer[IdType] | Sequence[Transformer[IdType]],
+        on_existing: OnExistingTransformer,
+    ) -> None:
+        # The implementation of `register_transformer`, which subclasses may override. `__init__` calls this instead,
+        # since an override is entitled to touch attributes that do not exist until construction finishes.
+        on_existing = ON_EXISTING_HELPER.check(on_existing)
+        new = as_transformer(transformer)
+
+        registered = self._transformers.get(source)
+        if registered is not None:
+            if on_existing == "append":
+                new = TransformerStack(registered, new)  # May warn about a duplicate -- before anything is committed.
+            elif on_existing == "raise":
+                exc = TransformerConflictError(f"Transformer {registered!r} is already registered for {source!r}.")
+                exc.add_note(_ON_EXISTING_CONFLICT_HINT)
+                raise exc
+
+        self._transformers[source] = new
+        self._unverified_sources.append(source)
+
+        if self._cached_tmap is not None and not self.online:
+            # Offline sources are fixed and already known, so verify immediately; online instances are verified by
+            # initialize_sources(). Both are None while __init__ registers, where the sources are not yet reachable --
+            # inline-data registrations are verified at the end of __init__ instead, and a snapshot's never are.
+            try:
+                self._warn_on_transformers_for_unknown_sources()
+            except Exception:
+                # Promoted to an error (e.g. under `-W error`): the caller sees a raise, so the registration must not
+                # stick -- retrying the apparently-failed call would otherwise conflict with it.
+                if registered is None:
+                    del self._transformers[source]
+                else:
+                    self._transformers[source] = registered
+                self._unverified_sources.pop()  # Ours is last: a raised check never drains the queue.
+                raise
+            # The cache's appliers captured their transformers when it was built; keep them in sync so that
+            # `Translator.cache` and `translate()` agree about the registration.
+            self._cached_tmap._set_transformer(source, new)
+
+    def _apply_fetcher_transformers(self) -> None:
+        if not self._transformers_queried:
+            # Every pass is derived from current truth (fetcher answer, registrations, declared intent); a failed
+            # pass mutates nothing and the next one simply asks again. No cached answer exists to go stale.
+            self._register_transformers_from_fetcher(self._collect_provided())
+            self._transformers_queried = True
+
+        self._warn_on_transformers_for_unknown_sources()
+
+    def _collect_provided(self) -> Transformers[SourceType, IdType]:
+        """Query every source, applying nothing: a raising fetcher must leave the instance untouched."""
+        provided: Transformers[SourceType, IdType] = {}
+
+        for source in self.sources:
+            try:
+                transformer = self.fetcher.get_transformer(source)
+                if transformer is not None:
+                    provided[source] = as_transformer(transformer)  # A bad answer raises before anything registers.
+            except Exception as e:
+                e.add_note(f" - Raised by Fetcher.get_transformer({source!r}) on fetcher={self.fetcher}.")
+                raise
+
+        return provided
+
+    def _register_transformers_from_fetcher(self, transformers: Transformers[SourceType, IdType]) -> None:
+        backup = self._transformers.copy()
+        mark = len(self._unverified_sources)  # Append-only below, so this rewinds the queue to where it started.
+        try:
+            for source, provided in transformers.items():
+                registered = self._transformers.get(source)
+                if registered is None:
+                    chain = provided
+                else:
+                    # Member-wise: the answer may be a sequence, of which only part is already registered.
+                    members = provided.transformers if isinstance(provided, TransformerStack) else (provided,)
+                    fresh = [it for it in members if not has_member(registered, it)]
+                    if not fresh:
+                        continue
+                    chain = as_transformer([*fresh, registered])
+                self.register_transformer(source, chain, on_existing="overwrite")
+        except Exception as e:
+            # An overridden `register_transformer`, or a promoted duplicate warning out of `as_transformer`.
+            # Roll back either way, preserving the dict identity `Translator.transformers` hands out.
+            self._transformers.clear()
+            self._transformers.update(backup)
+            del self._unverified_sources[mark:]
+            e.add_note(f" - Raised while registering a transformer provided by fetcher={self.fetcher}.")
+            raise
+
+    def _warn_on_transformers_for_unknown_sources(self) -> None:
+        # This runs per translate, so do no work unless something has been registered since the last check.
+        if not self._unverified_sources:
+            return
+
+        # Nothing below may drain the queue early: neither a discovery that raises nor a warning that `-W error`
+        # promotes may pass a registration off as checked, since the misconfiguration would then vanish on the
+        # next call.
+        sources = self.sources
+
+        # The TestFetcher installed when no fetcher is given reports none, but serves every source. A fetcher that
+        # reports none because it has none is the case where every registration is unreachable.
+        serves_everything = not sources and isinstance(self._fetcher, TestFetcher)
+
+        if not serves_everything:
+            known = set(sources)  # Hoisted: the `if` below is evaluated once per queued registration.
+            # Deduplicated in registration order: `on_existing='append'` queues the same source once per call.
+            if unknown := list(dict.fromkeys(s for s in self._unverified_sources if s not in known)):
+                msg = (
+                    f"Transformers registered for unknown sources: {unknown}. These will never be applied."
+                    f"\nHint: Known sources: {sources}."
+                )
+                if unresolved := self._unresolved_children():
+                    # A `[transform]`-section outlives a fetcher discarded during discovery, so these may be its
+                    # sources rather than a typo. Cannot be told apart: a child that raised never reported what it
+                    # serves.
+                    msg += (
+                        f"\nNote: source discovery raised for {len(unresolved)} optional fetcher(s), so what they"
+                        f" would have served is unknown: {unresolved}."
+                    )
+                emit_warning(msg)
+
+        self._unverified_sources.clear()
+
+    def _unresolved_children(self) -> list[str]:
+        return self._fetcher._unresolved_children() if isinstance(self._fetcher, MultiFetcher) else []
+
     def _execute_fetch(
-        self, task: TranslationTask[NameType, SourceType, IdType]
+        self,
+        task: TranslationTask[NameType, SourceType, IdType],
     ) -> SourcePlaceholderTranslations[SourceType]:
         start = perf_counter()
-        source_to_ids = task.extract_ids()
 
-        for source in source_to_ids:
-            if (transformer := self._transformers.get(source)) is not None:
-                transformer.update_ids(source_to_ids[source])
+        ids_to_fetch = [IdsToFetch(source, ids=ids) for source, ids in task.extract_ids().items()]
 
-        ids_to_fetch = [IdsToFetch(source, ids=ids) for source, ids in source_to_ids.items()]
+        for itf in ids_to_fetch:
+            transformer = self._transformers.get(itf.source)
+            if transformer is not None:
+                transformer.update_ids(itf.ids)
+
         source_translations = self._fetch(ids_to_fetch, fmt=task.fmt, task_id=task.task_id)
         task.add_timing("fetch", perf_counter() - start)
         return source_translations

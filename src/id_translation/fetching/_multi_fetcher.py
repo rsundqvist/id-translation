@@ -1,5 +1,5 @@
 import logging
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, Sequence
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from copy import deepcopy
 from time import perf_counter
@@ -14,6 +14,7 @@ from rics.types import LiteralHelper
 from .._utils.emit_warning import emit_warning
 from ..logging import generate_task_id, get_event_key
 from ..offline.types import PlaceholderAttributes, SourcePlaceholderTranslations
+from ..transform.types import Transformer
 from ..types import IdType, SourceType
 from . import AbstractFetcher, Fetcher, exceptions
 from .types import IdsToFetch, Operation
@@ -62,6 +63,7 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
 
         self._placeholders: dict[SourceType, list[str]] | None = None
         self._source_to_id: dict[SourceType, int] = {}
+        self._unresolved: list[str] = []
 
     @property
     def allow_fetch_all(self) -> bool:
@@ -84,6 +86,17 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         # children.sort(key=lambda fetcher: self._id_to_rank[id(fetcher)])
         return children
 
+    def _unresolved_children(self) -> list[str]:
+        # Diagnostic prose for the Translator's unknown-source warning: one formatted entry per discarded
+        # `optional` child, in discard order. These raised from `initialize_sources`, unlike a child discarded for
+        # reporting *no* sources, which is known to serve none. Children of nested MultiFetchers are included.
+        self.initialize_sources()
+        unresolved = [*self._unresolved]
+        for child in self._id_to_fetcher.values():
+            if isinstance(child, MultiFetcher):
+                unresolved += child._unresolved_children()
+        return unresolved
+
     def get_child(self, source: SourceType) -> Fetcher[SourceType, IdType]:
         """Return child fetcher for the given source."""
         self.initialize_sources()
@@ -98,6 +111,17 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
             child = id(child)
         self.initialize_sources()
         return [source for source, child_id in self._source_to_id.items() if child_id == child]
+
+    def get_transformer(self, source: SourceType) -> Transformer[IdType] | Sequence[Transformer[IdType]] | None:
+        """Delegate to the child that serves `source` after source conflict resolution.
+
+        Returns ``None`` for sources that no child serves, as the base implementation does.
+        """
+        self.initialize_sources()
+
+        if source not in self._source_to_id:
+            return None
+        return self.get_child(source).get_transformer(source)
 
     @property
     def placeholders(self) -> dict[SourceType, list[str]]:
@@ -139,7 +163,15 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         )
 
         fid_to_placeholders = self._initialize_sources(task_id)
-        self._source_to_id = self._make_source_to_id(fid_to_placeholders, task_id)
+        try:
+            self._source_to_id = self._make_source_to_id(fid_to_placeholders, task_id)
+        except Exception:
+            # `_initialize_sources` may have discarded children above. A caller that catches (e.g. a forced
+            # re-discovery that hits a source conflict) must not be left with mappings that point at them.
+            self._source_to_id = {s: fid for s, fid in self._source_to_id.items() if fid in self._id_to_fetcher}
+            if self._placeholders is not None:
+                self._placeholders = {s: p for s, p in self._placeholders.items() if s in self._source_to_id}
+            raise
 
         self._placeholders = {}
         for fid, source_to_placeholders in fid_to_placeholders.items():
@@ -179,13 +211,15 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
                     fetcher.initialize_sources(task_id, force=True)
                     placeholders = fetcher.placeholders
                 except Exception as e:
+                    pretty = self.format_child(fid)
                     LOGGER.log(
                         log_level,
                         "Discarding optional %s: Raised\n    %s\nwhen getting sources.",
-                        self.format_child(fid),
+                        pretty,
                         f"{type(e).__name__}: {e}",
                         exc_info=True,
                     )
+                    self._unresolved.append(pretty)  # Before the deletes: `format_child` needs the rank.
                     fetcher.close()
                     del self._id_to_rank[fid]
                     del self._id_to_fetcher[fid]

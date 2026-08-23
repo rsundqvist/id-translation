@@ -21,6 +21,11 @@ Most functions and classes are thread safe. Notable exceptions are documented he
      - Reflects the most recent :meth:`.Translator.translate` call on the instance. The ``translate`` call itself is
        thread safe (when ``copy=True``), but the recorded names are not. Use :meth:`.Translator.map` in multi-threaded
        contexts.
+   * - :meth:`.Translator.initialize_sources`
+     - Delegates to ``Fetcher.initialize_sources`` above, so the same "first call is not thread safe" caveat
+       applies. The first call also registers fetcher-provided transformers (see :meth:`.Fetcher.get_transformer`),
+       mutating the ``Translator`` itself. :meth:`~.Translator.translate` triggers this implicitly on its own first
+       call and inherits the same caveat.
    * - :meth:`.Translator.go_offline`
      - Performs :class:`.Fetcher` teardown. Once offline, the ``Translator`` is safe to share.
 
@@ -28,7 +33,9 @@ Transformers
 ------------
 The :attr:`.Translator.transformers` are reused for all translation tasks. Bundled :class:`.Transformer` types are
 thread safe. Transformers are inherited by any :class:`.TranslationMap` instances created by the ``Translator``, including
-the :attr:`.Translator.cache` created by :meth:`.Translator.go_offline`.
+the :attr:`.Translator.cache` created by :meth:`.Translator.go_offline`. Note that
+:meth:`.Translator.register_transformer` mutates shared state (including the cache), so the safe-to-share guarantee
+above assumes no registrations are made after going offline.
 
 Fetchers
 --------

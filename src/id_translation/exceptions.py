@@ -47,6 +47,18 @@ class TooManyFailedTranslationsError(TranslationError):
     """Raised if too many IDs fail to translate."""
 
 
+class TransformerConflictError(ValueError):
+    """A source already has a transformer, and ``on_existing='raise'``.
+
+    See :meth:`Translator.register_transformer <id_translation.Translator.register_transformer>`.
+    """
+
+    # Keep the `ValueError` base -- it's deliberate: registration's sibling failures (an empty chain, a
+    # non-Transformer value) raise ValueError/TypeError, so `except ValueError` around a registration block
+    # catches the conflict too.
+    # TODO(2.0.0): Also inherit the common `IdTranslationError` planned for `TranslationError` above.
+
+
 class TranslationWarning(UserWarning):
     """Base class for translation warnings."""
 

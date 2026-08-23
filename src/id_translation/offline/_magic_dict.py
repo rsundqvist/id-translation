@@ -97,7 +97,7 @@ class MagicDict(MutableMapping[IdType, str]):
     ) -> None:
         if enable_uuid_heuristics and real_translations:
             real_translations, enable_uuid_heuristics = _try_stringify_many(real_translations)
-        if transformer:
+        if transformer is not None:
             transformer.update_translations(real_translations)
 
         self._real: TranslatedIds[IdType] = real_translations
@@ -168,7 +168,7 @@ class MagicDict(MutableMapping[IdType, str]):
 
     def _on_read(self, key: IdType) -> IdType:
         key = self._try_stringify(key)
-        if self._transformer and key not in self._real:
+        if self._transformer is not None and key not in self._real:
             self._transformer.try_add_missing_key(key, translations=self)
         return key
 

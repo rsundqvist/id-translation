@@ -50,6 +50,14 @@ class UnitTestTranslator(RealTranslator[str, str, int]):
         self.now = pd.Timestamp.now()
 
 
+class SlottedTranslator(RealTranslator[str, str, int]):
+    """Subclass state lives outside `__dict__`; see `test_pickle_keeps_subclass_slots`. Module-level to be picklable."""
+
+    __slots__ = ("tag",)
+
+    tag: str
+
+
 class ConfigMetadataForTest(_config_metadata.ConfigMetadata):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
@@ -98,6 +106,16 @@ def test_can_pickle(translator, copy):
     from rics.misc import serializable
 
     assert serializable(translator.copy() if copy else translator)
+
+
+def test_pickle_keeps_subclass_slots():
+    """`__getstate__` drops the lock, not the slot half of the state that a subclass may rely on."""
+    import pickle
+
+    translator = SlottedTranslator({"guests": {"id": [1], "name": ["a"]}})
+    translator.tag = "kept"
+
+    assert pickle.loads(pickle.dumps(translator)).tag == "kept"  # noqa: S301
 
 
 @pytest.mark.parametrize("copy", [False, True])
@@ -220,7 +238,7 @@ def test_restore_snapshot_without_a_fetcher_key(hex_fetcher):
     data = {"positive_numbers": list(range(0, 5))}
     expected = translator.go_offline(data).translate(data)
 
-    state: dict[str, Any] = translator.__getstate__()  # type: ignore[assignment]
+    state: dict[str, Any] = translator.__getstate__()
     del state["_fetcher"]  # The state an older snapshot unpickles into.
     revived: UnitTestTranslator = UnitTestTranslator.__new__(UnitTestTranslator)
     revived.__setstate__(state)

@@ -222,6 +222,75 @@ class TestOptionalFetchers:
             expected=[0],
         )
 
+    def test_unresolved_children_names_the_crash(self):
+        """Only children that raised: their sources are unknowable, unlike those that reported none."""
+        crashed = CrashFetcher(True, optional=True)
+        fetcher: MultiFetcher[str, int] = MultiFetcher(
+            CrashFetcher(False, optional=False),
+            crashed,
+            MemoryFetcher({}, optional=True),  # Discarded for reporting no sources; known to serve nothing.
+            on_source_conflict="ignore",
+        )
+
+        assert len(fetcher._unresolved_children()) == 1
+        assert str(crashed) in fetcher._unresolved_children()[0]
+
+    def test_unresolved_children_is_empty_without_discards(self):
+        fetcher: MultiFetcher[str, int] = MultiFetcher(
+            CrashFetcher(False, optional=False),
+            CrashFetcher(False, optional=True),
+            on_source_conflict="ignore",
+        )
+
+        assert fetcher._unresolved_children() == []
+
+    def test_unresolved_children_includes_nested_multi_fetchers(self):
+        """A [transform]-section may outlive a child of a nested MultiFetcher; its crash must be reported too."""
+        crashed = CrashFetcher(True, optional=True)
+        inner: MultiFetcher[str, int] = MultiFetcher(crashed, MemoryFetcher({"inner": {"id": [1]}}))
+        outer: MultiFetcher[str, int] = MultiFetcher(inner, MemoryFetcher({"outer": {"id": [1]}}))
+
+        assert len(outer._unresolved_children()) == 1
+        assert str(crashed) in outer._unresolved_children()[0]
+
+    def test_failed_forced_rediscovery_keeps_get_transformer_consistent(self):
+        """A conflict during forced re-discovery must not leave mappings that point at discarded children.
+
+        `get_transformer` promises None for unserved sources; a KeyError here crashes the next translation.
+        """
+
+        class CrashOnRediscovery(MemoryFetcher[str, int]):
+            calls = 0
+
+            def _initialize_sources(self, task_id: int) -> dict[str, list[str]]:
+                self.calls += 1
+                if self.calls > 1:
+                    raise ValueError("gone now")
+                return super()._initialize_sources(task_id)
+
+        class GrowsAConflict(MemoryFetcher[str, int]):
+            calls = 0
+
+            def _initialize_sources(self, task_id: int) -> dict[str, list[str]]:
+                self.calls += 1
+                retval = dict(super()._initialize_sources(task_id))
+                if self.calls > 1:
+                    retval["dup"] = ["id"]
+                return retval
+
+        fetcher: MultiFetcher[str, int] = MultiFetcher(
+            CrashOnRediscovery({"s": {"id": [1]}}, optional=True),
+            MemoryFetcher({"dup": {"id": [1]}}),
+            GrowsAConflict({"x": {"id": [1]}}),
+        )
+        fetcher.initialize_sources()
+        assert fetcher.get_transformer("s") is None, "precondition: served, but no transformer provided"
+
+        with pytest.raises(exceptions.DuplicateSourceError):
+            fetcher.initialize_sources(force=True)
+
+        assert fetcher.get_transformer("s") is None, "the discarded child's source is no longer served"
+
     @staticmethod
     def _run(children, expected):
         fetcher = MultiFetcher(*children, on_source_conflict="ignore")
