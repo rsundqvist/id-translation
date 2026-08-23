@@ -84,55 +84,6 @@ Section: Unknown IDs
   in a ``[unknown_ids.overrides]``-subsection. See: :ref:`Subsection: Overrides` for details (context =
   :attr:`source <id_translation.types.SourceType>`).
 
-.. _translator-config-transform:
-
-Section: Transformations
-------------------------
-You may specify one :class:`.Transformer` per source. Subsection keys are passed directly to the ``init``-method of the
-chosen transformer type. For available built-in transformers, see :mod:`id_translation.transform`.
-
-.. note::
-
-   Chained transformers and programmatic registration for e.g. bitmask sources is not supported out-of-the-box.
-   See https://github.com/rsundqvist/id-translation/issues/421 in GitHub for built-in support status.
-
-.. hint::
-
-   Transformers belong to the :class:`.Translator`, but you may place ``[transform.'<source>']``-sections in either
-   the main configuration file or an auxiliary fetcher configuration. Co-locating a transform with the fetcher that
-   produces ``<source>`` is often the best way to organize transform configs.
-
-.. warning::
-
-   It is a :class:`~id_translation.exceptions.ConfigurationError` to specify transformations for the same ``<source>``
-   more than once.
-
-For example, to configure a :class:`.BitmaskTransformer`, add a section on the form
-``[transform.'<source>'.BitmaskTransformer]`` to an appropriate configuration file:
-
-.. code-block:: toml
-
-   [transform.'<source>'.BitmaskTransformer]
-   joiner = " AND "
-   overrides = [
-       { id = 0, override = "NOT_SET" },
-       { id = 0b1000, override = "OVERFLOW" },
-   ]
-
-This will create a transform that formats bitmasks such as ``0b101`` in the following way:
-
-.. code-block:: python
-
-   translator.translate((0b000, 0b101, 8), name="<source>")
-   ("NOT_SET", "1:name-of-1 AND 4:name-of-4", "OVERFLOW")
-
-.. hint::
-
-   Custom transformers may be initialized by using sections with fully qualified type names.
-
-For example, a ``[transform.'<source>'.'my.library.SuperTransformer']``-section would import and initialize a
-``SuperTransformer`` from the ``my.library`` module.
-
 .. _translator-config-fetching:
 
 Section: Fetching
@@ -220,6 +171,19 @@ The :envvar:`ID_TRANSLATION_SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS` variable must
 :class:`~id_translation.toml.TranslatorFactory` will always use the ``ERROR`` level for fetchers that are discarded this
 way.
 
+A fetcher discarded because it failed to *initialize* takes its file's
+:ref:`[transform]-section <translator-config-transform>` with it, in the main configuration as well as in an auxiliary
+one. A fetcher discarded later, when :meth:`.Fetcher.initialize_sources` raises, does not: the section was built when
+the configuration was read. Its transformers stay registered, and apply to nothing unless a surviving fetcher serves
+the same source.
+
+.. note::
+
+   ``optional = true`` covers an unavailable *data source*, not an unreadable file: the file must parse, and its
+   top-level sections are checked, before any fetcher is built. The ``[transform]``-section itself is built after the
+   discard check, so a malformed one is a :class:`~id_translation.exceptions.ConfigurationError` only when its fetcher
+   survives -- a discarded fetcher takes even a broken section with it.
+
 .. warning::
 
    Using ``ID_TRANSLATION_SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS=true`` can and often will hide configuration errors
@@ -263,7 +227,7 @@ re-fetching translation data; they differ in scope, lifetime, and storage.
 See the :ref:`on-disk <caching_example>` and :ref:`in-memory <in_memory_caching_example>` ``CacheAccess`` examples.
 
 Implementing ``CacheAccess``
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 This library does not provide any ``CacheAccess`` implementations.
 
 Instead, users may implement the :class:`.CacheAccess` interface to define their own caching logic. The
@@ -507,6 +471,83 @@ identical contents. We would like to use a format ``'[{title}. ]{name}'`` to out
 to force the fetcher to inform the ``Translator`` that the `title` placeholder (column) does not exist for the
 `title_basics` source (we used `'_'` since TOML `does not have <https://github.com/toml-lang/toml/issues/30>`__ a
 ``null``-type).
+
+.. _translator-config-transform:
+
+Section: Transformations
+------------------------
+Transformers are declared using ``[transform.'<source>'.'<transformer-type>']`` sections. Subsection keys are passed
+directly to the ``__init__``-method of the chosen transformer type.
+
+For example, to configure a :class:`.BitmaskTransformer`, add a section on the form
+``[transform.'<source>'.BitmaskTransformer]`` to an appropriate configuration file:
+
+.. code-block:: toml
+
+   [transform.'<source>'.BitmaskTransformer]
+   joiner = " AND "
+   overrides = [
+       { id = 0, override = "NOT_SET" },
+       { id = 0b1000, override = "OVERFLOW" },
+   ]
+
+This will create a transform that formats bitmasks such as ``0b101`` in the following way:
+
+.. code-block:: python
+
+   translator.translate((0b000, 0b101, 8), name="<source>")
+   ("NOT_SET", "1:name-of-1 AND 4:name-of-4", "OVERFLOW")
+
+.. hint::
+
+   Custom transformers may be initialized by using sections with fully qualified type names.
+
+For example, a ``[transform.'<source>'.'my.library.SuperTransformer']``-section would import and initialize a
+``SuperTransformer`` from the ``my.library`` module.
+
+Chaining transformers
+~~~~~~~~~~~~~~~~~~~~~
+You may specify any number of :class:`.Transformer`\ s per source.  Both the main and auxiliary files may contain
+``[transform.'<source>'.'<transformer-type>']`` sections for the same `source`. This creates a :class:`.TransformerStack`.
+The :class:`.Translator` owns all transformers, regardless of where they're defined.
+
+**Priority**:
+
+* Transformers declared in the same file run in declaration order.
+* Auxiliary fetcher files run before the main file.
+* Fetcher-provided transformers run before any declared for the same source.
+* Equal transformers -- by identity, or by ``__eq__`` -- are the same transformer, so a provided one that is
+  already in the chain is not added again.
+* Each transformer sees -- and may overwrite -- the effects of those before it.
+
+Sections are keyed by type, so a transformer type may appear at most once per source and file. To chain two
+identically-typed transformers, declare them in different files or
+:ref:`register them in code <Programmatic transformer registration>`.
+
+Programmatic transformer registration
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+There are two ways to perform post-initialization transformer registration:
+
+1. The :meth:`.Translator.register_transformer` method, and
+2. The :meth:`.Fetcher.get_transformer` method.
+
+Extending the ``create_translator()`` factory function (see https://github.com/rsundqvist/id-translation-project/) to
+take advantage of :meth:`~.Translator.register_transformer` to register bitmask sources is simple:
+
+.. code-block:: python
+
+   t = Translator(...)
+   t.initialize_sources()
+   for source in t.sources:
+       if source.endswith("_bitmask"):
+           t.register_transformer(source, BitmaskTransformer())
+           t.register_transformer(source, CustomTransformer(), on_existing="append")
+
+This assumes that naming is consistent. Custom fetchers may instead prefer to override :meth:`.Fetcher.get_transformer`,
+e.g. to register :py:class:`~enum.IntFlag` enums.
+
+The :meth:`.Translator.initialize_sources` method calls :meth:`~.Fetcher.get_transformer` for all sources, so
+**fetcher-provided** transformers are **used automatically**.
 
 Custom TOML initialization
 --------------------------

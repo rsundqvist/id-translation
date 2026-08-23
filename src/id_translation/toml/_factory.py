@@ -12,6 +12,7 @@ from rics.types import AnyPath
 from id_translation.exceptions import ConfigurationError
 from id_translation.fetching import AbstractFetcher, CacheAccess, Fetcher, MultiFetcher
 from id_translation.mapping import Mapper
+from id_translation.transform import as_transformer
 from id_translation.transform.types import Transformer, Transformers
 from id_translation.types import IdType, NameType, SourceType
 
@@ -154,8 +155,11 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
         with _rethrow_with_file(self.file):
             config: dict[str, Any] = self.load_toml_file(self.file)
 
-        fetcher, fetcher_transformers = self._handle_fetching(
-            config.pop("fetching", {}), self.extra_fetchers, _identifier_from_config_metadata(config_metadata)
+        fetcher, fetcher_file_transformers = self._handle_fetching(
+            config.pop("fetching", {}),
+            self.extra_fetchers,
+            _identifier_from_config_metadata(config_metadata),
+            config.pop("transform", {}),
         )
 
         with _rethrow_with_file(self.file):
@@ -164,11 +168,7 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
             mapper = self._make_mapper("translator", translator_config)
             _make_default_translations(translator_config, config.pop("unknown_ids", {}))
 
-            translator_transformers = self._handler_transformers(config.pop("transform", {}))
-            if keys := set(fetcher_transformers).intersection(translator_transformers):
-                msg = f"Transformers for {len(keys)} sources also defined on the fetcher level: {keys}."
-                raise ValueError(msg)
-            translator_config["transformers"] = translator_transformers | fetcher_transformers
+            translator_config["transformers"] = self._chain_transformers(*fetcher_file_transformers)
 
             ans = self.clazz(
                 fetcher,
@@ -204,19 +204,24 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
         config: dict[str, Any],
         extra_fetchers: list[str],
         default_identifiers: list[list[str]],
-    ) -> tuple[Fetcher[SourceType, IdType], Transformers[SourceType, IdType]]:
+        main_transform: dict[SourceType, dict[str, Any]],
+    ) -> tuple[Fetcher[SourceType, IdType], list[dict[SourceType, list[Transformer[IdType]]]]]:
         multi_fetcher_kwargs = config.pop("MultiFetcher", {})
 
         fetchers: list[Fetcher[SourceType, IdType]] = []
-        transformers: Transformers[SourceType, IdType] = {}
+        # Gathered for the Translator, which owns all transformers; see `Translator.transformers`.
+        transformers: list[dict[SourceType, list[Transformer[IdType]]]] = []
 
+        main_discarded = False
         if config:
             with _rethrow_with_file(self.file, show_init_errors_hint=True):
                 fetcher = self._make_fetcher(default_identifiers[0], **config)
-                if isinstance(fetcher, Exception):
-                    self._log_optional_fetcher_init_error(fetcher, str(self.file))
-                else:
-                    fetchers.append(fetcher)  # Add primary fetcher
+
+            if isinstance(fetcher, Exception):
+                self._log_optional_fetcher_init_error(fetcher, str(self.file), main_transform)
+                main_discarded = True
+            else:
+                fetchers.append(fetcher)  # Add primary fetcher
 
         for i, fetcher_file in enumerate(extra_fetchers, start=1):
             # Config-shape errors go outside the hinted block: the suppress variable only skips a fetcher that
@@ -224,19 +229,32 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
             with _rethrow_with_file(fetcher_file):
                 fetcher_config = self.load_toml_file(fetcher_file)
                 _check_allowed_keys(["fetching", "transform"], actual=fetcher_config, toml_path="<root>")
+                if "fetching" not in fetcher_config:
+                    raise ConfigurationError("A [fetching]-section is required.")
 
             with _rethrow_with_file(fetcher_file, show_init_errors_hint=True):
                 fetcher = self._make_fetcher(default_identifiers[i], **fetcher_config["fetching"])
-                if isinstance(fetcher, Exception):
-                    self._log_optional_fetcher_init_error(fetcher, fetcher_file)
-                    continue
-                new_transformers = self._handler_transformers(fetcher_config.get("transform", {}))
 
-                if keys := set(new_transformers).intersection(transformers):
-                    msg = f"Transformers for {len(keys)} sources were already defined in another fetcher file: {keys}."
-                    raise ValueError(msg)
-                transformers.update(new_transformers)
+            transform = fetcher_config.get("transform", {})
+            if isinstance(fetcher, Exception):
+                self._log_optional_fetcher_init_error(fetcher, fetcher_file, transform)
+                continue
+
+            # After the discard check: a fetcher that fails to initialize takes its file's transformers with it.
+            # Covers that discard only -- a child dropped later, by `MultiFetcher` discovery, has had this section
+            # built long since.
+            with _rethrow_with_file(fetcher_file):
+                from_file = self._handler_transformers(transform)
+
             fetchers.append(fetcher)
+            transformers.append(from_file)
+
+        if not main_discarded:
+            # The main file's, appended last to preserve the documented chaining order -- and dropped with the
+            # primary fetcher when that fetcher is discarded at init. Outside the hinted block, which does not
+            # apply to a bad section.
+            with _rethrow_with_file(self.file):
+                transformers.append(self._handler_transformers(main_transform))
 
         if not fetchers:
             raise ConfigurationError(
@@ -255,18 +273,26 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
             retval = MultiFetcher(*fetchers, **multi_fetcher_kwargs)
         return retval, transformers
 
-    def _log_optional_fetcher_init_error(self, exception: BaseException, fetcher_file: str) -> None:
+    def _log_optional_fetcher_init_error(
+        self,
+        exception: BaseException,
+        fetcher_file: str,
+        transform: dict[SourceType, Any] | None = None,
+    ) -> None:
         from id_translation._utils import DOC_LINK  # noqa: PLC0415
 
         value = getenv(SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS)
         env = f"{SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS}={value}"
         url = DOC_LINK + "documentation/translator-config.html#optional-fetchers"
+        # The reverse mistake -- a transformer for a source nobody serves -- warns; this would be silent.
+        dropped = sorted(map(str, transform)) if transform else []
         self.logger.exception(
             f"Discarded optional fetcher in file '{fetcher_file}': {exception!r}."
             f"\nHint: Discarded since `optional=true` and `{env}`."
-            f"\nHint: See {url} for help.",
+            + (f"\nHint: Its [transform]-sections went with it: {dropped}." if dropped else "")
+            + f"\nHint: See {url} for help.",
             exc_info=exception,
-            extra={"fetcher_file": str(fetcher_file), "reason": str(exception)},
+            extra={"fetcher_file": str(fetcher_file), "reason": str(exception), "dropped_transform": dropped},
         )
 
     @classmethod
@@ -285,7 +311,11 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
     def _make_cache_access(cls, config: dict[str, Any]) -> CacheAccess[Any, Any]:
         return cls.CACHE_ACCESS_FACTORY(config.pop("type"), config)
 
-    def _make_fetcher(self, __identifiers: list[str], **config: Any) -> AbstractFetcher[SourceType, IdType] | Exception:
+    def _make_fetcher(
+        self,
+        __identifiers: list[str],
+        **config: Any,
+    ) -> AbstractFetcher[SourceType, IdType] | Exception:
         mapper = self._make_mapper("fetching", config) if "mapping" in config else None
         cache_access = self._make_cache_access(config.pop("cache")) if "cache" in config else None
 
@@ -307,26 +337,45 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
         else:
             is_optional = False
 
-        if is_optional:
-            try:
-                return self.FETCHER_FACTORY(clazz, kwargs)
-            except Exception as e:
-                return e
-        else:
+        try:
             return self.FETCHER_FACTORY(clazz, kwargs)
+        except Exception as e:
+            if is_optional:
+                return e
+            raise
 
     @classmethod
-    def _handler_transformers(cls, per_source: dict[SourceType, dict[str, Any]]) -> Transformers[SourceType, IdType]:
-        transformers = {}
+    def _handler_transformers(
+        cls, per_source: dict[SourceType, dict[str, Any]]
+    ) -> dict[SourceType, list[Transformer[IdType]]]:
+        """Read one file's ``[transform]``-sections into ``{source: chain}``, in declaration order."""
+        if not isinstance(per_source, dict):
+            raise ConfigurationError(
+                "The [transform]-section must contain [transform.<source>.<transformer-class>] subsections."
+                f"\nGot: transform = {per_source!r}."
+            )
+
+        transformers: dict[SourceType, list[Transformer[IdType]]] = {}
 
         for source, config in per_source.items():
-            if len(config) != 1:
+            if not isinstance(config, dict) or not config:
                 raise ConfigurationError(
                     "Transformation config must be specified as [transform.<source>.<transformer-class>] sections."
+                    f"\nGot: {source!r} = {config!r}."
                 )
-            clazz, kwargs = next(iter(config.items()))
-            transformers[source] = cls.TRANSFORMER_FACTORY(clazz, kwargs)
+            transformers[source] = [cls.TRANSFORMER_FACTORY(clazz, kwargs) for clazz, kwargs in config.items()]
         return transformers
+
+    @staticmethod
+    def _chain_transformers(
+        *levels: dict[SourceType, list[Transformer[IdType]]],
+    ) -> Transformers[SourceType, IdType]:
+        """Concatenate per-source chains across files, `levels` first to last."""
+        chains: dict[SourceType, list[Transformer[IdType]]] = {}
+        for level in levels:
+            for source, transformers in level.items():
+                chains.setdefault(source, []).extend(transformers)
+        return {source: as_transformer(chain) for source, chain in chains.items()}
 
 
 def _make_default_translations(

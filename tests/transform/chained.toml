@@ -1,0 +1,11 @@
+[translator]
+fmt = "{name}"
+
+[transform.guests.'tests.transform.test_factory.SayHi']
+random_seed = 2019
+
+[transform.guests.'tests.transform.test_factory.Suffix']
+suffix = "!"
+
+[fetching.MemoryFetcher.data]
+guests = { id = [1991, 1999, 2021], name = ["Richard", "Sofia", "Morris"] }
