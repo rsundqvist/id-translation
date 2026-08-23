@@ -21,7 +21,21 @@ def dont_call_get(*_, **__):
     raise AssertionError("MagicDict.get is inefficient.")
 
 
+_REAL_MAGIC_DICT_GET = MagicDict.get
+"""The real `MagicDict.get` implementation, preserved for `real_magic_dict_get`."""
+
 MagicDict.get = dont_call_get  # type: ignore[method-assign]
+
+
+@pytest.fixture
+def real_magic_dict_get(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Temporarily restore the real `MagicDict.get` implementation.
+
+    The guard above (`MagicDict.get = dont_call_get`) is a performance guard ensuring the library's own code never
+    calls the inefficient `.get()` method. Tests that need to exercise the real implementation may depend on this
+    fixture; `monkeypatch` restores the guard automatically once the test finishes.
+    """
+    monkeypatch.setattr(MagicDict, "get", _REAL_MAGIC_DICT_GET)
 
 
 class VerifyRecord(logging.Handler):

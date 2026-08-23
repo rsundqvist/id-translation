@@ -46,6 +46,60 @@ def test_get(monkeypatch):
     assert subject.get(-1) == subject[-1]
 
 
+@pytest.mark.usefixtures("real_magic_dict_get")
+def test_real_get_hit():
+    real = {1991: "1991:Richard", 1999: "1999:Sofia"}
+    subject = MagicDict(real, enable_uuid_heuristics=False)
+
+    assert subject.get(1991) == real[1991]
+    assert subject.get(1999) == real[1999]
+
+
+@pytest.mark.usefixtures("real_magic_dict_get")
+def test_real_get_miss():
+    real = {1991: "1991:Richard"}
+    subject = MagicDict(real, enable_uuid_heuristics=False)
+
+    # Same value as __getitem__: generated from default_value, not a real translation.
+    assert subject.get(-1) == subject[-1] == "<Failed: id=-1>"
+
+
+def test_delitem():
+    subject = MagicDict({1: "one", 2: "two"}, enable_uuid_heuristics=False)
+
+    del subject[1]
+
+    assert subject.real == {2: "two"}
+    with pytest.raises(KeyError):
+        del subject[1]
+
+
+def test_delitem_stringifies_key_like_setitem():
+    uuid_lower = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+    uuid_upper = uuid_lower.upper()
+
+    subject: MagicDict[str] = MagicDict({}, enable_uuid_heuristics=True)
+    subject[uuid_lower] = "value"
+    assert subject.real == {UUID(uuid_lower): "value"}  # __setitem__ stringified the key to a UUID.
+
+    # __delitem__ must apply the exact same stringification, so a differently-cased (but equivalent) key works.
+    del subject[uuid_upper]
+    assert subject.real == {}
+
+
+def test_verify_default_value_bad_key():
+    with pytest.raises(ValueError, match=r"Bad default_value="):
+        MagicDict({}, default_value="Bad: {name}")
+
+
+def test_verify_default_value_falls_through_when_no_sample_formats():
+    # None of the samples ("id", 0, UUID(int=0)) have a `.name` attribute, so every attempt raises AttributeError
+    # (not KeyError) and is silently ignored -- the loop runs out and the (unusable) default_value is returned as-is.
+    default_value = "Bad: {0.name}"
+    subject: MagicDict[str] = MagicDict({}, default_value=default_value)
+    assert subject.default_value == default_value
+
+
 def test_bad_uuids():
     with pytest.raises(TypeError, match=r"Duplicate UUIDs found."):
         MagicDict(
