@@ -1,6 +1,6 @@
 import logging
 from contextlib import contextmanager
-from itertools import combinations_with_replacement
+from itertools import product
 from typing import Any, assert_type
 from uuid import UUID
 
@@ -56,7 +56,7 @@ class ConfigMetadataForTest(_config_metadata.ConfigMetadata):
         assert self.clazz in ("id_translation._translator.Translator", "tests.test_translator.Translator")
 
 
-@pytest.mark.parametrize("with_id, with_override, store", list(combinations_with_replacement([False, True], 3)))
+@pytest.mark.parametrize("with_id, with_override, store", list(product([False, True], repeat=3)))
 def test_dummy_translation_doesnt_crash(with_id, with_override, store):
     t = UnitTestTranslator(fmt="{id}:{first}:{second}:{third}")
 
