@@ -1,6 +1,7 @@
 """Classes used for ID and translation transformation."""
 
 import typing as _t
+from collections import abc as _abc
 
 from ..types import IdType as _IdType
 from ..types import SourceType as _SourceType
@@ -8,15 +9,25 @@ from ..types import SourceType as _SourceType
 
 @_t.runtime_checkable
 class Transformer(_t.Protocol[_IdType]):
-    """Transformation API type.
+    r"""Transformation API type.
 
     .. warning::
 
        The :meth:`~id_translation.transform.types.Transformer.update_ids`-method is **not** called when the
        :class:`~id_translation.Translator` is working offline.
 
-    Transformers are persistent entities owned by a single :class:`~id_translation.Translator` instance. See the
+    Transformers are persistent entities; state kept between calls survives for as long as the owner does. The
+    :class:`~id_translation.Translator` is the owner; see
+    :meth:`Translator.register_transformer() <id_translation.Translator.register_transformer>`. See the
     :class:`~id_translation.transform.BitmaskTransformer` for a concrete example.
+
+    .. important::
+
+       Implementations should be **idempotent**; methods are not paired.
+
+    A single :meth:`~id_translation.transform.types.Transformer.update_ids` call may be followed by any number of
+    :meth:`~id_translation.transform.types.Transformer.update_translations` calls, e.g. when working offline or
+    when ``max_fails<1`` is set.
     """
 
     def update_ids(self, ids: set[_IdType], /) -> None:
@@ -56,4 +67,22 @@ class Transformer(_t.Protocol[_IdType]):
 
 
 Transformers = dict[_SourceType, Transformer[_IdType]]
-"""A dict ``{source: transformer}`` of initialized :class:`~id_translation.transform.types.Transformer` instances."""
+"""A dict ``{source: transformer}`` of initialized :class:`~id_translation.transform.types.Transformer` instances.
+
+The resolved form: exactly one transformer per source. Chains are a single
+:class:`~id_translation.transform.TransformerStack`.
+"""
+
+TransformersArg = _abc.Mapping[_SourceType, Transformer[_IdType] | _abc.Sequence[Transformer[_IdType]]]
+"""Argument form of :data:`~id_translation.transform.types.Transformers`, accepting a chain per source.
+
+A sequence is normalized into a :class:`~id_translation.transform.TransformerStack`, in the given order. See
+:meth:`Translator.register_transformer() <id_translation.Translator.register_transformer>`.
+"""
+
+OnExistingTransformer = _t.Literal["raise", "append", "overwrite"]
+"""Action to take when a source already has a :class:`~id_translation.transform.types.Transformer`.
+
+The `on_existing` argument of :meth:`Translator.register_transformer()
+<id_translation.Translator.register_transformer>`.
+"""
