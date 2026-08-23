@@ -1113,7 +1113,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         LOGGER.info(f"Create new Translator; {reason}. Cache dir: '{cache_dir}'.")
         translator = cls.from_config(path, extra_fetcher_paths)
         translator.go_offline(path=cache_path)
-        metadata_path.write_text(translator.config_metadata.to_json())
+        metadata_path.write_text(translator.config_metadata.to_json(), encoding="utf-8")
         return translator
 
     @classmethod

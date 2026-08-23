@@ -113,7 +113,7 @@ class BaseMetadata(ABC):
         if not metadata_path.exists():
             return False, "no cache metadata found", "metadata-missing"
 
-        stored_config = self.from_json(metadata_path.read_text())
+        stored_config = self.from_json(metadata_path.read_text(encoding="utf-8"))
 
         reason_not_equivalent = self.is_equivalent(stored_config)
         if reason_not_equivalent:

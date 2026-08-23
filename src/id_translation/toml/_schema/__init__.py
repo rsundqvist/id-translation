@@ -23,7 +23,7 @@ METACONF_FILENAME = "id-translation-metaconf.schema.json"
 
 
 def _load(filename: str) -> dict[str, Any]:
-    data: dict[str, Any] = json.loads((files(_PACKAGE) / filename).read_text())
+    data: dict[str, Any] = json.loads((files(_PACKAGE) / filename).read_text(encoding="utf-8"))
     return data
 
 
