@@ -3,13 +3,14 @@
 Execute 'invoke --list' for guidance on using Invoke.
 """
 
+import os
 import platform
 import webbrowser
 from pathlib import Path
 
-from invoke import call, task
 from invoke.context import Context
 from invoke.runners import Result
+from invoke.tasks import call, task
 
 ROOT_DIR = Path(__file__).parent
 DOCS_DIR = ROOT_DIR.joinpath("docs")
@@ -19,6 +20,8 @@ COVERAGE_DIR = ROOT_DIR.joinpath("htmlcov")
 COVERAGE_REPORT = COVERAGE_DIR.joinpath("index.html")
 SOURCE_DIR = ROOT_DIR.joinpath("src/id_translation")
 TEST_DIR = ROOT_DIR.joinpath("tests")
+NOXFILE = ROOT_DIR.joinpath("noxfile.py")
+TASKS = ROOT_DIR.joinpath("tasks.py")
 NOTEBOOK_DIR = ROOT_DIR.joinpath("notebooks")
 PYTHON_TARGETS = [
     SOURCE_DIR,
@@ -30,7 +33,7 @@ PYTHON_TARGETS = [
 PYTHON_TARGETS_STR = " ".join([str(p) for p in PYTHON_TARGETS])
 
 
-def _run(c: Context, command: str, env: dict[str, str] | None = None) -> Result:
+def _run(c: Context, command: str, env: dict[str, str] | None = None) -> Result | None:
     print(f"Command: {command}")
     return c.run(command, pty=platform.system() != "Windows", env=env)
 
@@ -57,7 +60,7 @@ def clean_python(c: Context) -> None:
 @task
 def clean_tests(c: Context) -> None:
     """Clean up files from testing."""
-    _run(c, f"rm -f {COVERAGE_FILE}")
+    _run(c, f"rm -f {COVERAGE_FILE} {COVERAGE_FILE}.*")  # Per-version shards from a nox matrix run.
     _run(c, f"rm -fr {COVERAGE_DIR}")
     _run(c, "rm -fr .pytest_cache")
 
@@ -111,7 +114,9 @@ def audit(c: Context) -> None:
     _run(c, "uv audit --preview-features audit-command")
 
 
-@task(pre=[audit, call(flake8, check=True), call(format_, check=True), spelling])
+# invoke annotates its own `task()` as returning a bare `Callable`, so the decorated tasks do not
+# type as `Task`. warn_unused_ignores will flag this once invoke's annotations improve.
+@task(pre=[audit, call(flake8, check=True), call(format_, check=True), spelling])  # type: ignore[arg-type]
 def lint(_: Context) -> None:
     """Run all linting."""
 
@@ -119,7 +124,7 @@ def lint(_: Context) -> None:
 @task
 def mypy(c: Context) -> None:
     """Run mypy."""
-    _run(c, f"uv run mypy {SOURCE_DIR} {TEST_DIR}")
+    _run(c, f"uv run mypy {SOURCE_DIR} {TEST_DIR} {NOXFILE} {TASKS}")
 
 
 @task
@@ -143,7 +148,9 @@ def tests(c: Context) -> None:
 )
 def coverage(c: Context, fmt: str = "report", open_browser: bool = False) -> None:
     """Create coverage report."""
-    if any(Path().glob(".coverage.*")):
+    # `coverage combine` looks beside COVERAGE_FILE, so glob there rather than in the cwd.
+    data_file = Path(os.environ.get("COVERAGE_FILE") or ".coverage")
+    if any(data_file.parent.glob(f"{data_file.name}.*")):
         _run(c, "uv run coverage combine")
 
     _run(c, f"uv run coverage {fmt} -i --fail-under=0")
