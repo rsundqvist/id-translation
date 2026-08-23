@@ -34,6 +34,8 @@ def test_fetcher_top_level_matches_aux_allow_list() -> None:
     # Auxiliary fetcher files allow only these at the root; see TranslatorFactory._handle_fetching.
     fetcher = schemas()[FETCHER_FILENAME]
     assert set(fetcher["properties"]) == {"fetching", "transform"}
+    # A transform-only fetcher file is a ConfigurationError at load time; the schema must reject it too.
+    assert fetcher["required"] == ["fetching"]
     # MultiFetcher is permitted in the main configuration file only; fetcher files reject it (schema `false`).
     assert fetcher["definitions"]["fetching"]["properties"]["MultiFetcher"] is False
 

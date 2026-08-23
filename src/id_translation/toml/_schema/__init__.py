@@ -30,9 +30,9 @@ def _load(filename: str) -> dict[str, Any]:
 def derive_fetcher_schema(main: dict[str, Any]) -> dict[str, Any]:
     """Derive the auxiliary fetcher-file schema from the ``main`` schema.
 
-    Fetcher files may only contain the top-level ``fetching`` and ``transform`` sections. The ``fetching`` block keeps
-    its full grammar (including the ``cache`` and ``mapping`` subsections); only ``MultiFetcher`` is forbidden, since it
-    is permitted in the main configuration file only.
+    Fetcher files may only contain the top-level ``fetching`` and ``transform`` sections, and ``fetching`` is required.
+    The ``fetching`` block keeps its full grammar (including the ``cache`` and ``mapping`` subsections); only
+    ``MultiFetcher`` is forbidden, since it is permitted in the main configuration file only.
     """
     schema = deepcopy(main)
     schema["$id"] = _BASE_URL + FETCHER_FILENAME
@@ -45,6 +45,8 @@ def derive_fetcher_schema(main: dict[str, Any]) -> dict[str, Any]:
         "fetching": {"$ref": "#/definitions/fetching"},
         "transform": {"$ref": "#/definitions/transform"},
     }
+    # Fetcher files first: a `transform`-only file is a ConfigurationError at load time.
+    schema["required"] = ["fetching"]
     # Forbid MultiFetcher in fetcher files. The key is kept in `properties` set to `false` (rejecting any value);
     # popping it would instead let the permissive `additionalProperties` accept it as a generic custom fetcher.
     schema["definitions"]["fetching"]["properties"]["MultiFetcher"] = False

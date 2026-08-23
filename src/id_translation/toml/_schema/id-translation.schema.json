@@ -54,9 +54,10 @@
     },
     "transform": {
       "type": "object",
-      "description": "One `Transformer` per source: `[transform.<source>.<TransformerType>]`. The innermost keys are passed to the transformer's `__init__`. `<TransformerType>` may be a built-in name or a fully-qualified type name. Transformers belong to the `Translator`, but may live in an auxiliary fetcher file too (co-located with the fetcher that produces the source); a given source may be transformed only once across all files. See [the docs](https://id-translation.readthedocs.io/en/stable/documentation/translator-config.html#section-transformations).",
+      "description": "`Transformer`s per source: `[transform.<source>.<TransformerType>]`. The innermost keys are passed to the transformer's `__init__`. `<TransformerType>` may be a built-in name or a fully-qualified type name. Multiple transformers per source are chained in declaration order. Sections are read from the main file and from auxiliary fetcher files; all of them belong to the `Translator`. Auxiliary files run first. See [the docs](https://id-translation.readthedocs.io/en/stable/documentation/translator-config.html#section-transformations).",
       "additionalProperties": {
         "type": "object",
+        "minProperties": 1,
         "additionalProperties": {
           "type": "object"
         }

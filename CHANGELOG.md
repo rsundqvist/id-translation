@@ -7,7 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+**Highlights**:
+- Add chained `Transformer` support, and `Fetcher`-based registration.
+- Add `PandasIO(ordered=..., observed=...)`; also improve performance (~1.5x) for large UUID inputs.
+- Add `PartialCacheHit`; partial `CacheAccess.load()` support.
+- Add [migration guide](https://id-translation.readthedocs.io/en/stable/documentation/migration-guide.html) for humans and LLMs.
+
 ### Added
+- Transformers ([docs](https://id-translation.readthedocs.io/en/stable/documentation/translator-config.html#section-transformations)):
+  * Add `Translator.register_transformer()`; register in code once sources are known, e.g. in a
+    `create_translator()`-style factory function. Conflicts raise `TransformerConflictError`.
+  * Add `TransformerStack`; chains multiple transformers per source.
+  * Add `Fetcher.get_transformer()`; custom fetchers can provide transformers for the sources they serve. Sources
+    are queried on the first discovery, and what they provide runs ahead of anything declared for the same source.
+  * `Translator(transformers=...)` now accepts `Transformer` sequences as values.
+  * Warn when a transformer is registered for a source that does not exist.
 - Categorical `pandas` translation (`io_kwargs`):
   * Add `PandasIO(ordered=...)`; category order `'name'` (default) or `'id'`, or `False` for an unordered
     `CategoricalDtype`.
@@ -22,8 +36,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fetching:
   * `SqlFetcher(connection_string=...)` now accepts a `sqlalchemy.engine.URL`.
   * Add SQLAlchemy ORM fetcher example.
-  * Add `MultiFetcher.unresolved_children`; optional children discarded because source discovery raised, and whose
-    sources are therefore unknown.
 - Warnings:
   * Add `add_skip_file_prefix()`; wrapper libraries can point warnings at their callers.
   * Add `id_translation.logging.EMIT_LOGGED_WARNINGS`.
@@ -45,6 +57,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     strings surface there rather than at construction.
   * `FetcherError`, `ConnectionStatusError`, and `TranslationError` now take `msg` as a real constructor argument
     (defaults to `""`; will become required in `2.0.0`) instead of forwarding it via `*args`.
+  * `Translator(transformers=...)` no longer keeps a reference to the caller's dict; mutating the argument after
+    construction has no effect. Use `Translator.register_transformer()` instead.
 - Transformers: `Translator.copy()` clones transformers per distinct instance rather than per source, so one
   registered for several sources stays a single instance in the copy.
 - Performance: faster `Translator.translate()` for large `pandas` inputs (~1.6x; ~1.5x for `uuid.UUID`-typed vectors,
