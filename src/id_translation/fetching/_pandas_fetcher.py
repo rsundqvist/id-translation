@@ -100,7 +100,7 @@ class PandasFetcher(AbstractFetcher[str, IdType]):
         try:
             sources = self._find_sources_fsspec(pattern)
         except ModuleNotFoundError as e:
-            self.logger.debug("Falling back to 'pathlib.Path': %r", e)
+            self.logger.debug(f"Falling back to 'pathlib.Path': {e!r}")
             sources = self._find_sources_pathlib(Path(pattern).expanduser().resolve())
 
         source_paths: dict[str, str] = {source: self.format_source(source) for source in sources}
