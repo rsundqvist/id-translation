@@ -85,11 +85,15 @@ def _run_in_threads(
     def run(idx: int) -> None:
         try:
             barrier.wait(timeout=30)
-            for i in range(iterations):
-                worker(idx, i)
         except BaseException as e:
             errors.append(e)
             barrier.abort()  # don't let other threads deadlock waiting on us
+            return
+        try:
+            for i in range(iterations):
+                worker(idx, i)
+        except BaseException as e:
+            errors.append(e)  # Past the barrier: aborting now would only mask this with BrokenBarrierError.
 
     threads = [threading.Thread(target=run, args=(i,), name=f"ft-worker-{i}") for i in range(n_threads)]
     for t in threads:
@@ -193,6 +197,7 @@ def test_concurrent_translated_names_is_consistent(offline_translator: Translato
     _run_in_threads(worker, iterations=500)
 
 
+@pytest.mark.filterwarnings("ignore::id_translation.fetching.exceptions.ConcurrentOperationWarning")
 def test_concurrent_lazy_initialization(
     online_translator: Translator[str, str, int], offline_translator: Translator[str, str, int]
 ) -> None:
