@@ -274,6 +274,14 @@ class TranslationMap(
             if applier.transformer is not None
         }
 
+    def _set_transformer(self, source: SourceType, transformer: Transformer[IdType]) -> None:
+        # `Translator.register_transformer` keeps an offline instance's cache in sync. Unknown sources are that
+        # caller's concern to report, not ours. Private on purpose: only the owning Translator may reconfigure
+        # the map after construction.
+        applier = self._format_appliers.get(source)
+        if applier is not None:
+            applier._transformer = transformer
+
     def copy(self) -> Self:
         """Make a copy of this ``TranslationMap``."""
         return copy(self)

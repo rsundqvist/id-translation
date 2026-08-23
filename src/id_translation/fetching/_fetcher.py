@@ -1,8 +1,9 @@
 from abc import abstractmethod
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from typing import Generic
 
 from ..offline.types import PlaceholderAttributes, SourcePlaceholderTranslations
+from ..transform.types import Transformer
 from ..types import HasSources, IdType, SourceType
 from .types import IdsToFetch
 
@@ -34,6 +35,26 @@ class Fetcher(Generic[SourceType, IdType], HasSources[SourceType]):
 
     def close(self) -> None:
         """Close the ``Fetcher``. Does nothing by default."""
+
+    def get_transformer(
+        self,
+        source: SourceType,  # noqa: ARG002
+    ) -> Transformer[IdType] | Sequence[Transformer[IdType]] | None:
+        """Transformer(s) provided by this ``Fetcher`` for `source`.
+
+        Provided transformers run first, ahead of any declared for the same source; see
+        :ref:`Chaining transformers`.
+
+        Args:
+            source: A source served by this fetcher.
+
+        Returns:
+            A :class:`~id_translation.transform.types.Transformer`, a sequence thereof, or ``None`` (the default).
+
+        Notes:
+            This method is called by :meth:`Translator.initialize_sources() <id_translation.Translator.initialize_sources>`.
+        """
+        return None
 
     @property
     @abstractmethod

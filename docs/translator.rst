@@ -86,6 +86,7 @@ overrides.
    :toctree:
 
    Translator.copy
+   Translator.register_transformer
 
 .. rubric:: Attributes
 .. autosummary::

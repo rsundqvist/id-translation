@@ -85,6 +85,18 @@ def _flatten_members(transformers: TransformersTuple[_IdType]) -> TransformersTu
     return (*flattened,)
 
 
+def has_member(transformer: _Transformer[_IdType], member: _Transformer[_IdType]) -> bool:
+    """Does `transformer` already include `member` -- as itself, or as one of its chained members?
+
+    Lets a caller tell "this is already here, do nothing" apart from "something else is here".
+    """
+    if _is_duplicate(member, transformer):
+        return True
+    if isinstance(transformer, TransformerStack):
+        return any(_is_duplicate(member, other) for other in transformer.transformers)
+    return False
+
+
 def _is_duplicate(transformer: _Transformer[_IdType], other: _Transformer[_IdType]) -> bool:
     if transformer is other:
         return True

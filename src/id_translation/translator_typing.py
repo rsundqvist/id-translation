@@ -13,7 +13,7 @@ from .mapping import Mapper as _Mapper
 from .mapping.types import UserOverrideFunction as _UserOverrideFunction
 from .offline import TranslationMap as _TranslationMap
 from .offline import types as _ot
-from .transform.types import Transformer as _Transformer
+from .transform.types import TransformersArg as _TransformersArg
 
 SimpleDictFetcherTypes = dict[_tt.SourceType, dict[_tt.IdType, str]]
 """Data for translating using only the default `id` and `name` placeholders.
@@ -83,7 +83,7 @@ class UniqueCopyParams(_t.TypedDict, _t.Generic[_tt.NameType, _tt.SourceType, _t
     default_fmt: _ot.FormatType
     default_fmt_placeholders: _MakeType[_tt.SourceType, str, _t.Any] | None
     enable_uuid_heuristics: bool
-    transformers: dict[_tt.SourceType, _Transformer[_tt.IdType]] | None
+    transformers: _TransformersArg[_tt.SourceType, _tt.IdType] | None
 
 
 class CopyParams(UniqueCopyParams[_tt.NameType, _tt.SourceType, _tt.IdType], total=False):
