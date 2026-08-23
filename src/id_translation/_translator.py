@@ -983,6 +983,9 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         Sources are determines either by the :attr:`~id_translation.Translator.fetcher` or the
         :attr:`~id_translation.Translator.cache`.
         """
+        if not self.online and self._cached_tmap is not None:
+            # Not by way of `placeholders`: that property copies every per-source placeholder list.
+            return self._cached_tmap.sources
         return list(self.placeholders)
 
     @property

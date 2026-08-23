@@ -219,9 +219,13 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
                     fetchers.append(fetcher)  # Add primary fetcher
 
         for i, fetcher_file in enumerate(extra_fetchers, start=1):
-            with _rethrow_with_file(fetcher_file, show_init_errors_hint=True):
+            # Config-shape errors go outside the hinted block: the suppress variable only skips a fetcher that
+            # fails to construct, so it cannot help with a malformed file.
+            with _rethrow_with_file(fetcher_file):
                 fetcher_config = self.load_toml_file(fetcher_file)
                 _check_allowed_keys(["fetching", "transform"], actual=fetcher_config, toml_path="<root>")
+
+            with _rethrow_with_file(fetcher_file, show_init_errors_hint=True):
                 fetcher = self._make_fetcher(default_identifiers[i], **fetcher_config["fetching"])
                 if isinstance(fetcher, Exception):
                     self._log_optional_fetcher_init_error(fetcher, fetcher_file)

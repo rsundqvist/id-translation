@@ -548,9 +548,15 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         members = self.__dict__
 
         for old_id, old_fetcher in members["_id_to_fetcher"].items():
+            mark = len(memo)  # `deepcopy` only ever inserts into the memo, and dicts preserve insertion order.
             try:
                 new_fetcher = deepcopy(old_fetcher, memo)
             except TypeError as e:
+                # Drop what the failed attempt left behind: `__deepcopy__` keeps copying other attributes with this
+                # memo, and none of them may adopt a half-built child.
+                for key in list(memo)[mark:]:
+                    del memo[key]
+
                 new_fetcher = old_fetcher
 
                 # This hides the Translator.copy(fetcher=Translator.fetcher) warning emitted in the caller!
