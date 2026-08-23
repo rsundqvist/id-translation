@@ -1,5 +1,6 @@
 import logging
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 import pytest
@@ -7,7 +8,7 @@ import pytest
 from id_translation import Translator
 from id_translation.toml import load_toml_file
 
-from .conftest import LINUX_ONLY
+from .conftest import LINUX_ONLY, check_minio_status
 
 pytestmark = [
     LINUX_ONLY,
@@ -22,6 +23,8 @@ for name in "botocore", "s3fs", "fsspec":
 
 def test_pandas_fetcher(imdb_translator):
     # Doesn't actually belong here, but requires Docker. So this is convenient.
+    check_minio_status(_storage_options()["client_kwargs"]["endpoint_url"])
+
     # with pytest.warns(DeprecationWarning, match="datetime.datetime.utcnow"):
     put_objects(imdb_translator.fetch().to_pandas())
     translator: Translator[str, str, int] = Translator.from_config(CONFIG_FILE)
@@ -40,9 +43,25 @@ def test_pandas_fetcher(imdb_translator):
     }
 
 
+def test_check_minio_status_reports_friendly_error_when_down():
+    """Verifies the guard itself, without touching the real (running) minio container."""
+    dead_endpoint = "http://localhost:1"  # Nothing listens here.
+    with pytest.raises(
+        RuntimeError,
+        match=r"Unable to connect to database for dialect='minio'\. Start the databases"
+        r" by running:\n    \./run-docker-dvdrental\.sh",
+    ):
+        check_minio_status(dead_endpoint)
+
+
+def _storage_options() -> dict[str, Any]:
+    config = load_toml_file(CONFIG_FILE)["fetching"]["PandasFetcher"]
+    return config["read_function_kwargs"]["storage_options"]  # type: ignore[no-any-return]
+
+
 def put_objects(sources: dict[str, pd.DataFrame]) -> None:
     config = load_toml_file(CONFIG_FILE)["fetching"]["PandasFetcher"]
-    storage_options = config["read_function_kwargs"]["storage_options"]
+    storage_options = _storage_options()
     read_path_format = config["read_path_format"]
 
     for source, df in sources.items():

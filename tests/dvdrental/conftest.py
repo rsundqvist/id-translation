@@ -1,7 +1,9 @@
 import os
+import socket
 from os import getenv
 from pathlib import Path
 from sys import platform
+from urllib.parse import urlparse
 
 import pandas as pd
 import pytest
@@ -39,6 +41,10 @@ def get_df(dialect: str) -> pd.DataFrame:
         return pd.DataFrame.from_records(list(cursor), columns=cursor.keys())
 
 
+def _dead_stack_message(label: str) -> str:
+    return f"Unable to connect to database for {label}. Start the databases by running:\n    ./run-docker-dvdrental.sh"
+
+
 def check_status(dialect: str) -> None:
     engine = sqlalchemy.create_engine(get_connection_string(dialect))
 
@@ -46,13 +52,22 @@ def check_status(dialect: str) -> None:
         with engine.connect() as conn:
             count = next(conn.execute(sqlalchemy.text("SELECT count(*) FROM store")))
     except Exception:
-        msg = (
-            f"Unable to connect to database for {dialect=}. Start the databases"
-            " by running:\n    ./run-docker-dvdrental.sh"
-        )
-        raise RuntimeError(msg) from None
+        raise RuntimeError(_dead_stack_message(f"{dialect=}")) from None
 
     assert count[0] == 2, f"Expected 2 stores, but got {count}."
+
+
+def check_minio_status(endpoint_url: str) -> None:
+    """Equivalent of :func:`check_status`, but for the minio (S3) container used by ``PandasFetcher`` tests."""
+    parsed = urlparse(endpoint_url)
+    host = parsed.hostname or "localhost"
+    port = parsed.port or 9000
+
+    try:
+        with socket.create_connection((host, port), timeout=2):
+            pass
+    except OSError:
+        raise RuntimeError(_dead_stack_message("dialect='minio'")) from None
 
 
 def get_connection_string(dialect: str, with_password: bool = True) -> str:
