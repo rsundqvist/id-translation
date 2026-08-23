@@ -1040,7 +1040,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         """Return a :class:`~id_translation.offline.TranslationMap` of cached translations."""
         if self._cached_tmap is None:
             assert self.online, "bad internal state"  # noqa: S101
-            msg = f"No cache available. Use f`{self.go_offline.__qualname__}` to cache translations."
+            msg = f"No cache available. Use `{self.go_offline.__qualname__}` to cache translations."
             raise RuntimeError(msg)
         return self._cached_tmap
 

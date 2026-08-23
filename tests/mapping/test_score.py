@@ -71,6 +71,19 @@ v/c   ┃ c0    ┃ c1    ┃ c2    ┃ c3    ┃ c4
 """  # noqa: W291
 
 
+def test_bad_grid_row_count():
+    with pytest.raises(ValueError, match=r"Bad grid: Number of rows 3 must match the number of values=4\."):
+        ScoreMatrix(values=[0, 1, 2, 3], candidates=["c0", "c1"], grid=[[0.0, 1.0], [2.0, 3.0], [4.0, 5.0]])
+
+
+def test_bad_grid_column_count():
+    with pytest.raises(
+        ValueError,
+        match=r"Bad grid\[1\] row \(value=1\): Number of columns 1 must match the number of candidates=2\.",
+    ):
+        ScoreMatrix(values=[0, 1], candidates=["c0", "c1"], grid=[[0.0, 1.0], [2.0]])
+
+
 def make_scores() -> ScoreMatrix[int, str]:
     grid = [
         [0.0, 1.0, 2.0, 3.0, 4.0],

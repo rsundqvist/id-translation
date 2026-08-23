@@ -68,6 +68,26 @@ def register_tmp_io(monkeypatch):
     monkeypatch.setattr(_resolve, "_INSTANCE", None)
 
 
+class _FakeEntryPoint:
+    """Duck-typed stand-in for `importlib.metadata.EntryPoint`; avoids resolving a real module."""
+
+    def __init__(self, cls: type) -> None:
+        self._cls = cls
+
+    def load(self) -> type:
+        return self._cls
+
+    def __repr__(self) -> str:
+        return "EntryPoint(name='not-a-dio', value='tests.dio.test_register_io:int', group='id_translation.dio')"
+
+
+def test_bad_entrypoint_not_a_data_structure_io(monkeypatch):
+    monkeypatch.setattr(_repository, "entry_points", lambda group: [_FakeEntryPoint(int)])  # noqa: ARG005
+
+    with pytest.raises(TypeError, match=r"Bad entrypoint=.*: <class 'int'> is not a subtype of DataStructureIO\. "):
+        _repository.Repository(load_defaults=False)
+
+
 class Data:
     test_object = object()
     test_object_name = "I'm a test object!"

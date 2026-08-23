@@ -12,6 +12,7 @@ from id_translation import Translator as RealTranslator
 from id_translation.dio.exceptions import NotInplaceTranslatableError, UntranslatableTypeError
 from id_translation.exceptions import (
     ConfigurationChangedError,
+    ConnectionStatusError,
     MissingNamesError,
     TooManyFailedTranslationsError,
     TranslationAbortedWarning,
@@ -787,6 +788,47 @@ def test_go_offline_args(translator):
     translator.go_offline({"positive_numbers": [1]}, max_fails=0)
     assert not translator.online
     assert translator.cache.to_dicts() == {"positive_numbers": {"hex": ["0x1"], "id": [1], "positive": [True]}}
+
+
+def test_fetcher_property_raises_when_offline(translator):
+    offline = translator.copy().go_offline()
+
+    with pytest.raises(ConnectionStatusError, match=r"Cannot fetch new translations\.") as exc_info:
+        _ = offline.fetcher
+
+    assert exc_info.value.__notes__ == ["Hint: Use the Translator.cache-property to access the data."]
+
+
+def test_cache_property_raises_without_cache(translator):
+    fresh = translator.copy()
+
+    with pytest.raises(
+        RuntimeError, match=r"No cache available\. Use `Translator\.go_offline` to cache translations\."
+    ):
+        _ = fresh.cache
+
+
+def test_go_offline_when_already_offline_warns_and_returns_self(translator):
+    offline = translator.copy().go_offline()
+    assert not offline.online
+
+    with pytest.warns(
+        FutureWarning,
+        match=r"Abort Translator\.go_offline\(\); already offline\."
+        r"\nWARNING: This will raise in `id-translation==2\.0\.0`\.",
+    ) as w:
+        result = offline.go_offline()
+
+    assert len(w) == 1
+    assert result is offline
+
+
+def test_placeholders_property_uses_cache_when_offline(hex_fetcher):
+    t = UnitTestTranslator(hex_fetcher, fmt="{id}:{hex}[, positive={positive}]").go_offline()
+    assert t.placeholders == {
+        "positive_numbers": ["id", "hex", "positive"],
+        "negative_numbers": ["id", "hex", "positive"],
+    }
 
 
 def test_map_scores(translator):
