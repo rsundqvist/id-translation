@@ -2,6 +2,7 @@
 
 import typing as _t
 from collections import abc as _abc
+from typing import TypeAlias
 
 from rics.misc import format_kwargs as _format_kwargs
 
@@ -11,6 +12,12 @@ IdType = int
 
 
 class TomlOverrideRecord(_t.TypedDict):
+    """A single `overrides` entry in TOML form.
+
+    TOML table keys must be strings, so :class:`~id_translation.transform.BitmaskTransformer` accepts a list of these
+    records as an alternative to a ``{id: translation}`` mapping. See :ref:`translator-config-transform`.
+    """
+
     id: IdType
     override: str
 
@@ -78,11 +85,13 @@ class BitmaskTransformer(_Transformer[IdType]):
         :meth:`MagicDict.real_contains <id_translation.offline.MagicDict.real_contains>` to verify the results.
     """
 
+    TomlOverrideRecord: TypeAlias = TomlOverrideRecord  # Reexport - part of API/docs.
+
     def __init__(
         self,
         joiner: str = " & ",
         *,
-        overrides: _abc.Mapping[IdType, str] | None = None,
+        overrides: _abc.Mapping[IdType, str] | list[TomlOverrideRecord] | None = None,
         force_decomposition: bool = False,
         force_real_translations: bool = True,
     ) -> None:
