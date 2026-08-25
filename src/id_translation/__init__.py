@@ -31,4 +31,4 @@ __all__ = [
     "__version__",  # Make MyPy happy
 ]
 
-__version__ = "1.2.1.dev1"
+__version__ = "1.3.0"
