@@ -10,7 +10,7 @@ Runtime arguments
 -----------------
 Relevant methods (e.g. :meth:`.Translator.translate`) accept an `io_kwargs` argument, which may be used to customize
 the behavior of the :class:`.DataStructureIO` implementation. Exceptions raised due to invalid `io_kwargs` arguments are
-logged and suppressed.
+logged and suppressed, with a ``FutureWarning``; this will raise in ``id-translation==2.0.0``.
 
 Arguments are implementation-specific. See :class:`~.integration.pandas.PandasIO` for an example.
 

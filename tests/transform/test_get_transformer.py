@@ -238,10 +238,11 @@ class TestRetention:
         assert Counter(copy.fetcher.queries) == {"bitmasks": 1}, "inherited from the original; no new queries"
 
     def test_copy_reusing_the_same_fetcher_does_not_requery(self, translator):
-        """Passing the *same* instance is what the failed-deepcopy hint tells users to do; it is not a new source."""
+        """`fetcher='keep'` is what the failed-deepcopy hint tells users to do; it is not a new source."""
         translate(translator)
-        copy = translator.copy(fetcher=translator.fetcher)
+        copy = translator.copy(fetcher="keep")
 
+        assert copy.fetcher is translator.fetcher
         assert translate(copy) == "1:one|fetcher", "applied exactly once"
         assert Counter(copy.fetcher.queries) == {"bitmasks": 1}, "same fetcher: no new queries"
 
@@ -273,7 +274,8 @@ class TestRetention:
         translate(translator)
 
         replacement = ProvidingFetcher(TWO_SOURCES, {"plain": Marker("B")})
-        copy = translator.copy(fetcher=replacement)
+        with pytest.warns(FutureWarning, match="replaces the data source"):
+            copy = translator.copy(fetcher=replacement)
 
         assert translate(copy) == "1:one|A", "derived results are carried over"
         assert copy.translate((1,), names="plain") == ("1:just-one|B",), "the replacement fetcher's own must apply"
@@ -284,7 +286,8 @@ class TestRetention:
         translator = Translator[str, str, int](ProvidingFetcher(TWO_SOURCES, {"bitmasks": Marker("A")}))
         translate(translator)
 
-        copy = translator.copy(fetcher=ProvidingFetcher(TWO_SOURCES, {"bitmasks": Marker("B")}))
+        with pytest.warns(FutureWarning, match="replaces the data source"):
+            copy = translator.copy(fetcher=ProvidingFetcher(TWO_SOURCES, {"bitmasks": Marker("B")}))
         assert translate(copy) == "1:one|B|A", "the new fetcher's answer runs first"
 
     def test_copy_with_none_transformers_starts_over(self, translator):

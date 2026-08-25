@@ -78,14 +78,13 @@ All :class:`.AbstractFetcher` implementations accept an optional `cache_access` 
 
 .. hint::
 
-   To configure caching using TOML, add a ``[fetching.cache]``-section. The ``type`` key is required; other keys are
-   forwarded to the implementation.
+   To configure caching using TOML, add a ``[fetching.cache.'<type>']``-section, keyed by the fully qualified
+   ``CacheAccess`` type name. Other keys are forwarded to the implementation.
 
 .. code-block:: toml
    :caption: Equivalent caching section of a TOML fetcher config.
 
-   [fetching.cache]
-   type = "__main__.InMemoryCacheAccess"
+   [fetching.cache.'__main__.InMemoryCacheAccess']
    ttl = 3600
 
 See the :ref:`translator-config` page for more information.

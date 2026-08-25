@@ -2,6 +2,7 @@ from collections.abc import Mapping
 from threading import Lock
 from typing import Any
 
+from .._utils.emit_warning import emit_warning
 from ..types import IdType, NameType, SourceType, TranslatableT
 from ._data_structure_io import DataStructureIO
 from ._repository import ENTRYPOINT_GROUP, AnyIoType, Repository
@@ -41,6 +42,10 @@ def resolve_io(
 
     See Also:
         The :func:`~id_translation.dio.register_io` function.
+
+    .. deprecated:: 1.3.0
+       Passing `io_kwargs` that the resolved IO class rejects; it is constructed without them, with a
+       ``FutureWarning``. This will raise in ``id-translation==2.0.0``.
     """
     return _get_repository().resolve_io(arg, io_kwargs, task_id)
 
@@ -53,10 +58,20 @@ def get_resolution_order(*, real: bool = False) -> list[AnyIoType]:
 
     Returns:
         A list of IO implementations sorted by rank.
+
+    .. deprecated:: 1.3.0
+       The `real` parameter. Always returns a copy in ``id-translation==2.0.0``.
     """
-    # TODO(2.0.0): Copy only.
     repo = _get_repository()
-    return repo._enabled if real else repo.enabled_ios
+    if real:
+        # TODO(2.0.0): Remove the parameter; copy only.
+        emit_warning(
+            "The `real` parameter is deprecated; get_resolution_order() will always return a copy."
+            "\nWARNING: This will raise in `id-translation==2.0.0`.",
+            FutureWarning,
+        )
+        return repo._enabled
+    return repo.enabled_ios
 
 
 def register_io(io: AnyIoType) -> None:

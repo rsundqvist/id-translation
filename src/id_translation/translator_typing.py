@@ -39,6 +39,18 @@ FetcherTypes: _t.TypeAlias = (
 )
 """All valid input types for creating a ``Translator``."""
 
+FetcherCopyMode = _t.Literal["keep", "copy", "auto"]
+"""How :meth:`Translator.copy <id_translation.Translator.copy>` carries over the current data source.
+
+* ``'keep'``: Reuse the current :attr:`~id_translation.Translator.fetcher` without attempting to clone it, e.g. because
+  it holds a live connection.
+* ``'copy'``: Require a :func:`~copy.deepcopy`; raise instead of falling back if that fails.
+* ``'auto'``: Try to clone, falling back to ``'keep'`` with a warning on failure. The default.
+
+Applies only while :attr:`~id_translation.Translator.online`; an offline copy always shares the original's cached
+translation records, which are never mutated in place.
+"""
+
 
 class AbstractFetcherParams(_t.TypedDict, _t.Generic[_tt.SourceType, _tt.IdType], total=False):
     """Keyword arguments for the :class:`~id_translation.fetching.AbstractFetcher` base class."""
@@ -78,7 +90,8 @@ class UniqueCopyParams(_t.TypedDict, _t.Generic[_tt.NameType, _tt.SourceType, _t
     Includes only arguments that do not overlap with :class:`~id_translation.translator_typing.AllTranslateParams`.
     """
 
-    fetcher: FetcherTypes[_tt.NameType, _tt.SourceType, _tt.IdType] | None
+    # TODO(2.0.0): FetcherCopyMode only. Anything else is deprecated since 1.3.0.
+    fetcher: FetcherCopyMode | FetcherTypes[_tt.NameType, _tt.SourceType, _tt.IdType] | None
     mapper: _Mapper[_tt.NameType, _tt.SourceType, None] | None
     default_fmt: _ot.FormatType
     default_fmt_placeholders: _MakeType[_tt.SourceType, str, _t.Any] | None

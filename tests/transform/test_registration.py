@@ -567,7 +567,26 @@ class TestRetention:
         assert translate(translator) == "1:one|x"
 
     def test_copy_with_new_fetcher(self, translator):
-        copy = translator.copy(fetcher=MemoryFetcher(DATA))
+        with pytest.warns(FutureWarning, match="replaces the data source"):
+            copy = translator.copy(fetcher=MemoryFetcher(DATA))
+        assert translate(copy) == "1:one|x"
+
+    @pytest.mark.parametrize("mode", ["keep", "copy", "auto"])
+    def test_copy_fetcher_modes(self, translator, mode):
+        copy = translator.copy(fetcher=mode)
+        assert (copy.fetcher is translator.fetcher) == (mode == "keep")
+        assert translate(copy) == "1:one|x"
+
+    @pytest.mark.parametrize("mode", ["keep", "copy", "auto"])
+    def test_copy_fetcher_modes_offline(self, translator, mode):
+        """The mode only distinguishes clone-vs-reuse while online; offline always shares cached records."""
+        translator.go_offline()
+        copy = translator.copy(fetcher=mode)
+
+        original_records = translator.cache._extract_translations()["bitmasks"]
+        copy_records = copy.cache._extract_translations()["bitmasks"]
+        assert copy_records is original_records
+
         assert translate(copy) == "1:one|x"
 
     def test_restore_roundtrip(self, translator, tmp_path):

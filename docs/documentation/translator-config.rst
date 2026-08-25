@@ -47,6 +47,11 @@ The valid top-level keys are ``translator``, ``fetching``, ``unknown_ids``, and 
 the main configuration file if fetching is configured separately. Any other top-level key
 will raise a :class:`~id_translation.exceptions.ConfigurationError`.
 
+.. deprecated:: 1.3.0
+
+   A top-level ``mapping`` key is ignored with a ``FutureWarning``; you want ``[translator.mapping]`` or
+   ``[fetching.mapping]``. It raises like any other unknown key in ``id-translation==2.0.0``.
+
 Section: Translator
 -------------------
 .. list-table:: Section keys: ``[translator]``
@@ -133,7 +138,7 @@ for integer IDs -- TOML keys are always strings, so ``101 = "Widget"`` would key
    * - cache
      - :class:`.CacheAccess` subtype
      - User-defined caching implementation.
-     - Keyword ``type`` required. See :ref:`Caching` for details.
+     - Keyed by fully qualified type name. See :ref:`Caching` for details.
 
 The keys listed above are for the :class:`~id_translation.fetching.AbstractFetcher` class, which all fetchers created by
 TOML configuration must inherit. Additional parameters vary based on the chosen implementation. See the
@@ -237,13 +242,12 @@ Instead, users may implement the :class:`.CacheAccess` interface to define their
 
    Please refer to the :ref:`examples page <caching_example>` to get started creating your own caching implementations.
 
-Only the ``type`` keyword is required. All other keywords in the ``[fetching.cache]`` section will be forwarded as-is.
-This:
+The cache section is keyed by the fully qualified ``CacheAccess`` type name, mirroring how fetchers and
+transformers are configured. All keywords under it are forwarded as-is. This:
 
 .. code-block:: toml
 
-   [fetching.cache]
-   type = "my.library.MyCacheAccess"
+   [fetching.cache.'my.library.MyCacheAccess']
    ttl=3600  # Cache timeout in seconds
 
 Is therefore equivalent to:
@@ -255,6 +259,11 @@ Is therefore equivalent to:
    cache_access = MyCacheAccess(ttl=3600)
 
 The `cache_access` is then passed to the constructor of your chosen :class:`.AbstractFetcher` implementation.
+
+.. deprecated:: 1.3.0
+
+   The ``[fetching.cache]`` + ``type = "..."`` form. It still works, with a ``FutureWarning``, and is rejected in
+   ``id-translation==2.0.0``. Giving both forms is an error.
 
 
 Multiple fetchers

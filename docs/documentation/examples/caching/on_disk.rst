@@ -76,15 +76,15 @@ just the same as it would for e.g. a :class:`.SqlFetcher`.
 
 .. hint::
 
-   To configure caching using TOML, add a ``[fetching.cache]``-section.
+   To configure caching using TOML, add a ``[fetching.cache.'<type>']``-section, keyed by the fully qualified
+   ``CacheAccess`` type name.
 
-The ``type`` key is required. Other keys are determined by the implementation.
+Other keys are determined by the implementation.
 
 .. code-block:: toml
    :caption: Equivalent caching section of a TOML fetcher config.
 
-   [fetching.cache]
-   type = "__main__.MyCacheAccess"
+   [fetching.cache.'__main__.MyCacheAccess']
    root = "./cache/"
    ttl = 3600
 

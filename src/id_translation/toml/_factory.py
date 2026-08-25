@@ -307,9 +307,38 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
 
         return cls.MAPPER_FACTORY(config, for_fetcher)
 
+    @staticmethod
+    def _pop_single_impl(config: dict[str, Any], *, what: str) -> tuple[str, dict[str, Any]]:
+        """Extract the sole ``{clazz: kwargs}`` entry from a name-as-section config block."""
+        if len(config) == 0:  # pragma: no cover
+            raise ConfigurationError(f"{what} implementation section missing.")
+        if len(config) > 1:  # pragma: no cover
+            raise ConfigurationError(
+                f"Multiple {what.lower()} implementations specified in the same file: {sorted(config)}"
+            )
+
+        return next(iter(config.items()))
+
     @classmethod
     def _make_cache_access(cls, config: dict[str, Any]) -> CacheAccess[Any, Any]:
-        return cls.CACHE_ACCESS_FACTORY(config.pop("type"), config)
+        if "type" in config:
+            # TODO(2.0.0): Remove; `[fetching.cache]` + `type=` is replaced by `[fetching.cache.'<type>']`.
+            clazz = config.pop("type")
+            sections = sorted(key for key in config if "." in key)  # Kwargs can't be dotted; type sections must be.
+            if sections:
+                raise ConfigurationError(
+                    f"Got both type={clazz!r} and section(s) {sections} in [fetching.cache];"
+                    f" keep only the [fetching.cache.'{clazz}']-section."
+                )
+            emit_warning(
+                f"The 'type' key in [fetching.cache] is deprecated. Use a [fetching.cache.'{clazz}']-section instead."
+                "\nWARNING: This will raise in `id-translation==2.0.0`.",
+                FutureWarning,
+            )
+            return cls.CACHE_ACCESS_FACTORY(clazz, config)
+
+        clazz, kwargs = cls._pop_single_impl(config, what="Cache")
+        return cls.CACHE_ACCESS_FACTORY(clazz, kwargs)
 
     def _make_fetcher(
         self,
@@ -319,12 +348,7 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
         mapper = self._make_mapper("fetching", config) if "mapping" in config else None
         cache_access = self._make_cache_access(config.pop("cache")) if "cache" in config else None
 
-        if len(config) == 0:  # pragma: no cover
-            raise ConfigurationError("Fetcher implementation section missing.")
-        if len(config) > 1:  # pragma: no cover
-            raise ConfigurationError(f"Multiple fetcher implementations specified in the same file: {sorted(config)}")
-
-        clazz, kwargs = next(iter(config.items()))
+        clazz, kwargs = self._pop_single_impl(config, what="Fetcher")
 
         kwargs["identifiers"] = kwargs.get("identifiers", __identifiers)
         kwargs["mapper"] = mapper

@@ -3,6 +3,8 @@
 from dataclasses import fields
 from typing import Any
 
+import pytest
+
 from id_translation import fetching
 from id_translation.toml import TranslatorFactory
 from id_translation.toml._schema import (
@@ -38,6 +40,20 @@ def test_fetcher_top_level_matches_aux_allow_list() -> None:
     assert fetcher["required"] == ["fetching"]
     # MultiFetcher is permitted in the main configuration file only; fetcher files reject it (schema `false`).
     assert fetcher["definitions"]["fetching"]["properties"]["MultiFetcher"] is False
+
+
+def test_cache_accepts_both_grammars() -> None:
+    jsonschema = pytest.importorskip("jsonschema")
+    validator = jsonschema.Draft7Validator(schemas()[MAIN_FILENAME]["definitions"]["cache"])
+
+    assert validator.is_valid({"my.lib.MyCacheAccess": {"ttl": 3600}})
+    assert validator.is_valid({"my.lib.MyCacheAccess": {}})
+    assert validator.is_valid({"type": "my.lib.MyCacheAccess", "ttl": 3600}), "deprecated since 1.3.0"
+
+    assert not validator.is_valid({})
+    assert not validator.is_valid({"ttl": 3600}), "neither grammar"
+    assert not validator.is_valid({"a.A": {}, "b.B": {}}), "one implementation only"
+    assert not validator.is_valid({"type": "my.lib.MyCacheAccess", "my.lib.MyCacheAccess": {}}), "half-migrated"
 
 
 def test_metaconf_top_level_matches_dataclass() -> None:

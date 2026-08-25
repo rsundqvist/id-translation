@@ -220,17 +220,33 @@
     },
     "cache": {
       "type": "object",
-      "description": "User-defined `CacheAccess`. Only `type` is required; all other keys are forwarded to the implementation's `__init__`. See [choosing a caching strategy](https://id-translation.readthedocs.io/en/stable/documentation/translator-config.html#choosing-a-cache).",
-      "properties": {
-        "type": {
-          "type": "string",
-          "description": "Fully-qualified `CacheAccess` subtype, e.g. `my.library.MyCacheAccess`."
+      "description": "User-defined `CacheAccess`, keyed by fully-qualified type name (e.g. `[fetching.cache.'my.library.MyCacheAccess']`). Keys under it are forwarded to the implementation's `__init__`. Exactly one implementation is expected. See [choosing a caching strategy](https://id-translation.readthedocs.io/en/stable/documentation/translator-config.html#choosing-a-cache).",
+      "oneOf": [
+        {
+          "minProperties": 1,
+          "maxProperties": 1,
+          "additionalProperties": {
+            "type": "object"
+          }
+        },
+        {
+          "deprecated": true,
+          "description": "Deprecated since 1.3.0: `[fetching.cache]` with a `type` key. Use `[fetching.cache.'<type>']` instead; this form is rejected in 2.0.0.",
+          "properties": {
+            "type": {
+              "type": "string",
+              "description": "Fully-qualified `CacheAccess` subtype, e.g. `my.library.MyCacheAccess`."
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "propertyNames": {
+            "pattern": "^[^.]*$"
+          },
+          "additionalProperties": true
         }
-      },
-      "required": [
-        "type"
-      ],
-      "additionalProperties": true
+      ]
     },
     "multiFetcher": {
       "type": "object",

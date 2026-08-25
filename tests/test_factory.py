@@ -77,7 +77,7 @@ class TestEnvVars:
 class TestCacheAccess:
     def test_does_not_inherit(self, tmp_path):
         cache = f"""
-        type = "{__name__}.{BadCacheAccess.__name__}"
+        [fetching.cache.'{__name__}.{BadCacheAccess.__name__}']
         """
 
         match = "TypeError: Expected an instance of 'CacheAccess', but tests.test_factory.BadCacheAccess() produced:"
@@ -88,7 +88,7 @@ class TestCacheAccess:
         from id_translation.fetching.exceptions import CacheAccessNotAvailableError
 
         cache = f"""
-        type = "{__name__}.{DummyCacheAccess.__name__}"
+        [fetching.cache.'{__name__}.{DummyCacheAccess.__name__}']
         ttl = 3600
         """
         translator = self.create(tmp_path, cache)
@@ -107,6 +107,37 @@ class TestCacheAccess:
         with pytest.raises(CacheAccessNotAvailableError, match=r"documentation/examples/caching/on_disk.html"):
             _ = fetcher_animals.cache_access
 
+    def test_type_key_is_deprecated(self, tmp_path):
+        clazz = f"{__name__}.{DummyCacheAccess.__name__}"
+        cache = f"""
+        [fetching.cache]
+        type = "{clazz}"
+        ttl = 3600
+        """
+
+        with pytest.warns(FutureWarning, match=re.escape(f"Use a [fetching.cache.'{clazz}']-section instead.")):
+            translator = self.create(tmp_path, cache)
+
+        assert isinstance(translator.fetcher, MultiFetcher)
+        fetcher_people, _ = translator.fetcher.children
+        assert isinstance(fetcher_people, AbstractFetcher)
+        assert isinstance(fetcher_people.cache_access, DummyCacheAccess)
+        assert fetcher_people.cache_access.ttl == 3600
+
+    def test_type_key_and_section_raises(self, tmp_path):
+        """Half-migrated: the section was added, but `type` was not removed."""
+        clazz = f"{__name__}.{DummyCacheAccess.__name__}"
+        cache = f"""
+        [fetching.cache]
+        type = "{clazz}"
+
+        [fetching.cache.'{clazz}']
+        ttl = 3600
+        """
+
+        with pytest.raises(ConfigurationError, match=re.escape(f"keep only the [fetching.cache.'{clazz}']-section")):
+            self.create(tmp_path, cache)
+
     @staticmethod
     def create(tmp_path, cache):
         main = """
@@ -114,8 +145,6 @@ class TestCacheAccess:
 
         [fetching.MemoryFetcher.data]
         people = { id = [1991, 1999], name = ["Richard", "Sofia"] }
-
-        [fetching.cache]
         """
 
         main_path = tmp_path / "main.toml"

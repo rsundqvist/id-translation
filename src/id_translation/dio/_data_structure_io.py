@@ -54,7 +54,7 @@ class DataStructureIO(Generic[TranslatableT, NameType, SourceType, IdType]):
         from ._resolve import get_resolution_order  # noqa: PLC0415
 
         try:
-            return get_resolution_order(real=True).index(cls)
+            return get_resolution_order().index(cls)
         except ValueError:
             exc = DataStructureIOError(f"Not registered: {cls.__name__}")
             exc.add_note(f"Hint: Use {cls.register.__qualname__}() to register this implementation.")

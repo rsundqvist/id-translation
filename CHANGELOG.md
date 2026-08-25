@@ -31,11 +31,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * Add JSON Schemas for the TOML format (main, auxiliary fetcher, and `metaconf.toml`), published to versioned
     [Read the Docs](https://id-translation.readthedocs.io/en/stable/documentation/translator-config.html) URLs for
     editor and CI validation.
+  * `[fetching.cache.'<type>']`; same name-as-section grammar as fetchers and transformers ([#420](https://github.com/rsundqvist/id-translation/issues/420)).
   * Add a [migration guide](https://id-translation.readthedocs.io/en/stable/documentation/migration-guide.html) for
     adopting `id-translation` in existing applications.
 - Fetching:
   * `SqlFetcher(connection_string=...)` now accepts a `sqlalchemy.engine.URL`.
   * Add SQLAlchemy ORM fetcher example.
+- `Translator.copy(fetcher=...)` takes a `FetcherCopyMode`: `'keep'`, `'copy'`, or `'auto'` (default: try, then warn and reuse).
 - Warnings:
   * Add `add_skip_file_prefix()`; wrapper libraries can point warnings at their callers.
   * Add `id_translation.logging.EMIT_LOGGED_WARNINGS`.
@@ -56,7 +58,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * `SqlFetcher` creates its engine on the first `initialize_sources()` call instead of in `__init__`; bad connection
     strings surface there rather than at construction.
   * `FetcherError`, `ConnectionStatusError`, and `TranslationError` now take `msg` as a real constructor argument
-    (defaults to `""`; will become required in `2.0.0`) instead of forwarding it via `*args`.
+    (defaults to `""`) instead of forwarding it via `*args`.
   * `Translator(transformers=...)` no longer keeps a reference to the caller's dict; mutating the argument after
     construction has no effect. Use `Translator.register_transformer()` instead.
   * `deepcopy(MultiFetcher)` now raises for an uncloneable child; `Translator.copy()` then warns and shares the whole fetcher, not just that child.
@@ -66,6 +68,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   neutral for `UUID`-like strings).
 - Warnings: links in warnings and exceptions now point to the current docs version (instead of _'stable'_).
 - Raise `DataStructureIOError` instead of generic `ValueError` in `DataStructureIO.get_rank()` for unregistered types.
+
+### Deprecated
+Emits `FutureWarning` unless marked *(no warning)*; each entry says what `2.0.0` does. See [#403](https://github.com/rsundqvist/id-translation/issues/403).
+- `Translator.go_offline()` when already offline; will raise `ConnectionStatusError`.
+- Passing anything but a `FetcherCopyMode` to `Translator.copy(fetcher=...)`; will raise. Use `'keep'`, or a new `Translator`.
+- Custom `Fetcher.fetch()`/`fetch_all()` signatures without `placeholder_attributes`; will raise `TypeError`.
+- A top-level `mapping` key in TOML configuration; will raise. Use `[translator.mapping]` or `[fetching.mapping]`.
+- Ignoring bad `io_kwargs`, and `io_kwargs` without `translatable` in `Translator.fetch()`/`go_offline()`; will raise.
+- `dio.get_resolution_order(real=True)`; the parameter goes away, always returning a copy.
+- TOML: `[fetching.cache]` with a `type` key; will raise. Use `[fetching.cache.'<type>']`.
+- Mutating the `Translator.transformers` dict *(no warning)*; becomes a read-only view. Use `register_transformer()`.
+- Zero-argument `FetcherError()`/`ConnectionStatusError()`/`TranslationError()` *(no warning)*; `msg` becomes required.
+- `MemoryFetcher(return_all=True)` default *(no warning)*; becomes `False`.
+- `Format.DEFAULT = "{id}:{name}"` *(no warning)*; becomes `"{id!s:.8}:{name}"`.
+- Differing `enable_uuid_heuristics` defaults for `Translator` and `TranslationMap` *(no warning)*; will be aligned.
+- Positional `Translator()` arguments *(no warning)*; most become keyword-only.
+- `UnmappedExplicitNamesError` not inheriting `UnmappedValuesError` *(no warning)*; it will.
 
 ### Fixed
 - `Mapper`: score functions now receive candidates in caller order; `modified_hamming` tie-breaking no longer

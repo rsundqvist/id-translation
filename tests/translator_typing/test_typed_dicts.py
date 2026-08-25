@@ -208,4 +208,6 @@ def test_typed_dict_docstring_contains_relevant_methods():
     ids=lambda v: v.__qualname__.replace(".", "-"),
 )
 def test_annotations(func, typed_dict):
-    validate_func_annotations(func, typed_dict, fail_fast=False)
+    # `fetcher` is intentionally typed differently: a data source on `__init__`, a copy mode on `copy()`.
+    exclude = {"self", "cls", "fetcher"} if typed_dict is tt.CopyParams else None
+    validate_func_annotations(func, typed_dict, exclude=exclude, fail_fast=False)

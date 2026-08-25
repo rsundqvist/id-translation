@@ -52,7 +52,7 @@ from .toml import TranslatorFactory, meta
 from .transform import TransformerStack, as_transformer
 from .transform._impl.stack import has_member
 from .transform.types import OnExistingTransformer, Transformer, Transformers, TransformersArg
-from .translator_typing import CopyParams, FetcherTypes
+from .translator_typing import CopyParams, FetcherCopyMode, FetcherTypes
 from .types import (
     ID,
     CopyTranslatable,
@@ -82,6 +82,11 @@ ON_EXISTING_HELPER: LiteralHelper[OnExistingTransformer] = LiteralHelper(
     OnExistingTransformer,
     default_name="on_existing",
     type_name="OnExistingTransformer",
+)
+FETCHER_COPY_MODE_HELPER: LiteralHelper[FetcherCopyMode] = LiteralHelper(
+    FetcherCopyMode,
+    default_name="fetcher",
+    type_name="FetcherCopyMode",
 )
 
 
@@ -323,26 +328,37 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         Args:
             overrides: Keyword arguments to use when instantiating the copy. Options that aren't given will be taken
                 from the current instance. See the :class:`~id_translation.Translator` class documentation for possible
-                choices.
+                choices (except `fetcher`; see Notes).
 
         Returns:
             A copy of this :class:`~id_translation.Translator` with `overrides` applied.
 
         Notes:
-            User types are copied using :func:`copy.deepcopy`.
+            User types are copied using :func:`copy.deepcopy`. The `fetcher` override selects how the current
+            :attr:`~id_translation.Translator.fetcher` is carried over -- ``'keep'`` reuses it as-is, ``'copy'``
+            requires a successful :func:`~copy.deepcopy`, and the default, ``'auto'``, tries to clone and falls back
+            to ``'keep'`` with a warning if that fails; see
+            :attr:`~id_translation.translator_typing.FetcherCopyMode`. This only applies while
+            :attr:`~id_translation.Translator.online`; an offline copy always shares the cached translation records
+            with the original, which are never mutated in place.
 
             Fetcher-provided transformers already derived by this instance are carried over via the `transformers`
             argument, and are not derived again; see :meth:`Fetcher.get_transformer()
-            <id_translation.fetching.Fetcher.get_transformer>`. Overriding `fetcher` with a *different* instance
-            has never been queried, so the copy derives that fetcher's transformers on first use; anything it
-            provides for a carried-over source chains ahead of it.
+            <id_translation.fetching.Fetcher.get_transformer>`. This holds for all three `fetcher` modes.
 
             Passing `transformers` explicitly replaces that set wholesale -- including anything the fetcher provided
             -- and the copy does not query the fetcher for more. Pass
             :attr:`~id_translation.Translator.transformers` to keep the current set, or ``None`` to start empty and
             derive on first use, as the constructor does.
+
+        .. deprecated:: 1.3.0
+           Passing anything but a :attr:`~id_translation.translator_typing.FetcherCopyMode` as `fetcher`. Use
+           ``fetcher='keep'`` to reuse the current :attr:`~id_translation.Translator.fetcher`, which is what the
+           failed-clone hint used to recommend. Replacing the data source will raise in ``id-translation==2.0.0``;
+           construct a new :class:`~id_translation.Translator` instead.
         """
         cls = type(self)
+        fetcher_mode = self._pop_fetcher_copy_mode(overrides)
 
         kwargs: dict[str, Any] = {
             "fmt": self.fmt,
@@ -355,26 +371,14 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         if "mapper" not in kwargs:
             kwargs["mapper"] = self.mapper.copy()
 
-        if "fetcher" not in kwargs:
-            if self.online:
-                try:
-                    kwargs["fetcher"] = deepcopy(self.fetcher)
-                except TypeError as e:
-                    msg = (
-                        f"Failed to clone fetcher (TypeError: {e}). Caller instance will be reused."
-                        f"\nHint: To suppress this warning: {cls.__name__}.copy(fetcher={cls.__name__}.fetcher)"
-                    )
-                    emit_warning(msg)
-                    kwargs["fetcher"] = self.fetcher
-            else:
-                kwargs["fetcher"] = self.cache
+        if "fetcher" not in kwargs:  # TODO(2.0.0): Unconditional; `fetcher` is a FetcherCopyMode only.
+            kwargs["fetcher"] = self._copy_fetcher(fetcher_mode)
 
         if "transformers" not in kwargs:
             kwargs["transformers"] = self._copy_transformers()
             # Derived results travel with the copies; a second pass over the same fetcher would self-conflict. Only a
-            # *different* fetcher is unqueried -- reusing this one (what the failed-deepcopy hint recommends) is not.
-            same_source = "fetcher" not in overrides or overrides["fetcher"] is self._fetcher
-            settled = same_source and self._transformers_queried
+            # (deprecated) replacement is unqueried; `fetcher_mode` never substitutes the data source.
+            settled = "fetcher" not in overrides and self._transformers_queried
         else:
             # An explicit set is complete, so it settles the question either way -- without this, the same call
             # would query or not depending on whether the caller had translated yet. `None` means "derive on first
@@ -384,6 +388,56 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         new = cls(**kwargs)
         new._transformers_queried = settled
         return new
+
+    def _pop_fetcher_copy_mode(self, overrides: CopyParams[NameType, SourceType, IdType]) -> FetcherCopyMode:
+        """Resolve the `fetcher` override. A (deprecated) replacement data source is left in `overrides`."""
+        if "fetcher" not in overrides:
+            return "auto"
+
+        fetcher = overrides["fetcher"]
+        if isinstance(fetcher, str):
+            del overrides["fetcher"]
+            return FETCHER_COPY_MODE_HELPER.check(fetcher)
+
+        # TODO(2.0.0): Remove the rest; `fetcher` accepts only FetcherCopyMode.
+        cls = type(self).__name__
+        current = self._fetcher if self.online else self._cached_tmap
+        if fetcher is not None and fetcher is current:
+            del overrides["fetcher"]
+            emit_warning(
+                f"Passing the current data source to {cls}.copy(fetcher=...) is deprecated; use fetcher='keep'."
+                "\nWARNING: This will raise in `id-translation==2.0.0`.",
+                FutureWarning,
+            )
+            return "keep"
+
+        emit_warning(
+            f"{cls}.copy(fetcher=...) replaces the data source, which will be fixed for the lifetime of a {cls}."
+            f"\nWARNING: This will raise in `id-translation==2.0.0`. Construct a new {cls} instead.",
+            FutureWarning,
+        )
+        return "auto"  # Unused; the replacement stays in `overrides`.
+
+    def _copy_fetcher(
+        self, mode: FetcherCopyMode
+    ) -> Fetcher[SourceType, IdType] | TranslationMap[NameType, SourceType, IdType]:
+        if not self.online:
+            return self.cache  # Never mutated in place, so every mode shares it.
+        if mode == "keep":
+            return self.fetcher
+
+        try:
+            return deepcopy(self.fetcher)
+        except TypeError as e:
+            hint = f"{type(self).__name__}.copy(fetcher='keep')"
+            if mode == "copy":
+                e.add_note(f"Hint: Could not clone {tname(self.fetcher, include_module=True)}. Use {hint} to reuse it.")
+                raise
+            emit_warning(
+                f"Failed to clone fetcher (TypeError: {e}). Caller instance will be reused."
+                f"\nHint: To suppress this warning: {hint}"
+            )
+            return self.fetcher
 
     def _copy_transformers(self) -> Transformers[SourceType, IdType]:
         try:
@@ -1283,9 +1337,6 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
            The :attr:`~id_translation.Translator.fetcher` will be destroyed.
 
-        Subsequent calls to this method return immediately, emitting a ``FutureWarning`` (this will raise in
-        ``id-translation==2.0.0``).
-
         Args:
             translatable: Data from which IDs to fetch will be extracted. Fetch all IDs if ``None``.
             names: Explicit names to translate. Derive from `translatable` if ``None``.
@@ -1297,6 +1348,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                 :attr:`Translator.fmt <id_translation.Translator.fmt>`.
             io_kwargs: Keyword arguments for the IO class (e.g.
                 :class:`~id_translation.dio.integration.pandas.PandasIO`).
+                Ignored, with a warning, when `translatable` is ``None``; this will raise in ``id-translation==2.0.0``.
             path: If given, serialize the :class:`~id_translation.Translator` to disk after retrieving data.
 
         Returns:
@@ -1319,6 +1371,10 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             🔑 This is a key event method. See :ref:`key-events` for details.
 
             The :meth:`~id_translation.Translator.restore` method (when `path` is set).
+
+        .. deprecated:: 1.3.0
+           Calling this method when already offline (returns immediately), and passing `io_kwargs` without
+           `translatable` (ignored). Both emit ``FutureWarning`` and will raise in ``id-translation==2.0.0``.
         """
         if not self.online:
             # TODO(2.0.0): raise
@@ -1430,6 +1486,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                 :attr:`Translator.fmt <id_translation.Translator.fmt>`.
             io_kwargs: Keyword arguments for the IO class (e.g.
                 :class:`~id_translation.dio.integration.pandas.PandasIO`).
+                Ignored, with a warning, when `translatable` is ``None``; this will raise in ``id-translation==2.0.0``.
 
         Returns:
             A :class:`~id_translation.offline.TranslationMap`.
@@ -1482,6 +1539,10 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
             >>> translation_map.to_dicts()["people"]
             {'id': [1999, 1991], 'name': ['Sofia', 'Richard']}
+
+        .. deprecated:: 1.3.0
+           Passing `io_kwargs` without `translatable`; ignored with a ``FutureWarning``, will raise in
+           ``id-translation==2.0.0``.
         """
         task_id = _logging.generate_task_id()
         self.initialize_sources(task_id)
@@ -1513,7 +1574,9 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
     ) -> TranslationMap[NameType, SourceType, IdType]:
         if io_kwargs and translatable is None:
             # TODO(2.0.0): raise.
-            LOGGER.warning(f"Ignoring {io_kwargs=} since {translatable=}.", extra={"task_id": task_id})
+            msg = f"Ignoring {io_kwargs=} since {translatable=}."
+            LOGGER.warning(msg, extra={"task_id": task_id})
+            emit_warning(f"{msg}\nWARNING: This will raise in `id-translation==2.0.0`.", FutureWarning)
 
         fmt = self._fmt if fmt is None else Format.parse(fmt)
 

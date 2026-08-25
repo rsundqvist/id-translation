@@ -1,4 +1,5 @@
 import logging
+import warnings
 from contextlib import contextmanager
 from itertools import product
 from typing import Any, assert_type
@@ -543,7 +544,8 @@ def test_override_fetcher(translator):
     assert translator.translate(1, names="positive_numbers") == "1:0x1, positive=True"
     expected = old_fetcher.num_fetches
 
-    translator = translator.copy(fetcher={"positive_numbers": {"id": [1], "hex": ["0x1"], "positive": [True]}})
+    with pytest.warns(FutureWarning, match="replaces the data source"):
+        translator = translator.copy(fetcher={"positive_numbers": {"id": [1], "hex": ["0x1"], "positive": [True]}})
     assert translator.translate(1, names="positive_numbers") == "1:0x1, positive=True"
     assert expected == old_fetcher.num_fetches
 
@@ -884,6 +886,50 @@ def test_fetcher_not_cloneable_multi_fetcher():
     assert copy.fetcher is translator.fetcher
 
 
+def test_fetcher_not_cloneable_copy_mode_raises():
+    """Unlike 'auto', 'copy' must not fall back to reusing the original on a failed deepcopy."""
+    translator = UnitTestTranslator(fetcher=NotCloneableFetcher())
+
+    with pytest.raises(TypeError, match="pickle 'module'") as exc_info:
+        translator.copy(fetcher="copy")
+
+    assert exc_info.value.__notes__ == [
+        "Hint: Could not clone tests.conftest.NotCloneableFetcher. Use UnitTestTranslator.copy(fetcher='keep') to reuse it."
+    ]
+
+
+def test_fetcher_not_cloneable_keep_mode_does_not_warn():
+    translator = UnitTestTranslator(fetcher=NotCloneableFetcher())
+
+    copy = translator.copy(fetcher="keep")  # Warnings are errors in this suite.
+    assert copy.fetcher is translator.fetcher
+
+
+def test_bad_fetcher_copy_mode(translator):
+    with pytest.raises(TypeError, match=r"FetcherCopyMode\['keep', 'copy', 'auto'\]"):
+        translator.copy(fetcher="clone")
+
+
+def test_copy_fetcher_none_is_deprecated(translator):
+    """`None` is a replacement too: the copy gets an auto-generated fetcher, as the constructor does."""
+    with warnings.catch_warnings(record=True) as record:
+        warnings.simplefilter("always")
+        copy = translator.copy(fetcher=None)
+
+    assert [w.category for w in record][:1] == [FutureWarning]
+    assert "replaces the data source" in str(record[0].message)
+    assert all(w.category is UserWarning for w in record[1:]), "the constructor's own warnings follow"
+    assert copy.fetcher is not translator.fetcher
+
+
+def test_passing_the_fetcher_back_is_deprecated(translator):
+    """What the failed-clone hint used to recommend; it means 'keep', not a replacement."""
+    with pytest.warns(FutureWarning, match="use fetcher='keep'"):
+        copy = translator.copy(fetcher=translator.fetcher)
+
+    assert copy.fetcher is translator.fetcher
+
+
 def test_empty(translator):
     actual = translator.translate({"p": [], "n": [-1]}, max_fails=1.0)
     assert actual == {"p": [], "n": ["-1:-0x1, positive=False"]}
@@ -932,7 +978,8 @@ class TestIoKwargs:
     def test_bad_io_kwargs(self, series, translator, caplog):
         caplog.set_level(logging.WARNING, logger="id_translation.dio")
 
-        actual = translator.translate(series, fmt="{hex}", io_kwargs={"missig_as_nan": True}).to_dict()
+        with pytest.warns(FutureWarning, match="This will raise in"):
+            actual = translator.translate(series, fmt="{hex}", io_kwargs={"missig_as_nan": True}).to_dict()
         assert actual == {-1: "<Failed: id=-1>", 1: "0x1"}
 
         assert len(caplog.records) == 1
@@ -940,3 +987,13 @@ class TestIoKwargs:
         assert record.msg == "Ignoring io_kwargs={'missig_as_nan': True} since PandasIO(**io_kwargs) raises TypeError."
         assert record.io_kwargs == ["missig_as_nan"]
         assert record.io_class == "id_translation.dio.integration.pandas.PandasIO"
+
+    def test_without_translatable(self, translator, caplog):
+        caplog.set_level(logging.WARNING, logger="id_translation")
+
+        with pytest.warns(FutureWarning, match="This will raise in"):
+            translator.fetch(io_kwargs={"missing_as_nan": True})
+
+        assert [r.msg for r in caplog.records] == [
+            "Ignoring io_kwargs={'missing_as_nan': True} since translatable=None."
+        ]

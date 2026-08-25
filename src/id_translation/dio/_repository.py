@@ -7,6 +7,7 @@ from typing import Any
 
 from rics.misc import tname
 
+from .._utils.emit_warning import emit_warning
 from ..types import TranslatableT
 from ._data_structure_io import DataStructureIO
 from ._util import pretty_io_name
@@ -133,8 +134,9 @@ class Repository:
             except Exception as exc:
                 # TODO(2.0.0): Raise by default; add an envvar to downgrade to this warning.
                 # TODO(python-3.13): Use signature(io_class).format() to pretty-print io_class.__init__ parameters.
+                msg = f"Ignoring {io_kwargs=} since {io_class.__qualname__}(**io_kwargs) raises {type(exc).__name__}."
                 _LOGGER.warning(
-                    f"Ignoring {io_kwargs=} since {io_class.__qualname__}(**io_kwargs) raises {type(exc).__name__}.",
+                    msg,
                     exc_info=exc,
                     extra={
                         "task_id": task_id,
@@ -142,6 +144,7 @@ class Repository:
                         "io_kwargs": [*io_kwargs],
                     },
                 )
+                emit_warning(f"{msg}\nWARNING: This will raise in `id-translation==2.0.0`.", FutureWarning)
 
         return io_class()
 

@@ -28,7 +28,8 @@ def validate_func_annotations(
     Args:
         func: The function to validate.
         annotations: A type with ``__annotations__``, such as a ``TypedDict``.
-        exclude: Keys to exclude. Default is `'self'` and `'cls'`.
+        exclude: Keys to exclude from both `func` and `annotations`. Default is `'self'` and `'cls'` (from `func`
+            only).
         fail_fast: Set to ``True`` to raise on the first error.
 
     Raises:
@@ -53,7 +54,8 @@ def validate_func_annotations(
         expected_dict.pop("cls", None)
     else:
         for key in exclude:
-            expected_dict.pop(key)
+            expected_dict.pop(key, None)
+            actual_dict.pop(key, None)
 
     errors: list[_ErrorTuple] = []
 
