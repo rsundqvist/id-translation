@@ -567,11 +567,18 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
             memo = {}
         cls = self.__class__
         result = cls.__new__(cls)
+        mark = len(memo)  # `deepcopy` only ever inserts into the memo, and dicts preserve insertion order.
         memo[id(self)] = result
 
-        dicts = self._copy_dicts(memo)
-        for k, v in self.__dict__.items():
-            setattr(result, k, dicts[k] if k in dicts else deepcopy(v, memo))
+        try:
+            dicts = self._copy_dicts(memo)
+            for k, v in self.__dict__.items():
+                setattr(result, k, dicts[k] if k in dicts else deepcopy(v, memo))
+        except Exception:
+            # Leave a shared memo as we found it; a later copy must not adopt the half-built shell.
+            for key in list(memo)[mark:]:
+                del memo[key]
+            raise
 
         return result
 
@@ -582,21 +589,12 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         members = self.__dict__
 
         for old_id, old_fetcher in members["_id_to_fetcher"].items():
-            mark = len(memo)  # `deepcopy` only ever inserts into the memo, and dicts preserve insertion order.
             try:
                 new_fetcher = deepcopy(old_fetcher, memo)
             except TypeError as e:
-                # Drop what the failed attempt left behind: `__deepcopy__` keeps copying other attributes with this
-                # memo, and none of them may adopt a half-built child.
-                for key in list(memo)[mark:]:
-                    del memo[key]
-
-                new_fetcher = old_fetcher
-
-                # This hides the Translator.copy(fetcher=Translator.fetcher) warning emitted in the caller!
-                fetcher_cls = type(old_fetcher).__name__
-                msg = f"deepcopy() failed ({type(e).__name__}: {e}). Reusing {self.format_child(old_fetcher)}"
-                LOGGER.warning(msg, exc_info=True, extra={"fetcher_class": fetcher_cls})
+                # Sharing the child instead would hand back a copy that is partly the original, with only a log line
+                # to say so. Translator.copy(fetcher='auto') handles the failure for the fetcher as a whole.
+                raise TypeError(f"Cannot clone {self.format_child(old_fetcher)}: {e}") from e
 
             new_id = id(new_fetcher)
             new_id_to_fetcher[new_id] = new_fetcher

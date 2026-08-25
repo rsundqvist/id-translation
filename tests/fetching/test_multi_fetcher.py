@@ -368,8 +368,7 @@ class TestNoSources:
 def test_copy(fetchers):
     ids_to_fetch = [IdsToFetch("animals", {1})]
 
-    not_cloneable = NotCloneableFetcher()
-    original = MultiFetcher(not_cloneable, *fetchers, on_source_conflict="ignore", max_workers=2)
+    original = MultiFetcher(*fetchers, on_source_conflict="ignore", max_workers=2)
     original.initialize_sources()
     original_fetch_all = original.fetch_all()
     original_fetch = original.fetch(ids_to_fetch)
@@ -382,10 +381,30 @@ def test_copy(fetchers):
     original_children = {original._id_to_rank[id(c)]: id(c) for c in original.children}
 
     assert sorted(copied_children) == sorted(original_children), "keys should match"
-    assert copied_children.pop(0) == original_children.pop(0), "NotCloneableFetcher - IDs should be same"
-    assert copied_children != original_children, "IDs should be different"
+    assert set(copied_children.values()).isdisjoint(original_children.values()), "IDs should be different"
 
     assert original_fetch == copied.fetch(ids_to_fetch)
+
+
+def test_copy_uncloneable_child_raises(fetchers):
+    """A copy that silently shares a child is worse than no copy; Translator.copy() decides what to do instead."""
+    original = MultiFetcher(NotCloneableFetcher(), *fetchers, on_source_conflict="ignore")
+
+    with pytest.raises(TypeError, match=r"Cannot clone rank-0 fetcher NotCloneableFetcher\(") as exc_info:
+        deepcopy(original)
+
+    assert "pickle 'module'" in str(exc_info.value)
+
+
+def test_copy_uncloneable_child_leaves_memo_clean(fetchers):
+    """A shared memo must not keep the half-built shell, or a later copy would adopt it."""
+    original = MultiFetcher(NotCloneableFetcher(), *fetchers, on_source_conflict="ignore")
+    memo: dict[int, object] = {}
+
+    with pytest.raises(TypeError):
+        deepcopy(original, memo)
+
+    assert memo == {}
 
 
 def test_init_logging(multi_fetcher, caplog):

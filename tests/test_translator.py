@@ -18,7 +18,7 @@ from id_translation.exceptions import (
     TranslationAbortedWarning,
     TranslationDisabledWarning,
 )
-from id_translation.fetching import MemoryFetcher
+from id_translation.fetching import MemoryFetcher, MultiFetcher
 from id_translation.fetching.exceptions import UnknownSourceError
 from id_translation.logging import enable_verbose_debug_messages
 from id_translation.mapping import Mapper
@@ -872,6 +872,16 @@ def test_fetcher_not_cloneable():
     assert type(translator) is UnitTestTranslator
     assert id(copy) != id(translator)
     assert id(copy.fetcher) == fetcher_id
+
+
+def test_fetcher_not_cloneable_multi_fetcher():
+    """The failure must reach the warning above; MultiFetcher used to share the child and log instead."""
+    translator = UnitTestTranslator(fetcher=MultiFetcher(NotCloneableFetcher()))
+
+    with pytest.warns(UserWarning, match="Cannot clone rank-0 fetcher NotCloneableFetcher"):
+        copy = translator.copy()
+
+    assert copy.fetcher is translator.fetcher
 
 
 def test_empty(translator):

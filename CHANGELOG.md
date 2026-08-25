@@ -59,6 +59,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     (defaults to `""`; will become required in `2.0.0`) instead of forwarding it via `*args`.
   * `Translator(transformers=...)` no longer keeps a reference to the caller's dict; mutating the argument after
     construction has no effect. Use `Translator.register_transformer()` instead.
+  * `deepcopy(MultiFetcher)` now raises for an uncloneable child; `Translator.copy()` then warns and shares the whole fetcher, not just that child.
 - Transformers: `Translator.copy()` clones transformers per distinct instance rather than per source, so one
   registered for several sources stays a single instance in the copy.
 - Performance: faster `Translator.translate()` for large `pandas` inputs (~1.6x; ~1.5x for `uuid.UUID`-typed vectors,
