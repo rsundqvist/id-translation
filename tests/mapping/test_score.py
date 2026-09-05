@@ -1,12 +1,7 @@
-import warnings
-
 import pytest
 
 from id_translation.mapping import Cardinality, DirectionalMapping
-
-with warnings.catch_warnings():
-    warnings.simplefilter("ignore", category=UserWarning)
-    from id_translation.mapping.matrix import ScoreHelper, ScoreMatrix
+from id_translation.mapping.matrix import ScoreHelper, ScoreMatrix
 
 
 @pytest.mark.parametrize(

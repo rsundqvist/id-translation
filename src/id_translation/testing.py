@@ -21,8 +21,12 @@ from .offline.types import (
 from .types import ID, IdType, SourceType
 
 
-class TestMapper(_Mapper[ValueType, ValueType, ContextType]):  # TODO(2.0.0): Bad type args?
+class TestMapper(_Mapper[ValueType, ValueType, ContextType]):
     """Dummy ``Mapper`` implementation."""
+
+    # Keep values and candidates bound to a single `ValueType`: it's deliberate. `apply()` maps every value to
+    # itself, so the candidate side of the result *is* the value side, and a separate `CandidateType` makes that
+    # identity mapping a type error. Candidates are ignored entirely unless `override_function` is given.
 
     def apply(
         self,

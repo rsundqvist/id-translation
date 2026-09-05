@@ -1,5 +1,4 @@
 import logging
-import warnings
 from collections.abc import Iterable
 from math import isinf
 from time import perf_counter
@@ -25,6 +24,7 @@ from .exceptions import (
     UserMappingError,
     UserMappingWarning,
 )
+from .matrix import ScoreHelper, ScoreMatrix
 from .types import (
     CandidateType,
     CardinalityType,
@@ -36,11 +36,6 @@ from .types import (
     UserOverrideFunction,
     ValueType,
 )
-
-with warnings.catch_warnings():
-    warnings.simplefilter("ignore", category=UserWarning)
-    from .matrix import ScoreHelper, ScoreMatrix
-
 
 inf = float("inf")
 FilterFunctionArgItem = tuple[str | FilterFunction[ValueType, CandidateType, ContextType], dict[str, Any]]

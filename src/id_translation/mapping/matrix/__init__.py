@@ -5,8 +5,6 @@
    This module is considered an implementation detail, and may change without notice.
 """
 
-from warnings import warn as _warn
-
 from ._score_helper import Record, Reject, ScoreHelper
 from ._score_matrix import ScoreMatrix
 
@@ -16,10 +14,3 @@ __all__ = [
     "ScoreHelper",
     "ScoreMatrix",
 ]
-
-_warn(
-    "This module is considered an implementation detail, and may change without notice.",
-    UserWarning,
-    stacklevel=2,
-)
-del _warn

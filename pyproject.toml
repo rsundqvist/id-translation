@@ -59,7 +59,7 @@ arrow_io = "id_translation.dio.integration.pyarrow:ArrowIO"
 manual-extras = [
     # Extras that must be available for docs + tests go here. Doc/test-only deps go in their respective groups.
     "polars~=1.38.1",
-    "dask[dataframe]~=2026.1.2",
+    "dask[dataframe]~=2026.7.1",
     "pyarrow ~= 23.0.1",
 ]
 docs = [

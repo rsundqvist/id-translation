@@ -654,7 +654,7 @@ def test_override_is_not_called_during_construction():
     seen: list[str] = []
 
     class Strict(Translator[str, str, int]):
-        def register_transformer(self, source, transformer, on_existing="raise"):
+        def register_transformer(self, source, transformer, *, on_existing="raise"):
             assert self.fmt, "attributes created after the transformers argument is applied"
             seen.append(source)
             super().register_transformer(source, transformer, on_existing=on_existing)

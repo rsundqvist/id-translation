@@ -114,8 +114,6 @@ def audit(c: Context) -> None:
     _run(c, "uv audit --preview-features audit-command")
 
 
-# invoke annotates its own `task()` as returning a bare `Callable`, so the decorated tasks do not
-# type as `Task`. warn_unused_ignores will flag this once invoke's annotations improve.
 @task(pre=[audit, call(flake8, check=True), call(format_, check=True), spelling])  # type: ignore[arg-type]
 def lint(_: Context) -> None:
     """Run all linting."""
