@@ -30,7 +30,6 @@ class ConnectionStatusError(ConnectionError):
 class TranslationError(Exception):
     """Base class for translation errors."""
 
-    # TODO(2.0.0): Inherit from a common `IdTranslationError` shared by all id-translation exceptions.
     # TODO(2.0.0): Drop the `msg` default; it exists only to keep zero-arg `raise TranslationError()`-style calls
     #  working after `msg` became a real constructor arg.
 
@@ -56,11 +55,21 @@ class TransformerConflictError(ValueError):
     # Keep the `ValueError` base -- it's deliberate: registration's sibling failures (an empty chain, a
     # non-Transformer value) raise ValueError/TypeError, so `except ValueError` around a registration block
     # catches the conflict too.
-    # TODO(2.0.0): Also inherit the common `IdTranslationError` planned for `TranslationError` above.
 
 
-class TranslationWarning(UserWarning):
+class IdTranslationWarning(Warning):
+    """Base class for all warnings emitted by ``id-translation``.
+
+    A single filter covers every warning in the suite::
+
+        warnings.filterwarnings("ignore", category=IdTranslationWarning)
+    """
+
+
+class TranslationWarning(IdTranslationWarning, UserWarning):
     """Base class for translation warnings."""
+
+    # TODO(2.0.0): Drop the `UserWarning` base.
 
 
 class TranslationAbortedWarning(TranslationWarning):

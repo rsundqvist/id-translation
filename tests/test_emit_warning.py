@@ -11,6 +11,7 @@ from typing import Any, cast
 import pytest
 
 from id_translation._utils import emit_warning as ew
+from id_translation.exceptions import TranslationWarning
 
 
 @pytest.fixture(autouse=True)
@@ -60,13 +61,13 @@ def test_add_skip_file_prefix_affects_emit_warning_attributed_location():
     )
 
     # Baseline: the wrapper's own file is not skipped, so it is reported as the warning's source.
-    with pytest.warns(UserWarning) as record:
+    with pytest.warns(TranslationWarning) as record:
         call_emit_warning(ew.emit_warning, "unregistered")
     assert record.list[-1].filename == fake_file
 
     # After registering its directory, the wrapper is skipped and attribution moves to *our* call site.
     ew.add_skip_file_prefix(fake_dir)
-    with pytest.warns(UserWarning) as record:
+    with pytest.warns(TranslationWarning) as record:
         call_emit_warning(ew.emit_warning, "registered")
     assert record.list[-1].filename == __file__
 

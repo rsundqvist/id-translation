@@ -9,8 +9,6 @@ from .._utils import add_hints as _add_hints
 class DataStructureIOError(TypeError):
     """Base class for IO exceptions."""
 
-    # TODO(2.0.0): Inherit from a common `IdTranslationError` shared by all id-translation exceptions.
-
     def __init__(self, msg: str, *, hints: str | _Iterable[str] = ()) -> None:
         super().__init__(msg)
 

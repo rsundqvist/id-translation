@@ -430,7 +430,10 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
             elif "{password}" in connection_string:
                 connection_string = connection_string.format(password=quote_plus(password))
             else:
-                emit_warning("A password was specified, but the connection string does not have a {password} key.")
+                emit_warning(
+                    "A password was specified, but the connection string does not have a {password} key.",
+                    category=FetcherWarning,
+                )
         return connection_string
 
     def _get_summaries(self, task_id: int) -> dict[str, TableSummary[IdType]]:

@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `exceptions.IdTranslationWarning`, the common base of every warning in the suite. One
+  `warnings.filterwarnings(..., category=IdTranslationWarning)` covers all of them.
+
+### Changed
+- Warnings that were plain `UserWarning` are now `TranslationWarning`, so their formatted text changes accordingly.
+- The `MultiFetcher` no-fetchers warning and the `SqlFetcher` password-key warning are `FetcherWarning`s (were
+  `UserWarning`).
+
+### Deprecated
+Emits `FutureWarning` unless marked *(no warning)*; each entry says what `2.0.0` does.
+- `TranslationWarning` and `MappingWarning` inheriting `UserWarning`, and `FetcherWarning` inheriting
+  `RuntimeWarning` *(no warning)*; `2.0.0` drops the stdlib bases. Filter on `IdTranslationWarning` instead.
+
 ## [1.3.0] - 2026-08-26
 
 **Highlights**:

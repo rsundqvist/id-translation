@@ -204,7 +204,7 @@ class TestOptionalFetchers:
         )
 
     def test_all_optional_crash(self):
-        with pytest.warns(UserWarning, match="No fetchers"):
+        with pytest.warns(FetcherWarning, match="No fetchers"):
             self._run(
                 children=[
                     CrashFetcher(True, optional=True),
@@ -321,7 +321,7 @@ class CrashFetcher(MemoryFetcher[str, int]):
         return super()._initialize_sources(task_id)
 
 
-@pytest.mark.filterwarnings("ignore:No fetchers:UserWarning")
+@pytest.mark.filterwarnings("ignore:No fetchers:id_translation.fetching.exceptions.FetcherWarning")
 class TestNoSources:
     def test_required(self, caplog):
         fetcher: MultiFetcher[str, int] = MultiFetcher(MemoryFetcher({}, optional=False))

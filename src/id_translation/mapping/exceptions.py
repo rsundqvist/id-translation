@@ -4,12 +4,11 @@ from collections.abc import Iterable as _Iterable
 from typing import Any as _Any
 
 from .._utils import add_hints as _add_hints
+from ..exceptions import IdTranslationWarning as _IdTranslationWarning
 
 
 class MappingError(Exception):
     """Base exception class for all mapping-related issues."""
-
-    # TODO(2.0.0): Inherit from a common `IdTranslationError` shared by all id-translation exceptions.
 
     def __init__(self, msg: str, *, ref: str = "", hints: str | _Iterable[str] = ()) -> None:
         super().__init__(msg)
@@ -93,8 +92,10 @@ class CardinalityError(MappingError):
     """Base class for cardinality issues."""
 
 
-class MappingWarning(UserWarning):
+class MappingWarning(_IdTranslationWarning, UserWarning):
     """Base warning class for all mapping-related issues."""
+
+    # TODO(2.0.0): Drop the `UserWarning` base.
 
 
 class UnmappedValuesWarning(MappingWarning):

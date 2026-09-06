@@ -1,6 +1,7 @@
 """Utilities for emitting warnings with accurate stack levels."""
 
 from id_translation import logging as _logging
+from id_translation.exceptions import TranslationWarning as _TranslationWarning
 
 _USER_PREFIXES: set[str] = set()
 
@@ -23,7 +24,7 @@ def add_skip_file_prefix(path: str) -> None:
 
 def emit_warning(
     msg: str | Warning,
-    category: type[Warning] = UserWarning,
+    category: type[Warning] = _TranslationWarning,
     logged: bool = False,
 ) -> None:
     """Emit warning with automatic stack level."""

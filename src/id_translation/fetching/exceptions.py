@@ -4,10 +4,13 @@ from collections.abc import Iterable as _Iterable
 from typing import Any as _Any
 
 from .._utils import add_hints as _add_hints
+from ..exceptions import IdTranslationWarning as _IdTranslationWarning
 
 
-class FetcherWarning(RuntimeWarning):
+class FetcherWarning(_IdTranslationWarning, RuntimeWarning):
     """Base class for ``Fetcher`` warnings."""
+
+    # TODO(2.0.0): Drop the `RuntimeWarning` base.
 
 
 class ConcurrentOperationWarning(FetcherWarning):
@@ -32,7 +35,6 @@ class ConcurrentOperationWarning(FetcherWarning):
 class FetcherError(RuntimeError):
     """Base class for ``Fetcher`` exceptions."""
 
-    # TODO(2.0.0): Inherit from a common `IdTranslationError` shared by all id-translation exceptions.
     # TODO(2.0.0): Drop the `msg` default; it exists only to keep `raise UnknownIdError()`-style calls from
     #  third-party `Fetcher` implementations working after `msg` became a real constructor arg.
 

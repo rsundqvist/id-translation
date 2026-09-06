@@ -189,7 +189,7 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
             self._handle_all_sources_outranked(task_id, fetcher_id=fid, discarded=discarded)
 
         if not self._id_to_fetcher:
-            emit_warning("No fetchers. See log output for more information.")
+            emit_warning("No fetchers. See log output for more information.", exceptions.FetcherWarning)
 
         if LOGGER.isEnabledFor(logging.DEBUG):
             seconds = perf_counter() - start

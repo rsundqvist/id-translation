@@ -18,6 +18,7 @@ from id_translation.exceptions import (
     TooManyFailedTranslationsError,
     TranslationAbortedWarning,
     TranslationDisabledWarning,
+    TranslationWarning,
 )
 from id_translation.fetching import MemoryFetcher, MultiFetcher
 from id_translation.fetching.exceptions import UnknownSourceError
@@ -918,7 +919,7 @@ def test_copy_fetcher_none_is_deprecated(translator):
 
     assert [w.category for w in record][:1] == [FutureWarning]
     assert "replaces the data source" in str(record[0].message)
-    assert all(w.category is UserWarning for w in record[1:]), "the constructor's own warnings follow"
+    assert all(w.category is TranslationWarning for w in record[1:]), "the constructor's own warnings follow"
     assert copy.fetcher is not translator.fetcher
 
 
