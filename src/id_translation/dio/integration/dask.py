@@ -9,6 +9,7 @@ from dask import dataframe as _dd
 from rics.misc import tname as _tname
 
 from id_translation import types as _tt
+from id_translation._utils.emit_warning import emit_warning as _emit_warning
 from id_translation.dio import DataStructureIO as _DataStructureIO
 from id_translation.dio.exceptions import NotInplaceTranslatableError as _NotInplaceTranslatableError
 from id_translation.dio.integration.pandas import PandasIO as _PandasIO
@@ -39,7 +40,20 @@ class DaskIO(_DataStructureIO[DaskT, str, _tt.SourceType, _tt.IdType]):
     Notes:
         Partitions are translated independently. Combining ``missing_as_nan=False`` with ``as_category=True`` can be
         unpredictable in distributed contexts. The ``observed`` keyword is not supported (always ``False``).
+
+    .. deprecated:: 1.4.0
+       Installing ``dask`` will no longer enable this implementation in ``2.0.0``. Call
+       :meth:`~id_translation.dio.DataStructureIO.register` to opt in.
     """
+
+    # TODO(2.0.0): Remove `_opted_in`, `_warned` and `register()` with the rest of the deprecation.
+    _opted_in: _t.ClassVar[bool] = False
+    _warned: _t.ClassVar[bool] = False
+
+    @classmethod
+    def register(cls) -> None:
+        cls._opted_in = True
+        super().register()
 
     def __init__(
         self,
@@ -48,6 +62,15 @@ class DaskIO(_DataStructureIO[DaskT, str, _tt.SourceType, _tt.IdType]):
         as_category: bool = False,
         ordered: _Ordered = "name",
     ) -> None:
+        if not (DaskIO._opted_in or DaskIO._warned):
+            # A plain `once` filter does not hold: the translate path opens a `catch_warnings` block per task, which
+            # invalidates the registry, and `resolve_io` builds a fresh IO each time. Guard on our own state.
+            DaskIO._warned = True
+            _emit_warning(
+                "DaskIO will require an explicit DaskIO.register() call in id-translation 2.0.0.",
+                FutureWarning,
+            )
+
         self._part_io = PartitionIO[_t.Any, _tt.SourceType, _tt.IdType](
             missing_as_nan=missing_as_nan,
             as_category=as_category,

@@ -64,5 +64,6 @@ New implementations default to ``priority=10_000``, and are therefore considered
 
 .. rubric:: Footnotes
 
-.. [#automatic] Registered automatically if dependencies are installed.
+.. [#automatic] Registered automatically if dependencies are installed. ``DaskIO`` loses this in ``2.0.0``;
+   call :meth:`~DataStructureIO.register` to opt in.
 .. [#explicit] Requires explicit :meth:`~DataStructureIO.register` call.

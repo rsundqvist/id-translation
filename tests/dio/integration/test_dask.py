@@ -1,3 +1,4 @@
+import warnings
 from uuid import UUID
 
 import dask.dataframe as dd
@@ -11,6 +12,36 @@ from id_translation.types import IdTypes
 
 assert DaskIO.is_registered(), "entrypoint loader failed"
 assert DaskIO.get_rank() == 2
+
+
+@pytest.fixture(autouse=True)
+def _opted_in(monkeypatch):
+    """Silence the 2.0.0 notice for the tests that are not about it; `TestOptInDeprecation` opts back out."""
+    monkeypatch.setattr(DaskIO, "_opted_in", True)
+
+
+class TestOptInDeprecation:
+    """2.0.0 makes DaskIO opt-in; `TODO(2.0.0)` in `dio/integration/dask.py` retires this."""
+
+    @pytest.fixture(autouse=True)
+    def _reset(self, monkeypatch):
+        monkeypatch.setattr(DaskIO, "_opted_in", False)
+        monkeypatch.setattr(DaskIO, "_warned", False)
+
+    def test_warns_once_not_per_translation(self, translator, df):
+        """`resolve_io` builds a fresh IO per task, so an unguarded warning would fire on every frame."""
+        with pytest.warns(FutureWarning, match=r"DaskIO\.register\(\).*2\.0\.0") as record:
+            for _ in range(5):
+                translator.translate(df)
+
+        assert len(record) == 1, "one notice per process, not one per translated frame"
+
+    def test_silent_after_opting_in(self, translator, df):
+        DaskIO.register()
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", FutureWarning)
+            translator.translate(df)
 
 
 def to_uuid(i: int) -> UUID:
