@@ -23,12 +23,11 @@ def test_entrypoint_groups():
     assert _resolve.ENTRYPOINT_GROUP == ENTRYPOINT_GROUP  # type: ignore[attr-defined]
 
 
-def test_get_resolution_order_real_is_deprecated():
-    with pytest.warns(FutureWarning, match="will always return a copy"):
-        real = get_resolution_order(real=True)
+def test_get_resolution_order_returns_a_copy():
+    with pytest.raises(TypeError):
+        get_resolution_order(real=True)  # type: ignore[call-arg]
 
-    assert real is _resolve._get_repository()._enabled
-    assert get_resolution_order() is not real
+    assert get_resolution_order() is not _resolve._get_repository()._enabled
 
 
 def test_register_io():

@@ -47,11 +47,6 @@ The valid top-level keys are ``translator``, ``fetching``, ``unknown_ids``, and 
 the main configuration file if fetching is configured separately. Any other top-level key
 will raise a :class:`~id_translation.exceptions.ConfigurationError`.
 
-.. deprecated:: 1.3.0
-
-   A top-level ``mapping`` key is ignored with a ``FutureWarning``; you want ``[translator.mapping]`` or
-   ``[fetching.mapping]``. It raises like any other unknown key in ``id-translation==2.0.0``.
-
 Section: Translator
 -------------------
 .. list-table:: Section keys: ``[translator]``

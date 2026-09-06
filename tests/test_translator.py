@@ -829,19 +829,12 @@ def test_cache_property_raises_without_cache(translator):
         _ = fresh.cache
 
 
-def test_go_offline_when_already_offline_warns_and_returns_self(translator):
+def test_go_offline_when_already_offline_raises(translator):
     offline = translator.copy().go_offline()
     assert not offline.online
 
-    with pytest.warns(
-        FutureWarning,
-        match=r"Abort Translator\.go_offline\(\); already offline\."
-        r"\nWARNING: This will raise in `id-translation==2\.0\.0`\.",
-    ) as w:
-        result = offline.go_offline()
-
-    assert len(w) == 1
-    assert result is offline
+    with pytest.raises(ConnectionStatusError, match=r"Cannot fetch new translations\."):
+        offline.go_offline()
 
 
 def test_placeholders_property_uses_cache_when_offline(hex_fetcher):
@@ -976,11 +969,16 @@ class TestIoKwargs:
         actual = translator.translate(series, fmt="{hex}", io_kwargs={"missing_as_nan": True}).to_dict()
         assert actual == {-1: np.nan, 1: "0x1"}
 
-    def test_bad_io_kwargs(self, series, translator, caplog):
+    def test_bad_io_kwargs(self, series, translator):
+        with pytest.raises(TypeError) as exc_info:
+            translator.translate(series, fmt="{hex}", io_kwargs={"missig_as_nan": True})
+        assert "Hint: Set ID_TRANSLATION_SUPPRESS_IO_KWARGS_ERRORS=true" in "\n".join(exc_info.value.__notes__)
+
+    def test_bad_io_kwargs_suppressed(self, series, translator, caplog, monkeypatch):
+        monkeypatch.setenv("ID_TRANSLATION_SUPPRESS_IO_KWARGS_ERRORS", "true")
         caplog.set_level(logging.WARNING, logger="id_translation.dio")
 
-        with pytest.warns(FutureWarning, match="This will raise in"):
-            actual = translator.translate(series, fmt="{hex}", io_kwargs={"missig_as_nan": True}).to_dict()
+        actual = translator.translate(series, fmt="{hex}", io_kwargs={"missig_as_nan": True}).to_dict()
         assert actual == {-1: "<Failed: id=-1>", 1: "0x1"}
 
         assert len(caplog.records) == 1
@@ -989,12 +987,6 @@ class TestIoKwargs:
         assert record.io_kwargs == ["missig_as_nan"]
         assert record.io_class == "id_translation.dio.integration.pandas.PandasIO"
 
-    def test_without_translatable(self, translator, caplog):
-        caplog.set_level(logging.WARNING, logger="id_translation")
-
-        with pytest.warns(FutureWarning, match="This will raise in"):
+    def test_without_translatable(self, translator):
+        with pytest.raises(ValueError, match="io_kwargs requires a translatable"):
             translator.fetch(io_kwargs={"missing_as_nan": True})
-
-        assert [r.msg for r in caplog.records] == [
-            "Ignoring io_kwargs={'missing_as_nan': True} since translatable=None."
-        ]

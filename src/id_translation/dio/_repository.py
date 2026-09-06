@@ -5,9 +5,9 @@ from inspect import signature
 from time import perf_counter
 from typing import Any
 
+from rics.env.read import read_bool
 from rics.misc import tname
 
-from .._utils.emit_warning import emit_warning
 from ..types import TranslatableT
 from ._data_structure_io import DataStructureIO
 from ._util import pretty_io_name
@@ -23,6 +23,9 @@ Background:
     https://github.com/sphinx-doc/sphinx/issues/6495#issuecomment-1058033697
     https://github.com/sphinx-doc/sphinx/issues/12020
 """
+
+SUPPRESS_IO_KWARGS_ERRORS = "ID_TRANSLATION_SUPPRESS_IO_KWARGS_ERRORS"
+"""See the :envvar:`ID_TRANSLATION_SUPPRESS_IO_KWARGS_ERRORS` variable."""
 
 _LOGGER = logging.getLogger(__package__)
 
@@ -132,19 +135,24 @@ class Repository:
             try:
                 return io_class(**io_kwargs)
             except Exception as exc:
-                # TODO(2.0.0): Raise by default; add an envvar to downgrade to this warning.
                 # TODO(python-3.13): Use signature(io_class).format() to pretty-print io_class.__init__ parameters.
-                msg = f"Ignoring {io_kwargs=} since {io_class.__qualname__}(**io_kwargs) raises {type(exc).__name__}."
-                _LOGGER.warning(
-                    msg,
-                    exc_info=exc,
-                    extra={
-                        "task_id": task_id,
-                        "io_class": pretty_io_name(io_class),
-                        "io_kwargs": [*io_kwargs],
-                    },
-                )
-                emit_warning(f"{msg}\nWARNING: This will raise in `id-translation==2.0.0`.", FutureWarning)
+                if read_bool(SUPPRESS_IO_KWARGS_ERRORS):
+                    _LOGGER.warning(
+                        f"Ignoring {io_kwargs=} since {io_class.__qualname__}(**io_kwargs) raises"
+                        f" {type(exc).__name__}.",
+                        exc_info=exc,
+                        extra={
+                            "task_id": task_id,
+                            "io_class": pretty_io_name(io_class),
+                            "io_kwargs": [*io_kwargs],
+                        },
+                    )
+                else:
+                    exc.add_note(
+                        f"Hint: Set {SUPPRESS_IO_KWARGS_ERRORS}=true to ignore this and construct"
+                        f" {pretty_io_name(io_class)}() without io_kwargs instead."
+                    )
+                    raise
 
         return io_class()
 
@@ -170,15 +178,14 @@ def _load_integrations() -> tuple[list[AnyIoType], int]:
 
         try:
             cls = ep.load()
-        except ImportError as e:
-            # TODO(2.0.0): ModuleNotFoundError only -- change docs above + rst as well!
-            if "circular import" in str(e):
-                e.add_note(f"entrypoint={ep!r}")
-                raise
-
+        except ModuleNotFoundError as e:
+            # Circular import raises plain ImportError, not ModuleNotFoundError.
             if _LOGGER.isEnabledFor(logging.DEBUG):
                 _LOGGER.debug(f"Failed to import entrypoint={ep!r}: {e!r}.")
             continue
+        except Exception as e:
+            e.add_note(f"entrypoint={ep!r}")
+            raise
 
         if not issubclass(cls, DataStructureIO):
             msg = f"Bad entrypoint={ep!r}: {cls} is not a subtype of {DataStructureIO.__name__}. "

@@ -418,15 +418,6 @@ def _make_default_translations(
 def _check_allowed_keys(allowed: Iterable[str], *, actual: Iterable[str], toml_path: str) -> None:
     bad_keys = set(actual).difference(allowed)
 
-    if "mapping" in bad_keys:  # TODO(2.0.0): Remove this branch
-        bad_keys.remove("mapping")
-        emit_warning(
-            "The top-level 'mapping' key is not used."
-            "\nHint: You want [translator.mapping] or [fetching.mapping]."
-            "\nWARNING: This will raise in `id-translation==2.0.0`.",
-            FutureWarning,
-        )
-
     if bad_keys:
         raise ValueError(f"Forbidden keys {sorted(bad_keys)} in [{toml_path}]-section.")
 

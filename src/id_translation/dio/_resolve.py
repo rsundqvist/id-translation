@@ -2,7 +2,6 @@ from collections.abc import Mapping
 from threading import Lock
 from typing import Any
 
-from .._utils.emit_warning import emit_warning
 from ..types import IdType, NameType, SourceType, TranslatableT
 from ._data_structure_io import DataStructureIO
 from ._repository import ENTRYPOINT_GROUP, AnyIoType, Repository
@@ -39,39 +38,22 @@ def resolve_io(
 
     Raises:
         ~id_translation.dio.exceptions.UntranslatableTypeError: If no suitable IO implementation could be found.
+        Exception: Whatever the resolved IO class raises, if construction with `io_kwargs` fails. See the
+            :envvar:`ID_TRANSLATION_SUPPRESS_IO_KWARGS_ERRORS` variable to downgrade this to a warning instead.
 
     See Also:
         The :func:`~id_translation.dio.register_io` function.
-
-    .. deprecated:: 1.3.0
-       Passing `io_kwargs` that the resolved IO class rejects; it is constructed without them, with a
-       ``FutureWarning``. This will raise in ``id-translation==2.0.0``.
     """
     return _get_repository().resolve_io(arg, io_kwargs, task_id)
 
 
-def get_resolution_order(*, real: bool = False) -> list[AnyIoType]:
+def get_resolution_order() -> list[AnyIoType]:
     """Returns known :class:`~id_translation.dio.DataStructureIO` implementations in the correct resolution order.
-
-    Args:
-        real: If ``True``, return the actual list instead of a copy.
 
     Returns:
         A list of IO implementations sorted by rank.
-
-    .. deprecated:: 1.3.0
-       The `real` parameter. Always returns a copy in ``id-translation==2.0.0``.
     """
-    repo = _get_repository()
-    if real:
-        # TODO(2.0.0): Remove the parameter; copy only.
-        emit_warning(
-            "The `real` parameter is deprecated; get_resolution_order() will always return a copy."
-            "\nWARNING: This will raise in `id-translation==2.0.0`.",
-            FutureWarning,
-        )
-        return repo._enabled
-    return repo.enabled_ios
+    return _get_repository().enabled_ios
 
 
 def register_io(io: AnyIoType) -> None:
@@ -105,7 +87,8 @@ def load_integrations() -> None:
     :const:`{_ENTRYPOINT_GROUP!r} <id_translation.dio.ENTRYPOINT_GROUP>` entrypoint group (see
     :py:func:`importlib.metadata.entry_points` for details).
 
-    Will skip integrations that raise :class:`ImportError` when loaded (except circular imports).
+    Will skip integrations that raise :class:`ModuleNotFoundError` when loaded. Any other :class:`ImportError`
+    (e.g. a circular import) propagates instead.
 
     Raises:
         TypeError: If an integration does not inherit from :class:`~id_translation.dio.DataStructureIO`.

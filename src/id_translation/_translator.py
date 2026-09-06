@@ -1,10 +1,8 @@
-import inspect
 import logging
 import pickle
-from collections.abc import Callable, Iterable, Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from copy import deepcopy
 from datetime import timedelta
-from functools import cache
 from time import perf_counter
 from typing import (
     TYPE_CHECKING,
@@ -44,7 +42,6 @@ from .mapping.types import UserOverrideFunction
 from .offline import Format, TranslationMap
 from .offline.types import (
     FormatType,
-    PlaceholderAttributes,
     PlaceholderTranslations,
     SourcePlaceholderTranslations,
 )
@@ -1356,16 +1353,18 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                 :attr:`Translator.fmt <id_translation.Translator.fmt>`.
             io_kwargs: Keyword arguments for the IO class (e.g.
                 :class:`~id_translation.dio.integration.pandas.PandasIO`).
-                Ignored, with a warning, when `translatable` is ``None``; this will raise in ``id-translation==2.0.0``.
             path: If given, serialize the :class:`~id_translation.Translator` to disk after retrieving data.
 
         Returns:
             Self, for chained assignment.
 
         Raises:
+            ~id_translation.exceptions.ConnectionStatusError: If already disconnected from the fetcher, i.e. not
+                :attr:`~id_translation.Translator.online`.
             ~id_translation.fetching.exceptions.ForbiddenOperationError: If
                 :meth:`Fetcher.fetch_all <id_translation.fetching.Fetcher.fetch_all>` is disabled and
                 ``translatable=None``.
+            ValueError: If `io_kwargs` is given without `translatable`.
             ~id_translation.mapping.exceptions.MappingError: If :meth:`~id_translation.Translator.map` fails (only when
                 `translatable` is given).
 
@@ -1379,21 +1378,9 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             🔑 This is a key event method. See :ref:`key-events` for details.
 
             The :meth:`~id_translation.Translator.restore` method (when `path` is set).
-
-        .. deprecated:: 1.3.0
-           Calling this method when already offline (returns immediately), and passing `io_kwargs` without
-           `translatable` (ignored). Both emit ``FutureWarning`` and will raise in ``id-translation==2.0.0``.
         """
         if not self.online:
-            # TODO(2.0.0): raise
-            emit_warning(
-                f"Abort {self.go_offline.__qualname__}(); already offline."
-                f"\nWARNING: This will raise in `id-translation==2.0.0`.",
-                FutureWarning,
-            )
-            # raise ConnectionStatusError("Cannot fetch new translations.")
-            LOGGER.debug("Already offline.")
-            return self
+            raise ConnectionStatusError("Cannot fetch new translations.")
 
         start = perf_counter()
         task_id = _logging.generate_task_id(start)
@@ -1494,7 +1481,6 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                 :attr:`Translator.fmt <id_translation.Translator.fmt>`.
             io_kwargs: Keyword arguments for the IO class (e.g.
                 :class:`~id_translation.dio.integration.pandas.PandasIO`).
-                Ignored, with a warning, when `translatable` is ``None``; this will raise in ``id-translation==2.0.0``.
 
         Returns:
             A :class:`~id_translation.offline.TranslationMap`.
@@ -1502,6 +1488,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         Raises:
             ~id_translation.exceptions.ConnectionStatusError: If disconnected from the fetcher, i.e. not
                 :attr:`~id_translation.Translator.online`.
+            ValueError: If `io_kwargs` is given without `translatable`.
 
         Examples:
             Using the returned :class:`~id_translation.offline.TranslationMap` class.
@@ -1547,10 +1534,6 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
             >>> translation_map.to_dicts()["people"]
             {'id': [1999, 1991], 'name': ['Sofia', 'Richard']}
-
-        .. deprecated:: 1.3.0
-           Passing `io_kwargs` without `translatable`; ignored with a ``FutureWarning``, will raise in
-           ``id-translation==2.0.0``.
         """
         task_id = _logging.generate_task_id()
         self.initialize_sources(task_id)
@@ -1581,10 +1564,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         task_id: int | None = None,
     ) -> TranslationMap[NameType, SourceType, IdType]:
         if io_kwargs and translatable is None:
-            # TODO(2.0.0): raise.
-            msg = f"Ignoring {io_kwargs=} since {translatable=}."
-            LOGGER.warning(msg, extra={"task_id": task_id})
-            emit_warning(f"{msg}\nWARNING: This will raise in `id-translation==2.0.0`.", FutureWarning)
+            raise ValueError(f"Got {io_kwargs=}, but {translatable=}; io_kwargs requires a translatable.")
 
         fmt = self._fmt if fmt is None else Format.parse(fmt)
 
@@ -1861,42 +1841,20 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             return self.fetcher.fetch_all(
                 placeholders,
                 required=required,
-                # placeholder_attributes=placeholder_attributes, # TODO(2.0.0): Drop shim + uncomment this.
+                placeholder_attributes=placeholder_attributes,
                 sources=ids_or_sources,
                 task_id=task_id,
                 enable_uuid_heuristics=self._enable_uuid_heuristics,
-                **self._placeholder_attributes_kwarg(type(self.fetcher).fetch_all, placeholder_attributes),
             )
         else:
             return self.fetcher.fetch(
                 ids_or_sources,
                 placeholders,
                 required=required,
-                # placeholder_attributes=placeholder_attributes, # TODO(2.0.0): Drop shim + uncomment this.
+                placeholder_attributes=placeholder_attributes,
                 task_id=task_id,
                 enable_uuid_heuristics=self._enable_uuid_heuristics,
-                **self._placeholder_attributes_kwarg(type(self.fetcher).fetch, placeholder_attributes),
             )
-
-    def _placeholder_attributes_kwarg(
-        self, func: Callable[..., Any], attributes: PlaceholderAttributes
-    ) -> dict[str, Any]:
-        """Forward ``placeholder_attributes`` only to fetchers whose method accepts it.
-
-        Custom :class:`~id_translation.fetching.Fetcher` implementations written before this argument existed may omit
-        it; warn and skip rather than crashing with a ``TypeError``. See
-        :attr:`Format.placeholder_attributes <id_translation.offline.Format.placeholder_attributes>`.
-        """
-        if _accepts_placeholder_attributes(func):
-            return {"placeholder_attributes": attributes}
-        emit_warning(
-            f"{tname(self.fetcher, include_module=True)}.{func.__name__}() does not accept the 'placeholder_attributes'"
-            " keyword argument; attribute access in the format string may be ignored."
-            "\nHint: Add `placeholder_attributes: PlaceholderAttributes | None = None` to the method signature."
-            "\nWARNING: This will raise in `id-translation==2.0.0`.",
-            FutureWarning,
-        )
-        return {}
 
     def _to_translation_map(
         self,
@@ -1936,15 +1894,3 @@ def _handle_default(
         default_placeholders = InheritedKeysDict.make(default_fmt_placeholders)
 
     return default_placeholders, default_fmt
-
-
-@cache
-def _accepts_placeholder_attributes(func: Callable[..., Any]) -> bool:
-    """Return ``True`` if `func` accepts a ``placeholder_attributes`` keyword (or ``**kwargs``)."""
-    try:
-        parameters = inspect.signature(func).parameters
-    except (TypeError, ValueError):  # pragma: no cover
-        return True  # Can't introspect; assume support to avoid spurious warnings.
-    if "placeholder_attributes" in parameters:
-        return True
-    return any(p.kind is inspect.Parameter.VAR_KEYWORD for p in parameters.values())

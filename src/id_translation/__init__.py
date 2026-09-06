@@ -11,6 +11,12 @@ Environment variables
 
    .. warning:: When set, IDs are not converted to :py:class:`str`. Type hints may be wrong.
 
+.. envvar:: ID_TRANSLATION_SUPPRESS_IO_KWARGS_ERRORS
+
+   Global switch. Set to ``true`` (not recommended) to ignore bad `io_kwargs` (e.g. an unknown keyword argument for
+   the resolved :class:`~id_translation.dio.DataStructureIO` implementation) instead of raising. The implementation
+   is constructed without `io_kwargs` instead, and the error is logged as a warning.
+
 .. envvar:: ID_TRANSLATION_SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS
 
    Global switch. Set to ``true`` (not recommended) to allow the :meth:`~id_translation.toml.TranslatorFactory` to

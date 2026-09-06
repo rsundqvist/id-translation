@@ -9,8 +9,8 @@ The :mod:`id_translation.dio` module defines how IDs are read and written to var
 Runtime arguments
 -----------------
 Relevant methods (e.g. :meth:`.Translator.translate`) accept an `io_kwargs` argument, which may be used to customize
-the behavior of the :class:`.DataStructureIO` implementation. Exceptions raised due to invalid `io_kwargs` arguments are
-logged and suppressed, with a ``FutureWarning``; this will raise in ``id-translation==2.0.0``.
+the behavior of the :class:`.DataStructureIO` implementation. Exceptions raised due to invalid `io_kwargs` arguments
+propagate to the caller; set :envvar:`ID_TRANSLATION_SUPPRESS_IO_KWARGS_ERRORS` to log and suppress them instead.
 
 Arguments are implementation-specific. See :class:`~.integration.pandas.PandasIO` for an example.
 
@@ -40,7 +40,7 @@ snippet below shows how the :mod:`bundled <.integration>` integrations are regis
    polars_io = "id_translation.dio.integration.polars:PolarsIO"
 
 The :func:`loader <id_translation.dio.load_integrations>` will skip the integration if calling
-:class:`EntryPoint.load() <importlib.metadata.EntryPoint>` raises an :py:class:`ImportError`,
+:class:`EntryPoint.load() <importlib.metadata.EntryPoint>` raises a :py:class:`ModuleNotFoundError`,
 or if the :attr:`~DataStructureIO.priority` is negative.
 
 Selection process

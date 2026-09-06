@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- `Translator.go_offline()` raises `ConnectionStatusError` instead of warning when already offline.
+- `Translator.fetch()`/`Translator.go_offline()` raise `ValueError` instead of logging and ignoring when `io_kwargs`
+  is given without `translatable`.
+- `dio.load_integrations()` skips only `ModuleNotFoundError` when loading an entrypoint; any other `ImportError`
+  (e.g. a circular import) propagates.
+
+### Removed
+- `Fetcher.fetch()`/`fetch_all()` implementations that omit `placeholder_attributes` now raise `TypeError`.
+- `dio.get_resolution_order()`: dropped the `real` parameter; always returns a copy.
+
 ## [1.4.0] - 2026-09-06
 
 ### Added
@@ -680,6 +691,7 @@ cookiecutter template.
 - Fix some intersphinx issues.
 
 [Unreleased]: https://github.com/rsundqvist/id-translation/compare/v1.4.0...HEAD
+[2.0.0]: https://github.com/rsundqvist/id-translation/compare/v1.4.0...HEAD
 [1.4.0]: https://github.com/rsundqvist/id-translation/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/rsundqvist/id-translation/compare/v1.2.1...v1.3.0
 [1.2.1]: https://github.com/rsundqvist/id-translation/compare/v1.2.0...v1.2.1

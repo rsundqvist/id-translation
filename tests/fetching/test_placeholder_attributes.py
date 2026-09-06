@@ -110,13 +110,13 @@ def test_indexing(df, translator):
     )
 
 
-def test_legacy_fetcher_without_placeholder_attributes_warns():
-    """A custom Fetcher predating `placeholder_attributes` should warn, not crash with a TypeError."""
+def test_legacy_fetcher_without_placeholder_attributes_raises():
+    """A custom Fetcher predating `placeholder_attributes` is no longer supported; it must accept the keyword."""
     fetcher = _LegacyMemoryFetcher({"people": {"id": [1, 2], "name": ["Alice", "Bob"]}})
     translator = Translator[str, str, int](fetcher, fmt="{id}:{name}")
 
-    with pytest.warns(FutureWarning, match="placeholder_attributes"):
-        assert translator.translate([1, 2], names="people") == ["1:Alice", "2:Bob"]
+    with pytest.raises(TypeError, match="placeholder_attributes"):
+        translator.translate([1, 2], names="people")
 
 
 @pytest.fixture
