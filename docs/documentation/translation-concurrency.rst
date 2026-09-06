@@ -32,10 +32,11 @@ Most functions and classes are thread safe. Notable exceptions are documented he
 Transformers
 ------------
 The :attr:`.Translator.transformers` are reused for all translation tasks. Bundled :class:`.Transformer` types are
-thread safe. Transformers are inherited by any :class:`.TranslationMap` instances created by the ``Translator``, including
-the :attr:`.Translator.cache` created by :meth:`.Translator.go_offline`. Note that
+thread safe. Transformers are inherited by any :class:`.TranslationMap` instances created by the ``Translator``,
+including the :attr:`.Translator.cache` created by :meth:`.Translator.go_offline`. Note that
 :meth:`.Translator.register_transformer` mutates shared state (including the cache), so the safe-to-share guarantee
-above assumes no registrations are made after going offline.
+above assumes no registrations are made after going offline. See the :ref:`registration window
+<transformation-primer-window>` for details.
 
 Fetchers
 --------

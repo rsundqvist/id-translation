@@ -11,6 +11,7 @@ Examples and documentation.
    translator-config
    translation-primer
    mapping-primer
+   transformation-primer
    translation-io
    translation-concurrency
    translation-logging

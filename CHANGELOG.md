@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - `exceptions.IdTranslationWarning`, the common base of every warning in the suite. One
   `warnings.filterwarnings(..., category=IdTranslationWarning)` covers all of them.
+- [Transformation primer](https://id-translation.readthedocs.io/en/stable/documentation/transformation-primer.html);
+  the transformer lifecycle, chaining, and choosing between the fetcher, configuration and code routes.
 
 ### Changed
 - Warnings that were plain `UserWarning` are now `TranslationWarning`, so their formatted text changes accordingly.
