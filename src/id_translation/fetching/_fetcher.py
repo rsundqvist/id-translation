@@ -12,12 +12,17 @@ class Fetcher(Generic[SourceType, IdType], HasSources[SourceType]):
     """Interface for fetching translations from an external source."""
 
     @abstractmethod
-    def initialize_sources(self, task_id: int | None = None, *, force: bool = False) -> None:
+    def initialize_sources(
+        self, task_id: int | None = None, *, force: bool = False
+    ) -> None:  # TODO(2.0.0): Remove force flag?
         """Perform source discovery.
 
         Args:
             task_id: Used for logging.
             force: If ``True``, perform full discovery even if sources are already known.
+
+                .. deprecated:: 1.4.0
+                   Removed in ``2.0.0``. Build a new ``Translator`` instead.
 
         See Also:
             🔑 This is a key event method. See :ref:`key-events` for details.

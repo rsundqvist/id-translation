@@ -118,5 +118,9 @@ class TestFetcher(_Fetcher[SourceType, IdType]):
     def __repr__(self) -> str:
         return f"TestFetcher(sources={self._sources or None!r})"
 
-    def initialize_sources(self, task_id: int | None = None, *, force: bool = False) -> None:
-        pass
+    def initialize_sources(self, task_id: int | None = None, *, force: bool | None = None) -> None:  # noqa: ARG002
+        if force is not None:
+            from ._utils.emit_warning import emit_warning  # noqa: PLC0415
+            from .fetching._abstract_fetcher import _FORCE_DEPRECATION_MSG  # noqa: PLC0415
+
+            emit_warning(_FORCE_DEPRECATION_MSG.format(owner="Fetcher"), FutureWarning)

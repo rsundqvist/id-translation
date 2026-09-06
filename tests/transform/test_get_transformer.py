@@ -128,7 +128,8 @@ class TestQueriedOnce:
 
     def test_force_does_not_requery(self, translator, fetcher):
         translator.initialize_sources()
-        translator.initialize_sources(force=True)
+        with pytest.warns(FutureWarning, match=r"force=\.\.\."):
+            translator.initialize_sources(force=True)
 
         assert Counter(fetcher.queries) == {"bitmasks": 1, "plain": 1}
 
@@ -138,7 +139,8 @@ class TestQueriedOnce:
         translator.initialize_sources()
 
         fetcher._data["late"] = PlaceholderTranslations.make("late", {1: "late-one"})
-        translator.initialize_sources(force=True)
+        with pytest.warns(FutureWarning, match=r"force=\.\.\."):
+            translator.initialize_sources(force=True)
 
         assert "late" in translator.sources, "precondition: forced re-discovery must pick up the new source"
         assert "late" not in fetcher.queries

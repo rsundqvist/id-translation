@@ -36,6 +36,7 @@ from .exceptions import (
     TranslationDisabledWarning,
 )
 from .fetching import Fetcher, MultiFetcher
+from .fetching._abstract_fetcher import _FORCE_DEPRECATION_MSG
 from .fetching.types import IdsToFetch
 from .mapping import Mapper
 from .mapping.matrix import ScoreMatrix
@@ -291,7 +292,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             raise ValueError("Not created using Translator.from_config()")  # pragma: no cover
         return self._config_metadata
 
-    def initialize_sources(self, task_id: int | None = None, *, force: bool = False) -> Self:
+    def initialize_sources(self, task_id: int | None = None, *, force: bool | None = None) -> Self:
         """Perform source discovery (fetcher initialization).
 
         This method does nothing if the ``Translator`` isn't :attr:`~id_translation.Translator.online`.
@@ -304,12 +305,19 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             task_id: Used for logging.
             force: If ``True``, perform full discovery even if sources are already known.
 
+                .. deprecated:: 1.4.0
+                   Removed in ``2.0.0``. Build a new ``Translator`` instead.
+
         Returns:
             Self, for chained assignment.
 
         See Also:
             🧵 Call this before sharing a ``Translator`` between threads; see :ref:`thread-safety`.
         """
+        if force is not None:
+            # Not left to the fetcher: an offline Translator never reaches it, and the fetcher would name itself.
+            emit_warning(_FORCE_DEPRECATION_MSG.format(owner="Translator"), FutureWarning)
+
         if self.online:
             if task_id is None:
                 task_id = _logging.generate_task_id()
@@ -317,7 +325,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             if force:
                 self._unverified_sources = [*self._transformers]
 
-            self.fetcher.initialize_sources(task_id, force=force)
+            self.fetcher.initialize_sources(task_id, **({"force": True} if force else {}))
             self._apply_fetcher_transformers()
 
         return self

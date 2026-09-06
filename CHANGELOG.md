@@ -15,11 +15,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Warnings that were plain `UserWarning` are now `TranslationWarning`, so their formatted text changes accordingly.
 - The `MultiFetcher` no-fetchers warning and the `SqlFetcher` password-key warning are `FetcherWarning`s (were
   `UserWarning`).
+- `MultiFetcher.initialize_sources()` propagates `force` to its children, instead of always passing `force=True`.
 
 ### Deprecated
 Emits `FutureWarning` unless marked *(no warning)*; each entry says what `2.0.0` does.
 - `TranslationWarning` and `MappingWarning` inheriting `UserWarning`, and `FetcherWarning` inheriting
   `RuntimeWarning` *(no warning)*; `2.0.0` drops the stdlib bases. Filter on `IdTranslationWarning` instead.
+- `Fetcher.initialize_sources(force=...)` and `Translator.initialize_sources(force=...)` emit a `FutureWarning`
+  whenever `force` is supplied, `False` included; both are removed in `2.0.0`.
 
 ## [1.3.0] - 2026-08-26
 

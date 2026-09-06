@@ -153,6 +153,40 @@ def test_fetch(multi_fetcher: MultiFetcher[str, int], data: dict[str, pd.DataFra
     assert actual == expected
 
 
+class TestForceDeprecation:
+    """`force` is removed in 2.0.0; see `TODO(2.0.0)` in `fetching/_fetcher.py`."""
+
+    def test_multi_fetcher_warns(self, multi_fetcher):
+        with pytest.warns(FutureWarning, match=r"force=\.\.\..*removed in id-translation 2\.0\.0"):
+            multi_fetcher.initialize_sources(force=True)
+
+    def test_translator_warns(self):
+        """An offline Translator never reaches the fetcher, so it has to warn for itself."""
+        from id_translation import Translator
+
+        translator = Translator[str, str, int]({"s": {1: "one"}})
+        assert not translator.online, "precondition: this path never calls the fetcher"
+
+        with pytest.warns(FutureWarning, match=r"Translator\.initialize_sources\(force=\.\.\.\)"):
+            translator.initialize_sources(force=True)
+
+    def test_abstract_fetcher_warns(self):
+        with pytest.warns(FutureWarning, match=r"force=\.\.\..*removed in id-translation 2\.0\.0"):
+            MemoryFetcher({"s": {1: "one"}}).initialize_sources(force=True)
+
+    def test_supplying_false_also_warns(self, multi_fetcher):
+        """`force=False` is a no-op today but a TypeError in 2.0.0, so it has to warn too."""
+        with pytest.warns(FutureWarning, match=r"force=\.\.\."):
+            multi_fetcher.initialize_sources(force=False)
+
+    def test_ordinary_call_is_silent(self, multi_fetcher):
+        import warnings
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", FutureWarning)
+            multi_fetcher.initialize_sources()  # Must not warn on the children's behalf.
+
+
 def test_ranks(multi_fetcher, fetchers):
     default_fetcher, empty_fetcher, fallback_fetcher, sql_fetcher = fetchers
 
@@ -286,7 +320,7 @@ class TestOptionalFetchers:
         fetcher.initialize_sources()
         assert fetcher.get_transformer("s") is None, "precondition: served, but no transformer provided"
 
-        with pytest.raises(exceptions.DuplicateSourceError):
+        with pytest.warns(FutureWarning, match=r"force=\.\.\."), pytest.raises(exceptions.DuplicateSourceError):
             fetcher.initialize_sources(force=True)
 
         assert fetcher.get_transformer("s") is None, "the discarded child's source is no longer served"

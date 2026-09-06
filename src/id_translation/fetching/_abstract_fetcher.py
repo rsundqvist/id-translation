@@ -30,6 +30,12 @@ from ._cache_coordinator import CacheCoordinator
 from ._fetcher import Fetcher
 from .types import FetchInstruction, IdsToFetch
 
+_FORCE_DEPRECATION_MSG = (
+    "{owner}.initialize_sources(force=...) is deprecated and will be removed in id-translation 2.0.0."
+    " Re-discovery cannot revise transformers, and re-entering discovery on a warm fetcher contradicts the"
+    " thread-safety this method otherwise guarantees. Build a new Translator instead."
+)
+
 
 class AbstractFetcher(Fetcher[SourceType, IdType]):
     """Common base class.
@@ -104,8 +110,11 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         self._cache: CacheCoordinator[SourceType, IdType] = CacheCoordinator(self, cache_access)
 
     @final  # Prevent accidental overriding
-    def initialize_sources(self, task_id: int | None = None, *, force: bool = False) -> None:
-        if not (self._placeholders is None or force):
+    def initialize_sources(self, task_id: int | None = None, *, force: bool | None = None) -> None:
+        if force is not None:
+            emit_warning(_FORCE_DEPRECATION_MSG.format(owner="Fetcher"), FutureWarning)
+
+        if self._placeholders is not None and not force:
             return
 
         start = perf_counter()
