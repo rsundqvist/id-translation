@@ -16,7 +16,6 @@ from id_translation.transform import as_transformer
 from id_translation.transform.types import Transformer, Transformers
 from id_translation.types import IdType, NameType, SourceType
 
-from .._utils.emit_warning import emit_warning
 from . import factories as cf
 from ._load_toml import load_toml_file
 from .meta import ConfigMetadata, Metaconf
@@ -321,22 +320,6 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
 
     @classmethod
     def _make_cache_access(cls, config: dict[str, Any]) -> CacheAccess[Any, Any]:
-        if "type" in config:
-            # TODO(2.0.0): Remove; `[fetching.cache]` + `type=` is replaced by `[fetching.cache.'<type>']`.
-            clazz = config.pop("type")
-            sections = sorted(key for key in config if "." in key)  # Kwargs can't be dotted; type sections must be.
-            if sections:
-                raise ConfigurationError(
-                    f"Got both type={clazz!r} and section(s) {sections} in [fetching.cache];"
-                    f" keep only the [fetching.cache.'{clazz}']-section."
-                )
-            emit_warning(
-                f"The 'type' key in [fetching.cache] is deprecated. Use a [fetching.cache.'{clazz}']-section instead."
-                "\nWARNING: This will raise in `id-translation==2.0.0`.",
-                FutureWarning,
-            )
-            return cls.CACHE_ACCESS_FACTORY(clazz, config)
-
         clazz, kwargs = cls._pop_single_impl(config, what="Cache")
         return cls.CACHE_ACCESS_FACTORY(clazz, kwargs)
 

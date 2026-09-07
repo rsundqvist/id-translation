@@ -42,18 +42,17 @@ def test_fetcher_top_level_matches_aux_allow_list() -> None:
     assert fetcher["definitions"]["fetching"]["properties"]["MultiFetcher"] is False
 
 
-def test_cache_accepts_both_grammars() -> None:
+def test_cache_grammar() -> None:
     jsonschema = pytest.importorskip("jsonschema")
     validator = jsonschema.Draft7Validator(schemas()[MAIN_FILENAME]["definitions"]["cache"])
 
     assert validator.is_valid({"my.lib.MyCacheAccess": {"ttl": 3600}})
     assert validator.is_valid({"my.lib.MyCacheAccess": {}})
-    assert validator.is_valid({"type": "my.lib.MyCacheAccess", "ttl": 3600}), "deprecated since 1.3.0"
 
     assert not validator.is_valid({})
-    assert not validator.is_valid({"ttl": 3600}), "neither grammar"
+    assert not validator.is_valid({"ttl": 3600}), "not a type section"
     assert not validator.is_valid({"a.A": {}, "b.B": {}}), "one implementation only"
-    assert not validator.is_valid({"type": "my.lib.MyCacheAccess", "my.lib.MyCacheAccess": {}}), "half-migrated"
+    assert not validator.is_valid({"type": "my.lib.MyCacheAccess", "ttl": 3600}), "the 1.x type= key is rejected"
 
 
 def test_metaconf_top_level_matches_dataclass() -> None:

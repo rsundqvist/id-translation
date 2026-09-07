@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   is given without `translatable`.
 - `dio.load_integrations()` skips only `ModuleNotFoundError` when loading an entrypoint; any other `ImportError`
   (e.g. a circular import) propagates.
+- TOML: `[fetching.cache]` with a `type` key is rejected; use `[fetching.cache.'<type>']`.
 
 ### Removed
 - `Fetcher.fetch()`/`fetch_all()` implementations that omit `placeholder_attributes` now raise `TypeError`.

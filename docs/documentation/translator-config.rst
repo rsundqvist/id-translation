@@ -255,11 +255,6 @@ Is therefore equivalent to:
 
 The `cache_access` is then passed to the constructor of your chosen :class:`.AbstractFetcher` implementation.
 
-.. deprecated:: 1.3.0
-
-   The ``[fetching.cache]`` + ``type = "..."`` form. It still works, with a ``FutureWarning``, and is rejected in
-   ``id-translation==2.0.0``. Giving both forms is an error.
-
 
 Multiple fetchers
 ~~~~~~~~~~~~~~~~~
