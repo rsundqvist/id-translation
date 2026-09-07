@@ -339,31 +339,26 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             A copy of this :class:`~id_translation.Translator` with `overrides` applied.
 
         Notes:
-            User types are copied using :func:`copy.deepcopy`. The `fetcher` override selects how the current
-            :attr:`~id_translation.Translator.fetcher` is carried over -- ``'keep'`` reuses it as-is, ``'copy'``
-            requires a successful :func:`~copy.deepcopy`, and the default, ``'auto'``, tries to clone and falls back
-            to ``'keep'`` with a warning if that fails; see
-            :attr:`~id_translation.translator_typing.FetcherCopyMode`. This only applies while
-            :attr:`~id_translation.Translator.online`; an offline copy always shares the cached translation records
-            with the original, which are never mutated in place.
+            User types are copied using :func:`copy.deepcopy`. The data source
+            (:attr:`~id_translation.Translator.fetcher` or :attr:`~id_translation.Translator.cache`) is fixed for the
+            lifetime of a ``Translator`` and cannot be replaced this way; `fetcher` instead selects how the *current*
+            one is carried over -- ``'keep'`` reuses it as-is, ``'copy'`` requires a successful :func:`~copy.deepcopy`,
+            and the default, ``'auto'``, tries to clone and falls back to ``'keep'`` with a warning if that fails.
+            This only applies while :attr:`~id_translation.Translator.online`; an offline copy always shares the
+            cached translation records with the original, which are never mutated in place.
 
             Fetcher-provided transformers already derived by this instance are carried over via the `transformers`
             argument, and are not derived again; see :meth:`Fetcher.get_transformer()
-            <id_translation.fetching.Fetcher.get_transformer>`. This holds for all three `fetcher` modes.
+            <id_translation.fetching.Fetcher.get_transformer>`. Since the data source is never replaced, this holds
+            for all three `fetcher` modes.
 
             Passing `transformers` explicitly replaces that set wholesale -- including anything the fetcher provided
             -- and the copy does not query the fetcher for more. Pass
             :attr:`~id_translation.Translator.transformers` to keep the current set, or ``None`` to start empty and
             derive on first use, as the constructor does.
-
-        .. deprecated:: 1.3.0
-           Passing anything but a :attr:`~id_translation.translator_typing.FetcherCopyMode` as `fetcher`. Use
-           ``fetcher='keep'`` to reuse the current :attr:`~id_translation.Translator.fetcher`, which is what the
-           failed-clone hint used to recommend. Replacing the data source will raise in ``id-translation==2.0.0``;
-           construct a new :class:`~id_translation.Translator` instead.
         """
         cls = type(self)
-        fetcher_mode = self._pop_fetcher_copy_mode(overrides)
+        fetcher_mode = FETCHER_COPY_MODE_HELPER.check(overrides.pop("fetcher", "auto"))
 
         kwargs: dict[str, Any] = {
             "fmt": self.fmt,
@@ -376,14 +371,14 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         if "mapper" not in kwargs:
             kwargs["mapper"] = self.mapper.copy()
 
-        if "fetcher" not in kwargs:  # TODO(2.0.0): Unconditional; `fetcher` is a FetcherCopyMode only.
-            kwargs["fetcher"] = self._copy_fetcher(fetcher_mode)
+        kwargs["fetcher"] = self._copy_fetcher(fetcher_mode)
 
         if "transformers" not in kwargs:
             kwargs["transformers"] = self._copy_transformers()
-            # Derived results travel with the copies; a second pass over the same fetcher would self-conflict. Only a
-            # (deprecated) replacement is unqueried; `fetcher_mode` never substitutes the data source.
-            settled = "fetcher" not in overrides and self._transformers_queried
+            # Derived results travel with the copies; a second pass over the same fetcher would self-conflict. The
+            # data source itself is never substituted (`fetcher_mode` only says how the current one is carried over),
+            # so whatever this instance already knows still applies.
+            settled = self._transformers_queried
         else:
             # An explicit set is complete, so it settles the question either way -- without this, the same call
             # would query or not depending on whether the caller had translated yet. `None` means "derive on first
@@ -393,35 +388,6 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         new = cls(**kwargs)
         new._transformers_queried = settled
         return new
-
-    def _pop_fetcher_copy_mode(self, overrides: CopyParams[NameType, SourceType, IdType]) -> FetcherCopyMode:
-        """Resolve the `fetcher` override. A (deprecated) replacement data source is left in `overrides`."""
-        if "fetcher" not in overrides:
-            return "auto"
-
-        fetcher = overrides["fetcher"]
-        if isinstance(fetcher, str):
-            del overrides["fetcher"]
-            return FETCHER_COPY_MODE_HELPER.check(fetcher)
-
-        # TODO(2.0.0): Remove the rest; `fetcher` accepts only FetcherCopyMode.
-        cls = type(self).__name__
-        current = self._fetcher if self.online else self._cached_tmap
-        if fetcher is not None and fetcher is current:
-            del overrides["fetcher"]
-            emit_warning(
-                f"Passing the current data source to {cls}.copy(fetcher=...) is deprecated; use fetcher='keep'."
-                "\nWARNING: This will raise in `id-translation==2.0.0`.",
-                FutureWarning,
-            )
-            return "keep"
-
-        emit_warning(
-            f"{cls}.copy(fetcher=...) replaces the data source, which will be fixed for the lifetime of a {cls}."
-            f"\nWARNING: This will raise in `id-translation==2.0.0`. Construct a new {cls} instead.",
-            FutureWarning,
-        )
-        return "auto"  # Unused; the replacement stays in `overrides`.
 
     def _copy_fetcher(
         self, mode: FetcherCopyMode

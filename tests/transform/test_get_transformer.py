@@ -270,27 +270,10 @@ class TestRetention:
         assert fetcher.queries == [], "the original must not be affected by the copy"
         assert translate(translator) == "1:one|fetcher"
 
-    def test_copy_with_a_new_fetcher_queries_it(self):
-        """A replacement fetcher has never been asked; its transformers must not be silently dropped."""
-        translator = Translator[str, str, int](ProvidingFetcher(TWO_SOURCES, {"bitmasks": Marker("A")}))
-        translate(translator)
-
-        replacement = ProvidingFetcher(TWO_SOURCES, {"plain": Marker("B")})
-        with pytest.warns(FutureWarning, match="replaces the data source"):
-            copy = translator.copy(fetcher=replacement)
-
-        assert translate(copy) == "1:one|A", "derived results are carried over"
-        assert copy.translate((1,), names="plain") == ("1:just-one|B",), "the replacement fetcher's own must apply"
-        assert "plain" in replacement.queries
-
-    def test_copy_with_a_new_fetcher_chains_its_answer(self):
-        """The replacement describes its own data, so its transformer runs ahead of the carried-over one."""
-        translator = Translator[str, str, int](ProvidingFetcher(TWO_SOURCES, {"bitmasks": Marker("A")}))
-        translate(translator)
-
-        with pytest.warns(FutureWarning, match="replaces the data source"):
-            copy = translator.copy(fetcher=ProvidingFetcher(TWO_SOURCES, {"bitmasks": Marker("B")}))
-        assert translate(copy) == "1:one|B|A", "the new fetcher's answer runs first"
+    def test_copy_rejects_fetcher_override(self, translator):
+        """A replacement data source is no longer supported; see test_registration.TestRetention."""
+        with pytest.raises(TypeError, match="FetcherCopyMode"):
+            translator.copy(fetcher=ProvidingFetcher(TWO_SOURCES, {"plain": Marker("B")}))
 
     def test_copy_with_none_transformers_starts_over(self, translator):
         """`None` means "derive on first use", exactly as it does in the constructor."""

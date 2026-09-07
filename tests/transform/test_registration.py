@@ -566,10 +566,9 @@ class TestRetention:
         assert translate(copy) == "1:one|y"
         assert translate(translator) == "1:one|x"
 
-    def test_copy_with_new_fetcher(self, translator):
-        with pytest.warns(FutureWarning, match="replaces the data source"):
-            copy = translator.copy(fetcher=MemoryFetcher(DATA))
-        assert translate(copy) == "1:one|x"
+    def test_copy_rejects_fetcher_override(self, translator):
+        with pytest.raises(TypeError, match="FetcherCopyMode"):
+            translator.copy(fetcher=MemoryFetcher(DATA))
 
     @pytest.mark.parametrize("mode", ["keep", "copy", "auto"])
     def test_copy_fetcher_modes(self, translator, mode):

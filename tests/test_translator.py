@@ -18,7 +18,6 @@ from id_translation.exceptions import (
     TooManyFailedTranslationsError,
     TranslationAbortedWarning,
     TranslationDisabledWarning,
-    TranslationWarning,
 )
 from id_translation.fetching import MemoryFetcher, MultiFetcher
 from id_translation.fetching.exceptions import UnknownSourceError
@@ -540,15 +539,9 @@ def test_simple_function_overrides(translator):
         translator.translate(1, names="whatever", override_function=lambda *_: "bad")
 
 
-def test_override_fetcher(translator):
-    old_fetcher = translator.fetcher
-    assert translator.translate(1, names="positive_numbers") == "1:0x1, positive=True"
-    expected = old_fetcher.num_fetches
-
-    with pytest.warns(FutureWarning, match="replaces the data source"):
-        translator = translator.copy(fetcher={"positive_numbers": {"id": [1], "hex": ["0x1"], "positive": [True]}})
-    assert translator.translate(1, names="positive_numbers") == "1:0x1, positive=True"
-    assert expected == old_fetcher.num_fetches
+def test_copy_rejects_fetcher_override(translator):
+    with pytest.raises(TypeError, match="FetcherCopyMode"):
+        translator.copy(fetcher={"positive_numbers": {"id": [1], "hex": ["0x1"], "positive": [True]}})
 
 
 def test_float_ids(translator):
@@ -895,33 +888,16 @@ def test_fetcher_not_cloneable_copy_mode_raises():
 def test_fetcher_not_cloneable_keep_mode_does_not_warn():
     translator = UnitTestTranslator(fetcher=NotCloneableFetcher())
 
-    copy = translator.copy(fetcher="keep")  # Warnings are errors in this suite.
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", UserWarning)
+        copy = translator.copy(fetcher="keep")
+
     assert copy.fetcher is translator.fetcher
 
 
 def test_bad_fetcher_copy_mode(translator):
     with pytest.raises(TypeError, match=r"FetcherCopyMode\['keep', 'copy', 'auto'\]"):
         translator.copy(fetcher="clone")
-
-
-def test_copy_fetcher_none_is_deprecated(translator):
-    """`None` is a replacement too: the copy gets an auto-generated fetcher, as the constructor does."""
-    with warnings.catch_warnings(record=True) as record:
-        warnings.simplefilter("always")
-        copy = translator.copy(fetcher=None)
-
-    assert [w.category for w in record][:1] == [FutureWarning]
-    assert "replaces the data source" in str(record[0].message)
-    assert all(w.category is TranslationWarning for w in record[1:]), "the constructor's own warnings follow"
-    assert copy.fetcher is not translator.fetcher
-
-
-def test_passing_the_fetcher_back_is_deprecated(translator):
-    """What the failed-clone hint used to recommend; it means 'keep', not a replacement."""
-    with pytest.warns(FutureWarning, match="use fetcher='keep'"):
-        copy = translator.copy(fetcher=translator.fetcher)
-
-    assert copy.fetcher is translator.fetcher
 
 
 def test_empty(translator):

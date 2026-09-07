@@ -90,8 +90,7 @@ class UniqueCopyParams(_t.TypedDict, _t.Generic[_tt.NameType, _tt.SourceType, _t
     Includes only arguments that do not overlap with :class:`~id_translation.translator_typing.AllTranslateParams`.
     """
 
-    # TODO(2.0.0): FetcherCopyMode only. Anything else is deprecated since 1.3.0.
-    fetcher: FetcherCopyMode | FetcherTypes[_tt.NameType, _tt.SourceType, _tt.IdType] | None
+    fetcher: FetcherCopyMode
     mapper: _Mapper[_tt.NameType, _tt.SourceType, None] | None
     default_fmt: _ot.FormatType
     default_fmt_placeholders: _MakeType[_tt.SourceType, str, _t.Any] | None
