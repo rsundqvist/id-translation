@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Translator.go_offline()` raises `ConnectionStatusError` instead of warning when already offline.
 - `Translator.fetch()`/`Translator.go_offline()` raise `ValueError` instead of logging and ignoring when `io_kwargs`
   is given without `translatable`.
-- `dio.load_integrations()` skips only `ModuleNotFoundError` when loading an entrypoint; any other `ImportError`
+- `dio.reload_integrations()` skips only `ModuleNotFoundError` when loading an entrypoint; any other `ImportError`
   (e.g. a circular import) propagates.
 - `Translator.copy(fetcher=...)` accepts a `FetcherCopyMode` only; passing a replacement data source raises.
 - TOML: `[fetching.cache]` with a `type` key is rejected; use `[fetching.cache.'<type>']`.
@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `PandasFetcher()`. The first `PandasFetcher()` argument is now `read_path_format`, not `read_function`.
 - Renamed `NounTransformer.IRREGULARS` to `.DEFAULTS`.
 - Renamed `dio.default.SingleValueIO` to `dio.default.ScalarIO`.
+- Renamed `dio.load_integrations()` to `dio.reload_integrations()`.
 
 ### Removed
 - `Fetcher.fetch()`/`fetch_all()` implementations that omit `placeholder_attributes` now raise `TypeError`.

@@ -80,8 +80,8 @@ def is_registered(io: AnyIoType) -> bool:
     return _get_repository().is_registered(io)
 
 
-def load_integrations() -> None:
-    """Discover, load, and register entrypoint integrations.
+def reload_integrations() -> None:
+    """Discard the registry, then discover, load and register entrypoint integrations afresh.
 
     Reset the registry, then load entrypoints in the
     :const:`{_ENTRYPOINT_GROUP!r} <id_translation.dio.ENTRYPOINT_GROUP>` entrypoint group (see
@@ -96,10 +96,8 @@ def load_integrations() -> None:
     Notes:
         Called automatically when :mod:`id_translation` is imported.
     """
-    # TODO(2.0.0): Rename to reload_integrations, or similar.
-    # TODO(2.0.0): Expose repo class init params, e.g. for keeping manually registered IOs.
     _get_repository(reset=True)
 
 
-if load_integrations.__doc__:
-    load_integrations.__doc__ = load_integrations.__doc__.format(_ENTRYPOINT_GROUP=ENTRYPOINT_GROUP)
+if reload_integrations.__doc__:
+    reload_integrations.__doc__ = reload_integrations.__doc__.format(_ENTRYPOINT_GROUP=ENTRYPOINT_GROUP)
