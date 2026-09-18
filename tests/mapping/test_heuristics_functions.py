@@ -1,12 +1,6 @@
-from pathlib import Path
-
 import pytest
 
 from id_translation.mapping import heuristic_functions as hf
-
-SINGULAR_TO_PLURAL = list(
-    map(str.split, Path(__file__).parent.joinpath("singular-to-plural.txt").read_text().splitlines())
-)
 
 
 @pytest.mark.parametrize(
@@ -22,10 +16,21 @@ SINGULAR_TO_PLURAL = list(
         ("scratch_id", "scratches"),
         ("hash_id", "hashes"),
         ("hex_id", "hexes"),
+        ("user_phase_id", "user_phases"),  # compound noun ending in a NounTransformer.DEFAULTS override
     ],
 )
 def test_like_database_table(value, expected_match):
-    candidates = ["humans", "animals", "countries", "cities", "languages", "scratches", "hashes", "hexes"]
+    candidates = [
+        "humans",
+        "animals",
+        "countries",
+        "cities",
+        "languages",
+        "scratches",
+        "hashes",
+        "hexes",
+        "user_phases",
+    ]
     expected_pos = candidates.index(expected_match)
 
     new_value, new_candidates = hf.like_database_table(value, candidates, None)
@@ -38,6 +43,7 @@ def test_like_database_table(value, expected_match):
         "scratches",
         "hashes",
         "hexes",
+        "user_phases",
     ], "input changed"
     assert new_value == new_candidates[expected_pos]
 
@@ -116,11 +122,48 @@ def test_candidate_fstring_alias(fstring, expected_candidates):
 
 
 class TestNounTransformer:
-    @pytest.mark.parametrize("singular, plural", SINGULAR_TO_PLURAL)
+    @pytest.mark.parametrize(
+        "singular, plural",
+        {
+            # PLURAL_TO_SINGULAR_SUFFIXES, in table order:
+            "city": "cities",  # ies -> y
+            "knife": "knives",  # ives -> ife (must be tried before ves, or this would become "knif")
+            "half": "halves",  # ves -> f
+            "veto": "vetoes",  # oes -> o
+            "branch": "branches",  # hes -> h
+            "class": "classes",  # ses -> s, double consonant before the suffix
+            "iris": "irises",  # ses -> s, single consonant before the suffix
+            "affix": "affixes",  # xes -> x
+            "actor": "actors",  # catch-all s -> ""
+            # Catch-all near-misses: endings one letter off from another suffix, which must NOT match it.
+            "device": "devices",  # -ces, not -ses
+            "college": "colleges",  # -ges, not -hes
+            "video": "videos",  # -eos, not -oes (contrast with "veto" above)
+            # DEFAULTS overrides, needed because the suffix rules alone get these wrong.
+            "species": "species",
+            "phase": "phases",
+            "exercise": "exercises",
+            "userphase": "userphases",  # matched as a suffix; like_database_table() drops the "_" before calling
+            # Bare suffixes have no stem to strip, and are left unchanged.
+            "ies": "ies",
+            "s": "s",
+        }.items(),
+    )
     def test_word_list(self, singular, plural):
         transformer = hf.NounTransformer()
         actual = transformer(plural)
         assert actual == singular, f"{plural=}"
+
+    def test_custom_is_exact_match(self):
+        # Unlike DEFAULTS, `custom` is matched exactly, not as a suffix.
+        transformer = hf.NounTransformer(custom={"men": "man"})
+        assert transformer("men") == "man"
+        assert transformer("abdomen") == "abdomen"
+
+    def test_custom_is_not_shadowed_by_defaults(self):
+        # A custom override must win even when it ends with a (shorter) DEFAULTS key.
+        transformer = hf.NounTransformer(custom={"userphases": "USERPHASE"})
+        assert transformer("userphases") == "USERPHASE"
 
     def test_cached(self, monkeypatch):
         monkeypatch.setattr(hf, "_NOUN_TRANSFORMER_CACHE", {})
@@ -155,11 +198,11 @@ class TestNounTransformer:
         assert len(hf._NOUN_TRANSFORMER_CACHE) == 0
 
     def test_overrides_are_needed(self, monkeypatch):
-        irregulars = hf.NounTransformer.IRREGULARS
-        monkeypatch.setattr(hf.NounTransformer, "IRREGULARS", {})
+        defaults = hf.NounTransformer.DEFAULTS
+        monkeypatch.setattr(hf.NounTransformer, "DEFAULTS", {})
 
         ns = hf.NounTransformer()
-        for plural, singular in irregulars.items():
+        for plural, singular in defaults.items():
             assert singular != ns(plural)
 
     class CachedTransformer:

@@ -17,10 +17,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - TOML: `[fetching.cache]` with a `type` key is rejected; use `[fetching.cache.'<type>']`.
 - Arguments after the first are keyword-only in `Translator()`, `Mapper()`, `SqlFetcher()`, `MemoryFetcher()` and
   `PandasFetcher()`. The first `PandasFetcher()` argument is now `read_path_format`, not `read_function`.
+- Renamed `NounTransformer.IRREGULARS` to `.DEFAULTS`.
 
 ### Removed
 - `Fetcher.fetch()`/`fetch_all()` implementations that omit `placeholder_attributes` now raise `TypeError`.
 - `dio.get_resolution_order()`: dropped the `real` parameter; always returns a copy.
+
+### Fixed
+- `NounTransformer.DEFAULTS` is now matched as a suffix instead of exactly, so compound names (e.g. `user_phases`)
+  are covered too.
 
 ## [1.4.0] - 2026-09-06
 

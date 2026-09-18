@@ -347,6 +347,10 @@ class NounTransformer:
        For more complex use cases, consider using a language-processing framework such as
        `inflect (PyPI) <https://pypi.org/project/inflect/>`_ instead.
 
+    .. note::
+       Matching is case-sensitive and every built-in form is lowercase, so callers (e.g.
+       :func:`~id_translation.mapping.heuristic_functions.like_database_table`) must lowercase input first.
+
     Pass ``plural_to_singular=<fully-qualified-name>`` to use your implementation in any function that accepts a
     `plural_to_singular`-argument.
 
@@ -360,6 +364,11 @@ class NounTransformer:
 
 
        smurf_columns(..., plural_to_singular="__main__.my_transform")
+
+    Args:
+        custom: Extra plural-to-singular overrides, checked first. Unlike
+            :attr:`~id_translation.mapping.heuristic_functions.NounTransformer.DEFAULTS`, these are matched exactly
+            rather than as a suffix, so ``{"men": "man"}`` does not also rewrite ``"abdomen"``.
 
     Examples:
         >>> nt = NounTransformer(custom={"geese": "goose"})
@@ -382,16 +391,20 @@ class NounTransformer:
         This is not :class:`~id_translation.transform.types.Transformer` implementation, in spite of the name.
     """
 
-    IRREGULARS: _t.ClassVar[dict[str, str]] = {
+    DEFAULTS: _t.ClassVar[dict[str, str]] = {
         "species": "species",
-        # Not really irregular
+        # Regular, but "-se" singulars pluralize like "-s" ones (phases/irises): no suffix rule can tell them apart.
         "phases": "phase",
         "exercises": "exercise",
     }
-    """Known irregular plural-to-singular transformations."""
+    """Built-in plural-to-singular overrides.
+
+    Matched as a suffix, so compound nouns like ``"user_phases"`` are covered too. Checked before
+    :attr:`~id_translation.mapping.heuristic_functions.NounTransformer.PLURAL_TO_SINGULAR_SUFFIXES`.
+    """
 
     # https://wordtoolbox.com/nouns-ending-with/<letter-combination>
-    PLURAL_TO_SINGULAR_SUFFIXES: tuple[tuple[str, str], ...] = (
+    PLURAL_TO_SINGULAR_SUFFIXES: _t.ClassVar[tuple[tuple[str, str], ...]] = (
         ("ies", "y"),  # cit[ies] -> cit[y]
         ("ives", "ife"),  # l[ives] -> l[ife]
         ("ves", "f"),  # hal[ves] -> hal[f]
@@ -404,21 +417,22 @@ class NounTransformer:
     """Plural-to-singular suffix mappings."""
 
     def __init__(self, custom: dict[str, str] | None = None) -> None:
-        if custom is None:
-            custom = {}
-        self._pre = {**self.IRREGULARS, **custom}
+        self._custom = custom or {}
 
     def __call__(self, noun: str) -> str:
         """Convert to singular form."""
-        singular = self._pre.get(noun)
-        return self._to_singular(noun) if singular is None else singular
+        singular = self._custom.get(noun)
+        if singular is not None:
+            return singular
 
-    @classmethod
-    def _to_singular(cls, plural: str) -> str:
-        for suffix, replacement in cls.PLURAL_TO_SINGULAR_SUFFIXES:
-            if plural.endswith(suffix):
-                return plural[: -len(suffix)] + replacement
-        return plural
+        if any(noun == suffix for suffix, _ in self.PLURAL_TO_SINGULAR_SUFFIXES):
+            return noun  # A bare suffix has no stem to singularize.
+
+        for suffix, replacement in (*self.DEFAULTS.items(), *self.PLURAL_TO_SINGULAR_SUFFIXES):
+            if noun.endswith(suffix):
+                return noun.removesuffix(suffix) + replacement
+
+        return noun
 
 
 def _get_noun_transformer(plural_to_singular: PluralToSingularArg) -> _abc.Callable[[str], str]:
