@@ -167,6 +167,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
     def __init__(
         self,
         fetcher: FetcherTypes[NameType, SourceType, IdType] | None = None,
+        *,
         fmt: FormatType = Format.DEFAULT,
         mapper: Mapper[NameType, SourceType, None] | None = None,
         default_fmt: FormatType = Format.DEFAULT_FAILED,

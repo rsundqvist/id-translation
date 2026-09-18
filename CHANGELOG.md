@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (e.g. a circular import) propagates.
 - `Translator.copy(fetcher=...)` accepts a `FetcherCopyMode` only; passing a replacement data source raises.
 - TOML: `[fetching.cache]` with a `type` key is rejected; use `[fetching.cache.'<type>']`.
+- Arguments after the first are keyword-only in `Translator()`, `Mapper()`, `SqlFetcher()`, `MemoryFetcher()` and
+  `PandasFetcher()`. The first `PandasFetcher()` argument is now `read_path_format`, not `read_function`.
 
 ### Removed
 - `Fetcher.fetch()`/`fetch_all()` implementations that omit `placeholder_attributes` now raise `TypeError`.

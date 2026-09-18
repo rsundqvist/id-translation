@@ -21,6 +21,7 @@ def like_database_table(
     name: str,
     tables: _abc.Iterable[str],
     context: _t.Any,  # noqa: ARG001
+    /,
     *,
     plural_to_singular: PluralToSingularArg = True,
 ) -> tuple[str, list[str]]:
@@ -72,6 +73,7 @@ def smurf_columns(
     placeholder: str,
     columns: _abc.Iterable[str],
     table: str,
+    /,
     *,
     plural_to_singular: PluralToSingularArg = False,
 ) -> set[str]:
@@ -164,6 +166,7 @@ def short_circuit(
     value: str,
     candidates: set[str],
     context: _t.Any,  # noqa: ARG001
+    /,
     *,
     value_regex: str | _re.Pattern[str],
     target_candidate: str,
@@ -229,6 +232,7 @@ def force_lower_case(
     value: str,
     candidates: _abc.Iterable[str],
     context: _t.Any,  # noqa: ARG001
+    /,
 ) -> tuple[str, list[str]]:
     """Force lower-case in `value` and `candidates`."""
     return value.lower(), [c.lower() for c in candidates]
@@ -238,6 +242,7 @@ def value_fstring_alias(
     value: str,
     candidates: _abc.Iterable[str],
     context: _t.Any,
+    /,
     *,
     fstring: str,
     for_value: str | None = None,
@@ -290,6 +295,7 @@ def candidate_fstring_alias(
     value: str,
     candidates: _abc.Iterable[str],
     context: _t.Any,
+    /,
     *,
     fstring: str,
     **kwargs: _t.Any,

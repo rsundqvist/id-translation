@@ -39,7 +39,7 @@ class MappingTask(NamesTask[NameType, SourceType, IdType]):
         super().__init__(
             caller,
             translatable,
-            names,
+            names=names,
             ignore_names=ignore_names,
             override_function=override_function,
             io_kwargs=io_kwargs,

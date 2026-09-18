@@ -14,6 +14,7 @@ def modified_hamming(
     name: str,
     candidates: _Iterable[str],
     context: ContextType | None,  # noqa: ARG001
+    /,
     *,
     add_length_ratio_term: bool = True,
     positional_penalty: float = 0.001,
@@ -30,15 +31,13 @@ def modified_hamming(
 
     Examples:
         >>> from id_translation.mapping.score_functions import modified_hamming
-        >>> list(modified_hamming("aa", ["aa", "a", "ab", "aa"], context=None))
+        >>> list(modified_hamming("aa", ["aa", "a", "ab", "aa"], None))
         [1.0, 0.499, 0.498, 0.997]
         >>> list(
-        ...     modified_hamming(
-        ...         "aa", ["aa", "a", "ab", "aa"], context=None, positional_penalty=0
-        ...     )
+        ...     modified_hamming("aa", ["aa", "a", "ab", "aa"], None, positional_penalty=0)
         ... )
         [1.0, 0.5, 0.5, 1.0]
-        >>> list(modified_hamming("face", ["face", "FAce", "race", "place"], context=None))
+        >>> list(modified_hamming("face", ["face", "FAce", "race", "place"], None))
         [1.0, 0.499, 0.748, 0.372]
     """
 
@@ -58,12 +57,13 @@ def equality(
     value: ValueType,
     candidates: _Iterable[CandidateType],
     context: ContextType | None,  # noqa: ARG001
+    /,
 ) -> _Iterable[float]:
     """Return 1.0 if ``k == c_i``, 0.0 otherwise.
 
     Examples:
         >>> from id_translation.mapping.score_functions import equality
-        >>> list(equality("a", "aAb", context=None))
+        >>> list(equality("a", "aAb", None))
         [1.0, 0.0, 0.0]
     """
     yield from map(float, (value == c for c in candidates))
@@ -73,7 +73,8 @@ def disabled(
     value: ValueType,
     candidates: _Iterable[CandidateType],
     context: ContextType | None,
-    # TODO(2.0.0): pos-only/kw-only split.
+    /,
+    *,
     strict: bool = True,
 ) -> _Iterable[float]:
     """Special value to indicate that scoring logic has been disabled.

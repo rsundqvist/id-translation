@@ -346,6 +346,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         self,
         ids_to_fetch: Iterable[IdsToFetch[SourceType, IdType]],
         placeholders: Iterable[str] = (),
+        *,
         required: Iterable[str] = (),
         placeholder_attributes: PlaceholderAttributes | None = None,
         task_id: int | None = None,
@@ -484,6 +485,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
     def _fetch_all(
         self,
         placeholders: PlaceholdersTuple,
+        *,
         required_placeholders: set[str],
         placeholder_attributes: PlaceholderAttributes | None,
         wanted_sources: set[SourceType] | None,
@@ -693,6 +695,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         self,
         source: SourceType,
         placeholders: PlaceholdersTuple,
+        *,
         required_placeholders: set[str],
         placeholder_attributes: PlaceholderAttributes | None,
         ids: set[IdType] | None,

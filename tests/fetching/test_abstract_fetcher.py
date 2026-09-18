@@ -37,7 +37,7 @@ def test_fetch_all_forbidden(data):
 
 def test_unknown_placeholders(fetcher):
     with pytest.raises(exceptions.UnknownPlaceholderError, match=r"{'number_of_legs'} not recognized"):
-        fetcher.fetch([IdsToFetch("humans", set())], ("id", "number_of_legs"), {"number_of_legs"})
+        fetcher.fetch([IdsToFetch("humans", set())], ("id", "number_of_legs"), required={"number_of_legs"})
 
 
 def test_missing_id_placeholder_raises_clear_error():
