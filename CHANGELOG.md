@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Arguments after the first are keyword-only in `Translator()`, `Mapper()`, `SqlFetcher()`, `MemoryFetcher()` and
   `PandasFetcher()`. The first `PandasFetcher()` argument is now `read_path_format`, not `read_function`.
 - Renamed `NounTransformer.IRREGULARS` to `.DEFAULTS`.
+- Renamed `dio.default.SingleValueIO` to `dio.default.ScalarIO`.
 
 ### Removed
 - `Fetcher.fetch()`/`fetch_all()` implementations that omit `placeholder_attributes` now raise `TypeError`.

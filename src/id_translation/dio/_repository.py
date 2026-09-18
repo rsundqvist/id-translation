@@ -41,10 +41,10 @@ class Repository:
         ios = [*ios]
 
         if load_defaults:
-            from .default import DictIO, SequenceIO, SetIO, SingleValueIO  # noqa: PLC0415
+            from .default import DictIO, ScalarIO, SequenceIO, SetIO  # noqa: PLC0415
             from .default import __all__ as all_default_ios  # noqa: PLC0415
 
-            defaults = [DictIO, SetIO, SequenceIO, SingleValueIO]
+            defaults = [DictIO, SetIO, SequenceIO, ScalarIO]
             ios.extend(defaults)  # type: ignore[arg-type]
             assert len(defaults) == len(all_default_ios)  # noqa: S101
 
