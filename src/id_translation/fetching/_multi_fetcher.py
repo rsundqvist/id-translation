@@ -463,7 +463,7 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         for future in as_completed(futures):
             fid, translations = future.result()
             rank = self._id_to_rank[fid]
-            self._process_future_result(translations, rank, source_ranks, ans, operation, task_id)
+            self._process_future_result(translations, rank, source_ranks, ans, operation=operation, task_id=task_id)
         return ans
 
     def _process_future_result(
@@ -472,6 +472,7 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         rank: int,
         source_ranks: dict[SourceType, int],
         ans: SourcePlaceholderTranslations[SourceType],
+        *,
         operation: Operation,
         task_id: int,
     ) -> None:

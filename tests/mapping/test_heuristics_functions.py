@@ -4,7 +4,9 @@ import pytest
 
 from id_translation.mapping import heuristic_functions as hf
 
-SINGULAR_TO_PLURAL = map(str.split, Path(__file__).parent.joinpath("singular-to-plural.txt").read_text().splitlines())
+SINGULAR_TO_PLURAL = list(
+    map(str.split, Path(__file__).parent.joinpath("singular-to-plural.txt").read_text().splitlines())
+)
 
 
 @pytest.mark.parametrize(

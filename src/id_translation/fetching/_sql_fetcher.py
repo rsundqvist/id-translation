@@ -325,7 +325,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
 
         if (ids_are_uuid_like is True or length in uuid_string_lengths) and issubclass(python_type, str):
             if self.engine.dialect.name != "mysql":
-                return id_column.cast(sqlalchemy.types.Uuid)  # type: ignore[arg-type]
+                return id_column.cast(sqlalchemy.types.Uuid)
 
             # MySQL doesn't work even with SQLAlchemy > 2. This seems to be because UUIDs are converted to strings
             # without dashes by the driver (see log output), and databases may contain dashed UUID-like strings.

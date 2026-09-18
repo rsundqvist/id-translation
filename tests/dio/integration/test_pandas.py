@@ -132,7 +132,8 @@ class TestMultipleNames:
         assert actual == ["00000001:UuidOne", "1:IntOne", "1:StrOne"]
 
     @pytest.fixture(scope="class")
-    def data(self) -> dict[str, IdTypes]:
+    @classmethod
+    def data(cls) -> dict[str, IdTypes]:
         return {"uuid_source": UUID_ID, "int_source": 1, "str_source": "1"}
 
 
@@ -377,7 +378,8 @@ class TestOrdered:
             PandasIO[pd.Series](as_category=True, ordered=ordered)
 
     @pytest.fixture(scope="class")
-    def ordered_tmap(self) -> TranslationMap[str, str, IdTypes]:
+    @classmethod
+    def ordered_tmap(cls) -> TranslationMap[str, str, IdTypes]:
         # ID 3 shares a translation with ID 2.
         translations = PlaceholderTranslations.from_dict("s", {1: "c", 2: "a", 3: "a", 10: "b"})
         return TranslationMap(
@@ -617,8 +619,9 @@ class TestUuidCategories:
     UNKNOWN = "0000dead-bbbb-cccc-dddd-eeeeeeeeeeee"
 
     @pytest.fixture(scope="class")
-    def translator(self) -> Translator[str, str, str]:
-        data = {"src": {"id": self.UUIDS, "name": ["first", "second", "third"]}}
+    @classmethod
+    def translator(cls) -> Translator[str, str, str]:
+        data = {"src": {"id": cls.UUIDS, "name": ["first", "second", "third"]}}
         return Translator(data, fmt="{name}", default_fmt="<Failed: id={id}>", enable_uuid_heuristics=True)
 
     @staticmethod

@@ -85,7 +85,7 @@ def test_process_future():
 
     def make_and_process(rank):
         pht = PlaceholderTranslations.make("source", pd.DataFrame([rank], columns=["rank"]))
-        fetcher._process_future_result({"source": pht}, rank, source_ranks, ans, "FETCH", 0)
+        fetcher._process_future_result({"source": pht}, rank, source_ranks, ans, operation="FETCH", task_id=0)
         return pht
 
     translations4 = make_and_process(4)
