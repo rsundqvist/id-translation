@@ -8,8 +8,6 @@ fmt = "{id}:{name}"
 read_path_format = "s3://pytest/imdb/{}.csv"
 
 [fetching.PandasFetcher.read_function_kwargs.storage_options]
-key = "minioadmin"
-secret = "minioadmin"
 client_kwargs = { endpoint_url = "http://localhost:9000" }
 
 [fetching.mapping]

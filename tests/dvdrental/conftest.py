@@ -57,8 +57,8 @@ def check_status(dialect: str) -> None:
     assert count[0] == 2, f"Expected 2 stores, but got {count}."
 
 
-def check_minio_status(endpoint_url: str) -> None:
-    """Equivalent of :func:`check_status`, but for the minio (S3) container used by ``PandasFetcher`` tests."""
+def check_s3_status(endpoint_url: str) -> None:
+    """Equivalent of :func:`check_status`, but for the S3 container used by ``PandasFetcher`` tests."""
     parsed = urlparse(endpoint_url)
     host = parsed.hostname or "localhost"
     port = parsed.port or 9000
@@ -67,7 +67,7 @@ def check_minio_status(endpoint_url: str) -> None:
         with socket.create_connection((host, port), timeout=2):
             pass
     except OSError:
-        raise RuntimeError(_dead_stack_message("dialect='minio'")) from None
+        raise RuntimeError(_dead_stack_message("dialect='s3'")) from None
 
 
 def get_connection_string(dialect: str, with_password: bool = True) -> str:

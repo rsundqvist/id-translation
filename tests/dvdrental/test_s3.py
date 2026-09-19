@@ -8,22 +8,29 @@ import pytest
 from id_translation import Translator
 from id_translation.toml import load_toml_file
 
-from .conftest import LINUX_ONLY, check_minio_status
+from .conftest import LINUX_ONLY, check_s3_status
 
 pytestmark = [
     LINUX_ONLY,
     pytest.mark.filterwarnings("ignore:.*socket.*:ResourceWarning"),  # Makes CI/CD flaky
 ]
-CONFIG_FILE = Path(__file__).parent / "minio.toml"
+CONFIG_FILE = Path(__file__).parent / "s3.toml"
 
 # Emits non JSON-serializable log messages.
 for name in "botocore", "s3fs", "fsspec":
     logging.getLogger(name).setLevel(logging.WARNING)
 
 
+@pytest.fixture(autouse=True)
+def s3_credentials(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Must match the AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY given to the `s3` service in docker-compose.yml.
+    monkeypatch.setenv("AWS_ACCESS_KEY_ID", "s3admin")
+    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "s3admin")
+
+
 def test_pandas_fetcher(imdb_translator):
     # Doesn't actually belong here, but requires Docker. So this is convenient.
-    check_minio_status(_storage_options()["client_kwargs"]["endpoint_url"])
+    check_s3_status(_storage_options()["client_kwargs"]["endpoint_url"])
 
     # with pytest.warns(DeprecationWarning, match="datetime.datetime.utcnow"):
     put_objects(imdb_translator.fetch().to_pandas())
@@ -43,15 +50,15 @@ def test_pandas_fetcher(imdb_translator):
     }
 
 
-def test_check_minio_status_reports_friendly_error_when_down():
-    """Verifies the guard itself, without touching the real (running) minio container."""
+def test_check_s3_status_reports_friendly_error_when_down():
+    """Verifies the guard itself, without touching the real (running) S3 container."""
     dead_endpoint = "http://localhost:1"  # Nothing listens here.
     with pytest.raises(
         RuntimeError,
-        match=r"Unable to connect to database for dialect='minio'\. Start the databases"
+        match=r"Unable to connect to database for dialect='s3'\. Start the databases"
         r" by running:\n    \./run-docker-dvdrental\.sh",
     ):
-        check_minio_status(dead_endpoint)
+        check_s3_status(dead_endpoint)
 
 
 def _storage_options() -> dict[str, Any]:
