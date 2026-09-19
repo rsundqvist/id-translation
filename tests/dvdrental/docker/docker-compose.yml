@@ -24,8 +24,18 @@ services:
       AWS_SECRET_ACCESS_KEY: s3admin
     ports:
       - "9000:8333"
+      - "8888:8888"
     healthcheck:
       test: [ "CMD", "nc", "-z", "127.0.0.1", "8333" ]
       interval: 2s
       timeout: 2s
       retries: 15
+
+  s3-admin:
+    image: chrislusf/seaweedfs:4.47
+    command: [ "admin", "-port=23646", "-masters=s3:9333", "-ip=0.0.0.0", "-allowInsecureBind" ]
+    ports:
+      - "23646:23646"
+    depends_on:
+      s3:
+        condition: service_healthy
