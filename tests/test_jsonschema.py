@@ -3,7 +3,7 @@
 from dataclasses import fields
 from typing import Any
 
-import pytest
+import jsonschema
 
 from id_translation import fetching
 from id_translation.toml import TranslatorFactory
@@ -43,7 +43,6 @@ def test_fetcher_top_level_matches_aux_allow_list() -> None:
 
 
 def test_cache_grammar() -> None:
-    jsonschema = pytest.importorskip("jsonschema")
     validator = jsonschema.Draft7Validator(schemas()[MAIN_FILENAME]["definitions"]["cache"])
 
     assert validator.is_valid({"my.lib.MyCacheAccess": {"ttl": 3600}})

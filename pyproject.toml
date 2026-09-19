@@ -87,6 +87,8 @@ test = [
     "pymssql~=2.4.1",
     "pymysql~=1.2.3",
     "cryptography",
+    "jsonschema~=4.26.0",
+    "types-jsonschema~=4.26.0",
 ]
 devops = [
     "nox~=2026.8.17",
