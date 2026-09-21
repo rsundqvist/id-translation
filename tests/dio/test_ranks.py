@@ -25,7 +25,7 @@ def test_ranks(annotations):
         )
         records.append(record)
 
-    table = pd.DataFrame.from_records(records, columns=["Rank", "Weight", "Class", "__tmp_notes__", "Comment"])
+    table = pd.DataFrame.from_records(records, columns=["Rank", "Priority", "Class", "__tmp_notes__", "Comment"])
     table["Class"] = table["Class"].map(":class:`~{}` ".format) + table["__tmp_notes__"]
     table["Class"] = table["Class"].str.strip()
     del table["__tmp_notes__"]
@@ -54,9 +54,12 @@ def annotations(monkeypatch: pytest.MonkeyPatch) -> Iterator[dict[AnyIoType, str
         elif io_class.__module__.startswith("id_translation.dio.integration."):
             anns.append("[#automatic]_")
 
-        monkeypatch.setattr(io_class, "priority", abs(io_class.priority))
-
+    # Opt in to the negative-priority implementations the way a user would, rather than rewriting `priority`, so the
+    # table reports the real value of the attribute it names.
     tmp_repo = _repository.Repository(ios=all_ios, load_integrations=False, load_defaults=False)
+    for io_class in all_ios:
+        if io_class.priority < 0:
+            tmp_repo.register(io_class)
     monkeypatch.setattr(_resolve, "_INSTANCE", tmp_repo)
 
     yield {k: " ".join(v) for k, v in per_cls.items()}

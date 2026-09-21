@@ -74,10 +74,7 @@ def test_array(translator, table, column):
 def register():
     assert not ArrowIO.is_registered(), f"{ArrowIO.priority=}"
 
-    with pytest.MonkeyPatch().context() as monkeypatch:
-        monkeypatch.setattr(ArrowIO, "priority", -ArrowIO.priority)
-
-        ArrowIO.register()
-        yield
+    ArrowIO.register()
+    yield
 
     reload_integrations()

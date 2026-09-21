@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `dio.unregister_io()` and `DataStructureIO.unregister()`; disable any implementation, including built-ins.
+
 ### Changed
 - `Translator.go_offline()` raises `ConnectionStatusError` instead of warning when already offline.
 - `Translator.fetch()`/`Translator.go_offline()` raise `ValueError` instead of logging and ignoring when `io_kwargs`
@@ -20,6 +23,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Renamed `NounTransformer.IRREGULARS` to `.DEFAULTS`.
 - Renamed `dio.default.SingleValueIO` to `dio.default.ScalarIO`.
 - Renamed `dio.load_integrations()` to `dio.reload_integrations()`.
+- `DataStructureIO.priority` only sets the rank and the initial state:
+  * `priority < 0` means *opt-in*, not *disabled*: `register()` enables it at `abs(priority)`.
+  * Negating `priority` no longer disables an implementation; call `unregister()`. The last call wins.
 
 ### Removed
 - `Fetcher.fetch()`/`fetch_all()` implementations that omit `placeholder_attributes` now raise `TypeError`.
@@ -28,6 +34,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - `NounTransformer.DEFAULTS` is now matched as a suffix instead of exactly, so compound names (e.g. `user_phases`)
   are covered too.
+- `dio`: A tie between two `DataStructureIO` implementations registered at the same `abs(priority)` picked a winner
+  that varied between process runs. The one most recently `register()`-ed now wins consistently.
 
 ## [1.4.0] - 2026-09-06
 

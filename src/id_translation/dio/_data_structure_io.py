@@ -13,20 +13,36 @@ class DataStructureIO(Generic[TranslatableT, NameType, SourceType, IdType]):
     """Insertion and extraction of IDs and translations."""
 
     priority: ClassVar[int] = 10_000
-    """Determines order in which IOs are considered (higher = earlier).
+    """Determines the order in which implementations are considered, largest ``abs(priority)`` first.
 
-    Set `priority < 0` to disable.
+    The sign sets the initial state of a discovered implementation. A negative `priority` makes it opt-in: it is not
+    considered until :meth:`~id_translation.dio.DataStructureIO.register` is called. After that, `priority` affects
+    only the order. Use :meth:`~id_translation.dio.DataStructureIO.unregister` to disable an implementation.
+
+    Ties in ``abs(priority)`` go to the implementation registered most recently. Implementations that were never
+    registered rank after those, sorted by fully qualified name. A new value takes effect at the next ``register``
+    or ``unregister`` call.
     """
 
     @classmethod
     def register(cls) -> None:
-        """Register this implementation for all :class:`~id_translation.Translator` instances.
+        """Enable this implementation for all :class:`~id_translation.Translator` instances.
 
         See :func:`dio.register_io <id_translation.dio.register_io>` for details.
         """
         from ._resolve import register_io  # noqa: PLC0415
 
         return register_io(cls)
+
+    @classmethod
+    def unregister(cls) -> None:
+        """Disable this implementation for all :class:`~id_translation.Translator` instances.
+
+        See :func:`dio.unregister_io <id_translation.dio.unregister_io>` for details.
+        """
+        from ._resolve import unregister_io  # noqa: PLC0415
+
+        return unregister_io(cls)
 
     @classmethod
     def is_registered(cls) -> bool:
@@ -57,7 +73,7 @@ class DataStructureIO(Generic[TranslatableT, NameType, SourceType, IdType]):
             return get_resolution_order().index(cls)
         except ValueError:
             exc = DataStructureIOError(f"Not registered: {cls.__name__}")
-            exc.add_note(f"Hint: Use {cls.register.__qualname__}() to register this implementation.")
+            exc.add_note(f"Hint: Use {cls.__qualname__}.register() to register this implementation.")
             raise exc from None
 
     @classmethod

@@ -39,17 +39,24 @@ snippet below shows how the :mod:`bundled <.integration>` integrations are regis
    dask_io = "id_translation.dio.integration.dask:DaskIO"
    polars_io = "id_translation.dio.integration.polars:PolarsIO"
 
-The :func:`loader <id_translation.dio.reload_integrations>` will skip the integration if calling
-:class:`EntryPoint.load() <importlib.metadata.EntryPoint>` raises a :py:class:`ModuleNotFoundError`,
-or if the :attr:`~DataStructureIO.priority` is negative.
+A negative :attr:`~DataStructureIO.priority` makes an integration *opt-in* rather than unusable. The entrypoint is
+still loaded, but the implementation is not considered until :meth:`~DataStructureIO.register` is called, after which
+it is ordered by ``abs(priority)`` as any other integration is. Installing the underlying package is therefore not
+enough to change how anything translates; the application has to ask.
+
+Call :meth:`~DataStructureIO.unregister` to disable any implementation, including a bundled one. Of any sequence of
+``register()`` and ``unregister()`` calls, the last one wins. The sign of `priority` only sets the initial state;
+changing it later affects the order, never whether an implementation is enabled.
 
 Selection process
 -----------------
 The :class:`~id_translation.Translator` will call :func:`.resolve_io` once per task. The first implementation whose
 :meth:`DataStructureIO.handles_type`-method returns ``True`` will be used. The order in which implementations are
-considered is determined by the :attr:`~DataStructureIO.priority` attribute.
+considered is determined by the magnitude of the :attr:`~DataStructureIO.priority` attribute. At equal magnitude, the
+implementation registered most recently comes first, followed by those never registered, sorted by qualified name.
 
-Bundled implementations have priorities in the `1000 - 1999` range (inclusive); see the table below.
+Bundled implementations have priority magnitudes in the `1000 - 1999` range (inclusive); the opt-in ones carry the
+negative of theirs. See the table below.
 
 ..
    The csv-table directive does not work properly when used in src/id_translation/dio/__init__.py with :path:.
@@ -66,4 +73,4 @@ New implementations default to ``priority=10_000``, and are therefore considered
 
 .. [#automatic] Registered automatically if dependencies are installed. ``DaskIO`` loses this in ``2.0.0``;
    call :meth:`~DataStructureIO.register` to opt in.
-.. [#explicit] Requires explicit :meth:`~DataStructureIO.register` call.
+.. [#explicit] Opt-in (negative ``priority``); requires an explicit :meth:`~DataStructureIO.register` call.

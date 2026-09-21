@@ -56,11 +56,25 @@ def get_resolution_order() -> list[AnyIoType]:
     return _get_repository().enabled_ios
 
 
+def unregister_io(io: AnyIoType) -> None:
+    """Disable an IO implementation.
+
+    An implementation found by entrypoint discovery stays known, so that :func:`~id_translation.dio.register_io` can
+    enable it again. Any other is forgotten. Of any sequence of ``register_io`` and ``unregister_io`` calls for the
+    same implementation, the last one wins.
+
+    Args:
+        io: A :class:`~id_translation.dio.DataStructureIO` type.
+    """
+    _get_repository().unregister(io)
+
+
 def register_io(io: AnyIoType) -> None:
-    """Register a new IO implementation.
+    """Enable an IO implementation.
 
     Classes are polled through :meth:`DataStructureIO.handles_type <id_translation.dio.DataStructureIO.handles_type>` in
-    based on :attr:`DataStructureIO.priority <id_translation.dio.DataStructureIO.priority>`.
+    the order given by :attr:`DataStructureIO.priority <id_translation.dio.DataStructureIO.priority>`. Of any
+    sequence of ``register_io`` and ``unregister_io`` calls for the same implementation, the last one wins.
 
     Args:
         io: A :class:`~id_translation.dio.DataStructureIO` type
@@ -83,9 +97,8 @@ def is_registered(io: AnyIoType) -> bool:
 def reload_integrations() -> None:
     """Discard the registry, then discover, load and register entrypoint integrations afresh.
 
-    Reset the registry, then load entrypoints in the
-    :const:`{_ENTRYPOINT_GROUP!r} <id_translation.dio.ENTRYPOINT_GROUP>` entrypoint group (see
-    :py:func:`importlib.metadata.entry_points` for details).
+    Loads entrypoints in the :const:`{_ENTRYPOINT_GROUP!r} <id_translation.dio.ENTRYPOINT_GROUP>` entrypoint group
+    (see :py:func:`importlib.metadata.entry_points` for details).
 
     Will skip integrations that raise :class:`ModuleNotFoundError` when loaded. Any other :class:`ImportError`
     (e.g. a circular import) propagates instead.
@@ -94,7 +107,9 @@ def reload_integrations() -> None:
         TypeError: If an integration does not inherit from :class:`~id_translation.dio.DataStructureIO`.
 
     Notes:
-        Called automatically when :mod:`id_translation` is imported.
+        Integrations are loaded on first use, so calling this is only needed to pick up changes made since. Every
+        :func:`~id_translation.dio.register_io` and :func:`~id_translation.dio.unregister_io` call is discarded, as if
+        in a new Python process.
     """
     _get_repository(reset=True)
 

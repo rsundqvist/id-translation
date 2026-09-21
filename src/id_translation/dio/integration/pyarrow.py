@@ -20,6 +20,9 @@ _ArrayT = _t.TypeVar("_ArrayT", _pa.Array, _pa.ChunkedArray)
 class ArrowIO(_dio.DataStructureIO[ArrowT, str, _tt.SourceType, _tt.IdType]):
     """Optional IO implementation for ``pyarrow`` types.
 
+    Opt-in: installing ``pyarrow`` does not enable this implementation. Call
+    :meth:`~id_translation.dio.DataStructureIO.register` to use it.
+
     Args:
         missing_as_nan: If set, unknown IDs will be ``null``. If ``False``, placeholders such as ``'<Failed: id=-1>'``
             will be used instead.
