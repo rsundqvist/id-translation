@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `DataStructureIO.priority` only sets the rank and the initial state:
   * `priority < 0` means *opt-in*, not *disabled*: `register()` enables it at `abs(priority)`.
   * Negating `priority` no longer disables an implementation; call `unregister()`. The last call wins.
+- `dio.integration.dask.DaskIO` is now opt-in; call `DaskIO.register()` to enable it.
 
 ### Removed
 - `Fetcher.fetch()`/`fetch_all()` implementations that omit `placeholder_attributes` now raise `TypeError`.

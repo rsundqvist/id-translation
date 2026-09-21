@@ -1,7 +1,7 @@
 Rank,Priority,Class,Comment
 1,1999,:class:`~id_translation.dio.integration.pandas.PandasIO` [#automatic]_,Optional IO implementation for ``pandas`` types.
 2,1990,:class:`~id_translation.dio.integration.polars.PolarsIO` [#automatic]_,Optional IO implementation for ``polars`` types.
-3,1980,:class:`~id_translation.dio.integration.dask.DaskIO` [#automatic]_,Optional IO implementation for ``dask`` types.
+3,-1980,:class:`~id_translation.dio.integration.dask.DaskIO` [#explicit]_,Optional IO implementation for ``dask`` types.
 4,-1900,:class:`~id_translation.dio.integration.pyarrow.ArrowIO` [#explicit]_,Optional IO implementation for ``pyarrow`` types.
 5,1500,:class:`~id_translation.dio.default.ScalarIO`,"IO implementation for ``int``, ``str`` and ``UUID`` types."
 6,1100,:class:`~id_translation.dio.default.SequenceIO`,"IO implementation for ``list``, ``tuple`` and  ``numpy.array`` types."
