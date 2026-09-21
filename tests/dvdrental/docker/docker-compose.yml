@@ -39,3 +39,4 @@ services:
     depends_on:
       s3:
         condition: service_healthy
+    profiles: [ "debug" ]
