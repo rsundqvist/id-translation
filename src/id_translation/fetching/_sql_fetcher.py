@@ -535,7 +535,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         """
         return TableSummary(
             name=str(table.name),
-            columns=table.columns.as_readonly(),
+            columns=table.columns,
             fetch_all_permitted=True,
             id_column=id_column,
         )
