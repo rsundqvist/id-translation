@@ -11,6 +11,7 @@ on:
     branches:
       - master
       - ci/*
+      - release/*
   pull_request:
 
 env:
