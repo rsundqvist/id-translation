@@ -40,8 +40,9 @@ above assumes no registrations are made after going offline. See the :ref:`regis
 
 IO registry
 -----------
-The :mod:`~id_translation.dio` registry is process-wide. :func:`~id_translation.dio.register_io` and
-:func:`~id_translation.dio.unregister_io` are thread safe.
+The :mod:`~id_translation.dio` registry is process-wide. :func:`.register_io` and :func:`.unregister_io` are thread
+safe, but assigning :attr:`.DataStructureIO.priority` is not: until ``register()`` applies the new value, translating
+raises in every thread (see the :ref:`priority rules <io-priority>`). Assign priorities before other threads translate.
 
 Fetchers
 --------

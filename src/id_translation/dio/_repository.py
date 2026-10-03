@@ -12,7 +12,7 @@ from rics.misc import tname
 from ..types import TranslatableT
 from ._data_structure_io import DataStructureIO
 from ._util import pretty_io_name
-from .exceptions import RegistryReentryError, UntranslatableTypeError
+from .exceptions import DataStructureIOError, RegistryReentryError, UntranslatableTypeError
 
 AnyIo = DataStructureIO[Any, Any, Any, Any]
 AnyIoType = type[AnyIo]
@@ -32,8 +32,8 @@ _LOGGER = logging.getLogger(__package__)
 
 
 class _State(NamedTuple):
-    enabled: list[AnyIoType]  # Best rank first.
-    disabled: dict[AnyIoType, str]  # Implementation -> reason.
+    enabled: dict[AnyIoType, int]  # Implementation -> priority when registered. Best rank first.
+    disabled: dict[AnyIoType, tuple[str, int]]  # Implementation -> (reason, priority when disabled).
 
 
 class Repository:
@@ -61,23 +61,25 @@ class Repository:
         # Implementations known without a `register` call. Anything else is forgotten again by `unregister`.
         self._discovered = frozenset(ios)
         # The sign of `priority` decides the initial state only; after that, the last `register` or `unregister` wins.
-        enabled: list[AnyIoType] = []
-        disabled: dict[AnyIoType, str] = {}
+        enabled: dict[AnyIoType, int] = {}
+        disabled: dict[AnyIoType, tuple[str, int]] = {}
         for io_class in sorted(self._discovered, key=pretty_io_name):  # Ties among discovered: by name.
             if io_class.priority < 0:
-                disabled[io_class] = "opt-in"
+                disabled[io_class] = ("opt-in", io_class.priority)
             else:
-                enabled.append(io_class)
+                enabled[io_class] = io_class.priority
 
         # Writers hold the lock and swap in a new state instead of mutating this one. Readers take one reference and
-        # need no lock; the collections it holds never change.
+        # need no lock, since the collections it holds never change.
         self._lock = Lock()
         self._state = _State(_rank(enabled), disabled)
 
     @property
     def enabled_ios(self) -> list[AnyIoType]:
         """List of enabled IO implementations, best rank first."""
-        return [*self._state.enabled]
+        state = self._state
+        _verify_priorities(state)
+        return [*state.enabled]
 
     @property
     def disabled_ios(self) -> list[AnyIoType]:
@@ -92,31 +94,35 @@ class Repository:
 
     def register(self, io_class: AnyIoType) -> None:
         """Enable `io_class`, ahead of any other implementation with the same ``abs(priority)``."""
+        priority = io_class.priority  # Read once; a later change raises until the next `register` or `unregister`.
         with self._lock:
             enabled, disabled = self._state
-            enabled = _rank([io_class, *(other for other in enabled if other is not io_class)])
-            disabled = {other: reason for other, reason in disabled.items() if other is not io_class}
+            enabled = _rank({io_class: priority, **{other: p for other, p in enabled.items() if other is not io_class}})
+            disabled = {other: value for other, value in disabled.items() if other is not io_class}
             self._state = _State(enabled, disabled)
 
         if _LOGGER.isEnabledFor(logging.DEBUG):
             _LOGGER.debug(
-                f"Registered IO implementation '{pretty_io_name(io_class)}' at rank-{enabled.index(io_class)}"
-                f" (priority={io_class.priority})."
+                f"Registered IO implementation '{pretty_io_name(io_class)}' at rank-{[*enabled].index(io_class)}"
+                f" ({priority=})."
             )
 
     def unregister(self, io_class: AnyIoType) -> None:
         """Disable `io_class`. A discovered implementation stays known; any other is forgotten."""
+        priority = io_class.priority  # Read once, like `register` does.
         with self._lock:
             enabled, disabled = self._state
-            enabled = _rank([other for other in enabled if other is not io_class])
-            disabled = {other: reason for other, reason in disabled.items() if other is not io_class}
+            enabled = {other: p for other, p in enabled.items() if other is not io_class}
+            disabled = {other: value for other, value in disabled.items() if other is not io_class}
             if io_class in self._discovered:
-                disabled[io_class] = "unregistered"
+                disabled[io_class] = ("unregistered", priority)
             self._state = _State(enabled, disabled)
 
     def is_registered(self, io_class: AnyIoType) -> bool:
         """Return `io_class` registration status."""
-        return io_class in self._state.enabled
+        state = self._state
+        _verify_priorities(state)
+        return io_class in state.enabled
 
     def resolve_io(
         self,
@@ -125,7 +131,9 @@ class Repository:
         task_id: int | None = None,
     ) -> AnyIo:
         """Get an IO instance for `arg` or raise ``UntranslatableTypeError``."""
-        enabled, disabled = self._state
+        state = self._state
+        _verify_priorities(state)
+        enabled, disabled = state
         for rank, io_class in enumerate(enabled):
             if io_class.handles_type(arg):
                 return self._initialize(arg, io_class, rank, io_kwargs, task_id=task_id)
@@ -133,7 +141,7 @@ class Repository:
         hints = [
             f"An eligible implementation is disabled ({reason});"
             f" call {pretty_io_name(io_class)}.register() to enable it."
-            for io_class, reason in sorted(disabled.items(), key=lambda item: abs(item[0].priority), reverse=True)
+            for io_class, (reason, _) in sorted(disabled.items(), key=lambda item: abs(item[0].priority), reverse=True)
             if io_class.handles_type(arg)
         ]
         raise UntranslatableTypeError(type(arg), hints=hints)
@@ -198,9 +206,48 @@ class Repository:
         return integrations
 
 
-def _rank(ios: list[AnyIoType]) -> list[AnyIoType]:
-    # Stable, so ties keep their current order. This is also when changes to `priority` take effect.
-    return sorted(ios, key=lambda io_class: abs(io_class.priority), reverse=True)
+def _rank(enabled: dict[AnyIoType, int]) -> dict[AnyIoType, int]:
+    # Stable, so ties keep their current order.
+    return dict(sorted(enabled.items(), key=lambda item: abs(item[1]), reverse=True))
+
+
+def _verify_priorities(state: _State) -> None:
+    # Implementation -> (priority when read, the call that applies the change).
+    changed: dict[AnyIoType, tuple[int, str]] = {}
+    for io_class, priority in state.enabled.items():
+        if io_class.priority != priority:
+            # A v1-style negation means "disable"; register() would do the opposite and enable it at abs(priority).
+            changed[io_class] = priority, "unregister" if io_class.priority < 0 <= priority else "register"
+    for io_class, (_, priority) in state.disabled.items():
+        if priority < 0 <= io_class.priority:
+            changed[io_class] = priority, "register"  # The v1 way to enable. Other changes are read at register().
+    if not changed:
+        return
+
+    io_class, (priority, method) = next(iter(changed.items()))
+    name, new = io_class.__name__, io_class.priority
+    msg = f"{name}.priority changed from {priority} to {new} since discovery or the last register() or unregister()."
+    owner = next(cls for cls in io_class.__mro__ if "priority" in vars(cls))
+    if owner is not io_class:
+        msg += f" The value is inherited from {owner.__name__}."
+    if len(changed) > 1:
+        msg += f" Also changed: {', '.join(other.__name__ for other in [*changed][1:])}."
+
+    full_name = pretty_io_name(io_class)
+    if method == "unregister":
+        hints = [f"A negative priority does not disable a registered implementation; call {full_name}.unregister()."]
+    elif io_class in state.disabled:
+        hints = [
+            f"A non-negative priority does not enable a disabled implementation; call {full_name}.register() to enable"
+            " it, or unregister() to keep it disabled."
+        ]
+    else:
+        hints = [f"Call {full_name}.register() to apply the new priority, or unregister() to disable it."]
+
+    if others := [other.__name__ for other, (_, m) in changed.items() if m != method]:
+        other_method = "register" if method == "unregister" else "unregister"
+        hints.append(f"Call {other_method}() on {', '.join(others)} instead.")
+    raise DataStructureIOError(msg, hints=hints)
 
 
 def reentry_error() -> RegistryReentryError:

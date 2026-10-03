@@ -16,7 +16,7 @@ from id_translation.dio import (
     reload_integrations,
     resolve_io,
 )
-from id_translation.dio.exceptions import UntranslatableTypeError
+from id_translation.dio.exceptions import DataStructureIOError, UntranslatableTypeError
 from id_translation.dio.integration.pandas import PandasIO
 
 
@@ -100,11 +100,11 @@ class TestState:
     def test_changing_priority_does_not_change_the_state(self, monkeypatch, calls, new_priority):
         repository = _discover(DummyIO)
         _replay(repository, calls, DummyIO)
-        expected = repository.is_registered(DummyIO)
+        expected = DummyIO in repository.disabled_ios  # Unlike is_registered(), doesn't raise on a changed priority.
 
         monkeypatch.setattr(DummyIO, "priority", new_priority)
-        repository.unregister(_make_io("Unrelated", 1))  # Re-ranks.
-        assert repository.is_registered(DummyIO) is expected
+        repository.unregister(_make_io("Unrelated", 1))
+        assert (DummyIO in repository.disabled_ios) is expected
 
     @pytest.mark.parametrize(("calls", "reason"), [("", "opt-in"), ("RU", "unregistered")])
     def test_hint_names_the_reason(self, monkeypatch, calls, reason):
@@ -117,6 +117,10 @@ class TestState:
 
         note = exc_info.value.__notes__[-1]
         assert f"disabled ({reason}); call {pretty_io_name(DummyIO)}.register() to enable it." in note
+
+
+_RERANK_HINT = "Call {}.register() to apply the new priority, or unregister() to disable it."
+_NEGATED_HINT = "A negative priority does not disable a registered implementation; call {}.unregister()."
 
 
 class TestTies:
@@ -141,16 +145,136 @@ class TestTies:
         repository.register(c)
         assert repository.enabled_ios == [c, a, b]
 
-    def test_new_priority_takes_effect_at_the_next_call(self):
+    @pytest.mark.parametrize("new_priority", [7, -5], ids=["reranked", "negated"])
+    def test_changing_priority_raises_until_registered_again(self, new_priority):
         a, b = _make_io("A", 5), _make_io("B", 6)
         repository = _discover(a, b)
         assert repository.enabled_ios == [b, a]
 
-        a.priority = 7
-        assert repository.enabled_ios == [b, a]
+        a.priority = new_priority
+        repository.unregister(_make_io("Unrelated", 1))  # Must not apply the change silently.
+        with pytest.raises(DataStructureIOError, match=rf"A\.priority changed from 5 to {new_priority}"):
+            repository.enabled_ios  # noqa: B018
+        with pytest.raises(DataStructureIOError, match=rf"A\.priority changed from 5 to {new_priority}"):
+            repository.resolve_io(1)
 
-        repository.unregister(_make_io("Unrelated", 1))
-        assert repository.enabled_ios == [a, b]
+        repository.register(a)
+        assert repository.enabled_ios == ([a, b] if abs(new_priority) > 6 else [b, a])
+
+    @pytest.mark.parametrize(
+        ("old_priority", "new_priority", "hint"),
+        [
+            (5, 7, _RERANK_HINT),
+            (-5, -7, _RERANK_HINT),  # Opt-in, so negative while registered.
+            (-5, 7, _RERANK_HINT),
+            (5, -5, _NEGATED_HINT),
+            (0, -1, _NEGATED_HINT),
+        ],
+    )
+    def test_hint_for_a_changed_priority(self, old_priority, new_priority, hint):
+        a = _make_io("A", old_priority)
+        repository = _discover()
+        repository.register(a)
+
+        a.priority = new_priority
+        with pytest.raises(DataStructureIOError, match=rf"changed from {old_priority} to {new_priority}") as exc_info:
+            repository.resolve_io(1)
+        assert exc_info.value.__notes__[-1] == f"Hint: {hint.format(pretty_io_name(a))}"
+
+    def test_every_changed_priority_is_named(self):
+        a, b, c = _make_io("A", 5), _make_io("B", 6), _make_io("C", 7)
+        repository = _discover(a, b, c)
+
+        a.priority, c.priority = 1, 2
+        with pytest.raises(DataStructureIOError, match=r"^C\.priority changed from 7 to 2") as exc_info:
+            repository.resolve_io(1)
+        assert str(exc_info.value).endswith(" Also changed: A.")
+        assert exc_info.value.__notes__[-1] == f"Hint: {_RERANK_HINT.format(pretty_io_name(c))}"
+
+    @pytest.mark.parametrize(
+        ("new_a", "new_b", "hints"),
+        [
+            (8, -5, [_RERANK_HINT, "Call unregister() on B instead."]),
+            (-7, 6, [_NEGATED_HINT, "Call register() on B instead."]),
+        ],
+    )
+    def test_mixed_changes_name_the_other_call(self, new_a, new_b, hints):
+        a, b = _make_io("A", 7), _make_io("B", 5)
+        repository = _discover(a, b)
+
+        a.priority, b.priority = new_a, new_b
+        with pytest.raises(DataStructureIOError, match=r"^A\.priority changed") as exc_info:
+            repository.resolve_io(1)
+        assert str(exc_info.value).endswith(" Also changed: B.")
+        assert exc_info.value.__notes__[-2:] == [f"Hint: {h.format(pretty_io_name(a))}" for h in hints]
+
+    def test_mixed_changes_across_registered_and_disabled(self):
+        a, b = _make_io("A", 5), _make_io("B", -7)
+        repository = _discover(a, b)
+
+        a.priority, b.priority = -5, 7  # The 1.x ways to disable and to enable.
+        with pytest.raises(DataStructureIOError, match=r"^A\.priority changed from 5 to -5") as exc_info:
+            repository.resolve_io(1)
+        assert str(exc_info.value).endswith(" Also changed: B.")
+        assert exc_info.value.__notes__[-2:] == [
+            f"Hint: {_NEGATED_HINT.format(pretty_io_name(a))}",
+            "Hint: Call register() on B instead.",
+        ]
+
+    @pytest.mark.parametrize("fix", ["register", "unregister"])
+    @pytest.mark.parametrize("new_priority", [7, 0])
+    @pytest.mark.parametrize("calls", ["", "RU"], ids=["opt-in", "unregistered"])
+    def test_making_a_disabled_priority_non_negative_raises(self, calls, new_priority, fix):
+        a, b = _make_io("A", -7), _make_io("B", 5)
+        repository = _discover(a, b)
+        _replay(repository, calls, a)
+
+        a.priority = new_priority  # The 1.x way to enable.
+        with pytest.raises(DataStructureIOError, match=rf"^A\.priority changed from -7 to {new_priority} ") as exc_info:
+            repository.resolve_io(1)
+        expected = (
+            "A non-negative priority does not enable a disabled implementation; call {}.register() to enable it, or"
+            " unregister() to keep it disabled."
+        )
+        assert exc_info.value.__notes__[-1] == f"Hint: {expected.format(pretty_io_name(a))}"
+
+        getattr(repository, fix)(a)
+        if fix == "register":
+            assert repository.enabled_ios == ([a, b] if new_priority > 5 else [b, a]), "enabled at the new priority"
+        else:
+            assert repository.enabled_ios == [b], "still disabled"
+
+    @pytest.mark.parametrize(
+        ("old_priority", "new_priority", "calls"),
+        [(-7, -9, ""), (7, 9, "U"), (7, -7, "U")],
+        ids=["opt-in", "unregistered", "unregistered-negated"],
+    )
+    def test_other_changes_to_a_disabled_priority_are_read_at_register(self, old_priority, new_priority, calls):
+        a = _make_io("A", old_priority)
+        repository = _discover(a)
+        _replay(repository, calls, a)
+
+        a.priority = new_priority
+        assert repository.enabled_ios == []
+        repository.register(a)
+        assert repository.enabled_ios == [a]
+
+    def test_changing_an_inherited_priority_names_the_owner(self):
+        base = _make_io("Base", 5)
+        child = type("Child", (base,), {})
+        repository = _discover(child)
+
+        base.priority = 6
+        with pytest.raises(DataStructureIOError, match=r"^Child\.priority changed from 5 to 6.*inherited from Base\."):
+            repository.resolve_io(1)
+
+
+@pytest.mark.parametrize("read", ["get_rank", "is_registered"])
+def test_read_raises_on_a_changed_priority(monkeypatch, read):
+    DummyIO.register()
+    monkeypatch.setattr(DummyIO, "priority", DummyIO.priority + 1)
+    with pytest.raises(DataStructureIOError, match=r"^DummyIO\.priority changed"):
+        getattr(DummyIO, read)()
 
 
 def test_unregister_removes_a_hand_registered_implementation():

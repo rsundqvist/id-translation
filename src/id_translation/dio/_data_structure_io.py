@@ -13,16 +13,15 @@ from .exceptions import DataStructureIOError
 class DataStructureIO(Generic[TranslatableT, NameType, SourceType, IdType]):
     """Insertion and extraction of IDs and translations."""
 
+    # Priority changes are caught only when the registry is read (see `_verify_priorities`). The error then surfaces
+    # far from the assignment, and assigning while other threads translate makes them raise. A metaclass `__setattr__`
+    # would catch the assignment itself, but every subclass inherits the metaclass, so a downstream implementation that
+    # also derives from a base with an unrelated metaclass of its own fails at class creation with a metaclass conflict.
     priority: ClassVar[int] = 10_000
     """Determines the order in which implementations are considered, largest ``abs(priority)`` first.
 
-    The sign sets the initial state of a discovered implementation. A negative `priority` makes it opt-in: it is not
-    considered until :meth:`~id_translation.dio.DataStructureIO.register` is called. After that, `priority` affects
-    only the order. Use :meth:`~id_translation.dio.DataStructureIO.unregister` to disable an implementation.
-
-    Ties in ``abs(priority)`` go to the implementation registered most recently. Implementations that were never
-    registered rank after those, sorted by fully qualified name. A new value takes effect at the next ``register``
-    or ``unregister`` call.
+    A negative value makes the implementation opt-in. To change the value, assign it and then call ``register()``. See
+    the :ref:`priority rules <io-priority>` for details.
     """
 
     @classmethod
@@ -66,7 +65,8 @@ class DataStructureIO(Generic[TranslatableT, NameType, SourceType, IdType]):
             Implementation rank.
 
         Raises:
-            ~id_translation.dio.exceptions.DataStructureIOError: If the implementation is not registered.
+            ~id_translation.dio.exceptions.DataStructureIOError: If the implementation is not registered, or if a
+                `priority` change awaits ``register()`` or ``unregister()`` (see :ref:`priority rules <io-priority>`).
         """
         from ._resolve import get_resolution_order  # noqa: PLC0415
 

@@ -47,6 +47,8 @@ def resolve_io(
 
     Raises:
         ~id_translation.dio.exceptions.UntranslatableTypeError: If no suitable IO implementation could be found.
+        ~id_translation.dio.exceptions.DataStructureIOError: If a `priority` change awaits a ``register()`` or
+            ``unregister()`` call (see the :ref:`priority rules <io-priority>`).
         Exception: Whatever the resolved IO class raises, if construction with `io_kwargs` fails. See the
             :envvar:`ID_TRANSLATION_SUPPRESS_IO_KWARGS_ERRORS` variable to downgrade this to a warning instead.
 
@@ -61,6 +63,10 @@ def get_resolution_order() -> list[AnyIoType]:
 
     Returns:
         A list of IO implementations sorted by rank.
+
+    Raises:
+        ~id_translation.dio.exceptions.DataStructureIOError: If a `priority` change awaits a ``register()`` or
+            ``unregister()`` call (see the :ref:`priority rules <io-priority>`).
     """
     return _get_repository().enabled_ios
 
@@ -100,6 +106,10 @@ def is_registered(io: AnyIoType) -> bool:
 
     Args:
         io: A :class:`~id_translation.dio.DataStructureIO` type.
+
+    Raises:
+        ~id_translation.dio.exceptions.DataStructureIOError: If a `priority` change awaits a ``register()`` or
+            ``unregister()`` call (see the :ref:`priority rules <io-priority>`).
     """
     return _get_repository().is_registered(io)
 

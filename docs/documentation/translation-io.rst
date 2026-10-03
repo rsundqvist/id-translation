@@ -43,21 +43,12 @@ Discovery enables the class an entrypoint names unless it is opt-in (see below),
 application. Neither the module nor its parent packages may use the registry at import time, e.g. by calling
 :meth:`~DataStructureIO.register`.
 
-A negative :attr:`~DataStructureIO.priority` makes an integration *opt-in* rather than unusable. The entrypoint is
-still loaded, but the implementation is not considered until :meth:`~DataStructureIO.register` is called, after which
-it is ordered by ``abs(priority)`` as any other integration is. Installing the underlying package is therefore not
-enough to change how anything translates; the application has to ask.
-
-Call :meth:`~DataStructureIO.unregister` to disable any implementation, including a bundled one. Of any sequence of
-``register()`` and ``unregister()`` calls, the last one wins. The sign of `priority` only sets the initial state;
-changing it later affects the order, never whether an implementation is enabled.
-
 Selection process
 -----------------
 The :class:`~id_translation.Translator` will call :func:`.resolve_io` once per task. The first implementation whose
 :meth:`DataStructureIO.handles_type`-method returns ``True`` will be used. The order in which implementations are
 considered is determined by the magnitude of the :attr:`~DataStructureIO.priority` attribute. At equal magnitude, the
-implementation registered most recently comes first, followed by those never registered, sorted by qualified name.
+implementation registered most recently comes first, followed by those never registered, sorted by fully qualified name.
 
 Bundled implementations have priority magnitudes in the `1000 - 1999` range (inclusive); the opt-in ones carry the
 negative of theirs. See the table below.
@@ -77,3 +68,23 @@ New implementations default to ``priority=10_000``, and are therefore considered
 
 .. [#automatic] Registered automatically if dependencies are installed.
 .. [#explicit] Opt-in (negative ``priority``); requires an explicit :meth:`~DataStructureIO.register` call.
+
+.. _io-priority:
+
+Registration and priority
+-------------------------
+A negative :attr:`~DataStructureIO.priority` makes an integration *opt-in* rather than unusable. The entrypoint is still
+loaded, but the implementation is not considered until :meth:`~DataStructureIO.register` is called, after which it is
+ordered by ``abs(priority)`` as any other integration is. Installing the underlying package is therefore not enough to
+change how anything translates; the application has to ask.
+
+Call :meth:`~DataStructureIO.unregister` to disable any implementation, including a bundled one. Of any sequence of
+``register()`` and ``unregister()`` calls, the last one wins. The sign of `priority` sets the initial state; after
+discovery, changing it never enables or disables an implementation.
+
+To change `priority`, assign the new value and then call :meth:`~DataStructureIO.register`. An assignment alone is read
+only by discovery, which happens on first use of the registry and in :func:`~id_translation.dio.reload_integrations`.
+Between those, changing the `priority` of a registered implementation makes every read of the registry raise
+:class:`~id_translation.dio.exceptions.DataStructureIOError` until ``register()`` or ``unregister()`` is called on that
+implementation. So does making the `priority` of a discovered, disabled implementation non-negative if it was negative
+when it was disabled; call ``register()`` to enable it.
