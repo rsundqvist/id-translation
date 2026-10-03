@@ -38,6 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - `NounTransformer.DEFAULTS` is now matched as a suffix instead of exactly, so compound names (e.g. `user_phases`)
   are covered too.
+- `SqlFetcher` raising `AttributeError` on SQLAlchemy 2.1.
 - `dio`: A `resolve_io()` racing `register()`/`unregister()` in another thread could find no implementations, and
   an entrypoint module calling `register()` at import time hung the process. Registry writes are now thread safe,
   and the import-time call raises `RegistryReentryError`.
