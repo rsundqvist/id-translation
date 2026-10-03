@@ -65,11 +65,12 @@ def free_threading(session: Session) -> None:
 
     Not a default session: requires a free-threaded interpreter (``3.14t``). Installs a minimal dependency set
     rather than the ``--all-extras`` sync of ``tests``, as extras like ``pymssql`` have no free-threaded wheels.
+    Positional arguments are passed on to pytest, e.g. ``nox -s free_threading -- -k register``.
     """
     _assert_session_interpreter(session)
     session.install(".[fetching]", "pytest")
     _assert_session_interpreter(session, post_sync=True)
-    session.run("pytest", "tests/test_free_threading.py", env={"PYTHON_GIL": "0"})
+    session.run("pytest", "tests/test_free_threading.py", *session.posargs, env={"PYTHON_GIL": "0"})
 
 
 @nox.session

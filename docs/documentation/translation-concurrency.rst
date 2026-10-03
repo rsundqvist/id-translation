@@ -38,6 +38,11 @@ including the :attr:`.Translator.cache` created by :meth:`.Translator.go_offline
 above assumes no registrations are made after going offline. See the :ref:`registration window
 <transformation-primer-window>` for details.
 
+IO registry
+-----------
+The :mod:`~id_translation.dio` registry is process-wide. :func:`~id_translation.dio.register_io` and
+:func:`~id_translation.dio.unregister_io` are thread safe.
+
 Fetchers
 --------
 Some thread-unsafe :class:`.Fetcher` operations emit a :class:`.ConcurrentOperationWarning` on a best-effort basis when

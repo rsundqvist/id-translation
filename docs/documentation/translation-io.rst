@@ -39,6 +39,10 @@ snippet below shows how the :mod:`bundled <.integration>` integrations are regis
    dask_io = "id_translation.dio.integration.dask:DaskIO"
    polars_io = "id_translation.dio.integration.polars:PolarsIO"
 
+Discovery enables the class an entrypoint names unless it is opt-in (see below), in which case enabling it is up to the
+application. Neither the module nor its parent packages may use the registry at import time, e.g. by calling
+:meth:`~DataStructureIO.register`.
+
 A negative :attr:`~DataStructureIO.priority` makes an integration *opt-in* rather than unusable. The entrypoint is
 still loaded, but the implementation is not considered until :meth:`~DataStructureIO.register` is called, after which
 it is ordered by ``abs(priority)`` as any other integration is. Installing the underlying package is therefore not

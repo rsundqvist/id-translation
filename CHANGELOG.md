@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - `dio.unregister_io()` and `DataStructureIO.unregister()`; disable any implementation, including built-ins.
+- `dio.exceptions.RegistryReentryError`, raised when the IO registry is used while it loads entrypoint integrations.
 
 ### Changed
 - `Translator.go_offline()` raises `ConnectionStatusError` instead of warning when already offline.
@@ -35,6 +36,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - `NounTransformer.DEFAULTS` is now matched as a suffix instead of exactly, so compound names (e.g. `user_phases`)
   are covered too.
+- `dio`: A `resolve_io()` racing `register()`/`unregister()` in another thread could find no implementations, and
+  an entrypoint module calling `register()` at import time hung the process. Registry writes are now thread safe,
+  and the import-time call raises `RegistryReentryError`.
 - `dio`: A tie between two `DataStructureIO` implementations registered at the same `abs(priority)` picked a winner
   that varied between process runs. The one most recently `register()`-ed now wins consistently.
 

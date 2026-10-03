@@ -1,21 +1,30 @@
 from collections.abc import Mapping
-from threading import Lock
+from threading import RLock
 from typing import Any
 
 from ..types import IdType, NameType, SourceType, TranslatableT
 from ._data_structure_io import DataStructureIO
-from ._repository import ENTRYPOINT_GROUP, AnyIoType, Repository
+from ._repository import ENTRYPOINT_GROUP, AnyIoType, Repository, reentry_error
 
-_INSTANCE_LOCK = Lock()
+_INSTANCE_LOCK = RLock()  # Re-entrant, so that a thread re-entering from entrypoint loading reaches the check below.
 _INSTANCE: Repository | None = None
+_LOADING = False  # Only read and written while holding _INSTANCE_LOCK.
 
 
 def _get_repository(*, reset: bool = False) -> Repository:
-    global _INSTANCE  # noqa: PLW0603
+    global _INSTANCE, _LOADING  # noqa: PLW0603
 
     with _INSTANCE_LOCK:
+        # Checked before `_INSTANCE`, which still holds the old registry during `reload_integrations()`.
+        if _LOADING:
+            raise reentry_error()
+
         if reset or _INSTANCE is None:
-            _INSTANCE = Repository()
+            _LOADING = True
+            try:
+                _INSTANCE = Repository()
+            finally:
+                _LOADING = False
 
     return _INSTANCE
 
@@ -61,7 +70,7 @@ def unregister_io(io: AnyIoType) -> None:
 
     An implementation found by entrypoint discovery stays known, so that :func:`~id_translation.dio.register_io` can
     enable it again. Any other is forgotten. Of any sequence of ``register_io`` and ``unregister_io`` calls for the
-    same implementation, the last one wins.
+    same implementation, the last one wins. Thread safe; see :ref:`thread-safety`.
 
     Args:
         io: A :class:`~id_translation.dio.DataStructureIO` type.
@@ -74,7 +83,8 @@ def register_io(io: AnyIoType) -> None:
 
     Classes are polled through :meth:`DataStructureIO.handles_type <id_translation.dio.DataStructureIO.handles_type>` in
     the order given by :attr:`DataStructureIO.priority <id_translation.dio.DataStructureIO.priority>`. Of any
-    sequence of ``register_io`` and ``unregister_io`` calls for the same implementation, the last one wins.
+    sequence of ``register_io`` and ``unregister_io`` calls for the same implementation, the last one wins. Thread
+    safe; see :ref:`thread-safety`.
 
     Args:
         io: A :class:`~id_translation.dio.DataStructureIO` type
@@ -85,8 +95,8 @@ def register_io(io: AnyIoType) -> None:
 def is_registered(io: AnyIoType) -> bool:
     """Return IO implementation registration status.
 
-    Implementations should register themselves using
-    :meth:`DataStructureIO.register <id_translation.dio.DataStructureIO.register>`.
+    Returns ``False`` for an opt-in implementation that has not been registered, after
+    :func:`~id_translation.dio.unregister_io`, and for an implementation that is not known to the registry.
 
     Args:
         io: A :class:`~id_translation.dio.DataStructureIO` type.
@@ -105,11 +115,12 @@ def reload_integrations() -> None:
 
     Raises:
         TypeError: If an integration does not inherit from :class:`~id_translation.dio.DataStructureIO`.
+        ~id_translation.dio.exceptions.RegistryReentryError: If the registry is used while it loads the entrypoint
+            integrations, e.g. by an entrypoint module at import time.
 
     Notes:
         Integrations are loaded on first use, so calling this is only needed to pick up changes made since. Every
-        :func:`~id_translation.dio.register_io` and :func:`~id_translation.dio.unregister_io` call is discarded, as if
-        in a new Python process.
+        earlier :func:`~id_translation.dio.register_io` and :func:`~id_translation.dio.unregister_io` call is discarded.
     """
     _get_repository(reset=True)
 

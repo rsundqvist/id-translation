@@ -202,6 +202,7 @@ filterwarnings = [
 ]
 log_file_level = 10
 log_file = "pytest.log"
+markers = ["gating: free-threaded race test that fails CI; the rest only warn"]
 
 [build-system]
 requires = ["uv_build>=0.11.0,<0.12.0"]

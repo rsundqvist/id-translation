@@ -18,12 +18,14 @@ import sys
 import sysconfig
 import threading
 from collections.abc import Callable
+from typing import Any
 
 import pandas as pd
 import pytest
 
 from id_translation import Translator
-from id_translation.dio import _resolve
+from id_translation.dio import _resolve, is_registered, resolve_io
+from id_translation.dio.default import ScalarIO
 from id_translation.mapping import Mapper
 
 from .conftest import HexFetcher
@@ -145,23 +147,86 @@ def test_shared_translator_pandas_inplace(offline_translator: Translator[str, st
     _run_in_threads(worker)
 
 
-def test_concurrent_io_resolution(offline_translator: Translator[str, str, int]) -> None:
-    """Race the lazy DIO singleton: reset the repository, then resolve IO from many threads.
+def test_concurrent_io_resolution(
+    offline_translator: Translator[str, str, int], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Race the lazy DIO singleton: discard the registry, then resolve IO from many threads.
 
-    ``resolve_io()`` mutates the repository's enabled/disabled IO lists without a lock; concurrent
-    first-time resolutions can corrupt those lists. We assert every translation still produces the
-    correct frame.
+    Concurrent first-time resolutions race the singleton's creation. We assert every translation
+    still produces the correct frame.
     """
     base = pd.DataFrame({"positive_numbers": DICT_INPUT["positive_numbers"]})
     expected = offline_translator.translate(base.copy(), copy=True)
 
-    _resolve._get_repository(reset=True)  # force first-time IO resolution to happen under contention
+    monkeypatch.setattr(_resolve, "_INSTANCE", None)  # Workers race to create the registry.
 
     def worker(_idx: int, _i: int) -> None:
         out = offline_translator.translate(base.copy(), copy=True)
         pd.testing.assert_frame_equal(out, expected)
 
     _run_in_threads(worker)
+
+
+@pytest.mark.gating
+def test_concurrent_register_unregister(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Race ``register()``/``unregister()`` against ``resolve_io()`` and against each other.
+
+    Writers toggle a hand-registered and an opt-in implementation, neither of which handles ``int``.
+    Readers must always resolve ``int`` to ``ScalarIO`` and never see an implementation twice.
+    """
+
+    class HandRegistered(ScalarIO[int, str, str]):
+        priority = 1500  # Ties with ScalarIO, so registering it shifts ScalarIO's rank.
+
+        @classmethod
+        def handles_type(cls, arg: Any) -> bool:  # noqa: ARG003
+            return False
+
+    class OptInOnly(HandRegistered):
+        priority = -1500
+
+    monkeypatch.setattr(_resolve, "_INSTANCE", None)
+    repository = _resolve._get_repository()
+    OptInOnly.register()  # Discovered or not, all that matters is that the state keeps changing.
+
+    def worker(idx: int, _i: int) -> None:
+        match idx % 4:
+            case 0:
+                HandRegistered.register()
+                HandRegistered.unregister()
+            case 1:
+                OptInOnly.unregister()
+                OptInOnly.register()
+            case _:
+                assert type(resolve_io(1)) is ScalarIO
+                all_ios = repository.all_ios
+                assert len(all_ios) == len(set(all_ios))
+
+    _run_in_threads(worker, iterations=500)
+
+
+@pytest.mark.gating
+def test_concurrent_registration_loses_nothing(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Concurrent ``register()`` calls must all take effect; ``dio`` promises they are safe at any time.
+
+    Each thread registers its own implementations, so any that end up unregistered were lost to a racing writer. The
+    copy-on-write state keeps readers safe on its own; this is what the writers' lock is for.
+    """
+    per_thread = 20
+
+    def make(name: str) -> type[ScalarIO[int, str, str]]:
+        attrs = {"priority": 1500, "handles_type": classmethod(lambda cls, arg: False)}  # noqa: ARG005
+        return type(name, (ScalarIO,), attrs)
+
+    ios = [[make(f"IO_{t}_{i}") for i in range(per_thread)] for t in range(N_THREADS)]
+    monkeypatch.setattr(_resolve, "_INSTANCE", None)
+
+    def worker(idx: int, i: int) -> None:
+        ios[idx][i].register()
+
+    _run_in_threads(worker, iterations=per_thread)
+    lost = [io.__name__ for row in ios for io in row if not is_registered(io)]
+    assert lost == [], f"{len(lost)} of {N_THREADS * per_thread} registrations lost"
 
 
 @pytest.mark.xfail(

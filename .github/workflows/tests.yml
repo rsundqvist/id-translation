@@ -87,9 +87,10 @@ jobs:
     needs: linting
     name: Free-threaded / 3.14t
     runs-on: ubuntu-latest
-    # Non-blocking: exercises the no-GIL build to surface data races without gating merges. We use
-    # step-level continue-on-error (not job-level) so the job stays green and doesn't emit a
-    # "job failed" notification; a failing race test is re-surfaced as a warning in the run summary.
+    # Exercises the no-GIL build to surface data races. Only tests marked `gating` block merges, e.g. the registry race
+    # tests, since dio promises that register_io() and unregister_io() are thread safe. The rest are non-blocking:
+    # step-level continue-on-error (not job-level) keeps the job green without a "job failed" notification, and a
+    # failure is re-surfaced as a warning in the run summary.
     steps:
       - uses: actions/checkout@v6
 
@@ -101,13 +102,18 @@ jobs:
       - name: Install nox
         run: uv tool install nox
 
-      - name: Run free-threaded race tests with nox
+      - name: Run the gating race tests with nox
+        # Only a free-threaded build can catch a regression; under the GIL these tests pass even without the lock.
+        run: nox --force-color -s free_threading -- -m gating
+
+      - name: Run the other free-threaded race tests with nox
         id: free_threading
+        if: ${{ !cancelled() }}
         continue-on-error: true
-        run: nox --force-color -s free_threading
+        run: nox --force-color --reuse-venv=yes -s free_threading -- -m "not gating"
 
       - name: Flag race-test outcome
-        if: steps.free_threading.outcome == 'failure'
+        if: ${{ !cancelled() && steps.free_threading.outcome == 'failure' }}
         run: echo "⚠️ Free-threaded race tests failed (non-gating) — a no-GIL data race surfaced; see the job logs." >> "$GITHUB_STEP_SUMMARY"
 
   coverage:

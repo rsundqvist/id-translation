@@ -6,6 +6,7 @@ from typing import Any, ClassVar, Generic
 
 from ..offline import TranslationMap
 from ..types import IdType, NameType, SourceType, TranslatableT
+from ._util import pretty_io_name
 from .exceptions import DataStructureIOError
 
 
@@ -73,7 +74,7 @@ class DataStructureIO(Generic[TranslatableT, NameType, SourceType, IdType]):
             return get_resolution_order().index(cls)
         except ValueError:
             exc = DataStructureIOError(f"Not registered: {cls.__name__}")
-            exc.add_note(f"Hint: Use {cls.__qualname__}.register() to register this implementation.")
+            exc.add_note(f"Hint: Use {pretty_io_name(cls)}.register() to register this implementation.")
             raise exc from None
 
     @classmethod

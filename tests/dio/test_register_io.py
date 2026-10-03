@@ -35,7 +35,8 @@ def test_get_resolution_order_returns_a_copy():
     with pytest.raises(TypeError):
         get_resolution_order(real=True)  # type: ignore[call-arg]
 
-    assert get_resolution_order() is not _resolve._get_repository()._enabled
+    get_resolution_order().clear()
+    assert get_resolution_order()
 
 
 def test_register_io():
@@ -67,6 +68,16 @@ def _make_io(name: str, priority: int) -> type[DataStructureIO[Any, str, str, in
     return TmpIO
 
 
+def _replay(
+    repository: _repository.Repository, calls: str, io_class: type[DataStructureIO[Any, Any, Any, Any]]
+) -> None:
+    """Replay a "R"/"U" string as `register()`/`unregister()` calls, in order."""
+    funcs = {"R": repository.register, "U": repository.unregister}
+    for call in calls:
+        func = funcs[call]
+        func(io_class)
+
+
 class TestState:
     """The sign of `priority` sets the initial state of a discovered implementation. After that, the last call wins."""
 
@@ -80,8 +91,7 @@ class TestState:
     def test_last_call_wins(self, monkeypatch, priority, calls):
         monkeypatch.setattr(DummyIO, "priority", priority)
         repository = _discover(DummyIO)
-        for call in calls:
-            (repository.register if call == "R" else repository.unregister)(DummyIO)
+        _replay(repository, calls, DummyIO)
 
         assert repository.is_registered(DummyIO) is (calls[-1] == "R")
 
@@ -89,8 +99,7 @@ class TestState:
     @pytest.mark.parametrize("new_priority", [2, -2])
     def test_changing_priority_does_not_change_the_state(self, monkeypatch, calls, new_priority):
         repository = _discover(DummyIO)
-        for call in calls:
-            (repository.register if call == "R" else repository.unregister)(DummyIO)
+        _replay(repository, calls, DummyIO)
         expected = repository.is_registered(DummyIO)
 
         monkeypatch.setattr(DummyIO, "priority", new_priority)
@@ -101,14 +110,13 @@ class TestState:
     def test_hint_names_the_reason(self, monkeypatch, calls, reason):
         monkeypatch.setattr(DummyIO, "priority", -1)
         repository = _discover(DummyIO)
-        for call in calls:
-            (repository.register if call == "R" else repository.unregister)(DummyIO)
+        _replay(repository, calls, DummyIO)
 
         with pytest.raises(UntranslatableTypeError) as exc_info:
             repository.resolve_io(Data())
 
         note = exc_info.value.__notes__[-1]
-        assert f"'{pretty_io_name(DummyIO)}' is disabled ({reason}); call DummyIO.register() to enable it." in note
+        assert f"disabled ({reason}); call {pretty_io_name(DummyIO)}.register() to enable it." in note
 
 
 class TestTies:
@@ -184,8 +192,6 @@ class TestOverridingABuiltIn:
     @staticmethod
     def _make_custom_pandas_io(priority: int) -> type[DataStructureIO[Any, str, str, int]]:
         class CustomPandasIO(DataStructureIO[Any, str, str, int]):
-            priority = 0
-
             @staticmethod
             def handles_type(arg, *_args, **_kwargs):
                 return isinstance(arg, pd.DataFrame)
