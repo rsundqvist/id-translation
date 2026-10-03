@@ -43,6 +43,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and the import-time call raises `RegistryReentryError`.
 - `dio`: A tie between two `DataStructureIO` implementations registered at the same `abs(priority)` picked a winner
   that varied between process runs. The one most recently `register()`-ed now wins consistently.
+- `dio`: The docs link in `DataStructureIOError` hints pointed at a missing section; each error now links to the
+  section that explains it.
 
 ## [1.4.0] - 2026-09-06
 

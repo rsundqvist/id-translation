@@ -247,7 +247,7 @@ def _verify_priorities(state: _State) -> None:
     if others := [other.__name__ for other, (_, m) in changed.items() if m != method]:
         other_method = "register" if method == "unregister" else "unregister"
         hints.append(f"Call {other_method}() on {', '.join(others)} instead.")
-    raise DataStructureIOError(msg, hints=hints)
+    raise DataStructureIOError(msg, hints=hints, anchor="io-priority")
 
 
 def reentry_error() -> RegistryReentryError:
@@ -258,6 +258,7 @@ def reentry_error() -> RegistryReentryError:
             " or in one of its parent packages. Discovery enables its implementation unless it is opt-in, in which"
             " case the application must call register()."
         ),
+        anchor="automatic-integration-discovery",
     )
 
 

@@ -7,14 +7,26 @@ from .._utils import add_hints as _add_hints
 
 
 class DataStructureIOError(TypeError):
-    """Base class for IO exceptions."""
+    """Base class for IO exceptions.
 
-    def __init__(self, msg: str, *, hints: str | _Iterable[str] = ()) -> None:
+    Args:
+        msg: The error message.
+        hints: Hints to add as notes, after a link to the docs.
+        anchor: Section of the :ref:`translation-io` page to link to.
+    """
+
+    def __init__(
+        self,
+        msg: str,
+        *,
+        hints: str | _Iterable[str] = (),
+        anchor: str = "user-defined-integrations",
+    ) -> None:
         super().__init__(msg)
 
         from id_translation._utils import DOC_LINK  # noqa: PLC0415
 
-        url = DOC_LINK + "api/id_translation.dio.html#user-defined-integrations"
+        url = DOC_LINK + f"documentation/translation-io.html#{anchor}"
         self.add_note(f"Hint: {url}")
 
         _add_hints(self, hints)
