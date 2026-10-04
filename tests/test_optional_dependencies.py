@@ -28,6 +28,7 @@ class TestOptionalFetchers:
     def test_all_missing(self, pandas_missing, numpy_missing, sqlalchemy_missing, fsspec_missing):
         from id_translation import Translator
         from id_translation.dio import get_resolution_order
+        from id_translation.dio._resolve import _get_repository
 
         translator = Translator[str, str, int](fetcher={"source": {1: "one!"}})
         assert translator.translate(1, "source") == "1:one!"
@@ -37,8 +38,12 @@ class TestOptionalFetchers:
         # loading those that do not (polars is a required test dependency, so its absence here would be a bug too).
         loaded = {io.__module__.rpartition(".")[2] for io in get_resolution_order()}
         assert "pandas" not in loaded
-        assert "dask" not in loaded
         assert {"_dict", "_sequence", "_set", "_scalar", "polars"} <= loaded
+
+        # DaskIO is opt-in (priority < 0), so it's never in get_resolution_order() even when its module imports
+        # fine; check discovery instead, which only contains implementations whose module actually imported.
+        discovered = {io.__module__.rpartition(".")[2] for io in _get_repository().all_ios}
+        assert "dask" not in discovered
 
     def test_pandas_without_fsspec(self, tmp_path, sqlalchemy_missing, fsspec_missing):
         from id_translation import Translator
