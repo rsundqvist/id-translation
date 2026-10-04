@@ -553,25 +553,6 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             io_kwargs: Mapping[str, Any] | None = None,
         ) -> list[str]: ...
 
-        # This doesn't seem to work; nested generic type issue?
-        # TODO Need Higher-Kinded TypeVars?
-        # @overload
-        # def translate(
-        #     self,
-        #     translatable: list[list[IdType]],
-        #     names: Union[NameTypes[NameType], NameToSource[NameType, SourceType]] = None,
-        #     *,
-        #     copy: Literal[True] = True,
-        #     ignore_names: Names[NameType] | None = None,
-        #     override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
-        #     max_fails: float = 1.0,
-        #     # Translation specification
-        #     reverse: bool = False,
-        #     fmt: FormatType | None = None,
-        #     io_kwargs: Mapping[str, Any] | None=None,
-        # ) -> list[list[str]]:
-        #     ...
-
         @overload
         def translate(
             self,
@@ -861,7 +842,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             copy: Literal[True] = True,
             override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
             max_fails: float = 1.0,
-            reverse: Literal[True] = True,
+            reverse: Literal[False] = False,
             fmt: FormatType | None = None,
             io_kwargs: Mapping[str, Any] | None = None,
         ) -> Translatable[NameType, str]: ...
@@ -876,7 +857,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             copy: Literal[True] = True,
             override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
             max_fails: float = 1.0,
-            reverse: Literal[True] = True,
+            reverse: Literal[True],
             fmt: FormatType | None = None,
             io_kwargs: Mapping[str, Any] | None = None,
         ) -> Translatable[NameType, IdType]: ...

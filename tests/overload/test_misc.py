@@ -1,6 +1,7 @@
 from typing import Any, assert_type
 
 from id_translation import Translator
+from id_translation.types import Translatable
 
 t: Translator[str, str, Any] = Translator()
 OutType = str
@@ -20,20 +21,12 @@ def type_list() -> None:
     assert_type(t.translate(ls, copy=False), None)
 
 
-# This doesn't seem to work; nested generic type issue?
-# TODO Need Higher-Kinded TypeVars?
-# def type_list_of_lists() -> None:
-#     expected = List[List[OutType]]
-#
-#     lli = [[1]]
-#     assert_type(t.translate(lli), expected)
-#     assert_type(t.translate(lli, copy=True), expected)
-#     assert_type(t.translate(lli, copy=False), None)
-#
-#     lls = ["1"]
-#     assert_type(t.translate(lls), expected)
-#     assert_type(t.translate(lls, copy=True), expected)
-#     assert_type(t.translate(lls, copy=False), None)
+def type_catch_all(
+    translator: Translator[str, str, int], ids: Translatable[str, int], names: Translatable[str, str]
+) -> None:
+    assert_type(translator.translate(ids), Translatable[str, str])
+    assert_type(translator.translate(ids, reverse=False), Translatable[str, str])
+    assert_type(translator.translate(names, reverse=True), Translatable[str, int])
 
 
 def type_set() -> None:
