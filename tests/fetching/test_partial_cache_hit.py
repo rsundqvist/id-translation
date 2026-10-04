@@ -4,7 +4,7 @@ import pytest
 
 from id_translation import Translator
 from id_translation.fetching import AbstractFetcher, CacheAccess
-from id_translation.fetching.exceptions import FetcherError
+from id_translation.fetching.exceptions import FetcherError, ImplementationError
 from id_translation.fetching.types import PartialCacheHit
 from id_translation.offline.types import PlaceholderTranslations
 from id_translation.types import ID
@@ -117,8 +117,21 @@ def test_partial_merges_at_wide_layout():
 def test_partial_cache_hit_rejected_for_fetch_all():
     translator, _, _ = make(partial((ID, "name"), covered=set()))
 
-    with pytest.raises(FetcherError, match="fetch-all"):
+    with pytest.raises(ImplementationError, match="fetch-all"):
         translator.go_offline()
+
+
+def test_partial_hit_layout_mismatch_is_an_implementation_error():
+    class NarrowFetcher(RecordingFetcher):
+        def fetch_translations(self, instr):
+            pht = super().fetch_translations(instr)
+            return PlaceholderTranslations(pht.source, pht.placeholders[:2], [r[:2] for r in pht.records])
+
+    cache = StubCache(partial((ID, "name", "email"), 1, covered={1}))
+    translator: Translator[str, str, int] = Translator(NarrowFetcher(cache_access=cache), fmt="{id}:{name}")
+
+    with pytest.raises(ImplementationError, match="does not match fetched layout"):
+        translator.translate([1, 2], names="people")
 
 
 def test_partial_hit_with_numpy_array_records():

@@ -116,7 +116,7 @@ class CacheCoordinator(Generic[SourceType, IdType]):
     ) -> PlaceholderTranslations[SourceType]:
         if instr.ids is None:
             msg = f"{type(self._cache).__name__}.load() returned a PartialCacheHit for a fetch-all instruction."
-            raise exceptions.FetcherError(msg)
+            raise exceptions.ImplementationError(msg)
 
         cached = hit.translations
         covered = _covered_ids(hit)
@@ -207,9 +207,9 @@ def _merge(
     if cached.placeholders != fetched.placeholders:
         msg = (
             f"Cannot merge partial cache hit for {fetched.source!r}: cached layout {cached.placeholders} does not "
-            f"match fetched layout {fetched.placeholders}. A cache must return rows covering the requested layout."
+            f"match fetched layout {fetched.placeholders}. Cache and fetcher must both return the requested layout."
         )
-        raise exceptions.FetcherError(msg)
+        raise exceptions.ImplementationError(msg)
 
     return PlaceholderTranslations(
         source=fetched.source,
