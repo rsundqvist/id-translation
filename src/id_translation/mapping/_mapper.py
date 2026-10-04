@@ -49,7 +49,7 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
 
     Args:
         score_function: A callable which accepts a value `k` and an ordered collection of candidates `c`, returning a
-            score ``s_i`` for each candidate `c_i` in `c`. Default: ``s_i = float(k == c_i)``. Higher=better match.
+            score ``s_i`` for each candidate `c_i` in `c`. Higher=better match.
         score_function_kwargs: Keyword arguments for `score_function`.
         filter_functions: Function-kwargs pairs of filters to apply before scoring.
         min_score: Minimum score `s_i`, as given by ``score(k, c_i)``, to consider `k` a match for `c_i`.
@@ -59,7 +59,7 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
         on_unmapped: Action to take if mapping fails for any values.
         on_unknown_user_override: Action to take if an :attr:`~id_translation.mapping.types.UserOverrideFunction`
             returns an unknown candidate. Unknown candidates, i.e. candidates not in the input `candidates` collection,
-            will not be used unless `'allow'` is chosen.
+            will not be used unless `'keep'` is chosen.
         cardinality: Desired cardinality for mapped values. Derive for each matching if ``None``.
     """
 
@@ -110,8 +110,8 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
             candidates: Iterable of candidates to match with `value`. Duplicate elements will be discarded.
             context: Context in which mapping is being done.
             override_function: A callable that takes inputs ``(value, candidates, context)`` that returns either
-                ``None`` (let the regular mapping logic decide) or one of the `candidates`. How non-candidates returned
-                is handled is determined by the :attr:`~id_translation.mapping.Mapper.on_unknown_user_override`
+                ``None`` (let the regular mapping logic decide) or one of the `candidates`. What happens when it returns
+                a non-candidate is determined by the :attr:`~id_translation.mapping.Mapper.on_unknown_user_override`
                 property.
             task_id: Used for logging.
             **kwargs: Runtime keyword arguments for score and filter functions. May be used to add information which is
@@ -129,7 +129,7 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
             ~id_translation.mapping.exceptions.BadFilterError: If a filter returns candidates that are not a subset of
                 the original candidates.
             ~id_translation.mapping.exceptions.UserMappingError: If `override_function` returns an unknown candidate and
-                ``on_unknown_user_override != 'allow'``
+                ``on_unknown_user_override='raise'``.
             ~id_translation.mapping.exceptions.MappingError: If passing ``context=None`` (the default) when using
                 context-sensitive overrides (type :class:`rics.collections.dicts.InheritedKeysDict`).
         """
@@ -210,8 +210,8 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
             candidates: Iterable of candidates to match with `value`. Duplicate elements will be discarded.
             context: Context in which mapping is being done.
             override_function: A callable that takes inputs ``(value, candidates, context)`` that returns either
-                ``None`` (let the regular mapping logic decide) or one of the `candidates`. How non-candidates returned
-                is handled is determined by the :attr:`~id_translation.mapping.Mapper.on_unknown_user_override`
+                ``None`` (let the regular mapping logic decide) or one of the `candidates`. What happens when it returns
+                a non-candidate is determined by the :attr:`~id_translation.mapping.Mapper.on_unknown_user_override`
                 property.
             task_id: Used for logging.
             **kwargs: Runtime keyword arguments for score and filter functions. May be used to add information which is
@@ -225,7 +225,7 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
             ~id_translation.mapping.exceptions.BadFilterError: If a filter returns candidates that are not a subset of
                 the original candidates.
             ~id_translation.mapping.exceptions.UserMappingError: If `override_function` returns an unknown candidate and
-                ``on_unknown_user_override != 'allow'``
+                ``on_unknown_user_override='raise'``.
         """
         start = perf_counter()
 
@@ -455,8 +455,8 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
             not_in_original_candidates = kept.difference(candidates)
             if not_in_original_candidates:
                 raise BadFilterError(
-                    f"Filter {tname(filter_function)}({value}, candidates, **{kwargs}) created new"
-                    f"candidates: {not_in_original_candidates}"
+                    f"Filter {tname(filter_function)}({value}, candidates, **{kwargs}) created new candidates:"
+                    f" {sorted(not_in_original_candidates, key=str)}."
                 )
 
             # Filters return sets; restore caller order since score functions may be order-sensitive.

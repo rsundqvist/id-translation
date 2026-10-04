@@ -4,12 +4,20 @@ Logging
 =======
 All messages are emitted by :mod:`id_translation` namespace loggers. The `id_translation` namespace uses the
 ``logging.WARNING`` log level (similar to :ref:`SQLAlchemy <sqlalchemy:dbengine_logging>`). To enable logs at the
-``ℹ️ INFO`` level and below, you must explicitly configure the log level.
+``ℹ️ INFO`` level and below, you must explicitly configure the log level. Setting it on the root logger is not enough:
+
+.. code-block:: python
+
+   import logging
+
+   logging.basicConfig()  # Adds a handler, unless one is already configured.
+   logging.getLogger("id_translation").setLevel(logging.INFO)
 
 Verbose logging
 ---------------
-Set the global :data:`~.logging.ENABLE_VERBOSE_LOGGING` flag (or use :func:`~.logging.enable_verbose_debug_messages`) to
-enable additional ``🪲 DEBUG``-level messages. Use the :envvar:`ID_TRANSLATION_VERBOSE` variable in containers.
+Set the global :data:`~.logging.ENABLE_VERBOSE_LOGGING` flag (or use :func:`~.logging.enable_verbose_debug_messages`,
+also a context manager) to enable additional ``🪲 DEBUG``-level messages. Use the :envvar:`ID_TRANSLATION_VERBOSE`
+variable in containers.
 
 .. warning::
 
@@ -21,7 +29,7 @@ enable additional ``🪲 DEBUG``-level messages. Use the :envvar:`ID_TRANSLATION
 
 Note that `verbose` and ``🪲 DEBUG`` logging are different things; verbose logging can emit hundreds of messages in
 cases where regular ``🪲 DEBUG`` logging would only emit a dozen. Verbose messages are typically related to the
-:ref:`mapping <translation-primer>` process.
+:ref:`mapping <mapping-primer>` process.
 
 Example
 -------
@@ -51,18 +59,18 @@ Key event messages are emitted at the boundaries of the various stages in the tr
      - Unique task identifier, e.g. for a single :meth:`~.Translator.translate` call.
    * - `event_key`
      - ``str`` = ``class.method:stage``
-     - E.g. `MultiFetcher.fetch_all:enter` (where ``stage='enter'``).
+     - E.g. `MultiFetcher.fetch_all:enter`, whose stage is ``enter``.
    * - `seconds`
      - ``float``
-     - Task duration in seconds. Only when ``stage='exit'``.
+     - Task duration in seconds. Only on ``exit`` events.
 
 All key event methods add additional fields that are relevant to the current task and stage. Fields may be added,
-removed, or change values depending on the ``stage`` of the event.
+removed, or change values depending on the stage (the ``event_key`` suffix).
 
 Event-specific fields
 ~~~~~~~~~~~~~~~~~~~~~
-Let's take closer look at the final message. The :class:`~logging.LogRecord` contains additional information that isn't
-included in the message itself. The full ``Translator.translate:exit``-record is shown as JSON below.
+Let's take a closer look at the final message. The :class:`~logging.LogRecord` contains additional information that
+isn't included in the message itself. The full ``Translator.translate:exit``-record is shown as JSON below.
 
 .. literalinclude:: dvdrental-records.json
    :caption: Translation exit event. Click :download:`here <dvdrental-records.json>` to download.
@@ -76,7 +84,7 @@ fetcher initialization.
 .. code-block:: python
    :caption: Dummy version of the code that produced the records.
 
-   from logging import basicConfig, DEBUG
+   from logging import basicConfig
    from id_translation import Translator
    from id_translation.logging import enable_verbose_debug_messages
 

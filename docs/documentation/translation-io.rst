@@ -2,46 +2,11 @@
 
 Translation IO
 ==============
-The :mod:`id_translation.dio` module defines how IDs are read and written to various data structures.
+The :mod:`id_translation.dio` module defines how IDs are read and written to various data structures. Builtin
+collections and scalars are supported by default; ``pandas`` and ``polars`` are used when installed, while ``dask`` and
+``pyarrow`` are opt-in. See the :ref:`table of bundled integrations <io-implementations>`.
 
 .. currentmodule:: id_translation.dio
-
-Runtime arguments
------------------
-Relevant methods (e.g. :meth:`.Translator.translate`) accept an `io_kwargs` argument, which may be used to customize
-the behavior of the :class:`.DataStructureIO` implementation. Exceptions raised due to invalid `io_kwargs` arguments
-propagate to the caller; set :envvar:`ID_TRANSLATION_SUPPRESS_IO_KWARGS_ERRORS` to log and suppress them instead.
-
-Arguments are implementation-specific. See :class:`~.integration.pandas.PandasIO` for an example.
-
-User-defined integrations
--------------------------
-The purpose of creating new integrations is typically to enable translation of a new data type.
-To get started, inherit from :class:`DataStructureIO` or copy an
-:class:`existing <.integration.polars.PolarsIO>` integration. Don't forget to
-:meth:`register <.DataStructureIO.register>` the implementation, or the :class:`.Translator` won't be able to find it.
-
-Integrations may take initialization arguments (see :ref:`Runtime arguments`), but should not require them.
-
-Automatic integration discovery
--------------------------------
-You may add an entrypoint in the ``'id_translation.dio'`` entrypoint group to
-automatically register custom implementations (as opposed to calling :meth:`.DataStructureIO.register` manually). The
-snippet below shows how the :mod:`bundled <.integration>` integrations are registered using project entrypoints.
-
-.. code-block:: toml
-   :caption: Entrypoints in ``pyproject.toml`` in the
-        https://github.com/rsundqvist/id-translation/blob/v0.15.0/pyproject.toml#L50-L54 project.
-
-   [project.entry-points."id_translation.dio"]
-   # The name (e.g. 'pandas_io') is not important, but should be unique.
-   pandas_io = "id_translation.dio.integration.pandas:PandasIO"
-   dask_io = "id_translation.dio.integration.dask:DaskIO"
-   polars_io = "id_translation.dio.integration.polars:PolarsIO"
-
-Discovery enables the class an entrypoint names unless it is opt-in (see below), in which case enabling it is up to the
-application. Neither the module nor its parent packages may use the registry at import time, e.g. by calling
-:meth:`~DataStructureIO.register`.
 
 Selection process
 -----------------
@@ -62,8 +27,6 @@ negative of theirs. See the table below.
    :file: io-ranks.csv
    :header-rows: 1
 
-New implementations default to ``priority=10_000``, and are therefore considered first.
-
 .. rubric:: Footnotes
 
 .. [#automatic] Registered automatically if dependencies are installed.
@@ -73,14 +36,17 @@ New implementations default to ``priority=10_000``, and are therefore considered
 
 Registration and priority
 -------------------------
-A negative :attr:`~DataStructureIO.priority` makes an integration *opt-in* rather than unusable. The entrypoint is still
-loaded, but the implementation is not considered until :meth:`~DataStructureIO.register` is called, after which it is
-ordered by ``abs(priority)`` as any other integration is. Installing the underlying package is therefore not enough to
-change how anything translates; the application has to ask.
+An implementation is considered only while it is enabled, and :meth:`~DataStructureIO.register` and
+:meth:`~DataStructureIO.unregister` switch it. Discovery enables an entrypoint's implementation unless its
+:attr:`~DataStructureIO.priority` is negative; any other implementation is enabled by ``register()``. A negative
+:attr:`~DataStructureIO.priority` makes an integration *opt-in* rather than unusable. The entrypoint is still loaded,
+but the implementation is not considered until :meth:`~DataStructureIO.register` is called, after which it is ordered by
+``abs(priority)`` as any other integration is. Installing the underlying package is therefore not enough to change how
+anything translates; the application has to ask.
 
 Call :meth:`~DataStructureIO.unregister` to disable any implementation, including a bundled one. Of any sequence of
-``register()`` and ``unregister()`` calls, the last one wins. The sign of `priority` sets the initial state; after
-discovery, changing it never enables or disables an implementation.
+``register()`` and ``unregister()`` calls, the last one wins. After discovery, changing `priority` never enables or
+disables an implementation.
 
 To change `priority`, assign the new value and then call :meth:`~DataStructureIO.register`. An assignment alone is read
 only by discovery, which happens on first use of the registry and in :func:`~id_translation.dio.reload_integrations`.
@@ -88,3 +54,43 @@ Between those, changing the `priority` of a registered implementation makes ever
 :class:`~id_translation.dio.exceptions.DataStructureIOError` until ``register()`` or ``unregister()`` is called on that
 implementation. So does making the `priority` of a discovered, disabled implementation non-negative if it was negative
 when it was disabled; call ``register()`` to enable it.
+
+Runtime arguments
+-----------------
+Relevant methods (e.g. :meth:`.Translator.translate`) accept an `io_kwargs` argument, which may be used to customize
+the behavior of the :class:`.DataStructureIO` implementation. Exceptions raised due to invalid `io_kwargs` arguments
+propagate to the caller; set :envvar:`ID_TRANSLATION_SUPPRESS_IO_KWARGS_ERRORS` to log and suppress them instead.
+
+Arguments are implementation-specific. See :class:`~.integration.pandas.PandasIO` for an example.
+
+User-defined integrations
+-------------------------
+The purpose of creating new integrations is typically to enable translation of a new data type.
+To get started, inherit from :class:`DataStructureIO` or copy an
+:class:`existing <.integration.polars.PolarsIO>` integration. Don't forget to
+:meth:`register <.DataStructureIO.register>` the implementation, or the :class:`.Translator` won't be able to find it.
+
+Integrations may take initialization arguments, which callers pass as `io_kwargs` (see :ref:`Runtime arguments`), but
+should not require them. New implementations default to ``priority=10_000``, and are therefore considered before the
+bundled ones.
+
+Automatic integration discovery
+-------------------------------
+You may add an entrypoint in the ``'id_translation.dio'`` entrypoint group to
+automatically register custom implementations (as opposed to calling :meth:`.DataStructureIO.register` manually). The
+snippet below shows how the :mod:`bundled <.integration>` integrations are registered using project entrypoints.
+
+.. code-block:: toml
+   :caption: Entrypoints in ``pyproject.toml`` in the
+        https://github.com/rsundqvist/id-translation/blob/master/pyproject.toml project.
+
+   [project.entry-points."id_translation.dio"]
+   # The name (e.g. 'pandas_io') is not important, but should be unique.
+   pandas_io = "id_translation.dio.integration.pandas:PandasIO"
+   dask_io = "id_translation.dio.integration.dask:DaskIO"
+   polars_io = "id_translation.dio.integration.polars:PolarsIO"
+   arrow_io = "id_translation.dio.integration.pyarrow:ArrowIO"
+
+Discovery enables the class an entrypoint names unless it is :ref:`opt-in <io-priority>`, in which case enabling it is
+up to the application. Neither the module nor its parent packages may use the registry at import time, e.g. by calling
+:meth:`~DataStructureIO.register`.

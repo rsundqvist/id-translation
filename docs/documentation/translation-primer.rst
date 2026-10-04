@@ -13,7 +13,7 @@ normal operation.
    Advanced topics such as :class:`transformations <id_translation.transform.types.Transformer>` and
    :class:`caching <id_translation.fetching.CacheAccess>` are not covered.
 
-To keep things simple, we will keep everything in a single folder -- the current working directory -- for this example.
+To keep things simple, we will keep everything in a single folder (the current working directory) for this example.
 The file structure is as follows:
 
 .. code-block:: bash
@@ -26,24 +26,9 @@ The file structure is as follows:
        ├── animals.csv
        └── humans.csv
 
-This example uses the API to construct the :class:`Translator` instance, but the recommended way of creating instances are
-:ref:`translator-config`. Condensed versions for creating an equivalent :class:`Translator` using the either the API or TOML
-configuration is available in the :ref:`notebooks` section.
-
-Call diagram
-------------
-The :class:`Translator` either performs or coordinates most tasks. A
-notable exception is the :ref:`placeholder mapping <fetcher-mapping-motivation>` subprocess, which is
-handled internally by :meth:`AbstractFetcher.map_placeholders <fetching.AbstractFetcher.map_placeholders>`.
-
-* Green indicates a :class:`Translator` member function.
-* Red denotes :attr:`~Translator.fetcher` ownership.
-* Blue indicates a task that is delegated to an object owned by the :class:`Translator`.
-
-.. figure:: ../_images/translation-flow.drawio.png
-
-   Simplified call diagram for a translation task. Optional paths and error handling are omitted, as well as most
-   details that are internal to the mapping and fetching processes.
+This example uses the API to construct the :class:`Translator` instance, but the recommended way of creating instances
+is a :ref:`TOML configuration <translator-config>`. The :ref:`notebooks` section shows this example both ways, with the
+API and with TOML.
 
 A :class:`fetching.PandasFetcher` is used in the example below, meaning that
 :attr:`~types.HasSources.sources` are resolved by searching for files in a given directory, and
@@ -62,7 +47,7 @@ The `"Bite report"` to translate is shown below.
    :header-rows: 1
 
 The first column indicates who was bitten (a human), the second who bit them (an animal). Since bites are a frequent
-occurrence, the zoo uses integers IDs instead of plaintext for their bite reports to save space. The :class:`Translator`
+occurrence, the zoo uses integer IDs instead of plaintext for their bite reports to save space. The :class:`Translator`
 doesn't work on files, so we'll translate a :class:`pandas.DataFrame` instead.
 
 .. code-block:: python
@@ -154,15 +139,14 @@ We're now ready to create the :class:`~mapping.Mapper` instance.
 
 .. note::
 
-   In the language of the ``Mapper``, `names` become :attr:`values <mapping.types.ValueType>` and the
-   `sources` are referred to as the :attr:`candidates <mapping.types.CandidateType>`. See the
-   :ref:`mapping-primer` page for more information.
+   To the ``Mapper``, names are *values* and sources are *candidates*; see the :ref:`mapping-primer` glossary.
 
 Translation format
 ------------------
-We must now decide what we want our report to look like once it's translated. First, we note that the first two columns,
-``'id'`` and ``'name'``, are the same for humans and animals. The ``'humans'`` source also has a unique ``'title'``
-column (or `placeholder`). The ``'animals'`` source has a unique ``'species'`` placeholder.
+We must now decide what we want our report to look like once it's translated. First, we note that both sources have an
+ID column and a ``'name'`` column; the animals call their ID column ``'animal_id'``, which we deal with below. The
+``'humans'`` source also has its own ``'title'`` column (or `placeholder`). The ``'animals'`` source has its own
+``'species'`` placeholder.
 
 We would like the translations to include as much information as possible, and as such we will use a flexible
 :class:`~offline.Format` that includes two
@@ -181,7 +165,7 @@ same translation format for humans and animals.
    elements ``'title'``, ``'name'``, ``'id'``, and ``'species'`` are called :attr:`~offline.Format.placeholders`.
 
    The ``'name'`` and ``'id'`` placeholders are :attr:`~offline.Format.required_placeholders`;
-   translation will fail if they cannot be retrieved. The others -- ``'title'`` and ``'species'`` -- are
+   translation will fail if they cannot be retrieved. The others, ``'title'`` and ``'species'``, are
    :attr:`~offline.Format.optional_placeholders`.
 
 .. _placeholder-mapping:
@@ -198,20 +182,18 @@ found in the source.
 
 .. note::
 
-   In the language of the ``Mapper``, `wanted placeholders` become :attr:`values <mapping.types.ValueType>`
-   and the `actual placeholders` are referred to as the :attr:`candidates <mapping.types.CandidateType>`.
-   The `source` or file which we are performing mapping for is referred to as the
-   :attr:`context <mapping.types.ContextType>`.
+   Here, wanted placeholders are the *values*, the source's actual placeholders are the *candidates*, and the source is
+   the *context*; see the :ref:`mapping-primer` glossary.
 
 All placeholder names also match exactly, except for the ``'animal_id'`` placeholder in the ``'animals'`` source. The
 easiest solution is to use an override. However, as this kind of naming is common, a more generic solution makes sense.
 
 .. hint::
 
-   This is a simplified version of the bundled :func:`~.smurf_columns` heuristic.
+   The function below is a simplified version of the bundled :func:`~.smurf_columns` heuristic.
 
 .. code-block:: python
-   :caption: A custom :attr:`~mapping.types.AliasFunction` heuristic to turn ``'animal_id'`` into just ``'id'``.
+   :caption: An :attr:`~mapping.types.AliasFunction` matching the ``'id'`` placeholder to the ``'animal_id'`` column.
 
    def smurf_column_heuristic(value, candidates, context):
        """Heuristic for matching columns that use the "smurf" convention."""
@@ -239,7 +221,22 @@ applications that use multiple fetchers.
       mapper=Mapper(smurf_score),  # Add the mapper.
    )
 
-With placeholder mapping in place, all the remains is to create the :class:`Translator`.
+With placeholder mapping in place, all that remains is to create the :class:`Translator`.
+
+Call diagram
+------------
+The :class:`Translator` either performs or coordinates most tasks. A
+notable exception is the :ref:`placeholder mapping <fetcher-mapping-motivation>` subprocess, which is
+handled internally by :meth:`AbstractFetcher.map_placeholders <fetching.AbstractFetcher.map_placeholders>`.
+
+* Green indicates a :class:`Translator` member function.
+* Red denotes :attr:`~Translator.fetcher` ownership.
+* Blue indicates a task that is delegated to an object owned by the :class:`Translator`.
+
+.. figure:: ../_images/translation-flow.drawio.png
+
+   Simplified call diagram for a translation task. Optional paths and error handling are omitted, as well as most
+   details that are internal to the mapping and fetching processes.
 
 Putting it all together
 -----------------------
@@ -249,7 +246,7 @@ Putting it all together
    translator = Translator(fetcher, fmt=translation_format, mapper=mapper)
    translated_bite_report = translator.translate(bite_report)
 
-Unless ``copy=False`` is passed, :meth:`~Translator.translate` always returns a copy.
+Unless ``copy=False`` is passed, :meth:`~Translator.translate` returns a copy.
 
 Translated data
 ---------------

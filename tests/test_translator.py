@@ -132,7 +132,7 @@ def test_online(translator, copy):
     _translate(translator.copy() if copy else translator)
 
 
-def test_unmapped_explict_names_error(translator):
+def test_unmapped_explicit_names_error(translator):
     with pytest.raises(UnmappedExplicitNamesError):
         translator.map(0, names="unknown")
 

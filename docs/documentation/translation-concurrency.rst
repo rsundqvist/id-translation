@@ -2,7 +2,9 @@
 
 Thread safety
 =============
-Most functions and classes are thread safe. Notable exceptions are documented here.
+Most functions and classes are thread safe. Notable exceptions are documented here. To share a :class:`.Translator`
+between threads, call ``initialize_sources(freeze=True)`` or :meth:`~.Translator.go_offline` on it first; either leaves
+nothing for a concurrent first call to do.
 
 .. list-table::
    :header-rows: 1

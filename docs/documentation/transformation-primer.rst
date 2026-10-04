@@ -4,7 +4,8 @@ Transformation primer
 =====================
 Transformers hook into the translation of a single `source`, adjusting the IDs sent for fetching and the translations
 that come back. Use them for what a plain ``{id: translation}`` mapping can't easily express, e.g. composite/bitmask
-fields, unit conversions, and similar translation-time computations.
+fields, unit conversions, and similar translation-time computations. A transformer is attached in one of three ways:
+provided by the fetcher, declared in TOML, or registered in code; :ref:`transformation-primer-choosing` compares them.
 
 .. seealso::
    If you haven't already, consider checking out the :ref:`translation-primer` before continuing.
@@ -16,6 +17,7 @@ A :class:`.Transformer` is called at three points during translation. All three 
 
 .. code-block:: python
 
+   from id_translation import Translator
    from id_translation.transform import BitmaskTransformer
 
    transformer = BitmaskTransformer(
@@ -23,6 +25,7 @@ A :class:`.Transformer` is called at three points during translation. All three 
      overrides={0: "NOT_SET", 0b1000: "OVERFLOW"},
    )
    transformers = {"<source>": transformer}
+   translator = Translator(fetcher, transformers=transformers)
 
 See :ref:`translator-config-transform` for the equivalent TOML declaration.
 
@@ -104,9 +107,6 @@ Give both to a new ``Translator``, in order:
 
 :meth:`~.Translator.register_transformer` with ``on_existing='append'`` builds the same stack on an existing instance.
 
-Every route above already normalizes what it's given through :func:`.as_transformer`. Reach for it directly only if you
-need the combined transformer itself.
-
 .. _transformation-primer-window:
 
 Registration window
@@ -164,7 +164,8 @@ Prefer the ``transformers`` argument or :meth:`~.Translator.register_transformer
 * **It must not be tied to one fetcher.** A fetcher-provided transformer is scoped to the fetcher that serves the
   `source`, and goes when that fetcher does. A registration made in code outlives any single fetcher.
 
-Continuing the ``APP_ENV`` factory from the :ref:`migration-guide`, mask certain values in production only:
+A ``create_translator()`` factory in the style of the :ref:`migration-guide` can mask certain values in production only,
+reusing ``RedactOverflow`` from above:
 
 .. code-block:: python
 
@@ -185,8 +186,8 @@ Two details are load-bearing:
   with it a single piece of state, across every `source`.
 
 Reading :attr:`~.Translator.sources` performs source discovery, which is why the loop sees them without a separate
-call. Registering before that pass runs does not put the transformer first: a fetcher describes the source it
-serves, so its own answer is chained ahead whenever it arrives.
+call. The fetcher's own transformers are collected later, by ``initialize_sources()``, and always chain ahead of
+code registrations, so registering early does not put a transformer first.
 
 .. warning::
 

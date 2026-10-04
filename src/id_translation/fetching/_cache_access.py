@@ -65,7 +65,8 @@ class CacheAccess(ABC, Generic[SourceType, IdType]):
            This method will never be called with translations that were returned by
            :meth:`~id_translation.fetching.CacheAccess.load`.
 
-        In other words, this method will only be called if ``CacheAccess.load(instr)`` returns ``None``.
+        It is called after ``CacheAccess.load(instr)`` returns ``None``, and after a
+        :class:`~id_translation.fetching.types.PartialCacheHit` with an instruction for the IDs the hit did not cover.
 
         .. hint::
 

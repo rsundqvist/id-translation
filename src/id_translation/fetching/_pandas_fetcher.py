@@ -33,7 +33,7 @@ class PandasFetcher(AbstractFetcher[str, IdType]):
 
     Args:
         read_path_format: A string on the form ``protocol://path/to/sources/{}.<ext>``, or a callable to apply to a
-            source before passing them to `read_function`.
+            source before passing them to `read_function`. Every matching file is a source.
         read_function: A function ``(str) -> DataFrame``. Derive from `read_path_format` if ``None``. Strings are
             resolved by :func:`~rics.misc.get_by_full_name` (with ``default_module=pandas``).
         read_function_kwargs: Additional keyword arguments for `read_function`.

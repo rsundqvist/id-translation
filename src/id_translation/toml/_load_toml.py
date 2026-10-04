@@ -18,7 +18,7 @@ def load_toml_file(
     environment variable value interpolation as well and replace matching names in the file (in-memory, the file will
     not be changed or read more than once).
 
-    For details about the interpolation, see :func:`rics.misc.interpolate_environment_variables`.
+    For details about the interpolation, see :func:`rics.env.interpolation.replace_in_string`.
 
     Args:
         path: Path to file.

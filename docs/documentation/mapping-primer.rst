@@ -2,8 +2,14 @@
 
 Mapping primer
 ==============
-Mapping is performed by the :class:`~id_translation.mapping.Mapper` class. The general procedure is the same for
-the :ref:`Name-to-source <Name-to-source mapping>` and :ref:`Placeholder <Placeholder mapping>` mapping processes.
+Mapping matches the strings you have to the strings you need: the names in your data to translation sources, and the
+placeholders in a format to the columns of a source. Both are done by the :class:`~id_translation.mapping.Mapper` class,
+which uses the same procedure for :ref:`Name-to-source <Name-to-source mapping>` and :ref:`Placeholder <Placeholder
+mapping>` mapping. The ``Mapper`` speaks of three things:
+
+* **values**: what is being matched. Names in name-to-source mapping, placeholders in placeholder mapping.
+* **candidates**: what values may match. Sources, or the columns of one source.
+* **context**: what the match is scoped to. ``None`` for name-to-source mapping, the source for placeholder mapping.
 
 .. seealso::
    If you haven't already, consider checking out the :ref:`translation-primer` before continuing.
@@ -31,10 +37,10 @@ performed.
 Overrides and filtering
 ~~~~~~~~~~~~~~~~~~~~~~~
 Overrides and filtering adhere to a strict hierarchy (the one presented below). Overrides take precedence over filters,
-and runtime overrides takes precedence over static overrides.
+and runtime overrides take precedence over static overrides.
 
 1. Runtime overrides (type: :attr:`~id_translation.mapping.types.UserOverrideFunction`); set ``score=∞`` for the chosen
-   candidate, and ``score=-∞`` for others.
+   candidate, and ``score=-∞`` for others. These come from the ``override_function`` argument, e.g. of ``translate()``.
 
 2. Static overrides (type: ``dict`` or :class:`~rics.collections.dicts.InheritedKeysDict`); set ``score=∞`` for the
    chosen candidate, and ``score=-∞`` for others.
@@ -49,7 +55,7 @@ Score computations
 ~~~~~~~~~~~~~~~~~~
 4. Compute value-candidate match scores (type: :attr:`~id_translation.mapping.types.ScoreFunction`). Higher is better.
 
-5. If there are any Heuristics (type: :class:`~id_translation.mapping.HeuristicScore`), apply..
+5. If there are any Heuristics (type: :class:`~id_translation.mapping.HeuristicScore`), apply them:
 
     a. Short-circuiting (type: :attr:`~id_translation.mapping.types.FilterFunction`); reinterpret a ``FilterFunction``
        such that the returned candidates (if any) are treated as overrides.
@@ -57,7 +63,7 @@ Score computations
     b. Aliasing (type: :attr:`~id_translation.mapping.types.AliasFunction`); try to improve ``ScoreFunction`` accuracy
        by applying heuristics to the ``(value, candidates)``-argument pairs.
 
-    c. Finally, select the best score at each stage (from no to all heuristics) for each pair.
+    c. Finally, keep for each value-candidate pair the best score reached with none, some or all heuristics applied.
 
 The final output is a :class:`.ScoreMatrix`, which has been :meth:`converted <.ScoreMatrix.to_pandas>` to an equivalent
 :class:`~pandas.DataFrame` below.
@@ -67,7 +73,8 @@ The final output is a :class:`.ScoreMatrix`, which has been :meth:`converted <.S
    :header-rows: 1
    :stub-columns: 1
 
-The ``'rental_date'``-value can be seen having only negative-infinity matching scores due to filtering.
+Stars (★) mark the chosen matches. The ``'rental_date'``-value has only negative-infinity scores, since the example's
+``filter_names`` filter (``regex = ".*_id$"``) removes every candidate for it.
 
 .. hint::
 
@@ -75,8 +82,8 @@ The ``'rental_date'``-value can be seen having only negative-infinity matching s
 
 Step 2/2: Matching procedure
 ----------------------------
-Given precomputed match scores (see the section above), make as many matches as possible given a ``Cardinality``
-restriction. These may be summarized as:
+Given precomputed match scores (see :ref:`Step 1/2: Scoring procedure`), make as many matches as possible given a
+``Cardinality`` restriction. These may be summarized as:
 
 * :attr:`~id_translation.mapping.Cardinality.OneToOne` = *'1:1'*: Each value and candidate may be used at most once.
 * :attr:`~id_translation.mapping.Cardinality.OneToMany` = *'1:N'*: Values have exclusive ownership of matched candidate(s).
@@ -94,6 +101,7 @@ When a single match out of multiple viable options must be chosen due to cardina
 determined by the iteration order of `values` and `candidates`. The first value will prefer the first candidate, and so
 on. This logic does `not` consider future matches.
 
+>>> from id_translation.mapping import Mapper
 >>> SCORES = {"v0": {"c0": 1.00, "c1": 0.95}, "v1": {"c0": 0.92, "c1": 0.00}}
 >>> mapper = Mapper(
 ...     cardinality="1:1",
@@ -114,6 +122,40 @@ matching `v0 → c1` had been chosen first.
    The scores above are deliberately distinct. Tied scores raise :class:`.AmbiguousScoreError` for any
    cardinality that requires a single candidate (e.g. `1:1` above).
 
+.. _override-only-mapping:
+
+Override-only mapping
+---------------------
+To make mapping fully manual, disable scoring and give every match as an override. Score-based mapping is a convenient
+solution, especially for name-to-source mapping since the names (e.g. :attr:`pandas.DataFrame.columns`) that should be
+translated have a tendency to change.
+
+Column names in sources (e.g. SQL tables), on the other hand, tend to change a lot less. Scoring may then add an
+unnecessary element of uncertainty. To ensure that mapping is done "manually", you may use the included
+:func:`.score_functions.disabled`-function to disable the scoring logic.
+
+.. note::
+
+   Identity mappings are always kept (no need for ``id = "id"`` overrides). To block these matches, you may create a dummy
+   override such as ``id = "_"`` for affected sources.
+
+.. literalinclude:: override-only-fetching.toml
+   :language: toml
+   :caption: A conservative override-only mapping configuration for an ``SqlFetcher``.
+   :linenos:
+
+In strict mode (the default), a :class:`~id_translation.mapping.exceptions.ScoringDisabledError` is raised if there are
+any names left to map once all :ref:`overrides and filtering` and :ref:`short-circuiting <Score computations>` logic
+has been applied. For a ``DataFrame``, that includes columns which should not be translated at all; filter them out
+or pass ``names``. In non-strict mode (``strict = false`` under ``[*.mapping.score_function.disabled]``, line 7 above),
+any name left to map once the scoring phase begins is **silently discarded** by returning :math:`-\infty` for all
+value/candidate-pairs.
+
+.. seealso::
+
+  * The :func:`~.heuristic_functions.short_circuit` and :func:`~.heuristic_functions.smurf_columns` short-circuiting functions.
+  * The :mod:`.filter_functions` module.
+
 Troubleshooting
 ---------------
 Unmapped values are allowed by default. If mapping failure is not an acceptable outcome for your application, initialize
@@ -123,7 +165,8 @@ more detailed log messages which are emitted on the error level.
 Verbose logging
 ~~~~~~~~~~~~~~~
 The mapper can emit per-combination mapping scores when matches are made or when values are left without a match. These
-messages are gated behind :data:`~id_translation.logging.ENABLE_VERBOSE_LOGGING`.
+messages are gated behind :data:`~id_translation.logging.ENABLE_VERBOSE_LOGGING`; see :doc:`translation-logging` for how
+to enable it.
 
 The messages below are from a test case in a strange world where only one kind of animal (`cardinality=1:1`) is allowed
 to have a specific number of legs.
@@ -135,7 +178,7 @@ to have a specific number of legs.
       override). This match supersedes 1 other matches:
         'cat' -> '4'; score=1.000 (superseded on candidate=4).
 
-In the case above, `dog` was selected over `cat` to because it was given first in the `values` vector. Matches that
+In the case above, `dog` was selected over `cat` because it was given first in the `values` vector. Matches that
 would not have been made regardless (e.g. score below `min_score`) are not shown in the `accept`-message.
 
 .. code-block:: log
@@ -164,36 +207,3 @@ The severity of unmapped values is determined by the :attr:`.Mapper.on_unmapped`
      name='return_date': Does not match pattern=re.compile('.*_id$', re.IGNORECASE).
 
 The mapping procedure may emit a large amount of records in verbose mode.
-
-.. _override-only-mapping:
-
-Override-only mapping
----------------------
-Score-based mapping is a convenient solution, especially for name-to-source mapping since the names (e.g.
-:attr:`pandas.DataFrame.columns`) that should be translated have a tendency to change.
-
-.. note::
-
-   Identity mappings are always kept (no need for ``id = "id"`` overrides). To block these matches, you may create a dummy
-   override such as ``id = "_"`` for affected sources.
-
-Names in sources (e.g. SQL table column names), on the other hand, tend to change a lot less. Scoring may then add an
-unnecessary element of uncertainty. To ensure that mapping is done "manually", you may use the included
-:func:`.score_functions.disabled`-function to disable the scoring logic.
-
-.. literalinclude:: override-only-fetching.toml
-   :language: toml
-   :caption: A conservative override-only mapping configuration for an ``SqlFetcher``.
-   :linenos:
-
-In strict mode (the default), a :class:`~id_translation.mapping.exceptions.ScoringDisabledError` is raised if there are
-any names left to map once all :ref:`overrides and filtering` and :ref:`short-circuiting <Score computations>` logic
-has been applied.
-
-.. seealso::
-
-  * The :func:`~.heuristic_functions.short_circuit` and :func:`~.heuristic_functions.smurf_columns` short-circuiting functions.
-  * The :mod:`.filter_functions` module.
-
-In non-strict mode (``strict=False``), any name left to map once the scoring phase begins will be
-**silently discarded** by returning :math:`-\infty` for all value/candidate-pairs.

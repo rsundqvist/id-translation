@@ -497,7 +497,7 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         hints = []
         if operation == "INITIALIZE_SOURCES":
             msg = f"Discarded {source=} retrieved from {rejected} since the {accepted} already claimed same source."
-            hints.append("Hint: Rank is determined input order at initialization.")
+            hints.append("Hint: Rank is determined by input order at initialization.")
             on_source_conflict = self.on_source_conflict
         elif operation == "FETCH_ALL":
             msg = (

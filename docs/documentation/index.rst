@@ -1,6 +1,7 @@
 Documentation
 =============
-Examples and documentation.
+New here? Start with the :ref:`translation-primer`, then :ref:`translator-config`.
+Other pages each cover one topic in depth.
 
 .. toctree::
    :hidden:

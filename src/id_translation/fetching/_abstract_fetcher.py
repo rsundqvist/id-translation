@@ -64,7 +64,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         identifiers: A collection of hierarchical identifiers. If given, element zero of the `identifiers` is added to
             the :attr:`~id_translation.fetching.AbstractFetcher.logger` name for the fetcher.
         optional: If ``True``, this fetcher may be discarded if source/placeholder-enumeration fails in multi-fetcher
-            mode. Optional fetchers should not raise before :meth`_initialize_sources` is called.
+            mode. Optional fetchers should not raise before ``_initialize_sources()`` is called.
         cache_access: A :class:`~id_translation.fetching.CacheAccess` instance. Defaults to a NOOP-implementation (i.e.
             always fetch new data).
 

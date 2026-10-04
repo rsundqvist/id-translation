@@ -26,7 +26,7 @@ if LOGGER.level == _l.NOTSET:
 EMIT_LOGGED_WARNINGS: bool = True
 """Set to ``False`` to disable warnings that are emitted as logs.
 
-Log messages whose level is set in configuration are often repeated as as specific warning type. For example, setting
+Log messages whose level is set in configuration are often repeated as a specific warning type. For example, setting
 :attr:`on_unmapped='warn' <id_translation.mapping.Mapper.on_unmapped>` will emit both a
 :class:`~id_translation.mapping.exceptions.UnmappedValuesWarning` and a logger message.
 When ``EMIT_LOGGED_WARNINGS=False``, the ``UnmappedValuesWarning`` is suppressed.

@@ -22,9 +22,9 @@ def default_mapper_factory(config: dict[str, Any], for_fetcher: bool) -> Mapper[
 
     if "score_function_heuristics" in config:
         if "score_function" not in config:  # pragma: no cover
-            section = "fetching" if for_fetcher else "translation"
+            section = "fetching" if for_fetcher else "translator"
             raise exceptions.ConfigurationError(
-                f"Section [{section}.mapper.score_function_heuristics] requires an explicit score function."
+                f"Section [{section}.mapping.score_function_heuristics] requires an explicit score function."
             )
 
         heuristics = [
