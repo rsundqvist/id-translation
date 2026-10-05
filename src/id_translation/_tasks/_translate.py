@@ -12,7 +12,7 @@ from .. import _uuid_utils
 from .._utils.emit_warning import emit_warning
 from ..exceptions import TooManyFailedTranslationsError
 from ..mapping.types import UserOverrideFunction
-from ..offline import Format, TranslationMap
+from ..offline import Format, MagicDict, TranslationMap
 from ..types import IdType, IdTypes, Names, NameToSource, NameType, NameTypes, SourceType, Translatable
 from ._map import MappingTask
 
@@ -270,10 +270,14 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
 
         start = perf_counter()
         name_to_ids = self._name_to_ids_in_order()
-        translations = tmap.to_translations()
+        name_to_source = tmap.name_to_source
+        translations: dict[SourceType, MagicDict[IdType]] = {}
 
         for name, ids in name_to_ids.items():
-            source = tmap.name_to_source[name]
+            source = name_to_source[name]
+            if source not in translations:
+                # By name: apply() resolves its argument as a name first, and a source may share a name.
+                translations[source] = tmap.apply(name)
             magic_dict = translations[source]
 
             if self.reverse == tmap.reverse_mode:

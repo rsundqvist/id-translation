@@ -483,6 +483,22 @@ def test_untranslated_fraction_single_name():
         translator.translate(1, names="source", max_fails=0.0)
 
 
+def test_untranslated_fraction_when_a_source_shares_a_name():
+    data = {"humans": {"id": [1, 2], "name": ["Ada", "Bob"]}, "animals": {"id": [10], "name": ["Rex"]}}
+    translator = UnitTestTranslator(data)
+    translatable = {"humans": [10], "owner": [1, 2]}
+
+    actual = translator.translate(translatable, names={"humans": "animals", "owner": "humans"}, max_fails=0.0)
+    assert actual == {"humans": ["10:Rex"], "owner": ["1:Ada", "2:Bob"]}
+
+
+def test_untranslated_fraction_ignores_other_sources():
+    data = {"staff": {"id": [1], "name": ["Ada"], "team": ["sales"]}, "dogs": {"id": [1], "name": ["Rex"]}}
+    translator = UnitTestTranslator(data)
+
+    assert translator.translate(1, names="staff", fmt="{name} ({team})", max_fails=0.5) == "Ada (sales)"
+
+
 def test_untranslated_fraction_multiple_names(translator, hex_fetcher):
     translator = UnitTestTranslator(hex_fetcher, enable_uuid_heuristics=True, fmt="{id}:{hex}")
     translatable = {"negative_numbers": [1, 1], "positive_numbers": [0, 1, 2]}
