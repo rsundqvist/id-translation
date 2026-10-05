@@ -47,6 +47,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `dio`: The docs link in `DataStructureIOError` hints pointed at a missing section; each error now links to the
   section that explains it.
 
+## [1.4.1] - 2026-10-04
+
+### Fixed
+- `SqlFetcher` raising `AttributeError` on SQLAlchemy 2.1.
+
 ## [1.4.0] - 2026-09-06
 
 ### Added
@@ -719,8 +724,8 @@ cookiecutter template.
 - Switch to relative imports.
 - Fix some intersphinx issues.
 
-[Unreleased]: https://github.com/rsundqvist/id-translation/compare/v1.4.0...HEAD
-[2.0.0]: https://github.com/rsundqvist/id-translation/compare/v1.4.0...HEAD
+[Unreleased]: https://github.com/rsundqvist/id-translation/compare/v1.4.1...HEAD
+[1.4.1]: https://github.com/rsundqvist/id-translation/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/rsundqvist/id-translation/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/rsundqvist/id-translation/compare/v1.2.1...v1.3.0
 [1.2.1]: https://github.com/rsundqvist/id-translation/compare/v1.2.0...v1.2.1
