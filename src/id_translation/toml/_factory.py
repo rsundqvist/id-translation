@@ -3,7 +3,7 @@ from collections.abc import Callable, Generator, Iterable
 from contextlib import contextmanager
 from os import getenv
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Generic, TypeAlias
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, TypeAlias
 
 from rics.collections.dicts import InheritedKeysDict
 from rics.env.read import read_bool
@@ -33,7 +33,7 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
     FetcherFactory: TypeAlias = Callable[[str, dict[str, Any]], AbstractFetcher[Any, Any]]
     """Signature for :attr:`~id_translation.toml.TranslatorFactory.FETCHER_FACTORY`."""
 
-    FETCHER_FACTORY: FetcherFactory = staticmethod(cf.default_fetcher_factory)
+    FETCHER_FACTORY: ClassVar[FetcherFactory] = cf.default_fetcher_factory
     """A callable ``(clazz, config) -> AbstractFetcher``.
 
     Overwrite attribute with your own :attr:`~id_translation.toml.TranslatorFactory.FetcherFactory` implementation to customize.
@@ -56,7 +56,7 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
     MapperFactory: TypeAlias = Callable[[dict[str, Any], bool], Mapper[Any, Any, Any] | None]
     """Signature for :attr:`~id_translation.toml.TranslatorFactory.MAPPER_FACTORY`."""
 
-    MAPPER_FACTORY: MapperFactory = cf.default_mapper_factory
+    MAPPER_FACTORY: ClassVar[MapperFactory] = cf.default_mapper_factory
     """A callable ``(config, for_fetcher) -> Mapper | None``.
 
     Overwrite attribute with your own :attr:`~id_translation.toml.TranslatorFactory.MapperFactory` implementation to customize.
@@ -81,7 +81,7 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
     TransformerFactory: TypeAlias = Callable[[str, dict[str, Any]], Transformer[Any]]
     """Signature for :attr:`~id_translation.toml.TranslatorFactory.TRANSFORMER_FACTORY`."""
 
-    TRANSFORMER_FACTORY: TransformerFactory = cf.default_transformer_factory
+    TRANSFORMER_FACTORY: ClassVar[TransformerFactory] = cf.default_transformer_factory
     """A callable ``(clazz, config) -> Transformer``.
 
     Overwrite attribute with your own :attr:`~id_translation.toml.TranslatorFactory.TransformerFactory` implementation to customize.
@@ -103,7 +103,7 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
     CacheAccessFactory: TypeAlias = Callable[[str, dict[str, Any]], CacheAccess[Any, Any]]
     """Signature for :attr:`~id_translation.toml.TranslatorFactory.CACHE_ACCESS_FACTORY`."""
 
-    CACHE_ACCESS_FACTORY: CacheAccessFactory = cf.default_cache_access_factory
+    CACHE_ACCESS_FACTORY: ClassVar[CacheAccessFactory] = cf.default_cache_access_factory
     """A callable ``(clazz, config) -> CacheAccess``.
 
     Overwrite attribute with your own :attr:`~id_translation.toml.TranslatorFactory.CacheAccessFactory` implementation to customize.
@@ -345,7 +345,7 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
             is_optional = False
 
         try:
-            return self.FETCHER_FACTORY(clazz, kwargs)
+            return type(self).FETCHER_FACTORY(clazz, kwargs)
         except Exception as e:
             if is_optional:
                 return e

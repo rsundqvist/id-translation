@@ -7,6 +7,7 @@ import pytest
 from id_translation import Translator
 from id_translation.exceptions import ConfigurationError
 from id_translation.fetching import AbstractFetcher, CacheAccess, MemoryFetcher, MultiFetcher
+from id_translation.toml import TranslatorFactory
 from id_translation.toml._factory import SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS
 from id_translation.toml.factories._fetcher import default_fetcher_factory
 from id_translation.types import IdType, SourceType
@@ -32,6 +33,28 @@ def test_default_fetcher_factory(
 ) -> None:
     fetcher: AbstractFetcher[str, int] = default_fetcher_factory(clazz, dict(data={}))
     assert isinstance(fetcher, expected_type)
+
+
+def _recording_fetcher_factory(clazz: str, config: dict[str, Any]) -> AbstractFetcher[Any, Any]:
+    config["data"] = {"recorded": {"id": [1], "name": ["one"]}}
+    return default_fetcher_factory(clazz, config)
+
+
+class _FunctionFactory(TranslatorFactory[str, str, int]):
+    FETCHER_FACTORY = _recording_fetcher_factory
+
+
+class _StaticMethodFactory(TranslatorFactory[str, str, int]):
+    FETCHER_FACTORY = staticmethod(_recording_fetcher_factory)  # type: ignore[assignment]
+
+
+@pytest.mark.parametrize("factory", [_FunctionFactory, _StaticMethodFactory])
+def test_custom_fetcher_factory(tmp_path, factory):
+    path = tmp_path / "main.toml"
+    path.write_text("[fetching.MemoryFetcher]\ndata = {}\n", encoding="utf-8")
+
+    translator = factory(path, []).create()
+    assert translator.translate(1, names="recorded", fmt="{name}") == "one"
 
 
 def test_missing_config():
