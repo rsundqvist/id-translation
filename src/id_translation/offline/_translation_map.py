@@ -105,7 +105,7 @@ class TranslationMap(
         Returns:
             A dict of translations ``{source: MagicDict}``.
         """
-        return {source: self.apply(source, fmt=fmt) for source in self.sources}
+        return {source: self._apply(source, fmt, None, name_or_source=source) for source in self.sources}
 
     @classmethod
     def from_pandas(
@@ -154,13 +154,23 @@ class TranslationMap(
         Notes:
              This method is called by ``__getitem__``.
         """
+        source = self.name_to_source.get(name_or_source, name_or_source)  # type: ignore
+        return self._apply(source, fmt, default_fmt, name_or_source=name_or_source)
+
+    def _apply(
+        self,
+        source: SourceType,
+        fmt: FormatType | None,
+        default_fmt: FormatType | None,
+        *,
+        name_or_source: NameType | SourceType,
+    ) -> MagicDict[IdType]:
         fmt = self._fmt if fmt is None else fmt
         if fmt is None:
             raise ValueError("No format specified and None given at initialization.")  # pragma: no cover
 
         fmt = Format.parse(fmt)
         default_fmt = self._default_fmt if default_fmt is None else Format.parse(default_fmt)
-        source = self.name_to_source.get(name_or_source, name_or_source)  # type: ignore
         applier = self._format_appliers[source]
 
         try:

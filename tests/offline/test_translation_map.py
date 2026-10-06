@@ -2,6 +2,7 @@ import pandas as pd
 import pytest
 
 from id_translation.offline import TranslationMap
+from id_translation.offline.types import PlaceholderTranslations
 
 
 def test_copy(translation_map):
@@ -64,6 +65,16 @@ class TestToFromPandas:
         assert sorted(frames) == sorted(expected), "source mismatch"
         for source, placeholders in expected.items():
             assert sorted(frames[source].columns) == sorted(placeholders), f"placeholder mismatch: {source=}"
+
+
+def test_to_translations_when_a_source_shares_a_name():
+    data = {"humans": {"id": [1], "name": ["Ada"]}, "animals": {"id": [10], "name": ["Rex"]}}
+    translations = {source: PlaceholderTranslations.make(source, d) for source, d in data.items()}
+    tmap: TranslationMap[str, str, int] = TranslationMap(translations, fmt="{id}:{name}")
+    tmap.name_to_source = {"humans": "animals", "owner": "humans"}
+
+    assert tmap.to_translations() == {"humans": {1: "1:Ada"}, "animals": {10: "10:Rex"}}
+    assert tmap["humans"] == {10: "10:Rex"}
 
 
 def test_to_translations(translation_map):
