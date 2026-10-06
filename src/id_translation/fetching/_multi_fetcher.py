@@ -561,12 +561,8 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
     def _raise_with_notes(self, e: BaseException, fetcher: Fetcher[SourceType, IdType]) -> Never:
         note = f"Context (added by {type(self).__name__}):"
 
-        # Add config file. Mirrors logic used in the abstract fetcher.
-        if isinstance(fetcher, AbstractFetcher):
-            for idx in fetcher.identifiers:
-                if idx.endswith("toml"):
-                    note += f"\n -  file= '{idx}'"
-                    break
+        if isinstance(fetcher, AbstractFetcher) and fetcher.config_file:
+            note += f"\n -  file= '{fetcher.config_file}'"
 
         note += f"\n - child= {self.format_child(fetcher)}"
         e.add_note(note)

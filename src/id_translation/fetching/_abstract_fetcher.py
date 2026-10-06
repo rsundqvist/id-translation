@@ -105,11 +105,13 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         self._selective_fetch_all = selective_fetch_all
 
         identifiers = () if identifiers is None else (*identifiers,)
-        logger, mapper_logger = self._configure_loggers(identifiers)
+        config_file = self._find_config_file(identifiers)
+        logger, mapper_logger = self._configure_loggers(config_file)
         self.logger = logger
         self._mapper.logger = mapper_logger
 
         self._identifiers: tuple[str, ...] = identifiers
+        self._config_file = config_file
         self._optional = optional
 
         self._placeholders: dict[SourceType, list[str]] | None = None
@@ -216,6 +218,15 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
     def identifiers(self) -> tuple[str, ...]:
         """A collection of hierarchical identifiers for this fetcher."""
         return self._identifiers
+
+    @final
+    @property
+    def config_file(self) -> str | None:
+        """The TOML file this fetcher was declared in, or ``None`` if it wasn't built from one.
+
+        Derived from :attr:`identifiers`; ``None`` unless one of them ends with ``.toml``.
+        """
+        return self._config_file
 
     def map_placeholders(
         self,
@@ -804,14 +815,15 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
 
         return result
 
-    @classmethod
-    def _configure_loggers(cls, identifiers: tuple[str, ...]) -> tuple[logging.Logger, logging.Logger]:
-        config_file: str | None = None
+    @staticmethod
+    def _find_config_file(identifiers: tuple[str, ...]) -> str | None:
         for identifier in identifiers:
             if identifier.endswith(".toml"):
-                config_file = identifier
-                break
+                return identifier
+        return None
 
+    @classmethod
+    def _configure_loggers(cls, config_file: str | None) -> tuple[logging.Logger, logging.Logger]:
         adapter = _AbstractFetcherLogAdapter(cls.__module__ + "." + cls.__name__, config_file=config_file)
 
         logger = logging.getLogger(__package__)
