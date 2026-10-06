@@ -1,10 +1,11 @@
+import copy
 import re
 from datetime import timedelta
 
 import pytest
 
 from id_translation import Translator
-from id_translation.toml.meta import BaseMetadata, ConfigMetadata
+from id_translation.toml.meta import BaseMetadata, ConfigMetadata, Metaconf
 
 from .conftest import ROOT
 from .test_optional_dependencies import hide_module
@@ -95,3 +96,13 @@ class TestUseCached:
         assert use_cached is False
         assert reason.startswith("expired at ")
         assert reason_type == "too-old"
+
+
+def test_metaconf_from_dict_does_not_mutate_input():
+    config = {"env": {"allow_blank": True}, "equivalence": {"extra_packages": ["rics"]}}
+    expected = copy.deepcopy(config)
+
+    metaconf = Metaconf.from_dict(config)
+
+    assert config == expected
+    assert metaconf.equivalence.extra_packages == ["rics"]

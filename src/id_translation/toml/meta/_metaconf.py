@@ -25,7 +25,7 @@ class EnvConf:
         """Construct environment interpolation configuration object from a dict.
 
         Args:
-            config: Dict representation of a ``EnvConf`` to consume.
+            config: Dict representation of an ``EnvConf``.
 
         Returns:
             A new ``EnvConf`` instance.
@@ -52,11 +52,12 @@ class EquivalenceConf:
         """Construct equivalence configuration object from a dict.
 
         Args:
-            config: Dict representation of an ``EquivalenceConf`` to consume.
+            config: Dict representation of an ``EquivalenceConf``.
 
         Returns:
             A new ``EquivalenceConf`` instance.
         """
+        config = dict(config)
         extra_packages = config.pop("extra_packages", [])
         return cls(**config, extra_packages=[*extra_packages])
 
@@ -95,11 +96,12 @@ class Metaconf:
         """Construct meta configuration object from a dict.
 
         Args:
-            config: Dict representation of a ``Metaconf`` to consume.
+            config: Dict representation of a ``Metaconf``.
 
         Returns:
             A new ``Metaconf`` instance.
         """
+        config = dict(config)
         env = config.pop("env", {})
         equivalence = config.pop("equivalence", {})
 
