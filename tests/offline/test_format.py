@@ -140,3 +140,11 @@ class TestPartial:
         ).partial({"optional_provided": "<Provided optional>"})
 
         assert actual.fstring(kwargs).format(**kwargs) == expected.fstring(kwargs).format(**kwargs)
+
+
+def test_equality():
+    assert Format("{id}:{name}") == Format("{id}:{name}")
+    assert Format("{id}:{name}") != Format("{id}")
+    assert Format("{id}") != "{id}"
+    assert len({Format("{id}"), Format("{id}")}) == 1
+    assert hash(Format("{id}")) != hash("{id}")

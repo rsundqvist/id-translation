@@ -241,3 +241,11 @@ class Format:
 
     def __repr__(self) -> str:
         return f"{tname(self)}({self._fmt!r})"
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Format):
+            return NotImplemented
+        return self._fmt == other._fmt
+
+    def __hash__(self) -> int:
+        return hash((Format, self._fmt))
