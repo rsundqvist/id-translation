@@ -91,7 +91,8 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
         self._cardinality = None if cardinality is None else Cardinality.parse(cardinality, strict=True)
 
         self._filters = self._initialize_filter_functions(filter_functions)
-        self._logger = logging.getLogger(__package__).getChild("Mapper")  # This will almost always be overwritten
+        logger = logging.getLogger(__package__).getChild("Mapper")  # This will almost always be overwritten
+        self._logger: logging.Logger | logging.LoggerAdapter[logging.Logger] = logger
 
     def apply(
         self,
@@ -324,12 +325,12 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
         return self._on_unknown_user_override
 
     @property
-    def logger(self) -> logging.Logger:
+    def logger(self) -> logging.Logger | logging.LoggerAdapter[logging.Logger]:
         """Return the ``Logger`` that is used by this instance."""
         return self._logger
 
     @logger.setter
-    def logger(self, logger: logging.Logger) -> None:
+    def logger(self, logger: logging.Logger | logging.LoggerAdapter[logging.Logger]) -> None:
         self._logger = logger
 
     def _handle_overrides(

@@ -1,7 +1,7 @@
 import logging
 import threading
 from abc import abstractmethod
-from collections.abc import Iterable, Iterator, Mapping, Sequence
+from collections.abc import Iterable, Iterator, Mapping, MutableMapping, Sequence
 from contextlib import contextmanager
 from copy import deepcopy
 from time import perf_counter
@@ -72,8 +72,8 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         selective_fetch_all: If ``True``, fetch only from those :attr:`~id_translation.types.HasSources.sources` that
             contain the required :attr:`~id_translation.types.HasSources.placeholders` (after mapping). May reduce the
             number of sources retrieved.
-        identifiers: A collection of hierarchical identifiers. If given, element zero of the `identifiers` is added to
-            the :attr:`~id_translation.fetching.AbstractFetcher.logger` name for the fetcher.
+        identifiers: A collection of hierarchical identifiers. One ending with ``.toml`` becomes the
+            :attr:`~id_translation.fetching.AbstractFetcher.config_file`, which labels this fetcher's log records.
         optional: If ``True``, this fetcher may be discarded if source/placeholder-enumeration fails in multi-fetcher
             mode. Optional fetchers should not raise before ``_initialize_sources()`` is called.
         cache_access: A :class:`~id_translation.fetching.CacheAccess` instance. Defaults to a NOOP-implementation (i.e.
@@ -106,12 +106,11 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
 
         identifiers = () if identifiers is None else (*identifiers,)
         config_file = self._find_config_file(identifiers)
-        logger, mapper_logger = self._configure_loggers(config_file)
-        self.logger = logger
-        self._mapper.logger = mapper_logger
-
         self._identifiers: tuple[str, ...] = identifiers
         self._config_file = config_file
+
+        self.logger = logging.getLogger(__package__).getChild(type(self).__name__)
+        self._mapper.logger = _ExtraLoggerAdapter(self.logger.logger.getChild("map"), self._log_extra())
         self._optional = optional
 
         self._placeholders: dict[SourceType, list[str]] | None = None
@@ -352,13 +351,27 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         return self._allow_fetch_all
 
     @property
-    def logger(self) -> logging.Logger:
-        """Return the ``Logger`` that is used by this instance."""
+    def logger(self) -> logging.LoggerAdapter[logging.Logger]:
+        """The logger used by this instance.
+
+        Every record logged through it carries ``fetcher_class`` and ``fetcher_config_file`` attributes naming this
+        instance. The underlying ``Logger`` is ``id_translation.fetching.<class name>``; configure handlers and levels
+        there, or on ``id_translation.fetching`` for all fetchers.
+
+        Assigning a ``Logger`` wraps it in the same way. An assigned ``LoggerAdapter`` is used as-is, without the
+        attributes.
+        """
         return self._logger
 
     @logger.setter
-    def logger(self, logger: logging.Logger) -> None:
-        self._logger = logger
+    def logger(self, logger: logging.Logger | logging.LoggerAdapter[logging.Logger]) -> None:
+        if isinstance(logger, logging.LoggerAdapter):
+            self._logger = logger
+        else:
+            self._logger = _ExtraLoggerAdapter(logger, self._log_extra())
+
+    def _log_extra(self) -> dict[str, str | None]:
+        return {"fetcher_class": self._cls_name(), "fetcher_config_file": self._config_file}
 
     @property
     def optional(self) -> bool:
@@ -825,18 +838,6 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         return None
 
     @classmethod
-    def _configure_loggers(cls, config_file: str | None) -> tuple[logging.Logger, logging.Logger]:
-        adapter = _AbstractFetcherLogAdapter(cls.__module__ + "." + cls.__name__, config_file=config_file)
-
-        logger = logging.getLogger(__package__)
-        logger.addFilter(adapter)
-
-        mapper_logger = logger.getChild("map")
-        mapper_logger.addFilter(adapter)
-
-        return logger, mapper_logger
-
-    @classmethod
     def _format_fetch_result(
         cls,
         source_translation: dict[SourceType, PlaceholderTranslations[SourceType]],
@@ -854,21 +855,13 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         )
 
 
-class _AbstractFetcherLogAdapter(logging.Filter):
-    def __init__(
-        self,
-        cls: str,
-        *,
-        config_file: str | None,
-    ) -> None:
-        super().__init__()
-        self.config_file = config_file
-        self.cls = cls
+# TODO(python-3.13): Replace with LoggerAdapter(logger, extra, merge_extra=True).
+class _ExtraLoggerAdapter(logging.LoggerAdapter[logging.Logger]):
+    """Merge fixed `extra` into every record, keeping the caller's own ``extra=`` keys (3.11 would replace them)."""
 
-    def filter(self, record: logging.LogRecord) -> bool:
-        record.fetcher_config_file = self.config_file
-        record.fetcher_class = self.cls
-        return True
+    def process(self, msg: Any, kwargs: MutableMapping[str, Any]) -> tuple[Any, MutableMapping[str, Any]]:
+        kwargs["extra"] = {**(self.extra or {}), **(kwargs.get("extra") or {})}
+        return msg, kwargs
 
 
 def format_sources(placeholders: Mapping[Any, Any] | None) -> str:

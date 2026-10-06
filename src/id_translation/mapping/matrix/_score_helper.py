@@ -89,7 +89,7 @@ class ScoreHelper(Generic[ValueType, CandidateType]):
         self,
         matrix: ScoreMatrix[ValueType, CandidateType],
         min_score: float,
-        logger: logging.Logger | None = None,
+        logger: logging.Logger | logging.LoggerAdapter[logging.Logger] | None = None,
         *,
         task_id: int | None = None,
     ) -> None:
@@ -99,7 +99,7 @@ class ScoreHelper(Generic[ValueType, CandidateType]):
         self._task_id = task_id
 
     @property
-    def logger(self) -> logging.Logger:
+    def logger(self) -> logging.Logger | logging.LoggerAdapter[logging.Logger]:
         """Return the ``Logger`` that is used by this instance."""
         return self._logger
 
