@@ -466,7 +466,9 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
                     event_key=_logging.get_event_key(self.fetch_all, "enter"),
                     placeholders=placeholders,
                     required_placeholders=tuple(required_placeholders),
-                    placeholder_attributes=placeholder_attributes,
+                    placeholder_attributes={p: sorted(attrs) for p, attrs in placeholder_attributes.items()}
+                    if placeholder_attributes
+                    else None,
                     wanted_sources=wanted,
                     num_ids=None,
                     fetch_all=True,

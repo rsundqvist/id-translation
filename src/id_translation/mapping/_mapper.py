@@ -512,7 +512,9 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
             kwargs["overrides"] = self._overrides.copy()
 
         cls = type(self)
-        return cls(**kwargs)
+        copy = cls(**kwargs)
+        copy.logger = self.logger
+        return copy
 
     def __eq__(self, other: Any) -> bool:
         if not isinstance(other, Mapper):

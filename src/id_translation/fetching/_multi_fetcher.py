@@ -405,7 +405,9 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
                     event_key=get_event_key(self.fetch_all, "enter"),
                     placeholders=placeholders,
                     required_placeholders=required,
-                    placeholder_attributes=placeholder_attributes,
+                    placeholder_attributes={p: sorted(attrs) for p, attrs in placeholder_attributes.items()}
+                    if placeholder_attributes
+                    else None,
                     sources=None if sources is None else [*sources],
                     max_workers=self.max_workers,
                     num_fetchers=len(self.children),
