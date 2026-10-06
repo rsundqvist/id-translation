@@ -1,5 +1,6 @@
 import logging
 from collections.abc import Callable, Mapping
+from functools import partial
 from pathlib import Path
 from typing import Any, Unpack
 
@@ -16,6 +17,27 @@ from .types import FetchInstruction
 PandasReadFunction = Callable[[AnyPath], pd.DataFrame]
 FormatFn = Callable[[str], str]
 
+# Suffixes are matched longest first, so `.jsonl` wins over `.json`.
+_SUFFIX_TO_READER: dict[str, tuple[str, PandasReadFunction]] = {
+    ".csv": ("pandas.read_csv", pd.read_csv),
+    ".json": ("pandas.read_json", pd.read_json),
+    ".jsonl": ("pandas.read_json(lines=True)", partial(pd.read_json, lines=True)),
+    ".ndjson": ("pandas.read_json(lines=True)", partial(pd.read_json, lines=True)),
+    ".parquet": ("pandas.read_parquet", pd.read_parquet),
+    ".parq": ("pandas.read_parquet", pd.read_parquet),
+    ".pq": ("pandas.read_parquet", pd.read_parquet),
+    ".feather": ("pandas.read_feather", pd.read_feather),
+    ".ftr": ("pandas.read_feather", pd.read_feather),
+    ".arrow": ("pandas.read_feather", pd.read_feather),
+    ".orc": ("pandas.read_orc", pd.read_orc),
+    ".pickle": ("pandas.read_pickle", pd.read_pickle),
+    ".pkl": ("pandas.read_pickle", pd.read_pickle),
+    ".xlsx": ("pandas.read_excel", pd.read_excel),
+    ".xlsm": ("pandas.read_excel", pd.read_excel),
+    ".xls": ("pandas.read_excel", pd.read_excel),
+    ".ods": ("pandas.read_excel", pd.read_excel),
+}
+
 
 class PandasFetcher(AbstractFetcher[str, IdType]):
     """Fetcher implementation using :class:`pandas.DataFrame` as the data format.
@@ -23,6 +45,17 @@ class PandasFetcher(AbstractFetcher[str, IdType]):
     Fetch data from serialized frames. How this is done is determined by the `read_function`. This is typically a Pandas
     function such as :func:`pandas.read_csv` or :func:`pandas.read_parquet`, but any function that accepts a string
     `source` as the first argument and returns a :class:`pandas.DataFrame` can be used.
+
+    When `read_function` is ``None``, it is derived from a suffix in the file name part of `read_path_format`. The
+    suffix may appear anywhere in the file name, so ``'{}.csv.zip'`` is read with :func:`pandas.read_csv`.
+
+    * ``.csv``: :func:`pandas.read_csv`.
+    * ``.json``: :func:`pandas.read_json`; ``.jsonl``, ``.ndjson``: :func:`pandas.read_json` with ``lines=True``.
+    * ``.parquet``, ``.parq``, ``.pq``: :func:`pandas.read_parquet`.
+    * ``.feather``, ``.ftr``, ``.arrow``: :func:`pandas.read_feather`.
+    * ``.orc``: :func:`pandas.read_orc`.
+    * ``.pickle``, ``.pkl``: :func:`pandas.read_pickle`.
+    * ``.xlsx``, ``.xlsm``, ``.xls``, ``.ods``: :func:`pandas.read_excel`.
 
     .. hint::
 
@@ -54,7 +87,7 @@ class PandasFetcher(AbstractFetcher[str, IdType]):
     ) -> None:
         super().__init__(**kwargs)
 
-        self._read = self._derive_read_function(read_function, read_path_format)
+        self._read_name, self._read = self._derive_read_function(read_function, read_path_format)
         self._format_source: FormatFn = read_path_format if callable(read_path_format) else read_path_format.format
         self._kwargs = read_function_kwargs or {}
 
@@ -145,46 +178,41 @@ class PandasFetcher(AbstractFetcher[str, IdType]):
 
     def __repr__(self) -> str:
         read_path_format = self.format_source("{}")
-        return f"{tname(self)}(read_function={tname(self._read)}, {read_path_format=})"
+        return f"{tname(self)}(read_function={self._read_name}, {read_path_format=})"
 
     def _derive_read_function(
         self,
         read_function: PandasReadFunction | str | None,
         read_path_format: str | FormatFn,
-    ) -> PandasReadFunction:
+    ) -> tuple[str, PandasReadFunction]:
         if callable(read_function):
-            return read_function
+            return tname(read_function), read_function
 
         if read_function is None:
             if not isinstance(read_path_format, str):
-                msg = f"Cannot derive `read_function` from {read_path_format=} of type={type(read_function)}."
+                msg = (
+                    f"Cannot derive `read_function` from {read_path_format=} of type={type(read_path_format).__name__}."
+                )
                 raise ValueError(msg)
 
-            func_to_suffixes: dict[PandasReadFunction, list[str]] = {
-                pd.read_csv: [".csv"],
-                pd.read_pickle: [".pickle", ".pkl"],
-                pd.read_feather: [".feather", ".ftr"],
-                pd.read_json: [".json"],
-                pd.read_parquet: [".parquet", ".parq"],
-            }
+            # Search only the file name after the placeholder, ignoring directories such as `.parquet-cache/`.
+            file_name = read_path_format.rpartition("{}")[2].rstrip("/").rpartition("/")[2]
+            for suffix in sorted(_SUFFIX_TO_READER, key=len, reverse=True):
+                if suffix in file_name:  # Using endswith would break paths such as .csv.zip
+                    name, func = _SUFFIX_TO_READER[suffix]
+                    if self.logger.isEnabledFor(logging.DEBUG):
+                        self.logger.debug(
+                            f"Derived read_function={name!r} based on {suffix=} found in {read_path_format=}.",
+                            extra={"suffix": suffix, "read_function": name},
+                        )
+                    return name, func
 
-            for func, suffixes in func_to_suffixes.items():
-                for suffix in suffixes:
-                    if suffix in read_path_format:  # Using endswith would break paths such as .csv.zip
-                        if self.logger.isEnabledFor(logging.INFO):
-                            read_function = f"pandas.{func.__name__}"
-                            self.logger.debug(
-                                f"Derived {read_function=} based on {suffix=} found in {read_path_format=}.",
-                                extra={"suffix": suffix, "read_function": read_function},
-                            )
-                        return func
-
-            suffixes = [suffix for suffixes in func_to_suffixes.values() for suffix in suffixes]
-            msg = f"Cannot derive `read_function` from {read_path_format=}; does not contain any known {suffixes=}."
+            suffixes = list(_SUFFIX_TO_READER)
+            msg = f"Cannot derive `read_function` from {read_path_format=}; {file_name=} has no known {suffixes=}."
             raise ValueError(msg)
 
         func = get_by_full_name(read_function, pd)
         if not callable(func):
             msg = f"Bad {read_function=}; type {type(func).__name__} is not callable."
             raise TypeError(msg)
-        return func  # type: ignore[no-any-return]
+        return read_function, func

@@ -89,14 +89,10 @@ interpret CSV files. The :class:`~fetching.PandasFetcher` is built to perform su
 .. code-block:: python
 
    from id_translation.fetching import PandasFetcher
-   fetcher = PandasFetcher(
-       read_function=read_csv,
-       # Look for .csv-files in the 'sources' sub folder of the current working directory
-       read_path_format='./sources/{}.csv'
-   )
+   fetcher = PandasFetcher("./sources/{}.csv")
 
-This fetcher will look for CSV files in the `sources` sub folder of the current working directory, using
-:func:`pandas.read_csv` to deserialize them. Source names will be filenames without the `.csv`-suffix.
+This fetcher will look for CSV files in the `sources` sub folder of the current working directory. The `.csv`-suffix
+selects :func:`pandas.read_csv` to deserialize them, and source names are the file names without it.
 
 .. note::
    In the language of the :class:`Translator`, the CSV files ``'animals.csv'`` and ``'humans.csv'`` are translation
@@ -216,9 +212,8 @@ applications that use multiple fetchers.
 
    # Amend the fetcher we created earlier.
    fetcher = PandasFetcher(
-      read_function=read_csv,
-      read_path_format="./sources/{}.csv",
-      mapper=Mapper(smurf_score),  # Add the mapper.
+       "./sources/{}.csv",
+       mapper=Mapper(smurf_score)  # Add the mapper.
    )
 
 With placeholder mapping in place, all that remains is to create the :class:`Translator`.
