@@ -72,7 +72,7 @@ class FormatApplier(Generic[NameType, SourceType, IdType]):
         default_fmt: Format,
         placeholders: PlaceholdersTuple | None = None,
         default_fmt_placeholders: dict[str, Any] | None = None,
-        enable_uuid_heuristics: bool = True,
+        enable_uuid_heuristics: bool = False,
     ) -> MagicDict[IdType]:
         """Translate IDs.
 

@@ -43,7 +43,7 @@ class TranslationMap(
         default_fmt: FormatType = Format.DEFAULT_FAILED,
         name_to_source: NameToSource[NameType, SourceType] | None = None,
         default_fmt_placeholders: InheritedKeysDict[SourceType, str, Any] | None = None,
-        enable_uuid_heuristics: bool = True,
+        enable_uuid_heuristics: bool = False,
         transformers: Transformers[SourceType, IdType] | None = None,
     ) -> None:
         self.fmt = Format.parse(fmt)

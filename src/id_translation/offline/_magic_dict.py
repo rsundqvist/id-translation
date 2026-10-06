@@ -92,7 +92,7 @@ class MagicDict(MutableMapping[IdType, str]):
         self,
         real_translations: TranslatedIds[IdType],
         default_value: str = Format(Format.DEFAULT_FAILED).fstring(positional=True),
-        enable_uuid_heuristics: bool = True,
+        enable_uuid_heuristics: bool = False,
         transformer: Transformer[IdType] | None = None,
     ) -> None:
         if enable_uuid_heuristics and real_translations:
