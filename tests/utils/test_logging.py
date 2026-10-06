@@ -1,9 +1,10 @@
 import logging
+from typing import assert_type
 
 import pytest
 
 import id_translation.logging as id_translation_logging
-from id_translation.logging import LOGGER, enable_verbose_debug_messages
+from id_translation.logging import LOGGER, UndoLogging, enable_verbose_debug_messages
 from id_translation.mapping import Mapper
 from id_translation.mapping.exceptions import UnmappedValuesWarning
 
@@ -102,6 +103,30 @@ class TestEnableVerboseDebugMessages:
 
         # undo() removed the handler and restored propagate.
         assert len(LOGGER.handlers) == handlers_before
+
+    def test_call_undoes_a_plain_call(self) -> None:
+        handlers_before = list(LOGGER.handlers)
+        level_before = LOGGER.level
+
+        undo = enable_verbose_debug_messages(use_custom_handler=True)
+        assert id_translation_logging.EMIT_LOGGED_WARNINGS is False
+
+        undo()
+        assert id_translation_logging.EMIT_LOGGED_WARNINGS is True
+        assert id_translation_logging.ENABLE_VERBOSE_LOGGING is False
+        assert LOGGER.handlers == handlers_before
+        assert LOGGER.level == level_before
+
+    def test_with_binds_the_undo(self) -> None:
+        level_before = LOGGER.level
+        with enable_verbose_debug_messages() as undo:
+            assert_type(undo, UndoLogging)
+            assert isinstance(undo, UndoLogging)
+        assert LOGGER.level == level_before
+
+    def test_not_constructible(self) -> None:
+        with pytest.raises(TypeError, match="abstract"):
+            UndoLogging()  # type: ignore[abstract]
 
     def test_style_minimal(self, capsys: pytest.CaptureFixture[str]) -> None:
         with enable_verbose_debug_messages(level="info", use_custom_handler=True, style="minimal"):
