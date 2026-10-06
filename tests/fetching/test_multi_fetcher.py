@@ -504,3 +504,11 @@ def test_discovery_failure_does_not_escape_the_discard_handler():
 
     assert multi_fetcher.sources == ["b"], "the optional child must be discarded, not re-raise"
     assert "<uninitialized>" in str(bad), "formatting must not attempt discovery either"
+
+
+def test_fetch_all_debug_extras_are_json_serializable(caplog):
+    # The root `VerifyRecord` handler in conftest raises for extras that json.dumps rejects, such as sets.
+    caplog.set_level(logging.DEBUG, logger="id_translation")
+    fetcher: MultiFetcher[str, int] = MultiFetcher(MemoryFetcher({"s": {"id": [1], "name": ["a"]}}))
+
+    fetcher.fetch_all(("id", "name"), placeholder_attributes={"name": {"upper"}})

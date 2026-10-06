@@ -1,3 +1,4 @@
+import logging
 from collections.abc import Iterable
 
 import pytest
@@ -192,6 +193,13 @@ def test_context_sensitive_overrides():
 def test_copy():
     assert Mapper() == Mapper()
     assert Mapper() == Mapper().copy()
+
+
+def test_copy_keeps_the_logger():
+    mapper: Mapper[str, str, None] = Mapper()
+    mapper.logger = logging.getLogger("custom")
+
+    assert mapper.copy(on_unmapped="warn").logger is mapper.logger
 
 
 def test_disabled():
