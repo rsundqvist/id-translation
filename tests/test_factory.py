@@ -78,11 +78,16 @@ class TestCacheAccess:
     def test_does_not_inherit(self, tmp_path):
         cache = f"""
         [fetching.cache.'{__name__}.{BadCacheAccess.__name__}']
+        password = "hunter2"
         """
 
-        match = "TypeError: Expected an instance of 'CacheAccess', but tests.test_factory.BadCacheAccess() produced:"
-        with pytest.raises(ConfigurationError, match=re.escape(match)):
+        match = (
+            "TypeError: Expected an instance of 'CacheAccess', but tests.test_factory.BadCacheAccess(password)"
+            " produced a 'tests.test_factory.BadCacheAccess'."
+        )
+        with pytest.raises(ConfigurationError, match=re.escape(match)) as exc_info:
             self.create(tmp_path, cache)
+        assert "hunter2" not in str(exc_info.value)
 
     def test_only_one_cached(self, tmp_path):
         from id_translation.fetching.exceptions import CacheAccessNotAvailableError
@@ -161,7 +166,8 @@ class TestCacheAccess:
 
 
 class BadCacheAccess:
-    pass
+    def __init__(self, **kwargs: Any) -> None:
+        pass
 
 
 class DummyCacheAccess(CacheAccess[Any, Any]):
