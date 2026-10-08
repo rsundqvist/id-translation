@@ -314,6 +314,9 @@ class PandasIO(_dio.DataStructureIO[PandasT, _tt.NameType, _tt.SourceType, _tt.I
                 # Combining two categoricals with different categories upcasts to object, so remap in one pass
                 # instead. Cheap: `map` resolves a categorical per category, not per row.
                 rv = pvt.map({**join_map, **extra})
+            elif tmap.reverse_mode:
+                # The join's NaN for a miss has already upcast int IDs to float, so remap without inferring a dtype.
+                rv = pvt.map(_pd.Series({**join_map, **extra}, dtype=object))
             else:
                 rv = rv.where(~mask, pvt.map(extra))
 

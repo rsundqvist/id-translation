@@ -19,6 +19,14 @@ del _PandasIO
 UUID_ID = UUID(fields=(1, 0, 0, 0, 0, 0))
 
 
+@pytest.mark.parametrize("ttype", [pd.Series, pd.Index])
+def test_reverse_keeps_int_ids_next_to_a_miss(ttype):
+    translator: Translator[str, str, int] = Translator({"people": {1: "Alice", 2: "Bob"}})
+    actual = translator.translate(ttype(["1:Alice", "2:Bob", "x"], name="people"), reverse=True)
+    assert actual.tolist() == [1, 2, "<Failed: id='x'>"]
+    assert [type(i) for i in actual[:2]] == [int, int]
+
+
 def test_extract_float():
     series = pd.Series([1.0, float("nan"), 2.0, np.nan, np.inf, -np.inf, 3.0, 1, -1, 1.0], name="source")
     extracted = PandasIO[pd.Series]().extract(series, names=["source"])
