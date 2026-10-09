@@ -127,6 +127,7 @@ from rics.misc import get_public_module as _get_public_module
 from id_translation import Translator as _Translator
 from id_translation import translator_typing as _trt
 from id_translation import types as _tt
+from id_translation.offline import Format as _Format
 from id_translation.offline import types as _ot
 from id_translation.types import TranslatableT
 
@@ -312,7 +313,7 @@ class TranslationHelper(_t.Generic[_tt.NameType, _tt.SourceType, _tt.IdType]):
         if user_params is True:
             return self._make()
 
-        if isinstance(user_params, str):
+        if isinstance(user_params, (str, _Format)):
             return self._make(fmt=user_params)
 
         if isinstance(user_params, _t.get_args(MaximalUntranslatedFractionTypes)):
@@ -322,7 +323,7 @@ class TranslationHelper(_t.Generic[_tt.NameType, _tt.SourceType, _tt.IdType]):
             params = self._make(**user_params)
             return self._validate(self._user_params_name, params) if validate else params
 
-        types = (typ.__name__ for typ in (bool, str, float, dict))
+        types = (typ.__name__ for typ in (bool, str, _Format, float, dict))
         msg = f"type({self._user_params_name}) is {type(user_params).__name__}. Expected: ({', '.join(types)})."
         raise TypeError(msg)
 
@@ -380,7 +381,7 @@ class TranslationHelper(_t.Generic[_tt.NameType, _tt.SourceType, _tt.IdType]):
         ]
 
         types = [
-            (str, "fmt", "see :class:`~id_translation.offline.Format`"),
+            (str, "fmt", "or a :class:`~id_translation.offline.Format`"),
             (float, "max_fails", "where 1=disable check, 0=no missing IDs allowed"),
         ]
 

@@ -1,6 +1,7 @@
 import pytest
 
 from id_translation import Translator
+from id_translation.offline import Format
 from id_translation.utils.translation_helper import TranslationHelper
 
 helper = TranslationHelper[str, str, int](Translator, user_params_name="test_convert", names="source")
@@ -17,6 +18,11 @@ def test_true():
 
 def test_str():
     assert helper.convert_user_params("foo") == {"fmt": "foo"}
+
+
+def test_format():
+    fmt = Format("foo")
+    assert helper.convert_user_params(fmt) == {"fmt": fmt}
 
 
 @pytest.mark.parametrize("value", [0.0, 0])
