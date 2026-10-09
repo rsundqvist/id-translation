@@ -34,9 +34,6 @@ class NoopCacheAccess(CacheAccess[Any, Any]):
     load = _raise
 
 
-_NOOP_CACHE_ACCESS: NoopCacheAccess = NoopCacheAccess()
-
-
 class CacheCoordinator(Generic[SourceType, IdType]):
     """Runs the cache flow for an :class:`~id_translation.fetching.AbstractFetcher`: load -> (hit | miss | partial) -> merge/store.
 
@@ -50,11 +47,11 @@ class CacheCoordinator(Generic[SourceType, IdType]):
         cache_access: CacheAccess[SourceType, IdType] | None,
     ) -> None:
         self._fetcher = fetcher
-        self._cache = _NOOP_CACHE_ACCESS if cache_access is None else cache_access
+        self._cache = NoopCacheAccess() if cache_access is None else cache_access
 
     @property
     def cache_access(self) -> CacheAccess[SourceType, IdType]:
-        if self._cache is _NOOP_CACHE_ACCESS:
+        if isinstance(self._cache, NoopCacheAccess):
             raise exceptions.CacheAccessNotAvailableError("No CacheAccess configured.")
 
         return self._cache

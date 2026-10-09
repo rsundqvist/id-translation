@@ -1,3 +1,4 @@
+import pickle
 import re
 import threading
 from copy import deepcopy
@@ -75,9 +76,10 @@ class TestCache:
         fetcher = CachingFetcher(windows_hack_temp_dir)
         self._run(fetcher)
 
-    def test_no_access(self):
+    @pytest.mark.parametrize("clone", [lambda f: f, deepcopy, lambda f: pickle.loads(pickle.dumps(f))])  # noqa: S301
+    def test_no_access(self, clone):
         with pytest.raises(CacheAccessNotAvailableError, match=r"documentation/examples/caching/on_disk.html"):
-            _ = MemoryFetcher({}).cache_access
+            _ = clone(MemoryFetcher({})).cache_access
 
     def test_clone(self, windows_hack_temp_dir):
         original = CachingFetcher(windows_hack_temp_dir)
