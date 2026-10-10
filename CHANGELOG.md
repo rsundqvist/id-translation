@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Documentation: a large correction pass over the primers, the migration guide, the configuration reference and the
+  docstrings, which misstated how mapping, caching, interpolation, multiple fetchers and thread safety behave.
+- Persistent `Translator` caches never expiring: `max_age` was compared against the creation time instead of now.
+- `Translator.copy()` dropping the `config_metadata` of a `Translator` created by `from_config()`.
+- `TranslationMap.to_translations()` returning another source's translations for a source that is also a mapped name.
+- `Metaconf.from_dict()` emptying the given dict.
+- `fetch_all()` logging extras that were not JSON-serializable, and `Mapper.copy()` dropping its `logger`.
+- `ImplementationError` was documented on `Fetcher.fetch()` but never raised; a `PartialCacheHit` on a fetch-all and a
+  cache/fetcher layout mismatch now raise it.
+- Typing of `reverse` in the catch-all `translate()` overloads, which defaulted to `True` against a runtime `False`.
+- Verification (`max_fails`, `DEBUG` logging) failing on a source the call did not translate.
+- The wrong-type error for a TOML section printing every constructor argument, including interpolated secrets.
+- Reverse translation of a pandas vector with unknown values turning every integer ID into a float.
+- `cache_access` on a copied or unpickled fetcher without a cache not raising `CacheAccessNotAvailableError`.
+- `TranslationHelper` raising `TypeError` for a `Format` user param, which `UserParams` allows.
+
 ## [1.4.1] - 2026-10-04
 
 ### Fixed
