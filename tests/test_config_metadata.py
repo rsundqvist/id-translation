@@ -95,3 +95,23 @@ class TestUseCached:
         assert use_cached is False
         assert reason.startswith("expired at ")
         assert reason_type == "too-old"
+
+    def test_expired(self, metadata, tmp_path):
+        metadata.created -= timedelta(hours=2)
+        path = tmp_path / "metadata.json"
+        path.write_text(metadata.to_json())
+
+        assert metadata.use_cached(path, "3h")[0] is True
+
+        use_cached, reason, reason_type = metadata.use_cached(path, timedelta(hours=1))
+        assert use_cached is False
+        assert reason.startswith("expired at ")
+        assert reason_type == "too-old"
+
+    @pytest.mark.parametrize("max_age", [timedelta(hours=-1), "-1h"])
+    def test_negative_never_expires(self, metadata, tmp_path, max_age):
+        metadata.created -= timedelta(hours=2)
+        path = tmp_path / "metadata.json"
+        path.write_text(metadata.to_json())
+
+        assert metadata.use_cached(path, max_age) == (True, "does not expire", None)

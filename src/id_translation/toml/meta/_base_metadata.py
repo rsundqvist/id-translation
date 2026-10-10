@@ -126,10 +126,13 @@ class BaseMetadata(ABC):
         else:
             delta = max_age
 
+        if delta < timedelta(0):
+            return True, "does not expire", None
+
         expires_at = (stored_config.created + abs(delta)).replace(microsecond=0)
         offset = fmt_sec(round(abs(datetime.now(UTC) - expires_at).total_seconds()))
 
-        if expires_at <= stored_config.created:
+        if expires_at <= datetime.now(UTC):
             return False, f"expired at {expires_at.isoformat()} ({offset} ago)", "too-old"
         else:
             return True, f"expires at {expires_at.isoformat()} (in {offset})", None
