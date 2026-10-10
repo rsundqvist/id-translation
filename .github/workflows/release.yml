@@ -32,33 +32,25 @@ jobs:
 
   github_release:
     needs: release
-    name: Create Github Release
+    name: Create GitHub release
     runs-on: ubuntu-latest
-    permissions: write-all
+    permissions:
+      contents: write
 
     steps:
       - uses: actions/checkout@v6
 
-      - name: Get version from tag
-        id: tag_name
-        shell: bash
-        run: echo "current_version=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
-
-      - name: Get Changelog Entry
-        id: changelog_reader
-        uses: mindsers/changelog-reader-action@v2.2.3
-        with:
-          version: ${{ steps.tag_name.outputs.current_version }}
-          path: ./CHANGELOG.md
-
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1.1.4
+      # The gh CLI is preinstalled. Replaces the archived actions/create-release and mindsers/changelog-reader-action,
+      # Node 20 actions that failed with "Resource not accessible by integration" for v1.4.1.
+      - name: Create release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-          body: ${{ steps.changelog_reader.outputs.changes }}
-          draft: false
-          prerelease: false
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          version="${TAG#v}"
+          awk -v v="$version" 'index($0, "## [" v "]") == 1 {f = 1; next} /^## \[/ {f = 0} f' CHANGELOG.md | sed -e '/./,$!d' > notes.md
+          if [ ! -s notes.md ]; then
+            echo "::error::No CHANGELOG.md entry for $version."
+            exit 1
+          fi
+          gh release create "$TAG" --verify-tag --title "Release $TAG" --notes-file notes.md
