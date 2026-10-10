@@ -68,7 +68,7 @@ docs = [
     "myst-parser~=5.0.0 ; python_version >= '3.12'", # https://github.com/executablebooks/MyST-Parser/issues/749
     "nbsphinx~=0.9.8 ; python_version >= '3.12'",
     "ipython~=9.10.0 ; python_version >= '3.12'",
-    "sphinx-llm~=0.3.0 ; python_version >= '3.12'",
+    "sphinx-llm>=0.3,<1.2 ; python_version >= '3.12'",
     "log-lexer",
 ]
 notebooks = [
