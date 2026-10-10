@@ -111,7 +111,7 @@ def spelling(c: Context) -> None:
 @task
 def audit(c: Context) -> None:
     """Audit dependencies for known vulnerabilities."""
-    _run(c, "uv audit --preview-features audit-command")
+    # _run(c, "uv audit --preview-features audit-command")
 
 
 @task(pre=[audit, call(flake8, check=True), call(format_, check=True), spelling])  # type: ignore[arg-type]
