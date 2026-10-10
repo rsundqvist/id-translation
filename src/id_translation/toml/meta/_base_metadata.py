@@ -64,6 +64,10 @@ class BaseMetadata(ABC):
             return NotImplemented
         return self.to_dict() == other.to_dict()
 
+    def __repr__(self) -> str:
+        fields = ", ".join(f"{name}={value!r}" for name, value in vars(self).items())
+        return f"{type(self).__name__}({fields})"
+
     __hash__ = None  # type: ignore[assignment]  # Mutable (e.g. 'versions') with value equality => unhashable.
 
     def to_dict(self) -> dict[str, Any]:

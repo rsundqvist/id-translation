@@ -290,7 +290,8 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         """Return :func:`~id_translation.Translator.from_config` initialization :class:`metadata <id_translation.toml.meta.ConfigMetadata>`.
 
         Raises:
-            ValueError: If this instance was not created by :meth:`~id_translation.Translator.from_config`.
+            ValueError: If this instance was not created by :meth:`~id_translation.Translator.from_config`, or copied
+                from such an instance.
         """
         if self._config_metadata is None:
             raise ValueError("Not created using Translator.from_config()")  # pragma: no cover
@@ -398,6 +399,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             settled = kwargs["transformers"] is not None
 
         new = cls(**kwargs)
+        new._config_metadata = self._config_metadata
         new._transformers_queried = settled
         return new
 

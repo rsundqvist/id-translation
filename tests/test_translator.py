@@ -217,6 +217,15 @@ def test_from_config():
     assert reason_not_equivalent == ""
 
 
+def test_copy_keeps_the_config_metadata(tmp_path):
+    path = tmp_path / "translation.toml"
+    path.write_text('[fetching.MemoryFetcher.data]\nanimals = { id = [1], name = ["Tarzan"] }\n', encoding="utf-8")
+    translator: RealTranslator[str, str, int] = RealTranslator.from_config(path)
+
+    assert translator.copy().config_metadata is translator.config_metadata
+    assert translator.copy(transformers={}).config_metadata is translator.config_metadata
+
+
 def test_store_and_restore(hex_fetcher, tmp_path):
     translator: UnitTestTranslator = UnitTestTranslator(hex_fetcher, fmt="{id}:{hex}")
 
