@@ -43,7 +43,8 @@ Design goals
 
 Implementation
 --------------
-State is a per-source record of the placeholder layout plus an ``id -> (timestamp, row)`` mapping.
+State is a per-source record of the placeholder layout plus an ``id -> (timestamp, row)`` mapping. It is not thread
+safe: concurrent translations may call :meth:`~.CacheAccess.store` and :meth:`~.CacheAccess.load` at once.
 
 .. literalinclude:: in_memory.py
    :caption: The ``__init__`` method.

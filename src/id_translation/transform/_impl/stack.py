@@ -18,7 +18,8 @@ class TransformerStack(_Transformer[_IdType]):
 
     All ``Transformer`` methods delegate to each member in the given order. Later members see, and may overwrite,
     changes made by the members before them. Repeating a member emits a warning; every member runs, so it is applied
-    multiple times. Members are matched by identity, then by ``__eq__``.
+    multiple times. Members are matched by identity, then by ``__eq__``. See :ref:`transformation-primer-chaining` for
+    how a ``Translator`` builds one.
 
     A stack is hashable only if all of its members are; a member that implements ``__eq__`` without ``__hash__`` is
     unhashable, and hashing a stack containing one raises :class:`TypeError`, as it would for a ``tuple``.

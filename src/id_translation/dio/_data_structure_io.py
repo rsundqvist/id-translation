@@ -102,7 +102,7 @@ class DataStructureIO(Generic[TranslatableT, NameType, SourceType, IdType]):
             translatable: Data to translate. Modified iff ``copy=False``.
             names: Names in `translatable` to translate.
             tmap: Translations for IDs in `translatable`.
-            copy: If ``True``, modify contents of the original `translatable`. Otherwise, returns a copy.
+            copy: If ``False``, translate in-place and return ``None``.
 
         Returns:
             A copy of `translatable` if ``copy=True``, ``None`` otherwise.

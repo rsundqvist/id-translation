@@ -14,7 +14,7 @@ IDs are fetched on demand. Unlike the on-disk example -- which caches whole
 fetch_all tables -- this accumulates the "hot" subset of IDs across by-ID
 translate() calls, which is what an online service typically does.
 
-Two things worth understanding:
+Three things worth understanding:
 
 * Partial hits: load() returns a PartialCacheHit holding whatever hot rows we
   have; the fetcher fetches only the uncovered IDs and merges them (calling
@@ -24,6 +24,8 @@ Two things worth understanding:
   placeholders. We store one row per ID for the most recent placeholder layout
   and reset a source's cache if its placeholders change. A production cache that
   mixes placeholder sets per source would instead key rows by placeholder layout.
+* Not thread safe: concurrent translate() calls may call store() and load() at
+  once. Guard them with a lock if the Translator is shared between threads.
 """
 
 import time

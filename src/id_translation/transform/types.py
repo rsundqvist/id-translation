@@ -18,8 +18,9 @@ class Transformer(_t.Protocol[_IdType]):
 
     Transformers are persistent entities; state kept between calls survives for as long as the owner does. The
     :class:`~id_translation.Translator` is the owner; see
-    :meth:`Translator.register_transformer() <id_translation.Translator.register_transformer>`. See the
-    :class:`~id_translation.transform.BitmaskTransformer` for a concrete example.
+    :meth:`Translator.register_transformer() <id_translation.Translator.register_transformer>` and the
+    :ref:`transformation-primer`. See the :class:`~id_translation.transform.BitmaskTransformer` for a concrete
+    example. Concurrent translations may call a transformer's methods from several threads at once.
 
     .. important::
 

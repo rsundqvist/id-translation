@@ -261,7 +261,13 @@ class TranslationHelper(_t.Generic[_tt.NameType, _tt.SourceType, _tt.IdType]):
         return result
 
     def name_to_source(self) -> _tt.NameToSource[_tt.NameType, _tt.SourceType]:
-        """Return the name-to-source mapping of the latest :meth:`~id_translation.utils.translation_helper.TranslationHelper.apply`-call."""
+        """Return the name-to-source mapping of the latest :meth:`~id_translation.utils.translation_helper.TranslationHelper.apply`-call.
+
+        Notes:
+            🧵 Read from :meth:`Translator.translated_names() <id_translation.Translator.translated_names>` after each
+            ``apply()`` call, with the same limitation: if the ``Translator`` is shared, this may return the names of
+            another caller, also after a call that translated nothing. See :ref:`thread-safety` for details.
+        """
         if self._translated_names is None:
             raise ValueError("No names have been translated using this TranslationHelper.")
         return dict(self._translated_names)

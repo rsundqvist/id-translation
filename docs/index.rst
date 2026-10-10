@@ -4,9 +4,9 @@ Turn meaningless IDs into human-readable labels.
 
 Getting started
 ---------------
-The fastest way to get started with ``id-translation`` is the 🍪 `id-translation-project`_
-Cookiecutter template. It is designed to allow power users to quickly specify shared configurations that "just work" for
-other users; see the example below.
+Install with ``pip install id-translation``. The fastest way to get started with ``id-translation`` is the 🍪
+`id-translation-project`_ Cookiecutter template. It is designed to allow power users to quickly specify shared
+configurations that "just work" for other users; see the example below.
 
 .. code-block::
 

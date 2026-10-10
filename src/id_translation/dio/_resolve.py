@@ -111,7 +111,7 @@ def load_integrations() -> None:
         TypeError: If an integration does not inherit from :class:`~id_translation.dio.DataStructureIO`.
 
     Notes:
-        Called automatically when :mod:`id_translation` is imported.
+        The registry loads integrations the same way on first use.
     """
     # TODO(2.0.0): Rename to reload_integrations, or similar.
     # TODO(2.0.0): Expose repo class init params, e.g. for keeping manually registered IOs.

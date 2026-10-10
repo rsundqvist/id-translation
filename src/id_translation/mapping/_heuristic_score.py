@@ -20,9 +20,8 @@ class HeuristicScore(Generic[ValueType, CandidateType, ContextType]):
         chosen filters.
 
     Procedure:
-        1. Trigger ``short-circuiting`` if there is an exact value-candidate match.
-        2. All `heuristics` are applied and scores are computed.
-        3. If no ``short-circuiting`` is triggered in step 2, yield max score for each candidate.
+        1. Scores are computed by `score_function`, then all `heuristics` are applied.
+        2. If no ``short-circuiting`` is triggered in step 1, yield max score for each candidate.
 
     Args:
         score_function: A :attr:`~id_translation.mapping.types.ScoreFunction` to wrap.

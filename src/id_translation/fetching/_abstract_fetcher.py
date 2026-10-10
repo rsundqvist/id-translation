@@ -46,7 +46,8 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
     :ref:`caching <caching_example>` API, as well as a handful of other features.
 
     Abstract methods:
-        * :meth:`~id_translation.fetching.AbstractFetcher._initialize_sources`: First-time initialization. Called once per instance.
+        * :meth:`~id_translation.fetching.AbstractFetcher._initialize_sources`: Source discovery. The result is kept once
+          it returns.
         * :meth:`~id_translation.fetching.AbstractFetcher.fetch_translations`: Retrieve translation data based on a
           :class:`~id_translation.fetching.types.FetchInstruction`.
 
@@ -64,7 +65,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         identifiers: A collection of hierarchical identifiers. If given, element zero of the `identifiers` is added to
             the :attr:`~id_translation.fetching.AbstractFetcher.logger` name for the fetcher.
         optional: If ``True``, this fetcher may be discarded if source/placeholder-enumeration fails in multi-fetcher
-            mode. Optional fetchers should not raise before :meth`_initialize_sources` is called.
+            mode. Optional fetchers should not raise before ``_initialize_sources()`` is called.
         cache_access: A :class:`~id_translation.fetching.CacheAccess` instance. Defaults to a NOOP-implementation (i.e.
             always fetch new data).
 
@@ -567,12 +568,14 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
 
         The :class:`~id_translation.fetching.types.FetchInstruction` will use the names returned by
         :meth:`~id_translation.fetching.AbstractFetcher._initialize_sources`; the ``AbstractFetcher`` is responsible for
-        mapping in both directions. This method is **not** called if translations are returned by the
-        :meth:`CacheAccess.load <id_translation.fetching.CacheAccess.load>` method.
+        mapping in both directions. After :meth:`CacheAccess.load <id_translation.fetching.CacheAccess.load>` returns
+        translations, this method is **not** called; after a :class:`~id_translation.fetching.types.PartialCacheHit`,
+        it is called for the IDs the hit did not cover.
 
         .. note::
 
-           This method is called sequentially once per source.
+           Within one fetch, this method is called once per source, one source at a time. Concurrent translations
+           may call it from several threads at once.
 
         If the :attr:`IDs <id_translation.fetching.types.FetchInstruction.ids>` of the instruction are ``None``, the
         fetcher should retrieve data for as many IDs as possible. Use
