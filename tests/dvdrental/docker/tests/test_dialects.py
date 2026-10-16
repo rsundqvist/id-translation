@@ -31,8 +31,9 @@ def check_status(dialect: str) -> None:
     """
     connection_string = CONNECTION_STRING.format(dialect=dialect, driver=DRIVERS[dialect], **CREDENTIALS[dialect])
 
+    engine = sqlalchemy.create_engine(connection_string)
     try:
-        with sqlalchemy.create_engine(connection_string).connect() as conn:
+        with engine.connect() as conn:
             next(conn.execute(sqlalchemy.text("SELECT 1")))
     except Exception:
         msg = (
@@ -40,14 +41,19 @@ def check_status(dialect: str) -> None:
             " by running:\n    ./run-docker-dvdrental.sh"
         )
         raise RuntimeError(msg) from None
+    finally:
+        engine.dispose()
 
 
 def execute_query(dialect: str) -> pd.DataFrame:
     check_status(dialect)
     connection_string = CONNECTION_STRING.format(dialect=dialect, driver=DRIVERS[dialect], **CREDENTIALS[dialect])
 
-    with sqlalchemy.create_engine(connection_string).connect() as conn:
+    engine = sqlalchemy.create_engine(connection_string)
+    with engine.connect() as conn:
         records = list(conn.execute(sqlalchemy.text(QUERY)))
+    # A pooled connection outlives the engine; unclosed, the GC raises a ResourceWarning in an unrelated test.
+    engine.dispose()
 
     columns = ["customer_id", "film_id", "category_id", "staff_id", "rental_date", "return_date"]
     return pd.DataFrame.from_records(records, columns=columns)

@@ -25,6 +25,7 @@ def test_dvd_rental(dialect, with_schema):
     )
     actual = get_df(dialect).loc[expected.index]
     assert translator.translate(actual, copy=False) is None
+    translator.fetcher.close()  # Unclosed connections emit a ResourceWarning whenever the GC gets to them.
     pd.testing.assert_frame_equal(actual, expected)
 
 

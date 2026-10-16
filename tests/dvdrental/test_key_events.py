@@ -89,6 +89,7 @@ def get_key_event_details(dialect, caplog):
 
     with enable_verbose_debug_messages():
         translator.translate(get_df(dialect), copy=False)
+    translator.fetcher.close()  # Unclosed connections emit a ResourceWarning whenever the GC gets to them.
 
     ret = []
     for i, r in enumerate(caplog.records):

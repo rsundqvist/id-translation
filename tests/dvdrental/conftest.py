@@ -36,9 +36,14 @@ DIALECTS = [
 
 
 def get_df(dialect: str) -> pd.DataFrame:
-    with sqlalchemy.create_engine(get_connection_string(dialect)).connect() as conn:
-        cursor = conn.execute(sqlalchemy.text(QUERY))
-        return pd.DataFrame.from_records(list(cursor), columns=cursor.keys())
+    engine = sqlalchemy.create_engine(get_connection_string(dialect))
+    try:
+        with engine.connect() as conn:
+            cursor = conn.execute(sqlalchemy.text(QUERY))
+            return pd.DataFrame.from_records(list(cursor), columns=cursor.keys())
+    finally:
+        # A pooled connection outlives the engine; unclosed, the GC raises a ResourceWarning in an unrelated test.
+        engine.dispose()
 
 
 def _dead_stack_message(label: str) -> str:
@@ -53,6 +58,8 @@ def check_status(dialect: str) -> None:
             count = next(conn.execute(sqlalchemy.text("SELECT count(*) FROM store")))
     except Exception:
         raise RuntimeError(_dead_stack_message(f"{dialect=}")) from None
+    finally:
+        engine.dispose()
 
     assert count[0] == 2, f"Expected 2 stores, but got {count}."
 
