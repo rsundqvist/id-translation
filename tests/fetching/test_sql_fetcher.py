@@ -159,6 +159,10 @@ def test_deepcopy(connection_string):
     assert original_fetch_all == cloned.fetch_all()
     assert original_fetch == cloned.fetch(ids_to_fetch)
 
+    # Unclosed SQLite connections emit a ResourceWarning whenever the GC gets to them, failing an unrelated test.
+    fetcher.close()
+    cloned.close()
+
 
 def test_optional_engine_error():
     connection_string = "not a proper connection string!"

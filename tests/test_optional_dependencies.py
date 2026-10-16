@@ -57,14 +57,19 @@ class TestOptionalFetchers:
         from id_translation.fetching import SqlFetcher
 
         connection_string = f"sqlite:///{tmp_path}.db"
-        with create_engine(connection_string).connect() as conn:
+        engine = create_engine(connection_string)
+        with engine.connect() as conn:
             conn.execute(text("CREATE TABLE source(id INTEGER, name TEXT);"))
             conn.execute(text("INSERT INTO source VALUES(1, 'one!');"))
             conn.commit()
+        engine.dispose()
 
         fetcher = SqlFetcher[int](connection_string)
         translator = Translator[str, str, int](fetcher)
         assert translator.translate(1, "source") == "1:one!"
+
+        # Unclosed SQLite connections emit a ResourceWarning whenever the GC gets to them, failing an unrelated test.
+        fetcher.close()
 
 
 class TestFloatCoercion:

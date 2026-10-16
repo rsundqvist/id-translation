@@ -419,6 +419,10 @@ def test_copy(fetchers):
 
     assert original_fetch == copied.fetch(ids_to_fetch)
 
+    # Unclosed SQLite connections emit a ResourceWarning whenever the GC gets to them, failing an unrelated test.
+    original.close()
+    copied.close()
+
 
 def test_copy_uncloneable_child_raises(fetchers):
     """A copy that silently shares a child is worse than no copy; Translator.copy() decides what to do instead."""
