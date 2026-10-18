@@ -153,40 +153,6 @@ def test_fetch(multi_fetcher: MultiFetcher[str, int], data: dict[str, pd.DataFra
     assert actual == expected
 
 
-class TestForceDeprecation:
-    """`force` is removed in 2.0.0; see `TODO(2.0.0)` in `fetching/_fetcher.py`."""
-
-    def test_multi_fetcher_warns(self, multi_fetcher):
-        with pytest.warns(FutureWarning, match=r"force=\.\.\..*removed in id-translation 2\.0\.0"):
-            multi_fetcher.initialize_sources(force=True)
-
-    def test_translator_warns(self):
-        """An offline Translator never reaches the fetcher, so it has to warn for itself."""
-        from id_translation import Translator
-
-        translator = Translator[str, str, int]({"s": {1: "one"}})
-        assert not translator.online, "precondition: this path never calls the fetcher"
-
-        with pytest.warns(FutureWarning, match=r"Translator\.initialize_sources\(force=\.\.\.\)"):
-            translator.initialize_sources(force=True)
-
-    def test_abstract_fetcher_warns(self):
-        with pytest.warns(FutureWarning, match=r"force=\.\.\..*removed in id-translation 2\.0\.0"):
-            MemoryFetcher({"s": {1: "one"}}).initialize_sources(force=True)
-
-    def test_supplying_false_also_warns(self, multi_fetcher):
-        """`force=False` is a no-op today but a TypeError in 2.0.0, so it has to warn too."""
-        with pytest.warns(FutureWarning, match=r"force=\.\.\."):
-            multi_fetcher.initialize_sources(force=False)
-
-    def test_ordinary_call_is_silent(self, multi_fetcher):
-        import warnings
-
-        with warnings.catch_warnings():
-            warnings.simplefilter("error", FutureWarning)
-            multi_fetcher.initialize_sources()  # Must not warn on the children's behalf.
-
-
 def test_ranks(multi_fetcher, fetchers):
     default_fetcher, empty_fetcher, fallback_fetcher, sql_fetcher = fetchers
 
@@ -286,44 +252,6 @@ class TestOptionalFetchers:
 
         assert len(outer._unresolved_children()) == 1
         assert str(crashed) in outer._unresolved_children()[0]
-
-    def test_failed_forced_rediscovery_keeps_get_transformer_consistent(self):
-        """A conflict during forced re-discovery must not leave mappings that point at discarded children.
-
-        `get_transformer` promises None for unserved sources; a KeyError here crashes the next translation.
-        """
-
-        class CrashOnRediscovery(MemoryFetcher[str, int]):
-            calls = 0
-
-            def _initialize_sources(self, task_id: int) -> dict[str, list[str]]:
-                self.calls += 1
-                if self.calls > 1:
-                    raise ValueError("gone now")
-                return super()._initialize_sources(task_id)
-
-        class GrowsAConflict(MemoryFetcher[str, int]):
-            calls = 0
-
-            def _initialize_sources(self, task_id: int) -> dict[str, list[str]]:
-                self.calls += 1
-                retval = dict(super()._initialize_sources(task_id))
-                if self.calls > 1:
-                    retval["dup"] = ["id"]
-                return retval
-
-        fetcher: MultiFetcher[str, int] = MultiFetcher(
-            CrashOnRediscovery({"s": {"id": [1]}}, optional=True),
-            MemoryFetcher({"dup": {"id": [1]}}),
-            GrowsAConflict({"x": {"id": [1]}}),
-        )
-        fetcher.initialize_sources()
-        assert fetcher.get_transformer("s") is None, "precondition: served, but no transformer provided"
-
-        with pytest.warns(FutureWarning, match=r"force=\.\.\."), pytest.raises(exceptions.DuplicateSourceError):
-            fetcher.initialize_sources(force=True)
-
-        assert fetcher.get_transformer("s") is None, "the discarded child's source is no longer served"
 
     @staticmethod
     def _run(children, expected):

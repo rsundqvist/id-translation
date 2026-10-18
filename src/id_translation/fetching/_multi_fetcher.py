@@ -17,7 +17,6 @@ from ..offline.types import PlaceholderAttributes, SourcePlaceholderTranslations
 from ..transform.types import Transformer
 from ..types import IdType, SourceType
 from . import AbstractFetcher, Fetcher, exceptions
-from ._abstract_fetcher import _FORCE_DEPRECATION_MSG
 from .types import IdsToFetch, Operation
 
 LOGGER = logging.getLogger(__package__).getChild("MultiFetcher")
@@ -132,7 +131,7 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
 
         return self._placeholders
 
-    def initialize_sources(self, task_id: int | None = None, *, force: bool | None = None) -> None:
+    def initialize_sources(self, task_id: int | None = None) -> None:
         """Perform source discovery.
 
         Perform source discovery for all :attr:`~id_translation.fetching.MultiFetcher.children`, discarding
@@ -142,10 +141,6 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
 
         Args:
             task_id: Used for logging.
-            force: If ``True``, perform full discovery even if sources are already known.
-
-                .. deprecated:: 1.4.0
-                   Removed in ``2.0.0``. Build a new ``Translator`` instead.
 
         See Also:
             🔑 This is a key event method. See :ref:`key-events` for details.
@@ -153,10 +148,7 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         Notes:
             Calling this method multiple times will not recover previously discarded optional child fetchers.
         """
-        if force is not None:
-            emit_warning(_FORCE_DEPRECATION_MSG.format(owner="Fetcher"), FutureWarning)
-
-        if self._placeholders is not None and not force:
+        if self._placeholders is not None:
             return
 
         start = perf_counter()
@@ -169,16 +161,8 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
             extra={"task_id": task_id, "event_key": get_event_key(self.initialize_sources, "enter")},
         )
 
-        fid_to_placeholders = self._initialize_sources(task_id, force=force)
-        try:
-            self._source_to_id = self._make_source_to_id(fid_to_placeholders, task_id)
-        except Exception:
-            # `_initialize_sources` may have discarded children above. A caller that catches (e.g. a forced
-            # re-discovery that hits a source conflict) must not be left with mappings that point at them.
-            self._source_to_id = {s: fid for s, fid in self._source_to_id.items() if fid in self._id_to_fetcher}
-            if self._placeholders is not None:
-                self._placeholders = {s: p for s, p in self._placeholders.items() if s in self._source_to_id}
-            raise
+        fid_to_placeholders = self._initialize_sources(task_id)
+        self._source_to_id = self._make_source_to_id(fid_to_placeholders, task_id)
 
         self._placeholders = {}
         for fid, source_to_placeholders in fid_to_placeholders.items():
@@ -207,17 +191,15 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
                 extra={"task_id": task_id, "seconds": seconds, "event_key": event_key},
             )
 
-    def _initialize_sources(self, task_id: int, *, force: bool | None) -> dict[int, dict[SourceType, list[str]]]:
+    def _initialize_sources(self, task_id: int) -> dict[int, dict[SourceType, list[str]]]:
         retval: dict[int, dict[SourceType, list[str]]] = {}
 
         log_level = self._discard_level
 
-        forced: dict[str, bool] = {"force": True} if force else {}
-
         for fid, fetcher in list(self._id_to_fetcher.items()):
             if fetcher.optional:
                 try:
-                    fetcher.initialize_sources(task_id, **forced)
+                    fetcher.initialize_sources(task_id)
                     placeholders = fetcher.placeholders
                 except Exception as e:
                     pretty = self.format_child(fid)
@@ -249,7 +231,7 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
 
             else:
                 try:
-                    fetcher.initialize_sources(task_id, **forced)
+                    fetcher.initialize_sources(task_id)
                 except Exception as e:
                     self._raise_with_notes(e, fetcher)
 

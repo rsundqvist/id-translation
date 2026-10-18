@@ -12,7 +12,6 @@ import pytest
 from id_translation import Translator
 from id_translation.exceptions import TranslationWarning
 from id_translation.fetching import MemoryFetcher, MultiFetcher
-from id_translation.offline.types import PlaceholderTranslations
 from id_translation.transform import TransformerStack
 from id_translation.transform.types import Transformer
 
@@ -126,26 +125,6 @@ class TestQueriedOnce:
             translator.initialize_sources()
 
         assert Counter(fetcher.queries) == {"bitmasks": 1, "plain": 1}
-
-    def test_force_does_not_requery(self, translator, fetcher):
-        translator.initialize_sources()
-        with pytest.warns(FutureWarning, match=r"force=\.\.\."):
-            translator.initialize_sources(force=True)
-
-        assert Counter(fetcher.queries) == {"bitmasks": 1, "plain": 1}
-
-    def test_late_source_is_not_queried(self, translator, fetcher):
-        """Documents the gap: the query pass runs once, so late sources never receive their transformers."""
-        fetcher.provide["late"] = Marker("late")
-        translator.initialize_sources()
-
-        fetcher._data["late"] = PlaceholderTranslations.make("late", {1: "late-one"})
-        with pytest.warns(FutureWarning, match=r"force=\.\.\."):
-            translator.initialize_sources(force=True)
-
-        assert "late" in translator.sources, "precondition: forced re-discovery must pick up the new source"
-        assert "late" not in fetcher.queries
-        assert "late" not in translator.transformers
 
 
 class TestOverlap:

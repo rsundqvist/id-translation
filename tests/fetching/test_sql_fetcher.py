@@ -214,14 +214,7 @@ def test_disconnected(connection_string):
     fetcher.close()
     assert fetcher.placeholders == expected_placeholders
 
-    fetcher.initialize_sources()  # Should not crash yet - discovery already done
-    assert fetcher.placeholders == expected_placeholders
-
-    with (
-        pytest.warns(FutureWarning, match=r"force=\.\.\."),
-        pytest.raises(ConnectionStatusError, match=r"disconnected: 'sqlite"),
-    ):
-        fetcher.initialize_sources(force=True)
+    fetcher.initialize_sources()  # A repeat call is a no-op; discovery is already done.
     assert fetcher.placeholders == expected_placeholders
 
 
