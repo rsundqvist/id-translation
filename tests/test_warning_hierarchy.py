@@ -4,7 +4,9 @@ import ast
 import importlib
 import pkgutil
 import warnings
+from collections.abc import Iterator
 from pathlib import Path
+from types import ModuleType
 
 import pytest
 
@@ -13,14 +15,19 @@ from id_translation._utils.emit_warning import emit_warning
 from id_translation.exceptions import IdTranslationWarning
 
 
-def _fail_loudly(name: str) -> None:
-    pytest.fail(f"Cannot import {name!r}; the walk would silently skip any warnings it defines.")
+def _modules() -> Iterator[ModuleType]:
+    # The walk yields submodules only. It never reaches its own `onerror`: each package is imported here first.
+    yield id_translation
+    for info in pkgutil.walk_packages(id_translation.__path__, prefix="id_translation."):
+        try:
+            yield importlib.import_module(info.name)
+        except Exception as e:
+            pytest.fail(f"Cannot import {info.name!r} ({e!r}); the walk would silently skip any warnings it defines.")
 
 
 def _warning_classes() -> list[type[Warning]]:
     found: dict[type[Warning], None] = {}
-    for info in pkgutil.walk_packages(id_translation.__path__, prefix="id_translation.", onerror=_fail_loudly):
-        module = importlib.import_module(info.name)
+    for module in _modules():
         for obj in vars(module).values():
             if isinstance(obj, type) and issubclass(obj, Warning) and obj.__module__ == module.__name__:
                 found[obj] = None
@@ -35,15 +42,14 @@ def test_all_warnings_inherit_base() -> None:
     assert outside == [], "Warning(s) not derived from IdTranslationWarning:\n" + "\n".join(outside)
 
 
-def test_roots_keep_their_stdlib_bases() -> None:
-    # TODO(2.0.0): Invert; the stdlib bases are dropped.
+def test_roots_have_no_stdlib_bases() -> None:
+    """A blanket ``ignore::UserWarning`` must not silence the suite; ``IdTranslationWarning`` is the only base."""
     from id_translation.exceptions import TranslationWarning
     from id_translation.fetching.exceptions import FetcherWarning
     from id_translation.mapping.exceptions import MappingWarning
 
-    assert issubclass(TranslationWarning, UserWarning)
-    assert issubclass(MappingWarning, UserWarning)
-    assert issubclass(FetcherWarning, RuntimeWarning)
+    for root in (TranslationWarning, MappingWarning, FetcherWarning):
+        assert root.__bases__ == (IdTranslationWarning,), root
 
 
 def test_default_category_is_covered_by_base_filter() -> None:

@@ -314,7 +314,7 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
             sources.append(source)
 
         if unknown_sources:
-            raise exceptions.UnknownSourceError(unknown_sources, self.sources)
+            raise exceptions.UnknownSourceError.for_sources(unknown_sources, sources=self.sources)
 
         placeholders = tuple(placeholders)
         required = tuple(required)
@@ -496,10 +496,9 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         accepted = self.format_child(rank_to_id[accepted_rank])
         rejected = self.format_child(rank_to_id[rejected_rank])
 
-        hints = []
         if operation == "INITIALIZE_SOURCES":
             msg = f"Discarded {source=} retrieved from {rejected} since the {accepted} already claimed same source."
-            hints.append("Hint: Rank is determined by input order at initialization.")
+            hint = "Rank is determined by input order at initialization."
             on_source_conflict = self.on_source_conflict
         elif operation == "FETCH_ALL":
             msg = (
@@ -511,19 +510,16 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
             fetcher = self._id_to_fetcher[rank_to_id[rejected_rank]]
             cls = tname(fetcher, include_module=True)
             msg = f"Dropping translations for {source=} returned by the {rejected}; this source belongs to the {accepted}."
-            hints.append(f"Hint: The implementation of {cls} may be incorrect.")
+            hint = f"The implementation of {cls} may be incorrect."
             on_source_conflict = "warn"
 
         extra = {"task_id": task_id, "source": source}
         if on_source_conflict == "raise":
             LOGGER.error(msg, extra=extra)
-            exc = exceptions.DuplicateSourceError(msg)
-            for hint in hints:
-                exc.add_note(hint)
-            raise exc
+            raise exceptions.DuplicateSourceError(msg, source=source, hints=hint)
         if on_source_conflict == "warn":
             LOGGER.warning(msg, extra=extra)
-            emit_warning(msg + "\n" + "\n".join(hints), exceptions.DuplicateSourceWarning, logged=True)
+            emit_warning(f"{msg}\nHint: {hint}", exceptions.DuplicateSourceWarning, logged=True)
         elif on_source_conflict == "ignore" and LOGGER.isEnabledFor(logging.DEBUG):
             LOGGER.debug(msg, extra=extra)
 

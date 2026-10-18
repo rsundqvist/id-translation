@@ -158,7 +158,10 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
         if unmapped:
             extra = f" in {context=}" if context else ""
             candidates = set(scores.candidates)  # Includes candidates added by override logic.
-            self._report_unmapped(f"Could not map {unmapped}{extra} to any of {candidates=}.", task_id=task_id)
+            msg = (
+                f"Could not map {sorted(unmapped, key=str)}{extra} to any of candidates={sorted(candidates, key=str)}."
+            )
+            self._report_unmapped(msg, unmapped=unmapped, task_id=task_id)
 
         logger = self.logger
         if _logging.ENABLE_VERBOSE_LOGGING and logger.isEnabledFor(logging.DEBUG):
@@ -177,13 +180,15 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
 
         return dm
 
-    def _report_unmapped(self, msg: str, task_id: int | None) -> None:
+    def _report_unmapped(self, msg: str, *, unmapped: Iterable[ValueType], task_id: int | None) -> None:
         logger = self.logger
 
         if self.on_unmapped == "raise":
             logger.error(msg, extra={"task_id": task_id})
             raise UnmappedValuesError(
-                msg, hints="Set on_unmapped='warn' or on_unmapped='ignore' to allow unmapped values."
+                msg,
+                unmapped=unmapped,
+                hints="Set on_unmapped='warn' or on_unmapped='ignore' to allow unmapped values.",
             )
         elif self.on_unmapped == "warn":
             logger.warning(msg, extra={"task_id": task_id})
@@ -418,17 +423,15 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
 
             if user_override not in candidates and self.on_unknown_user_override != "keep":
                 msg = f"The user-defined override function {func} returned an unknown candidate={user_override!r} for {value=}."
-                note = "Hint: Set on_unknown_user_override='keep' to use this value anyway."
+                hint = "Set on_unknown_user_override='keep' to use this value anyway."
                 if self.on_unknown_user_override == "raise":
                     logger.error(msg, extra={"task_id": task_id})
-                    exc = UserMappingError(msg, value, candidates)
-                    exc.add_note(note)
-                    raise exc
+                    raise UserMappingError(msg, value=value, candidates=candidates, hints=hint)
 
                 assert self.on_unknown_user_override == "warn", f"bad {self.on_unknown_user_override=}"  # noqa: S101
                 logger.warning(msg, extra={"task_id": task_id})
 
-                msg += f"\n{note}"
+                msg += f"\nHint: {hint}"
                 emit_warning(msg, UserMappingWarning, logged=True)
 
                 continue

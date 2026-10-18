@@ -22,22 +22,22 @@ def fetcher(data):
 def test_unknown_sources(fetcher):
     with pytest.raises(exceptions.UnknownSourceError, match="edible_humans") as ec:
         fetcher.fetch([IdsToFetch("humans", {1, 2}), IdsToFetch("edible_humans", {1, 2})])
-    assert {"edible_humans"} == ec.value.unknown_sources
+    assert ec.value.unknown_sources == ("edible_humans",)
 
     with pytest.raises(exceptions.UnknownSourceError, match="edible_humans") as ec:
         fetcher.map_placeholders("edible_humans", placeholders=["not-used"])
-    assert {"edible_humans"} == ec.value.unknown_sources
+    assert ec.value.unknown_sources == ("edible_humans",)
 
 
 def test_fetch_all_forbidden(data):
     fetcher: MemoryFetcher[str, int] = MemoryFetcher(data, allow_fetch_all=False)
-    match = re.escape(f"Operation 'FETCH_ALL' not allowed by {fetcher}.")
+    match = re.escape("Operation 'FETCH_ALL' is not permitted by MemoryFetcher.")
     with pytest.raises(exceptions.ForbiddenOperationError, match=match):
         fetcher.fetch_all()
 
 
 def test_unknown_placeholders(fetcher):
-    with pytest.raises(exceptions.UnknownPlaceholderError, match=r"{'number_of_legs'} not recognized"):
+    with pytest.raises(exceptions.UnknownPlaceholderError, match=r"\['number_of_legs'\] not recognized"):
         fetcher.fetch([IdsToFetch("humans", set())], ("id", "number_of_legs"), required={"number_of_legs"})
 
 
@@ -45,7 +45,7 @@ def test_missing_id_placeholder_raises_clear_error():
     # "id" is required implicitly even when not requested; a source that never maps it must raise
     # UnknownPlaceholderError, not the bare `ValueError` from PlaceholderTranslations.id_pos computation.
     no_id_fetcher: MemoryFetcher[str, str] = MemoryFetcher({"countries": {"code": ["US"], "name": ["USA"]}})
-    with pytest.raises(exceptions.UnknownPlaceholderError, match=r"{'id'} not recognized"):
+    with pytest.raises(exceptions.UnknownPlaceholderError, match=r"\['id'\] not recognized"):
         no_id_fetcher.fetch([IdsToFetch("countries", {"US"})])
 
 
@@ -222,7 +222,7 @@ def test_concurrent_initialize_sources_warns():
     warning = errors[0]
     assert isinstance(warning, exceptions.ConcurrentOperationWarning)
     assert warning.operation == "initialize_sources"
-    assert warning.cls.endswith("test_abstract_fetcher.BlockingFetcher")
+    assert warning.fetcher_class.endswith("test_abstract_fetcher.BlockingFetcher")
 
 
 class BlockingFetcher(AbstractFetcher[str, int]):

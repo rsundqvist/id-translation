@@ -6,6 +6,7 @@ DOC_LINK: str
 __all__ = [
     "DOC_LINK",
     "add_hints",
+    "as_tuple",
 ]
 
 
@@ -13,6 +14,11 @@ def add_hints(exc: BaseException, hints: str | _Iterable[str]) -> None:
     """Attach `hints` to `exc` as PEP 678 notes, each prefixed with ``Hint: ``."""
     for hint in (hints,) if isinstance(hints, str) else hints:
         exc.add_note(f"Hint: {hint}")
+
+
+def as_tuple(values: _Iterable[_Any] | str) -> tuple[_Any, ...]:
+    """Convert `values` to a tuple, treating a bare string as a single value rather than a sequence of characters."""
+    return (values,) if isinstance(values, str) else tuple(values)
 
 
 def __getattr__(name: str) -> _Any:

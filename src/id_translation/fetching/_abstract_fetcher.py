@@ -264,7 +264,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         if self._placeholders is not None and source not in self._placeholders:
             # Check the underlying attribute to avoid infinite recursion in _initialize_sources()-implementations that
             # call this method. This is typically done indirectly via id_column(), which requires explicit candidates.
-            raise exceptions.UnknownSourceError({source}, self.sources)
+            raise exceptions.UnknownSourceError.for_sources({source}, sources=self.sources)
         if candidates is None:
             # May lead to infinite recursion if _initialize_sources() calls map_placeholders(candidates=None).
             candidates = self.placeholders[source]
@@ -465,7 +465,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
             task_id = _logging.generate_task_id()
 
         if not self._allow_fetch_all:
-            raise exceptions.ForbiddenOperationError("FETCH_ALL", reason=f"not allowed by {self}.")
+            raise exceptions.ForbiddenOperationError.for_operation("FETCH_ALL", fetcher_class=self._cls_name())
 
         placeholders = tuple(placeholders)
         required_placeholders = set(required)
@@ -571,7 +571,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
 
         contender = self._active_operations.get(operation)
         if contender is not None and contender != current:
-            emit_warning(exceptions.ConcurrentOperationWarning(operation, cls=self._cls_name()))
+            emit_warning(exceptions.ConcurrentOperationWarning.for_operation(operation, fetcher_class=self._cls_name()))
 
         self._active_operations[operation] = current
         try:
@@ -625,6 +625,11 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
 
         Returns:
             A single :class:`~id_translation.offline.types.PlaceholderTranslations` instance.
+
+        Raises:
+            ~id_translation.fetching.exceptions.UnknownPlaceholderError: For required placeholders that the source
+                does not have. Build it with
+                :meth:`~id_translation.fetching.exceptions.UnknownPlaceholderError.for_placeholders`.
 
         See Also:
             🔑 This is a key event method. See :ref:`key-events` for details.
@@ -725,9 +730,11 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
                 f"Mapping {bad_mappings} for required placeholders (keys) were made to placeholders that do not"
                 f" exist. The override configuration {self.mapper._overrides} may be incorrect."
             )
-        raise exceptions.UnknownPlaceholderError(
-            f"Required placeholders {unmapped} not recognized. For {source=}, known placeholders are: "
-            f"{sorted(self.placeholders[source])} for {self}.",
+        raise exceptions.UnknownPlaceholderError.for_placeholders(
+            unmapped,
+            placeholders=self.placeholders[source],
+            source=source,
+            caller=self,
             hints=hints,
         )
 

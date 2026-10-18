@@ -198,7 +198,7 @@ filterwarnings = [
     "error",
     "ignore::pytest.PytestUnraisableExceptionWarning",
     "ignore:Did not recognize type:sqlalchemy.exc.SAWarning",
-    "ignore:No fetcher given:UserWarning",
+    "ignore:No fetcher given:id_translation.exceptions.TranslationWarning",
 ]
 log_file_level = 10
 log_file = "pytest.log"

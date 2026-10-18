@@ -202,7 +202,9 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         ts = self._table_summaries[instr.source]
 
         if instr.fetch_all and not ts.fetch_all_permitted:  # pragma: no cover
-            raise exceptions.ForbiddenOperationError("FETCH_ALL", f"disabled for table '{ts.name}'.")
+            raise exceptions.ForbiddenOperationError.for_operation(
+                "FETCH_ALL", fetcher_class=self._cls_name(), hints=f"FETCH_ALL is disabled for table '{ts.name}'."
+            )
 
         id_column: sqlalchemy.sql.elements.Cast | sqlalchemy.Column  # type: ignore[type-arg]
         ids_are_uuid_like = instr.enable_uuid_heuristics and self.uuid_like(ts.id_column, instr.ids)
@@ -503,19 +505,22 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         if unmapped and not whitelisted:
             return "no ID column"
 
-        messages = []
+        hints = []
         if whitelisted:
-            messages.append("Misconfigured whitelist table.")
-        messages.append(
-            f"No suitable ID column found for the table {table_name!r}. "
-            f"Known columns: {sorted(c.name for c in table.columns)}."
-        )
+            hints.append("Misconfigured whitelist table.")
         if not unmapped:
-            messages.append(
+            hints.append(
                 f"This is likely caused by a bad override. "
                 f"Update or remove the override {ID!r} -> {id_column!r} from your mapping configuration."
             )
-        raise exceptions.UnknownPlaceholderError(" ".join(messages))
+
+        raise exceptions.UnknownPlaceholderError.for_placeholders(
+            ID,
+            placeholders=[c.name for c in table.columns],
+            source=table_name,
+            caller=self,
+            hints=hints,
+        )
 
     def make_table_summary(
         self,

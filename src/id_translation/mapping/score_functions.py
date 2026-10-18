@@ -93,6 +93,12 @@ def disabled(
         The :ref:`override-only-mapping` documentation.
     """
     if strict:
-        raise exceptions.ScoringDisabledError(value, candidates, context)
+        candidates = list(candidates)
+        msg = (
+            f"Scoring disabled: the Mapper is working in strict override-only mode, so the {value=} in {context=} "
+            f"cannot be mapped to any of the candidates={sorted(candidates, key=str)}."
+        )
+        hint = "Add an override or filter for this value, set strict=False to skip it silently, or use another score function."
+        raise exceptions.ScoringDisabledError(msg, value=value, candidates=candidates, context=context, hints=hint)
 
     return [float("-inf")] * sum(1 for _ in candidates)

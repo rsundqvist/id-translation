@@ -223,7 +223,7 @@ class PandasIO(_dio.DataStructureIO[PandasT, _tt.NameType, _tt.SourceType, _tt.I
     ) -> PandasT | None:
         if isinstance(translatable, _pd.Index):
             if not copy:
-                raise _NotInplaceTranslatableError(translatable)
+                raise _NotInplaceTranslatableError.for_translatable(translatable)
             return self._translate_index(translatable, names, tmap)
 
         if isinstance(translatable, _pd.DataFrame):
@@ -233,9 +233,7 @@ class PandasIO(_dio.DataStructureIO[PandasT, _tt.NameType, _tt.SourceType, _tt.I
             if not copy:
                 msg = self._check_pdep_6(translatable)
                 if msg:
-                    exc = _NotInplaceTranslatableError(translatable)
-                    exc.add_note(f"Hint: {msg}")
-                    raise exc
+                    raise _NotInplaceTranslatableError.for_translatable(translatable, hints=msg)
             return self._translate_series(translatable, names, tmap, copy)
 
         raise TypeError(f"This should not happen: {type(translatable)=}")  # pragma: no cover

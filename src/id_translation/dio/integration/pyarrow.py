@@ -68,7 +68,7 @@ class ArrowIO(_dio.DataStructureIO[ArrowT, str, _tt.SourceType, _tt.IdType]):
         copy: bool,
     ) -> ArrowT:
         if not copy:
-            raise _NotInplaceTranslatableError(translatable)
+            raise _NotInplaceTranslatableError.for_translatable(translatable)
 
         if isinstance(translatable, _pa.Table):
             for name in names:

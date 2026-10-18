@@ -84,6 +84,9 @@ Ruff enforces the mechanical rules (Google docstrings, PEP 604 unions, import or
   existing code a commit already edits; no sweeps.
 - **Log extras must be JSON-serializable** (enforced by test fixtures; use `sorted()` or `list()` to convert sets).
 - **Types per module:** each subpackage has its own `types.py` and `exceptions.py` — put new ones there.
+- **Exception constructors** take `(msg, *, <data>, hints=())` with every data argument optional; a required one
+  breaks pickling (enforced by `tests/test_exception_pickling.py`). Store list-like data with `_utils.as_tuple`, so a
+  bare `str` is one item. The `for_*` factory rules are in the `id_translation.exceptions` module docstring.
 
 ## Commits
 

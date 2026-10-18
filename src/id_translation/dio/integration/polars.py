@@ -67,7 +67,7 @@ class PolarsIO(_dio.DataStructureIO[PolarsT, str, _tt.SourceType, _tt.IdType]):
         copy: bool,
     ) -> PolarsT | None:
         if not copy and isinstance(translatable, _pl.Series):
-            raise _NotInplaceTranslatableError(translatable)
+            raise _NotInplaceTranslatableError.for_translatable(translatable)
 
         if isinstance(translatable, _pl.DataFrame):
             translated_columns = {name: self._translate_series(translatable[name], tmap[name]) for name in names}

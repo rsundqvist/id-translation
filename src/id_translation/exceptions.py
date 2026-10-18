@@ -1,28 +1,44 @@
-"""General errors for the translation suite."""
+"""General errors for the translation suite.
+
+Every exception and warning in the suite takes the message as its first argument, followed by optional keyword-only
+data such as ``hints``. List-like data is stored as a tuple, and a bare string counts as one item. Exceptions that
+carry data and that implementations outside the suite are expected to raise also have a ``for_*`` classmethod, which
+takes the data and formats the standard message with names sorted. The classmethod is named for what its first
+argument holds, and every later argument is keyword-only. For example,
+:meth:`~id_translation.fetching.exceptions.UnknownPlaceholderError.for_placeholders` takes the unknown placeholders.
+"""
 
 from collections.abc import Iterable as _Iterable
-from warnings import simplefilter as _simplefilter
+from typing import Any as _Any
 
 from ._utils import add_hints as _add_hints
+from ._utils import as_tuple as _as_tuple
 
 
 class ConfigurationError(TypeError):
     """Raised in case of bad configuration."""
 
+    def __init__(self, msg: str, *, hints: str | _Iterable[str] = ()) -> None:
+        super().__init__(msg)
+        _add_hints(self, hints)
+
 
 class ConfigurationChangedError(Exception):
     """See :meth:`Translator.load_persistent_instance <id_translation.Translator.load_persistent_instance>`."""
+
+    def __init__(self, msg: str, *, hints: str | _Iterable[str] = ()) -> None:
+        super().__init__(msg)
+        _add_hints(self, hints)
 
 
 class ConnectionStatusError(ConnectionError):
     """Raised when trying to perform operations in a bad online/offline state."""
 
-    # TODO(2.0.0): Drop the `msg` default; it exists only to keep zero-arg `raise ConnectionStatusError()` calls
-    #  working after `msg` became a real constructor arg. Keep the `ConnectionError`/`OSError` base -- it's
-    #  deliberate (see 0.8.0 changelog) so callers can catch generic connection errors; the two/three-arg
-    #  `OSError(errno, strerror[, filename])` form is not supported and isn't expected to be used here.
+    # Keep the `ConnectionError`/`OSError` base -- it's deliberate (see 0.8.0 changelog) so callers can catch generic
+    # connection errors; the two/three-arg `OSError(errno, strerror[, filename])` form is not supported and isn't
+    # expected to be used here.
 
-    def __init__(self, msg: str = "", *, hints: str | _Iterable[str] = ()) -> None:
+    def __init__(self, msg: str, *, hints: str | _Iterable[str] = ()) -> None:
         super().__init__(msg)
         _add_hints(self, hints)
 
@@ -30,10 +46,7 @@ class ConnectionStatusError(ConnectionError):
 class TranslationError(Exception):
     """Base class for translation errors."""
 
-    # TODO(2.0.0): Drop the `msg` default; it exists only to keep zero-arg `raise TranslationError()`-style calls
-    #  working after `msg` became a real constructor arg.
-
-    def __init__(self, msg: str = "", *, hints: str | _Iterable[str] = ()) -> None:
+    def __init__(self, msg: str, *, hints: str | _Iterable[str] = ()) -> None:
         super().__init__(msg)
         _add_hints(self, hints)
 
@@ -43,7 +56,38 @@ class MissingNamesError(TranslationError):
 
 
 class TooManyFailedTranslationsError(TranslationError):
-    """Raised if too many IDs fail to translate."""
+    """Raised if too many IDs fail to translate.
+
+    Args:
+        msg: The error message.
+        name: The name whose IDs failed to translate.
+        source: The source that `name` was mapped to.
+        n_untranslated: Number of IDs that failed to translate.
+        n_total: Number of IDs, including those that failed.
+        max_fails: The highest fraction of failed IDs that was allowed.
+        sample_ids: Some of the IDs that failed to translate.
+        hints: Additional context, attached as notes.
+    """
+
+    def __init__(
+        self,
+        msg: str,
+        *,
+        name: _Any = None,
+        source: _Any = None,
+        n_untranslated: int | None = None,
+        n_total: int | None = None,
+        max_fails: float | None = None,
+        sample_ids: _Iterable[_Any] = (),
+        hints: str | _Iterable[str] = (),
+    ) -> None:
+        super().__init__(msg, hints=hints)
+        self.name = name
+        self.source = source
+        self.n_untranslated = n_untranslated
+        self.n_total = n_total
+        self.max_fails = max_fails
+        self.sample_ids = _as_tuple(sample_ids)
 
 
 class TransformerConflictError(ValueError):
@@ -56,6 +100,10 @@ class TransformerConflictError(ValueError):
     # non-Transformer value) raise ValueError/TypeError, so `except ValueError` around a registration block
     # catches the conflict too.
 
+    def __init__(self, msg: str, *, hints: str | _Iterable[str] = ()) -> None:
+        super().__init__(msg)
+        _add_hints(self, hints)
+
 
 class IdTranslationWarning(Warning):
     """Base class for all warnings emitted by ``id-translation``.
@@ -66,10 +114,8 @@ class IdTranslationWarning(Warning):
     """
 
 
-class TranslationWarning(IdTranslationWarning, UserWarning):
+class TranslationWarning(IdTranslationWarning):
     """Base class for translation warnings."""
-
-    # TODO(2.0.0): Drop the `UserWarning` base.
 
 
 class TranslationAbortedWarning(TranslationWarning):
@@ -84,6 +130,3 @@ class TranslationDisabledWarning(TranslationWarning):
 
     Emitted when :envvar:`ID_TRANSLATION_DISABLED` is set.
     """
-
-
-_simplefilter("once", category=TranslationDisabledWarning)

@@ -115,7 +115,7 @@ class DaskIO(_DataStructureIO[DaskT, str, _tt.SourceType, _tt.IdType]):
         copy: bool,
     ) -> DaskT:
         if not copy:
-            raise _NotInplaceTranslatableError(translatable)  # Can't in-place a compute graph.
+            raise _NotInplaceTranslatableError.for_translatable(translatable)  # Can't in-place a compute graph.
 
         return translatable.map_partitions(  # type: ignore[no-any-return]
             translate_partition,

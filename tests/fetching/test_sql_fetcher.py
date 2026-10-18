@@ -122,10 +122,13 @@ def test_unmappable_whitelist_table(use_override, connection_string):
 
     fetcher = SqlFetcher(connection_string, mapper=mapper, whitelist_tables=["animals", "big_table", "huge_table"])
 
-    with pytest.raises(exceptions.UnknownPlaceholderError, match="whitelist") as e:
+    with pytest.raises(exceptions.UnknownPlaceholderError, match=r"\['id'\] not recognized") as e:
         fetcher._get_summaries(-1)
     fetcher.close()
-    assert ("'id' -> 'bad-column'" in str(e.value)) is use_override
+    assert e.value.missing_placeholders == ("id",)
+    notes = "\n".join(e.value.__notes__)
+    assert "Misconfigured whitelist table." in notes
+    assert ("'id' -> 'bad-column'" in notes) is use_override
 
 
 @pytest.mark.parametrize("column", ["id", "name"])

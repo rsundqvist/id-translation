@@ -3,6 +3,7 @@ from collections.abc import MutableMapping
 
 import pytest
 
+from id_translation.exceptions import TranslationWarning
 from id_translation.transform import TransformerStack
 from id_translation.transform.types import Transformer
 
@@ -88,7 +89,7 @@ def test_empty_stack_raises():
 class TestDuplicateMembers:
     def test_same_instance(self, calls):
         recorder = Recorder("duplicate", calls)
-        with pytest.warns(UserWarning, match="Duplicate transformer"):
+        with pytest.warns(TranslationWarning, match="Duplicate transformer"):
             TransformerStack(recorder, recorder)
 
     def test_equal_instances(self):
@@ -97,7 +98,7 @@ class TestDuplicateMembers:
         first, second = BitmaskTransformer(), BitmaskTransformer()
         assert first == second, "precondition: BitmaskTransformer compares by value"
 
-        with pytest.warns(UserWarning, match="Duplicate transformer"):
+        with pytest.warns(TranslationWarning, match="Duplicate transformer"):
             TransformerStack(first, second)
 
     def test_unequal_instances_do_not_warn(self):
@@ -110,7 +111,7 @@ class TestDuplicateMembers:
     def test_append_does_not_replay(self, calls):
         """A stack reported its own duplicates when it was built; appending must only check the new pairings."""
         duplicated = Recorder("duplicate", calls)
-        with pytest.warns(UserWarning, match="Duplicate transformer"):
+        with pytest.warns(TranslationWarning, match="Duplicate transformer"):
             stack = TransformerStack(duplicated, duplicated)
 
         with warnings.catch_warnings():
@@ -122,7 +123,7 @@ class TestDuplicateMembers:
         duplicated = Recorder("duplicate", calls)
         stack = TransformerStack(duplicated, Recorder("other", calls))
 
-        with pytest.warns(UserWarning, match="Duplicate transformer"):
+        with pytest.warns(TranslationWarning, match="Duplicate transformer"):
             TransformerStack(stack, duplicated)
 
     def test_equal_state_without_eq_does_not_warn(self, calls):
@@ -152,7 +153,7 @@ class TestDuplicateMembers:
             warnings.simplefilter("error")
             TransformerStack(first, second)
 
-        with pytest.warns(UserWarning, match="Duplicate transformer"):
+        with pytest.warns(TranslationWarning, match="Duplicate transformer"):
             TransformerStack(first, first)
 
 

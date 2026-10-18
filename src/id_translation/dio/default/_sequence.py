@@ -71,7 +71,7 @@ class SequenceIO(DataStructureIO[SequenceT, NameType, SourceType, IdType]):
             translatable[:] = t[:]  # type: ignore
             return None
         except TypeError as e:
-            raise NotInplaceTranslatableError(translatable) from e
+            raise NotInplaceTranslatableError.for_translatable(translatable) from e
 
 
 def translate_sequence(

@@ -26,7 +26,7 @@ class TestEmitLoggedWarnings:
     ) -> None:
         monkeypatch.setattr("id_translation.logging.EMIT_LOGGED_WARNINGS", True)
 
-        with pytest.warns(UnmappedValuesWarning, match="Could not map {1}"):
+        with pytest.warns(UnmappedValuesWarning, match=r"Could not map \[1\]"):
             mapper.apply([1], [0])
 
         self._validate_logs(caplog)
@@ -52,7 +52,7 @@ class TestEmitLoggedWarnings:
         record = caplog.records[-1]
         assert record.name == "id_translation.mapping.Mapper"
         assert record.levelno == logging.WARNING
-        assert record.message.startswith("Could not map {1}")
+        assert record.message.startswith("Could not map [1]")
 
 
 class TestEnableVerboseDebugMessages:

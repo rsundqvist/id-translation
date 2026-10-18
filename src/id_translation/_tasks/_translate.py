@@ -316,7 +316,15 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
             if fail:
                 message = message.format(reason=f" > max_fails={max_fails:.2%}")
                 LOGGER.error(message, extra=extra)
-                raise TooManyFailedTranslationsError(message)
+                raise TooManyFailedTranslationsError(
+                    message,
+                    name=name,
+                    source=source,
+                    n_untranslated=n_untranslated,
+                    n_total=n_total,
+                    max_fails=max_fails,
+                    sample_ids=sample_ids,
+                )
 
             message = message.format(reason=f" <= max_fails={max_fails:.2%}")
             LOGGER.debug(message, extra=extra)

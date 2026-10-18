@@ -41,6 +41,23 @@ def test_missing_config():
     assert str(path) in str(e.value)
 
 
+def test_top_level_mapping_key_raises(tmp_path):
+    """A stray top-level `mapping` key is not used; the user wants `[translator.mapping]` or `[fetching.mapping]`."""
+    main = """
+    [translator]
+
+    [fetching.MemoryFetcher]
+    data = {}
+
+    [mapping]
+    """
+    path = tmp_path / "main.toml"
+    path.write_text(main, encoding="utf-8")
+
+    with pytest.raises(ConfigurationError, match=r"Forbidden keys \['mapping'\]"):
+        Translator.from_config(path)
+
+
 class TestEnvVars:
     @pytest.mark.parametrize("value", [True, False])
     def test_set(self, tmp_path, monkeypatch, value):

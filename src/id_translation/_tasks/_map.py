@@ -126,7 +126,7 @@ class MappingTask(NamesTask[NameType, SourceType, IdType]):
             unmapped = set(names_from_user).difference(name_to_source)
             if unmapped:
                 # Fail if any of the explicitly given names fail to map to a source.
-                msg = f"Explicit names {unmapped} {tail}."
+                msg = f"Explicit names {sorted(unmapped, key=str)} {tail}."
                 # Sort of redundant (since we're about to raise), but useful for providing the `task_id` for tracing.
                 LOGGER.error(msg, extra={"task_id": self.task_id})
                 raise UnmappedExplicitNamesError(msg, names=names_from_user, unmapped=unmapped)

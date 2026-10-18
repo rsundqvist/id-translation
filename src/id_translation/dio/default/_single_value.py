@@ -36,6 +36,6 @@ class SingleValueIO(DataStructureIO[IdType, NameType, SourceType, IdType]):
         copy: bool,
     ) -> str:
         if not copy:  # pragma: no cover
-            raise NotInplaceTranslatableError(translatable)
+            raise NotInplaceTranslatableError.for_translatable(translatable)
 
         return tmap[names[0]][translatable]
