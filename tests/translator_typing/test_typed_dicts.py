@@ -7,7 +7,7 @@ import pytest
 
 import id_translation.translator_typing as tt
 from id_translation import Translator
-from id_translation.fetching import AbstractFetcher
+from id_translation.fetching import AbstractFetcher, AbstractFetcherParams
 
 from .conftest import TypedTranslator, UnionDict, make_translatable
 from .validate_func_annotations import validate_func_annotations
@@ -203,7 +203,7 @@ def test_typed_dict_docstring_contains_relevant_methods():
         (Translator.fetch, tt.FetchParams),
         (Translator.go_offline, tt.GoOfflineParams),
         (Translator.translate, tt.AllTranslateParams),
-        (AbstractFetcher.__init__, tt.AbstractFetcherParams),
+        (AbstractFetcher.__init__, AbstractFetcherParams),
     ],
     ids=lambda v: v.__qualname__.replace(".", "-"),
 )

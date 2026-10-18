@@ -21,14 +21,13 @@ from sqlalchemy.orm.attributes import QueryableAttribute
 from sqlalchemy.orm.strategy_options import joinedload
 from sqlalchemy.sql.selectable import Select
 
-from id_translation.fetching import AbstractFetcher
+from id_translation.fetching import AbstractFetcher, AbstractFetcherParams
 from id_translation.fetching.types import FetchInstruction
 from id_translation.offline.types import (
     PlaceholderAttributes,
     PlaceholdersTuple,
     PlaceholderTranslations,
 )
-from id_translation.translator_typing import AbstractFetcherParams
 from id_translation.types import IdType
 
 ModelClass = type[DeclarativeBase]

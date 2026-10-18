@@ -17,10 +17,9 @@ from .. import logging as _logging
 from .._utils.emit_warning import emit_warning
 from ..exceptions import ConnectionStatusError
 from ..offline.types import PlaceholderTranslations
-from ..translator_typing import AbstractFetcherParams
 from ..types import ID, IdType
 from . import exceptions
-from ._abstract_fetcher import AbstractFetcher
+from ._abstract_fetcher import AbstractFetcher, AbstractFetcherParams
 from .exceptions import FetcherWarning
 from .types import FetchInstruction
 

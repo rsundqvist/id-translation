@@ -5,7 +5,7 @@ from collections.abc import Iterable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from copy import deepcopy
 from time import perf_counter
-from typing import Any, Self, final
+from typing import Any, Generic, Self, TypedDict, final
 
 from rics.collections.dicts import InheritedKeysDict, reverse_dict
 from rics.misc import tname
@@ -35,6 +35,17 @@ _FORCE_DEPRECATION_MSG = (
     " Re-discovery cannot revise transformers, and re-entering discovery on a warm fetcher contradicts the"
     " thread-safety this method otherwise guarantees. Build a new Translator instead."
 )
+
+
+class AbstractFetcherParams(TypedDict, Generic[SourceType, IdType], total=False):
+    """Keyword arguments for the :class:`~id_translation.fetching.AbstractFetcher` base class."""
+
+    mapper: Mapper[str, str, SourceType] | None
+    allow_fetch_all: bool
+    selective_fetch_all: bool
+    identifiers: Sequence[str] | None
+    optional: bool
+    cache_access: CacheAccess[SourceType, IdType] | None
 
 
 class AbstractFetcher(Fetcher[SourceType, IdType]):

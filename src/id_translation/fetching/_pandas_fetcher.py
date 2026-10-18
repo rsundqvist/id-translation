@@ -9,9 +9,8 @@ from rics.types import AnyPath
 
 from ..logging import generate_task_id
 from ..offline.types import PlaceholderTranslations
-from ..translator_typing import AbstractFetcherParams
 from ..types import IdType
-from ._abstract_fetcher import AbstractFetcher
+from ._abstract_fetcher import AbstractFetcher, AbstractFetcherParams
 from .types import FetchInstruction
 
 PandasReadFunction = Callable[[AnyPath], pd.DataFrame]

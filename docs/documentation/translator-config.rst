@@ -143,7 +143,7 @@ See: :ref:`Subsection: Mapping` for details. For all mapping operations performe
    ``my.library`` module.
 
    Under the hood, this will call :func:`~rics.misc.get_by_full_name` using ``name="my.library.SuperFetcher"``. It
-   must accept the keyword arguments of :class:`~id_translation.translator_typing.AbstractFetcherParams` and pass them on to
+   must accept the keyword arguments of :class:`~id_translation.fetching.AbstractFetcherParams` and pass them on to
    :class:`~id_translation.fetching.AbstractFetcher`.
 
 Multiple fetchers

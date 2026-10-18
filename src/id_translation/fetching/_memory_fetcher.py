@@ -2,9 +2,8 @@ from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Any, Unpack
 
 from ..offline.types import PlaceholderTranslations, SourcePlaceholderTranslations
-from ..translator_typing import AbstractFetcherParams
 from ..types import ID, IdType, SourceType
-from ._abstract_fetcher import AbstractFetcher, format_sources
+from ._abstract_fetcher import AbstractFetcher, AbstractFetcherParams, format_sources
 from .types import FetchInstruction
 
 if TYPE_CHECKING:
