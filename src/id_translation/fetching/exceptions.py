@@ -1,5 +1,6 @@
 """Errors and warnings related to fetching."""
 
+import typing as _t
 from collections.abc import Iterable as _Iterable
 from typing import TYPE_CHECKING
 from typing import Any as _Any
@@ -8,6 +9,9 @@ from typing import Self as _Self
 from .._utils import add_hints as _add_hints
 from .._utils import as_tuple as _as_tuple
 from ..exceptions import IdTranslationWarning as _IdTranslationWarning
+from ..exceptions import MissingIdPlaceholderError as _MissingIdPlaceholderError
+from ..exceptions import MissingPlaceholderError as _MissingPlaceholderError
+from ..types import ID as _ID
 
 if TYPE_CHECKING:
     from ._fetcher import Fetcher
@@ -104,7 +108,7 @@ class ImplementationError(FetcherError):
     """An underlying implementation did something wrong."""
 
 
-class UnknownPlaceholderError(FetcherError):
+class UnknownPlaceholderError(FetcherError, _MissingPlaceholderError):
     """Caller requested unknown placeholder name(s).
 
     Use :meth:`~id_translation.fetching.exceptions.UnknownPlaceholderError.for_placeholders` to build the
@@ -144,6 +148,10 @@ class UnknownPlaceholderError(FetcherError):
     ) -> _Self:
         """Create an error with the standard message.
 
+        Called on ``UnknownPlaceholderError`` itself, this returns an
+        :class:`~id_translation.fetching.exceptions.UnknownIdPlaceholderError` if ``id`` is among the
+        `missing_placeholders`. Subclasses always construct themselves.
+
         Args:
             missing_placeholders: Placeholder names that `source` does not have. A single name may be given as a string.
             placeholders: Placeholder names that `source` does have. A single name may be given as a string.
@@ -157,13 +165,52 @@ class UnknownPlaceholderError(FetcherError):
         """
         missing_placeholders = _as_tuple(missing_placeholders)
         placeholders = _as_tuple(placeholders)
+        error_type = cls
+        if cls is UnknownPlaceholderError and _ID in missing_placeholders:
+            error_type = _t.cast("type[_Self]", UnknownIdPlaceholderError)
         msg = (
             f"Placeholders {sorted(missing_placeholders)} not recognized by {_render_caller(caller)}."
             f" For source={source!r}, known placeholders are: {sorted(placeholders)}."
         )
-        return cls(
+        return error_type(
             msg, missing_placeholders=missing_placeholders, placeholders=placeholders, source=source, hints=hints
         )
+
+
+class UnknownIdPlaceholderError(UnknownPlaceholderError, _MissingIdPlaceholderError):
+    """The ``id`` placeholder of a source could not be mapped.
+
+    Returned by :meth:`UnknownPlaceholderError.for_placeholders()
+    <id_translation.fetching.exceptions.UnknownPlaceholderError.for_placeholders>` when ``id`` is among the unknown
+    placeholders. Catch :class:`~id_translation.exceptions.MissingIdPlaceholderError` to handle a missing ``id``
+    placeholder regardless of where it was detected. For a bad ``id`` override, `missing_placeholders` holds the
+    override's target rather than ``'id'``.
+
+    Args:
+        msg: The error message.
+        missing_placeholders: Placeholder names that `source` does not have. A single name may be given as a string.
+        placeholders: Placeholder names that `source` does have. A single name may be given as a string.
+        source: The source that was searched.
+        hints: Additional context, attached as notes.
+    """
+
+    def __init__(
+        self,
+        msg: str,
+        *,
+        missing_placeholders: _Iterable[str] | str = _ID,
+        placeholders: _Iterable[str] | str = (),
+        source: _Any = None,
+        hints: str | _Iterable[str] = (),
+    ) -> None:
+        super().__init__(
+            msg, missing_placeholders=missing_placeholders, placeholders=placeholders, source=source, hints=hints
+        )
+
+    # Depending on the Python version, MissingIdPlaceholderError.__init__ may run inside the super() chain of
+    # UnknownPlaceholderError.__init__, with default arguments: RuntimeError defines no __init__ on 3.14, but does on
+    # 3.11-3.12, where the chain stops. UnknownPlaceholderError must keep assigning its attributes after its
+    # super().__init__() call, or they are reset to those defaults.
 
 
 class UnknownSourceError(FetcherError):

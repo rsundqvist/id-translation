@@ -90,6 +90,62 @@ class TooManyFailedTranslationsError(TranslationError):
         self.sample_ids = _as_tuple(sample_ids)
 
 
+class MissingPlaceholderError(ValueError):
+    """A source lacks placeholders that are required, e.g. by the translation format.
+
+    Raised wherever this is detected. :class:`~id_translation.fetching.exceptions.UnknownPlaceholderError` is the
+    subclass fetchers may raise; a missing ``id`` is a :class:`~id_translation.exceptions.MissingIdPlaceholderError`.
+
+    Args:
+        msg: The error message.
+        missing_placeholders: Required placeholder names that `source` does not have. A single name may be given as a
+            string.
+        placeholders: Placeholder names that `source` does have. A single name may be given as a string.
+        source: The source that lacks the placeholders.
+        hints: Additional context, attached as notes.
+    """
+
+    def __init__(
+        self,
+        msg: str,
+        *,
+        missing_placeholders: _Iterable[str] | str = (),
+        placeholders: _Iterable[str] | str = (),
+        source: _Any = None,
+        hints: str | _Iterable[str] = (),
+    ) -> None:
+        super().__init__(msg)
+        self.missing_placeholders = _as_tuple(missing_placeholders)
+        self.placeholders = _as_tuple(placeholders)
+        self.source = source
+        _add_hints(self, hints)
+
+
+class MissingIdPlaceholderError(MissingPlaceholderError):
+    """A source has no ``id`` placeholder, so its translations cannot be keyed by ID.
+
+    Raised wherever this is detected. Inline data, such as a ``dict`` given to the ``Translator`` or a
+    ``TranslationMap``, is not mapped, so it raises at construction without a placeholder literally named ``id``.
+    Fetchers raise the :class:`~id_translation.fetching.exceptions.UnknownIdPlaceholderError` subclass.
+
+    Args:
+        msg: The error message.
+        source: The source without an ``id`` placeholder.
+        placeholders: Placeholder names that `source` does have. A single name may be given as a string.
+        hints: Additional context, attached as notes.
+    """
+
+    def __init__(
+        self,
+        msg: str,
+        *,
+        source: _Any = None,
+        placeholders: _Iterable[str] | str = (),
+        hints: str | _Iterable[str] = (),
+    ) -> None:
+        super().__init__(msg, missing_placeholders="id", placeholders=placeholders, source=source, hints=hints)
+
+
 class TransformerConflictError(ValueError):
     """A source already has a transformer, and ``on_existing='raise'``.
 

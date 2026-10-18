@@ -912,6 +912,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             ~id_translation.mapping.exceptions.MappingError: If name-to-source mapping fails, e.g.
                 :class:`~id_translation.mapping.exceptions.ScoringDisabledError` for a name that is neither a source
                 nor overridden, when using the default :class:`~id_translation.mapping.Mapper`.
+            ~id_translation.exceptions.MissingPlaceholderError: If a source lacks a placeholder that `fmt` requires.
             ValueError: If `max_fails` is not a valid fraction.
             ~id_translation.exceptions.TooManyFailedTranslationsError: If translation fails for more than `max_fails` of
                 IDs.

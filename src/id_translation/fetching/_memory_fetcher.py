@@ -1,8 +1,9 @@
 from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Any, Unpack
 
+from .. import _uuid_utils
 from ..offline.types import PlaceholderTranslations, SourcePlaceholderTranslations
-from ..types import ID, IdType, SourceType
+from ..types import IdType, SourceType
 from ._abstract_fetcher import AbstractFetcher, AbstractFetcherParams, format_sources
 from .types import FetchInstruction
 
@@ -30,6 +31,10 @@ class MemoryFetcher(AbstractFetcher[SourceType, IdType]):
             Translations then include IDs that were not asked for, e.g. as extra categories when translating to a
             categorical ``dtype``.
         **kwargs: See :class:`~id_translation.fetching.AbstractFetcher`.
+
+    Every source must have an ID column: :meth:`~id_translation.fetching.AbstractFetcher.initialize_sources` raises
+    :class:`~id_translation.fetching.exceptions.UnknownIdPlaceholderError` for a source whose placeholders do not map
+    to ``id``.
     """
 
     def __init__(
@@ -51,6 +56,9 @@ class MemoryFetcher(AbstractFetcher[SourceType, IdType]):
             else PlaceholderTranslations[SourceType].make(source, pht)
             for source, pht in data.items()
         }
+        # ID columns are resolved through the mapper in _initialize_sources() and kept here: the objects in `data` may
+        # be the caller's, and another fetcher may map the same object differently.
+        self._id_pos: dict[SourceType, int] = {}
         self._return_all = return_all
 
     @property
@@ -58,7 +66,12 @@ class MemoryFetcher(AbstractFetcher[SourceType, IdType]):
         """If ``True``, return all data instead of only the requested IDs and placeholders."""
         return self._return_all
 
-    def _initialize_sources(self, task_id: int) -> dict[SourceType, list[str]]:  # noqa: ARG002
+    def _initialize_sources(self, task_id: int) -> dict[SourceType, list[str]]:
+        for source, pht in self._data.items():
+            id_column = self.id_column(source, candidates=pht.placeholders, task_id=task_id)
+            if id_column is not None:  # initialize_sources() raises for the others.
+                self._id_pos[source] = pht.placeholders.index(id_column)
+
         return {source: list(pht.placeholders) for source, pht in self._data.items()}
 
     def fetch_translations(self, instr: FetchInstruction[SourceType, IdType]) -> PlaceholderTranslations[SourceType]:
@@ -68,6 +81,7 @@ class MemoryFetcher(AbstractFetcher[SourceType, IdType]):
         if self.return_all:
             return ret
 
+        id_pos = self._id_pos[instr.source]
         placeholder_indices = [
             ret.placeholders.index(placeholder)
             for placeholder in instr.placeholders  # requested
@@ -78,15 +92,20 @@ class MemoryFetcher(AbstractFetcher[SourceType, IdType]):
             records = tuple(tuple(record[i] for i in placeholder_indices) for record in ret.records)
         else:
             ids = set(instr.ids)
+            cast = _uuid_utils.try_cast_one if instr.enable_uuid_heuristics else _identity
             records = tuple(
                 tuple(record[i] for i in placeholder_indices)
                 for record in ret.records
-                if record[ret.id_pos] in ids  # crash on missing IDs
+                if cast(record[id_pos]) in ids  # crash on missing IDs
             )
+
         placeholders = tuple(ret.placeholders[i] for i in placeholder_indices)
-        id_pos = placeholders.index(ID) if ID in placeholders else -1
-        return PlaceholderTranslations(instr.source, placeholders, records, id_pos)
+        return PlaceholderTranslations(instr.source, placeholders, records)
 
     def __str__(self) -> str:
         return_all = self.return_all
         return f"{type(self).__name__}(sources={format_sources(self._placeholders)}, {return_all=})"
+
+
+def _identity(idx: Any) -> Any:
+    return idx

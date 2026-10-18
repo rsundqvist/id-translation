@@ -476,12 +476,11 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
             qualified_name = name if self._schema is None else f"{self._schema}.{name}"
             table = metadata.tables[qualified_name]
             id_column_name = self.id_column(table.name, candidates=(c.name for c in table.columns), task_id=task_id)
-            if id_column_name is None or (id_column := table.columns.get(id_column_name)) is None:
-                reason = self._handle_unknown_table(id_column_name, table, qualified_name)
-                if reason:
-                    discarded.append((qualified_name, reason))
+            if id_column_name is None:
+                self._handle_unknown_table(table)
+                discarded.append((qualified_name, "no ID column"))
             else:
-                ans[str(name)] = self.make_table_summary(table, id_column)
+                ans[str(name)] = self.make_table_summary(table, table.columns[id_column_name])
 
         if discarded and _logging.ENABLE_VERBOSE_LOGGING and self.logger.isEnabledFor(logging.DEBUG):
             per_reason: dict[str, list[str]] = {}
@@ -494,34 +493,16 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
 
         return ans
 
-    def _handle_unknown_table(
-        self,
-        id_column: str | None,
-        table: sqlalchemy.Table,
-        table_name: str,
-    ) -> str | None:
-        whitelisted = False if self._whitelist is None else table.name in self._whitelist
-        unmapped = id_column is None
-
-        if unmapped and not whitelisted:
-            return "no ID column"
-
-        hints = []
-        if whitelisted:
-            hints.append("Misconfigured whitelist table.")
-        if not unmapped:
-            hints.append(
-                f"This is likely caused by a bad override. "
-                f"Update or remove the override {ID!r} -> {id_column!r} from your mapping configuration."
+    def _handle_unknown_table(self, table: sqlalchemy.Table) -> None:
+        # Discovered tables without an ID column are not sources. Whitelisted tables must be.
+        if self._whitelist is not None and table.name in self._whitelist:
+            raise exceptions.UnknownPlaceholderError.for_placeholders(
+                ID,
+                placeholders=[c.name for c in table.columns],
+                source=table.name,
+                caller=self,
+                hints="Misconfigured whitelist table.",
             )
-
-        raise exceptions.UnknownPlaceholderError.for_placeholders(
-            ID,
-            placeholders=[c.name for c in table.columns],
-            source=table_name,
-            caller=self,
-            hints=hints,
-        )
 
     def make_table_summary(
         self,

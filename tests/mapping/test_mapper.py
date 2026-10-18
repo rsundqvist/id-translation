@@ -115,6 +115,13 @@ def test_bad_filter(candidates):
         mapper.apply((3, 4), candidates)
 
 
+@pytest.mark.parametrize(("function", "context"), [("filter_names", "source"), ("filter_sources", None)])
+def test_misused_filter_names_itself(function, context):
+    mapper: Mapper[str, str, str | None] = Mapper(filter_functions=[(function, {"regex": ".*"})])
+    with pytest.raises(exceptions.BadFilterError, match=rf"filter_functions\.{function}'"):
+        mapper.apply(["id"], ["id"], context)
+
+
 def test_score_function_receives_candidates_in_caller_order():
     received: list[list[int]] = []
 

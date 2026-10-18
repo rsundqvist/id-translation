@@ -178,7 +178,9 @@ a source claimed by several fetchers is served by the one in `translation.toml` 
 
 Optional fetchers
 ~~~~~~~~~~~~~~~~~
-:meth:`Optional <.Fetcher.optional>` fetchers are allowed to raise when :meth:`.Fetcher.initialize_sources` is called.
+:meth:`Optional <.Fetcher.optional>` fetchers are allowed to raise when :meth:`.Fetcher.initialize_sources` is called,
+for example because a database is down. Configuration errors (a :class:`~id_translation.exceptions.ConfigurationError`,
+or a source missing a required placeholder, such as an ID column) still raise.
 Fetchers should **not** raise when imported or initialized. To suppress init errors (e.g. :class:`ModuleNotFoundError`),
 the config file must specify ``optional = true`` in the class init args:
 

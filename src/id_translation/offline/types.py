@@ -2,9 +2,11 @@
 
 import dataclasses as _dataclasses
 import typing as _t
+from collections.abc import Mapping as _Mapping
 from collections.abc import Sequence as _Sequence
 
 from .. import types as _tt
+from ..exceptions import MissingIdPlaceholderError as _MissingIdPlaceholderError
 
 if _t.TYPE_CHECKING:
     import pandas
@@ -20,9 +22,14 @@ TranslatedIds = dict[_tt.IdType, str]  # {id: translation}
 DictMakeTypes = _t.Mapping[str, _Sequence[_t.Any]] | _t.Mapping[_tt.IdType, str]
 
 
-@_dataclasses.dataclass
+@_dataclasses.dataclass(frozen=True)
 class PlaceholderTranslations(_t.Generic[_tt.SourceType]):
-    """Matrix of ID translation components returned by fetchers."""
+    """Matrix of ID translation components returned by fetchers.
+
+    Once placeholder names have been mapped back from the source's own names, one placeholder must be ``id``. A
+    :class:`~id_translation.offline.TranslationMap` built from an instance without one raises
+    :class:`~id_translation.exceptions.MissingIdPlaceholderError`.
+    """
 
     source: _tt.SourceType
     """Source from which translations were retrieved."""
@@ -30,10 +37,12 @@ class PlaceholderTranslations(_t.Generic[_tt.SourceType]):
     """Names of placeholders in the order in which they appear in `records`."""
     records: _Sequence[_Sequence[_t.Any]]
     """Matrix of shape `N x M` where `N` is the number of IDs returned and `M` is the length of `placeholders`."""
-    id_pos: int = -1
-    """Position if the ID placeholder in `placeholders`."""
-    placeholder_aliases: dict[str, str] = _dataclasses.field(default_factory=dict)
-    """Alternative :attr:`placeholder <id_translation.offline.types.PlaceholderTranslations.placeholders>` names."""
+    placeholder_aliases: _Mapping[str, str] = _dataclasses.field(default_factory=dict, kw_only=True)
+    """Alternative :attr:`placeholder <id_translation.offline.types.PlaceholderTranslations.placeholders>` names.
+
+    Given as ``{alias: placeholder}``. After fetching, the aliases are the source's own names for the placeholders, e.g.
+    ``{'code': 'id'}`` when ``id`` was mapped to a ``code`` column.
+    """
 
     @classmethod
     def make(cls, source: _tt.SourceType, data: "MakeTypes[_tt.SourceType, _tt.IdTypes]") -> _t.Self:
@@ -90,7 +99,6 @@ class PlaceholderTranslations(_t.Generic[_tt.SourceType]):
             source,
             placeholders=tuple(data),
             records=data.to_numpy().tolist(),
-            id_pos=data.columns.get_loc(_tt.ID) if _tt.ID in data else -1,
         )
 
     @classmethod
@@ -100,12 +108,11 @@ class PlaceholderTranslations(_t.Generic[_tt.SourceType]):
             # Users may pass dicts on the form {source: {id: name}}, where our data={id: name}.
             _t.assert_type(data, dict[_tt.IdType, str])
             records = tuple(tuple(item) for item in data.items())
-            return cls(source, (_tt.ID, "name"), records, id_pos=0)
+            return cls(source, (_tt.ID, "name"), records)
 
         placeholders: tuple[str, ...] = tuple(data)  # type: ignore[arg-type]
         records = tuple(zip(*data.values(), strict=True))
-        id_pos = placeholders.index(_tt.ID) if _tt.ID in placeholders else -1
-        return cls(source, placeholders, records, id_pos)
+        return cls(source, placeholders, records)
 
     @classmethod
     def _is_simple_form(cls, data: DictMakeTypes[_tt.IdType]) -> _t.TypeGuard[dict[_tt.IdType, str]]:
@@ -115,3 +122,21 @@ class PlaceholderTranslations(_t.Generic[_tt.SourceType]):
 
 MakeTypes = _t.Union[PlaceholderTranslations[_tt.SourceType], "pandas.DataFrame", DictMakeTypes[_tt.IdType]]
 SourcePlaceholderTranslations = dict[_tt.SourceType, PlaceholderTranslations[_tt.SourceType]]
+
+
+def _id_position(translations: PlaceholderTranslations[_t.Any]) -> int:
+    try:
+        return translations.placeholders.index(_tt.ID)
+    except ValueError:
+        pass
+
+    raise _MissingIdPlaceholderError(
+        f"Source {translations.source!r} has no {_tt.ID!r} placeholder: {sorted(translations.placeholders)}.",
+        source=translations.source,
+        placeholders=translations.placeholders,
+        hints=(
+            f"Inline data and plain Fetcher results are not mapped; the ID column must be named {_tt.ID!r}.",
+            "To map another column, use a MemoryFetcher with an override:"
+            f" Mapper(overrides={{{_tt.ID!r}: '<column>'}}).",
+        ),
+    )

@@ -1,11 +1,12 @@
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, Generic
 
+from ..exceptions import MissingPlaceholderError
 from ..transform.types import Transformer
 from ..types import ID, IdType, NameType, SourceType
 from ._format import Format
 from ._magic_dict import MagicDict
-from .types import PlaceholdersTuple, PlaceholderTranslations, TranslatedIds
+from .types import PlaceholdersTuple, PlaceholderTranslations, TranslatedIds, _id_position
 
 if TYPE_CHECKING:
     import pandas
@@ -64,6 +65,7 @@ class FormatApplier(Generic[NameType, SourceType, IdType]):
     ) -> None:
         self._translations = translations
         self._transformer = transformer
+        self._id_pos = _id_position(translations)
 
     def apply(
         self,
@@ -93,17 +95,37 @@ class FormatApplier(Generic[NameType, SourceType, IdType]):
         Returns:
             A dict ``{id: translation}``.
 
+        Raises:
+            ~id_translation.exceptions.MissingPlaceholderError: If the translations lack a placeholder that `fmt`
+                requires.
+
         Notes:
             This method is an alias of ``__call__``.
         """
         assert isinstance(fmt, Format), f"invalid {fmt=}"  # noqa: S101
         assert isinstance(default_fmt, Format), f"invalid {default_fmt=}"  # noqa: S101
 
-        if placeholders is None:
-            # Use as many placeholders as possible, including aliases.
-            tmp = {*self._placeholders}
-            tmp.update(actual for actual, wanted in self._translations.placeholder_aliases.items() if wanted in tmp)
-            placeholders = tuple(filter(tmp.__contains__, fmt.placeholders))
+        available = {*self._placeholders}
+        available.update(
+            actual for actual, wanted in self._translations.placeholder_aliases.items() if wanted in available
+        )
+        # Use as many placeholders as possible, including aliases. The fstring is positional, so keep the fmt order.
+        include = available if placeholders is None else {*placeholders, *fmt.required_placeholders}
+        placeholders = tuple(filter(include.__contains__, fmt.placeholders))
+
+        missing = sorted({*fmt.required_placeholders, *placeholders}.difference(available))
+        if missing:
+            hints = ["If the source has them, they may not have been fetched."]
+            if optional := "".join(f"[ {{{name}}}]" for name in missing if name in fmt.required_placeholders):
+                hints.append(f"Placeholders that the source may lack can be marked optional: {optional!r}.")
+            raise MissingPlaceholderError(
+                f"Source {self.source!r} lacks placeholders {missing} for {fmt!r}; it has only"
+                f" {sorted(self._placeholders)}.",
+                missing_placeholders=missing,
+                placeholders=self._placeholders,
+                source=self.source,
+                hints=hints,
+            )
 
         fstring = fmt.fstring(placeholders, positional=True)
         real_translations = self._apply(fstring, placeholders)
@@ -156,7 +178,7 @@ class FormatApplier(Generic[NameType, SourceType, IdType]):
         Returns:
             A dict ``{id: translation}``.
         """
-        id_pos, records = self._translations.id_pos, self._translations.records
+        id_pos, records = self._id_pos, self._translations.records
 
         if self._placeholders == placeholders:
             return {record[id_pos]: fstring.format(*record) for record in records}

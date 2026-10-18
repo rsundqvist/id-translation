@@ -32,7 +32,7 @@ def _locations() -> pd.DataFrame:
 
 @pytest.fixture(scope="session")
 def _vehicles() -> pd.DataFrame:
-    return pd.read_csv(RESOURCES / "vehicles.csv")
+    return pd.read_csv(RESOURCES / "sources" / "vehicles.csv")
 
 
 @pytest.fixture

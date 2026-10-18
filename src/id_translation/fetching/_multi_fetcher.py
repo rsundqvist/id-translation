@@ -13,6 +13,7 @@ from rics.strings import format_seconds as fmt_sec
 from rics.types import LiteralHelper
 
 from .._utils.emit_warning import emit_warning
+from ..exceptions import ConfigurationError, MissingPlaceholderError
 from ..logging import generate_task_id, get_event_key
 from ..offline.types import PlaceholderAttributes, SourcePlaceholderTranslations
 from ..transform.types import Transformer
@@ -134,7 +135,8 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         Perform source discovery for all :attr:`~id_translation.fetching.MultiFetcher.children`, discarding
         :attr:`optional <id_translation.fetching.Fetcher.optional>` children that raise or do not return any sources
         when their respective :meth:`Fetcher.initialize_sources <id_translation.fetching.Fetcher.initialize_sources>`
-        methods are called.
+        methods are called. Configuration errors (a :class:`~id_translation.exceptions.ConfigurationError`, or a
+        source missing a required placeholder) are raised, also for optional children.
 
         Args:
             task_id: Used for logging.
@@ -198,6 +200,9 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
                 try:
                     fetcher.initialize_sources(task_id)
                     placeholders = fetcher.placeholders
+                except (ConfigurationError, MissingPlaceholderError) as e:
+                    # `optional` covers an unavailable source, not a misconfigured one.
+                    self._raise_with_notes(e, fetcher)
                 except Exception as e:
                     pretty = self.format_child(fid)
                     LOGGER.log(

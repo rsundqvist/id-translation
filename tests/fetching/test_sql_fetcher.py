@@ -138,13 +138,27 @@ def test_unmappable_whitelist_table(use_override, connection_string):
 
     fetcher = SqlFetcher(connection_string, mapper=mapper, whitelist_tables=["animals", "big_table", "huge_table"])
 
-    with pytest.raises(exceptions.UnknownPlaceholderError, match=r"\['id'\] not recognized") as e:
+    missing = "bad-column" if use_override else "id"
+    with pytest.raises(exceptions.UnknownIdPlaceholderError, match=rf"\['{missing}'\] not recognized") as e:
         fetcher._get_summaries(-1)
     fetcher.close()
-    assert e.value.missing_placeholders == ("id",)
+    assert e.value.missing_placeholders == (missing,)
     notes = "\n".join(e.value.__notes__)
-    assert "Misconfigured whitelist table." in notes
+    # A bad override is caught by id_column() for any table, before the whitelist is consulted.
+    assert ("Misconfigured whitelist table." in notes) is not use_override
     assert ("'id' -> 'bad-column'" in notes) is use_override
+
+
+def test_unmappable_whitelist_table_reports_unqualified_source(connection_string):
+    import sqlalchemy
+
+    table = sqlalchemy.Table("animals", sqlalchemy.MetaData(), sqlalchemy.Column("name"), schema="myschema")
+    fetcher = SqlFetcher(connection_string, whitelist_tables=["animals"])
+
+    with pytest.raises(exceptions.UnknownIdPlaceholderError) as e:
+        fetcher._handle_unknown_table(table)
+    fetcher.close()
+    assert e.value.source == "animals"
 
 
 @pytest.mark.parametrize("column", ["id", "name"])

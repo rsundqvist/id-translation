@@ -174,7 +174,7 @@ def data(df):
 def make_translator(online: str, transformer: BitmaskTransformer) -> Translator[str, str, int]:
     fetcher: PandasFetcher[int] = PandasFetcher(
         read_function="read_csv",
-        read_path_format=str(RESOURCES / "{}.csv"),
+        read_path_format=str(RESOURCES / "sources" / "{}.csv"),
         read_function_kwargs={"converters": {0: binary_to_decimal}},
     )
     ret: Translator[str, str, int] = Translator(fetcher, transformers={"vehicles": transformer})

@@ -1,11 +1,14 @@
 """Partial cache hits: the fetcher fetches only the uncovered IDs and merges them with the cached rows."""
 
+import dataclasses
+
 import pytest
 
 from id_translation import Translator
 from id_translation.fetching import AbstractFetcher, CacheAccess
-from id_translation.fetching.exceptions import FetcherError, ImplementationError
+from id_translation.fetching.exceptions import ImplementationError, UnknownIdPlaceholderError
 from id_translation.fetching.types import PartialCacheHit
+from id_translation.mapping import Mapper
 from id_translation.offline.types import PlaceholderTranslations
 from id_translation.types import ID
 
@@ -30,9 +33,7 @@ class RecordingFetcher(AbstractFetcher[str, int]):
         self.calls.append((tuple(instr.placeholders), None if instr.ids is None else set(instr.ids)))
         ids = instr.ids if instr.ids is not None else PEOPLE
         records = [tuple(i if c == ID else PEOPLE[i][c] for c in instr.placeholders) for i in ids if i in PEOPLE]
-        return PlaceholderTranslations(
-            "people", tuple(instr.placeholders), records, id_pos=instr.placeholders.index(ID)
-        )
+        return PlaceholderTranslations("people", tuple(instr.placeholders), records)
 
 
 class StubCache(CacheAccess[str, int]):
@@ -58,7 +59,7 @@ def make(result: object, *, fmt: str = "{id}:{name}") -> tuple[Translator[str, s
 
 def cached(placeholders: tuple[str, ...], *ids: int) -> PlaceholderTranslations[str]:
     records = [tuple(i if col == ID else PEOPLE[i][col] for col in placeholders) for i in ids]
-    return PlaceholderTranslations("people", placeholders, records, id_pos=placeholders.index(ID))
+    return PlaceholderTranslations("people", placeholders, records)
 
 
 def partial(placeholders: tuple[str, ...], *ids: int, covered: set[int] | None = None) -> PartialCacheHit[str, int]:
@@ -132,6 +133,7 @@ def test_partial_hit_layout_mismatch_is_an_implementation_error():
 
     with pytest.raises(ImplementationError, match="does not match fetched layout"):
         translator.translate([1, 2], names="people")
+    assert cache.stored == [], "a rejected complement must not be cached"
 
 
 def test_partial_hit_with_numpy_array_records():
@@ -141,10 +143,9 @@ def test_partial_hit_with_numpy_array_records():
     class NumpyFetcher(RecordingFetcher):
         def fetch_translations(self, instr):
             pht = super().fetch_translations(instr)
-            pht.records = np.asarray(pht.records, dtype=object)
-            return pht
+            return dataclasses.replace(pht, records=np.asarray(pht.records, dtype=object))
 
-    cached_pht = PlaceholderTranslations("people", (ID, "name"), np.array([[1, "Alice"]], dtype=object), id_pos=0)
+    cached_pht = PlaceholderTranslations("people", (ID, "name"), np.array([[1, "Alice"]], dtype=object))
     cache = StubCache(PartialCacheHit(cached_pht, covered={1}))
     fetcher = NumpyFetcher(cache_access=cache, allow_fetch_all=True)
     translator: Translator[str, str, int] = Translator(fetcher, fmt="{id}:{name}")
@@ -153,20 +154,11 @@ def test_partial_hit_with_numpy_array_records():
     assert fetcher.calls == [((ID, "name"), {2, 3})]
 
 
-def test_default_id_pos_is_not_trusted():
-    # Caches are not required to set id_pos; the default (-1) points at the wrong column.
-    cached_pht = PlaceholderTranslations("people", (ID, "name"), [(1, "Alice")])  # id_pos not set
-    translator, fetcher, _ = make(PartialCacheHit(cached_pht))
-
-    assert translator.translate([1, 2], names="people") == ["1:Alice", "2:Bob"]
-    assert fetcher.calls == [((ID, "name"), {2})]  # 1 is covered by the cached row
-
-
 def test_partial_hit_rows_without_id_placeholder():
     cached_pht = PlaceholderTranslations("people", ("name",), [("Alice",)])
     translator, _, _ = make(PartialCacheHit(cached_pht))
 
-    with pytest.raises(FetcherError, match="no 'id' placeholder"):
+    with pytest.raises(UnknownIdPlaceholderError, match="no 'id' placeholder"):
         translator.translate([1, 2], names="people")
 
 
@@ -176,14 +168,27 @@ def test_fetched_rows_win_over_stale_cached_rows():
         def fetch_translations(self, instr):
             self.calls.append((tuple(instr.placeholders), None if instr.ids is None else set(instr.ids)))
             records = [tuple(i if c == ID else PEOPLE[i][c] for c in instr.placeholders) for i in sorted(PEOPLE)]
-            return PlaceholderTranslations(
-                "people", tuple(instr.placeholders), records, id_pos=instr.placeholders.index(ID)
-            )
+            return PlaceholderTranslations("people", tuple(instr.placeholders), records)
 
-    stale = PlaceholderTranslations("people", (ID, "name"), [(1, "STALE")], id_pos=0)
+    stale = PlaceholderTranslations("people", (ID, "name"), [(1, "STALE")])
     cache = StubCache(PartialCacheHit(stale))
     fetcher = RangeFetcher(cache_access=cache, allow_fetch_all=True)
     translator: Translator[str, str, int] = Translator(fetcher, fmt="{id}:{name}")
 
     assert translator.translate([1, 2], names="people") == ["1:Alice", "2:Bob"]
     assert fetcher.calls == [((ID, "name"), {2})]
+
+
+def test_loaded_translations_are_not_mutated():
+    # A cache may return the same object every time; mapping placeholder names back must not rename it in place.
+    class CodeFetcher(RecordingFetcher):
+        def _initialize_sources(self, task_id):  # noqa: ARG002
+            return {"people": ["code", "name"]}
+
+    shared = PlaceholderTranslations("people", (ID, "name"), [(1, "Alice")])
+    fetcher = CodeFetcher(cache_access=StubCache(shared), mapper=Mapper(overrides={ID: "code"}))
+
+    translator: Translator[str, str, int] = Translator(fetcher)
+    assert translator.translate([1], names="people") == ["1:Alice"]
+    assert shared.placeholders == (ID, "name")
+    assert shared.placeholder_aliases == {}

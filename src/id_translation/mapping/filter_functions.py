@@ -115,12 +115,14 @@ def filter_sources(
         The call above filtered out the `'some_metadata_table'` source (by removing all candidates).
 
     Notes:
-        Returns immediately if `value` != `'id'`, to avoid unnecessary work. The
+        Returns immediately if `value` != `'id'`, to avoid unnecessary work: rejecting a source's ``'id'`` placeholder
+        is what rejects the source. A :class:`~id_translation.fetching.SqlFetcher` then leaves the source out. Other
+        bundled fetchers raise :class:`~id_translation.fetching.exceptions.UnknownIdPlaceholderError` instead.
     """
     if value != ID:
         return set(candidates)
 
-    function_name = filter_names.__name__
+    function_name = filter_sources.__name__
     _check_context(function_name, context=context, want_none=False)
     keep = _filter_single(
         context,

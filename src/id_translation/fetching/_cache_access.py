@@ -86,7 +86,8 @@ class CacheAccess(ABC, Generic[SourceType, IdType]):
         Args:
             instr: The :class:`~id_translation.fetching.types.FetchInstruction` which produced the `translations`.
             translations: A :class:`~id_translation.offline.types.PlaceholderTranslations` produced by
-                :meth:`~id_translation.fetching.AbstractFetcher.fetch_translations`.
+                :meth:`~id_translation.fetching.AbstractFetcher.fetch_translations`. Its placeholders use the wanted
+                names and always include ``id``; find the ID column with ``translations.placeholders.index("id")``.
         """
 
     @property

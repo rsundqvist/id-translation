@@ -43,7 +43,7 @@ def test_unknown_placeholders(fetcher):
 
 def test_missing_id_placeholder_raises_clear_error():
     # "id" is required implicitly even when not requested; a source that never maps it must raise
-    # UnknownPlaceholderError, not the bare `ValueError` from PlaceholderTranslations.id_pos computation.
+    # UnknownPlaceholderError rather than translate by whichever column happens to be last.
     no_id_fetcher: MemoryFetcher[str, str] = MemoryFetcher({"countries": {"code": ["US"], "name": ["USA"]}})
     with pytest.raises(exceptions.UnknownPlaceholderError, match=r"\['id'\] not recognized"):
         no_id_fetcher.fetch([IdsToFetch("countries", {"US"})])
@@ -98,7 +98,7 @@ class TestCache:
     @staticmethod
     def _run(fetcher: "CachingFetcher") -> None:
         ids_to_fetch = [IdsToFetch("people", {1999})]
-        expected = {"people": PlaceholderTranslations("people", ("id", "name"), ((1999, "Sofia"),), 0)}
+        expected = {"people": PlaceholderTranslations("people", ("id", "name"), ((1999, "Sofia"),))}
 
         calls = fetcher.calls
 
@@ -181,8 +181,7 @@ class TestBadImplementation:
 
     def test_id_column(self):
         fetcher = BadFetcher()
-        with pytest.raises(TypeError, match=r"Bad candidates=\[\] argument; must be a non-empty collection."):
-            fetcher.id_column("source", candidates=[])
+        assert fetcher.id_column("source", candidates=[]) is None
 
 
 class BadFetcher(AbstractFetcher[str, int]):
@@ -291,3 +290,14 @@ def test_repeated_source_in_ids_to_fetch_raises():
     fetcher: MemoryFetcher[str, int] = MemoryFetcher({"a": {"id": [1, 2], "name": ["x", "y"]}})
     with pytest.raises(ValueError, match=r"Repeated sources in ids_to_fetch: \['a'\]"):
         fetcher.fetch([IdsToFetch("a", {1}), IdsToFetch("a", {2})])
+
+
+@pytest.mark.parametrize("bundled", [True, False])
+def test_missing_id_column_hint_for_implementers(bundled):
+    cls = MemoryFetcher if bundled else type("MyFetcher", (MemoryFetcher,), {})
+    fetcher = cls({"audit_log": {"event": ["login"]}})
+
+    with pytest.raises(exceptions.UnknownIdPlaceholderError) as exc_info:
+        fetcher.initialize_sources()
+    leave_out = [n for n in exc_info.value.__notes__ if "leave it out of MyFetcher._initialize_sources()" in n]
+    assert bool(leave_out) is not bundled

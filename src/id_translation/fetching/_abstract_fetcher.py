@@ -109,6 +109,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         self._optional = optional
 
         self._placeholders: dict[SourceType, list[str]] | None = None
+        self._discovered_id_columns: dict[SourceType, str | None] | None = None
 
         self._active_operations: dict[str, int] = {}
 
@@ -136,13 +137,18 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
             )
 
         with self._detect_concurrent_access("initialize_sources"):
-            self._placeholders = self._initialize_sources(task_id)
-
-        if self._placeholders is None:
-            raise exceptions.ImplementationError(
-                f"{self._cls_name()}._initialize_sources() returned None;"
-                " it must return a dict {source: [placeholder, ...]}."
-            )
+            self._discovered_id_columns = {}
+            try:
+                placeholders = self._initialize_sources(task_id)
+                if placeholders is None:
+                    raise exceptions.ImplementationError(
+                        f"{self._cls_name()}._initialize_sources() returned None;"
+                        " it must return a dict {source: [placeholder, ...]}."
+                    )
+                self._verify_id_columns(placeholders, task_id)
+            finally:
+                self._discovered_id_columns = None
+            self._placeholders = placeholders
 
         if logger.isEnabledFor(logging.INFO):
             seconds = perf_counter() - start
@@ -170,7 +176,13 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
 
         If discovery fails (e.g. because the target database is not accessible), the exception should be raised here.
         The :class:`~id_translation.fetching.MultiFetcher` will suppress exceptions [#f1]_ raised by
-        :attr:`~id_translation.fetching.AbstractFetcher.optional` children.
+        :attr:`~id_translation.fetching.AbstractFetcher.optional` children, except configuration errors (a
+        :class:`~id_translation.exceptions.ConfigurationError`, or a source missing a required placeholder).
+
+        Every returned source must have an ID column, or
+        :meth:`~id_translation.fetching.AbstractFetcher.initialize_sources` raises. Leave out sources that should be
+        skipped, and do so before calling :meth:`~id_translation.fetching.AbstractFetcher.id_column`: an override
+        naming a column that the source lacks raises rather than returning ``None``.
 
         Args:
             task_id: Used for logging.
@@ -307,11 +319,64 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         candidates: Iterable[str],
         task_id: int | None = None,
     ) -> str | None:
-        """Return the ID column for `source`."""
+        """Return the ID column for `source`.
+
+        Args:
+            source: The source to map the ``id`` placeholder for.
+            candidates: Placeholder names that `source` has.
+            task_id: Used for logging.
+
+        Returns:
+            The name in `candidates` that ``id`` maps to, or ``None`` if it does not map (e.g. `candidates` is empty).
+
+        Raises:
+            ~id_translation.fetching.exceptions.UnknownIdPlaceholderError: If ``id`` maps to a name that is not in
+                `candidates`, e.g. because of a bad override.
+        """
+        candidates = tuple(candidates)
         if not candidates:
-            msg = f"Bad {candidates=} argument; must be a non-empty collection."
-            raise TypeError(msg)
-        return self.map_placeholders(source, [ID], candidates=candidates, task_id=task_id)[ID]
+            id_column = None
+        else:
+            id_column = self.map_placeholders(source, [ID], candidates=candidates, task_id=task_id)[ID]
+        if id_column is not None and id_column not in candidates:
+            raise exceptions.UnknownIdPlaceholderError.for_placeholders(
+                id_column,
+                placeholders=candidates,
+                source=source,
+                caller=self,
+                hints=f"The override {ID!r} -> {id_column!r} names a placeholder that {source!r} does not have.",
+            )
+
+        if self._discovered_id_columns is not None:
+            self._discovered_id_columns[source] = id_column
+        return id_column
+
+    def _verify_id_columns(self, placeholders: dict[SourceType, list[str]], task_id: int) -> None:
+        discovered = self._discovered_id_columns
+        assert discovered is not None, "bad internal state"  # noqa: S101
+
+        for source, candidates in placeholders.items():
+            if source in discovered:
+                id_column = discovered[source]
+            else:
+                id_column = self.id_column(source, candidates=candidates, task_id=task_id)
+
+            if id_column is None:
+                raise exceptions.UnknownPlaceholderError.for_placeholders(
+                    ID,
+                    placeholders=candidates,
+                    source=source,
+                    caller=self,
+                    hints=self._missing_id_column_hint(source),
+                )
+
+    def _missing_id_column_hint(self, source: SourceType) -> str:
+        hint = f"Rename the ID column of {source!r} to {ID!r}, or map {ID!r} to it with an override."
+        if not type(self).__module__.startswith("id_translation."):  # Implementer-side fix; bundled fetchers can't.
+            hint += f" If {source!r} has no ID column, leave it out of {type(self).__name__}._initialize_sources()."
+        if not self.mapper._apply_filters(ID, [ID], source, {}, task_id=None):  # E.g. filter_sources(), on purpose.
+            hint = f"A filter rejects the ID column of {source!r}, but every source needs one."
+        return hint
 
     @property
     def mapper(self) -> Mapper[str, str, SourceType]:
@@ -655,12 +720,27 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
             placeholder_attributes=placeholder_attributes,
         )
 
+        # Fetched rows were checked before CacheAccess.store(); anything missing here came from CacheAccess.load().
+        self._check_required(translations, reverse_mappings, required_placeholders, returned_by="CacheAccess.load()")
+        return translations
+
+    def _check_required(
+        self,
+        translations: PlaceholderTranslations[SourceType],
+        reverse_mappings: dict[str, str],
+        required_placeholders: set[str],
+        *,
+        returned_by: str,
+    ) -> None:
         available_placeholders = {*translations.placeholders, *translations.placeholder_aliases}
         unmapped_required_placeholders = required_placeholders.difference(available_placeholders)
         if unmapped_required_placeholders:
-            self._verify_placeholders(reverse_mappings or {}, source, unmapped_required_placeholders)
-
-        return translations
+            self._verify_placeholders(
+                reverse_mappings or {},
+                translations.source,
+                unmapped_required_placeholders,
+                returned_by=returned_by,
+            )
 
     @classmethod
     def _deduplicate(cls, placeholders: PlaceholdersTuple) -> PlaceholdersTuple:
@@ -711,15 +791,25 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
 
         return translations
 
-    def _verify_placeholders(self, reverse_mappings: dict[str, str], source: SourceType, unmapped: set[str]) -> None:
+    def _verify_placeholders(
+        self,
+        reverse_mappings: dict[str, str],
+        source: SourceType,
+        unmapped: set[str],
+        *,
+        returned_by: str,
+    ) -> None:
         hints = []
-        if unmapped.intersection(reverse_mappings.values()):
-            r = reverse_dict(reverse_mappings)
-            bad_mappings = {b: r[b] for b in unmapped if b in r}
+        wanted_to_actual = reverse_dict(reverse_mappings)
+        known = self.placeholders[source]
+        if bad_mappings := {w: a for w, a in wanted_to_actual.items() if w in unmapped and a not in known}:
             hints.append(
                 f"Mapping {bad_mappings} for required placeholders (keys) were made to placeholders that do not"
                 f" exist. The override configuration {self.mapper._overrides} may be incorrect."
             )
+        actual = {wanted_to_actual.get(w, w) for w in unmapped}
+        if advertised := sorted(actual.intersection(known)):
+            hints.append(f"The source has {advertised}, but {returned_by} did not return them.")
         raise exceptions.UnknownPlaceholderError.for_placeholders(
             unmapped,
             placeholders=self.placeholders[source],
