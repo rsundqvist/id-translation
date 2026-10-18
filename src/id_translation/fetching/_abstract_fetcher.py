@@ -146,6 +146,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
                         " it must return a dict {source: [placeholder, ...]}."
                     )
                 self._verify_id_columns(placeholders, task_id)
+                self._verify_overrides(placeholders)
             finally:
                 self._discovered_id_columns = None
             self._placeholders = placeholders
@@ -264,6 +265,17 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         See Also:
             🔑 This is a key event method. See :ref:`key-events` for details.
         """
+        return self._map_placeholders(source, placeholders, candidates=candidates, task_id=task_id, mapper=self.mapper)
+
+    def _map_placeholders(
+        self,
+        source: SourceType,
+        placeholders: Iterable[str],
+        *,
+        candidates: Iterable[str] | None,
+        task_id: int | None,
+        mapper: Mapper[str, str, SourceType],
+    ) -> dict[str, str | None]:
         start = perf_counter()
 
         if self._placeholders is not None and source not in self._placeholders:
@@ -291,7 +303,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
                 ),
             )
 
-        dm = self.mapper.apply(placeholders, candidates, context=source, task_id=task_id)
+        dm = mapper.apply(placeholders, candidates, context=source, task_id=task_id)
 
         ans: dict[str, str | None] = dm.flatten()  # type: ignore[assignment]
         for not_mapped in placeholders.difference(ans):
@@ -370,7 +382,52 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
                     hints=self._missing_id_column_hint(source),
                 )
 
+    def _verify_overrides(self, placeholders: dict[SourceType, list[str]]) -> None:
+        """Raise for an override that names a placeholder its source lacks, or that no source has if it is shared."""
+        mapper = self.mapper
+        shared_misses: dict[tuple[str, str], list[SourceType]] = {}
+        for source, candidates in placeholders.items():
+            overrides = mapper._get_context_overrides(source)
+            blocked = self._blocked(source, overrides)
+            # The ID column is checked by id_column(), which raises for shared overrides as well.
+            misses = {v: c for v, c in overrides.items() if v != ID and v not in blocked and c not in candidates}
+            if not misses:
+                continue
+
+            shared = mapper._get_shared_overrides(source)
+            if own := {v: c for v, c in misses.items() if v not in shared}:
+                raise exceptions.UnknownPlaceholderError.for_placeholders(
+                    sorted(set(own.values())),
+                    placeholders=candidates,
+                    source=source,
+                    caller=self,
+                    hints=f"The overrides {own} for {source!r} name placeholders that it does not have. Correct the"
+                    " column names, or remove the overrides.",
+                )
+            for v, c in misses.items():
+                shared_misses.setdefault((v, c), []).append(source)
+
+        # A shared override that some sources satisfy is how one table serves sources with different columns.
+        for (value, candidate), sources in shared_misses.items():
+            if len(sources) == len(placeholders):
+                raise exceptions.UnknownPlaceholderError.for_placeholders(
+                    candidate,
+                    placeholders=placeholders[sources[0]],
+                    source=sources[0],
+                    caller=self,
+                    hints=f"The shared override {value!r} -> {candidate!r} names a placeholder that no source has.",
+                )
+
+    def _blocked(self, source: SourceType, names: Iterable[str]) -> set[str]:
+        """Return the `names` that overrides to ``'_'`` block for `source`.
+
+        A fetcher may return blocked columns anyway, e.g. ``MemoryFetcher(return_all=True)``. They are never shown.
+        """
+        return self.mapper._blocked(names, source)
+
     def _missing_id_column_hint(self, source: SourceType) -> str:
+        if self._blocked(source, [ID]):
+            return f"An override to '_' blocks the ID column of {source!r}, but every source needs one."
         hint = f"Rename the ID column of {source!r} to {ID!r}, or map {ID!r} to it with an override."
         if not type(self).__module__.startswith("id_translation."):  # Implementer-side fix; bundled fetchers can't.
             hint += f" If {source!r} has no ID column, leave it out of {type(self).__name__}._initialize_sources()."
@@ -472,6 +529,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
                 ids=itf.ids,
                 task_id=task_id,
                 enable_uuid_heuristics=enable_uuid_heuristics,
+                mapper=self._mapper,
             )
             for itf in ids_to_fetch
         }
@@ -542,15 +600,15 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
                 ),
             )
 
-        with self._fetch_all_mapping_context():
-            rv = self._fetch_all(
-                tuple(placeholders),
-                required_placeholders=set(required),
-                placeholder_attributes=placeholder_attributes,
-                wanted_sources=sources,
-                task_id=task_id,
-                enable_uuid_heuristics=enable_uuid_heuristics,
-            )
+        rv = self._fetch_all(
+            tuple(placeholders),
+            required_placeholders=set(required),
+            placeholder_attributes=placeholder_attributes,
+            wanted_sources=sources,
+            task_id=task_id,
+            enable_uuid_heuristics=enable_uuid_heuristics,
+            mapper=self._fetch_all_mapper(),
+        )
 
         if logger.isEnabledFor(logging.INFO):
             seconds = perf_counter() - start
@@ -582,6 +640,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         wanted_sources: set[SourceType] | None,
         task_id: int,
         enable_uuid_heuristics: bool,
+        mapper: Mapper[str, str, SourceType],
     ) -> SourcePlaceholderTranslations[SourceType]:
         if wanted_sources is None:
             wanted_sources = {*self.sources}
@@ -592,7 +651,9 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
             sources = [
                 source
                 for source in wanted_sources
-                if required_placeholders.issubset(self._wanted_to_actual(source, required_placeholders, task_id))
+                if required_placeholders.issubset(
+                    self._wanted_to_actual(source, required_placeholders, task_id, mapper=mapper)[0]
+                )
             ]
 
             if discarded := wanted_sources.difference(sources):
@@ -613,6 +674,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
                 placeholder_attributes=placeholder_attributes,
                 task_id=task_id,
                 enable_uuid_heuristics=enable_uuid_heuristics,
+                mapper=mapper,
             )
             source_translations[source] = translations
 
@@ -632,27 +694,21 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         finally:
             self._active_operations.pop(operation, None)
 
-    @contextmanager
-    def _fetch_all_mapping_context(self) -> Iterator[None]:
-        original_mapper = self._mapper
+    def _fetch_all_mapper(self) -> Mapper[str, str, SourceType]:
+        """The mapper for ``fetch_all``: one that ignores unmapped placeholders when sources may be skipped.
 
+        Passed down explicitly, never set on the instance, which other threads share.
+        """
         on_unmapped = "ignore"
         selective_fetch_all = self._selective_fetch_all
-        if not (selective_fetch_all and original_mapper.on_unmapped != on_unmapped):
-            yield
-            return
+        if not (selective_fetch_all and self._mapper.on_unmapped != on_unmapped):
+            return self._mapper
 
         if self.logger.isEnabledFor(logging.DEBUG):
             self.logger.debug(
-                f"Using Mapper.{on_unmapped=} until the current {self.fetch_all.__qualname__}-operation"
-                f" finishes, since {selective_fetch_all=}."
+                f"Using Mapper.{on_unmapped=} for this fetch_all-operation, since {selective_fetch_all=}."
             )
-        with self._detect_concurrent_access("fetch_all"):
-            self._mapper = self._mapper.copy(on_unmapped=on_unmapped)
-            try:
-                yield
-            finally:
-                self._mapper = original_mapper
+        return self._mapper.copy(on_unmapped=on_unmapped)
 
     @abstractmethod
     def fetch_translations(self, instr: FetchInstruction[SourceType, IdType]) -> PlaceholderTranslations[SourceType]:
@@ -681,11 +737,6 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         Returns:
             A single :class:`~id_translation.offline.types.PlaceholderTranslations` instance.
 
-        Raises:
-            ~id_translation.fetching.exceptions.UnknownPlaceholderError: For required placeholders that the source
-                does not have. Build it with
-                :meth:`~id_translation.fetching.exceptions.UnknownPlaceholderError.for_placeholders`.
-
         See Also:
             🔑 This is a key event method. See :ref:`key-events` for details.
         """
@@ -699,10 +750,11 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         placeholder_attributes: PlaceholderAttributes | None,
         task_id: int,
         enable_uuid_heuristics: bool,
+        mapper: Mapper[str, str, SourceType],
         ids: set[IdType] | None = None,
     ) -> PlaceholderTranslations[SourceType]:
         placeholders = self._deduplicate(placeholders)
-        reverse_mappings, instr = self._make_fetch_instruction(
+        reverse_mappings, aliases, instr = self._make_fetch_instruction(
             source,
             placeholders,
             required_placeholders=required_placeholders,
@@ -710,12 +762,13 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
             ids=ids,
             task_id=task_id,
             enable_uuid_heuristics=enable_uuid_heuristics,
+            mapper=mapper,
         )
 
         translations = self._cache.run(
             instr,
-            placeholders,
             reverse_mappings=reverse_mappings,
+            aliases=aliases,
             required_placeholders=required_placeholders,
             placeholder_attributes=placeholder_attributes,
         )
@@ -732,7 +785,8 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         *,
         returned_by: str,
     ) -> None:
-        available_placeholders = {*translations.placeholders, *translations.placeholder_aliases}
+        # An alias cannot stand in for the ID: a TranslationMap needs a real 'id' column.
+        available_placeholders = {*translations.placeholders, *translations.placeholder_aliases.keys() - {ID}}
         unmapped_required_placeholders = required_placeholders.difference(available_placeholders)
         if unmapped_required_placeholders:
             self._verify_placeholders(
@@ -797,7 +851,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         source: SourceType,
         unmapped: set[str],
         *,
-        returned_by: str,
+        returned_by: str | None,
     ) -> None:
         hints = []
         wanted_to_actual = reverse_dict(reverse_mappings)
@@ -807,11 +861,15 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
                 f"Mapping {bad_mappings} for required placeholders (keys) were made to placeholders that do not"
                 f" exist. The override configuration {self.mapper._overrides} may be incorrect."
             )
-        actual = {wanted_to_actual.get(w, w) for w in unmapped}
-        if advertised := sorted(actual.intersection(known)):
+            if bad_mappings.keys() & self.mapper._get_shared_overrides(source).keys():
+                hints.append(f"Make shared overrides that {source!r} cannot satisfy source-specific.")
+        if blocked := self._blocked(source, unmapped):
+            hints.append(f"Overrides to '_' block the required placeholders {sorted(blocked)}.")
+        actual = {wanted_to_actual.get(w, w) for w in unmapped.difference(blocked)}
+        if returned_by and (advertised := sorted(actual.intersection(known))):
             hints.append(f"The source has {advertised}, but {returned_by} did not return them.")
         raise exceptions.UnknownPlaceholderError.for_placeholders(
-            unmapped,
+            sorted(unmapped),
             placeholders=self.placeholders[source],
             source=source,
             caller=self,
@@ -828,25 +886,32 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         ids: set[IdType] | None,
         task_id: int,
         enable_uuid_heuristics: bool,
-    ) -> tuple[dict[str, str], FetchInstruction[SourceType, IdType]]:
+        mapper: Mapper[str, str, SourceType],
+    ) -> tuple[dict[str, str], dict[str, str], FetchInstruction[SourceType, IdType]]:
         required_placeholders.add(ID)
         if ID not in placeholders:
             placeholders = (ID, *placeholders)
 
-        wanted_to_actual = self._wanted_to_actual(source, placeholders, task_id)
+        wanted_to_actual, absent = self._wanted_to_actual(source, placeholders, task_id, mapper=mapper)
+        # Like id_column(), raise for an override that names a column the source does not have. Other names are
+        # checked after fetching: a fetcher may return columns its source does not list, e.g. for a shared override.
+        if bad := {actual: wanted for wanted, actual in absent.items() if wanted in required_placeholders}:
+            self._verify_placeholders(bad, source, set(bad.values()), returned_by=None)
+
         placeholder_attributes = self._placeholder_attributes(wanted_to_actual, placeholder_attributes, placeholders)
 
-        actual_to_wanted = {actual: wanted for wanted, actual in wanted_to_actual.items() if wanted != actual}
-        if actual_to_wanted:
-            # We'll just map what we can here. If anything is missing it'll be caught later.
-            def apply(c: Iterable[str]) -> Iterable[str]:
-                return (wanted_to_actual[p] for p in c if p in wanted_to_actual)
+        actual_to_wanted, aliases = _reverse_mappings(wanted_to_actual, placeholders)
 
-            placeholders = tuple(apply(placeholders))
-            required_placeholders = set(apply(required_placeholders))
+        # Drop names the source lacks; a missing required placeholder is caught after fetching.
+        def apply(c: Iterable[str]) -> Iterable[str]:
+            return (wanted_to_actual[p] for p in c if p in wanted_to_actual)
+
+        placeholders = tuple(dict.fromkeys(apply(placeholders)))  # Wanted names may share a column.
+        required_placeholders = set(apply(required_placeholders))
 
         return (
             actual_to_wanted,
+            aliases,
             FetchInstruction(
                 source=source,
                 placeholders=placeholders,
@@ -873,7 +938,8 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
 
         rv: PlaceholderAttributes = {}
         for wanted in placeholders:
-            actual = wanted_to_actual.get(wanted, wanted)
+            if (actual := wanted_to_actual.get(wanted)) is None:
+                continue
             merged = [*attributes.get(actual, ()), *attributes.get(wanted, ())]
             if merged:
                 rv.setdefault(actual, set()).update(merged)
@@ -881,10 +947,25 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         return rv
 
     def _wanted_to_actual(
-        self, source: SourceType, wanted_placeholders: Iterable[str], task_id: int | None = None
-    ) -> dict[str, str]:
-        wanted_to_actual = self.map_placeholders(source, wanted_placeholders, task_id=task_id)
-        return {wanted: actual for wanted, actual in wanted_to_actual.items() if actual is not None}
+        self,
+        source: SourceType,
+        wanted_placeholders: Iterable[str],
+        task_id: int,
+        *,
+        mapper: Mapper[str, str, SourceType],
+    ) -> tuple[dict[str, str], dict[str, str]]:
+        """Map `wanted_placeholders`, returning the names the source has and the names mapped to columns it lacks.
+
+        A column the source lacks can only come from an override.
+        """
+        mapped = self._map_placeholders(source, wanted_placeholders, candidates=None, task_id=task_id, mapper=mapper)
+        available = set(self.placeholders[source])
+        wanted_to_actual: dict[str, str] = {}
+        absent: dict[str, str] = {}
+        for wanted, actual in mapped.items():
+            if actual is not None:
+                (wanted_to_actual if actual in available else absent)[wanted] = actual
+        return wanted_to_actual, absent
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
@@ -975,3 +1056,27 @@ def format_sources(placeholders: Mapping[Any, Any] | None) -> str:
     if placeholders is None:
         return "<uninitialized>"
     return repr(list(placeholders)) if placeholders else "<no sources>"
+
+
+def _reverse_mappings(
+    wanted_to_actual: dict[str, str],
+    placeholders: PlaceholdersTuple,
+) -> tuple[dict[str, str], dict[str, str]]:
+    """Name each fetched column by one wanted name, returning ``{actual: wanted}`` renames and aliases for the rest.
+
+    Several wanted names may map to one column. The ID wins, then the column's own name, then placeholder order; the
+    others become aliases of the chosen name instead of being lost.
+    """
+    by_actual: dict[str, list[str]] = {}
+    for wanted in placeholders:
+        if (actual := wanted_to_actual.get(wanted)) is not None:
+            by_actual.setdefault(actual, []).append(wanted)
+
+    renames: dict[str, str] = {}
+    aliases: dict[str, str] = {}
+    for actual, names in by_actual.items():
+        chosen = ID if ID in names else actual if actual in names else names[0]
+        if chosen != actual:
+            renames[actual] = chosen
+        aliases.update((other, chosen) for other in names if other != chosen)
+    return renames, aliases

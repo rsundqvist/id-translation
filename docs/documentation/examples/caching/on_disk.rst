@@ -62,6 +62,8 @@ If the data is stale, we return ``None``.
    :meth:`.AbstractFetcher.fetch_translations` instead.
 
 The data is read using :func:`pandas.read_feather`, then converted using :meth:`.PlaceholderTranslations.from_dataframe`.
+Data stored for one format may lack placeholders that another asks for, e.g. an optional ``email``. Such data is
+rejected too: a hit is used as-is, so returning it would silently drop those placeholders.
 
 Creating a cached fetcher
 -------------------------

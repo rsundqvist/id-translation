@@ -14,10 +14,6 @@ Finish configuring it before sharing it.
      - Comment
    * - :func:`.enable_verbose_debug_messages`
      - This function modifies global state.
-   * - :meth:`.Fetcher.fetch_all`
-     - When ``selective_fetch_all=True`` (default), an :class:`.AbstractFetcher` may use a temporary :class:`.Mapper`.
-       A :class:`.MultiFetcher` calls ``fetch_all`` on its children, and :meth:`.Translator.fetch` and
-       :meth:`.Translator.go_offline` may call it.
    * - :meth:`.Fetcher.initialize_sources`
      - Invoked implicitly before all translation tasks. Results are cached when using a :class:`.MultiFetcher` or
        :class:`.AbstractFetcher` subtype, after which ``initialize_sources`` is thread-safe for these types.

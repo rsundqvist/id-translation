@@ -1,5 +1,6 @@
 import logging
 from collections.abc import Iterable
+from typing import Any
 
 import pytest
 from rics.collections.dicts import InheritedKeysDict
@@ -101,6 +102,18 @@ def test_multiple_matches_with_overrides(values, expected, allow_multiple):
         cardinality=None if allow_multiple else Cardinality.OneToOne,
     )
     assert mapper.apply(values, {1, 2, 12}).left_to_right == expected
+
+
+@pytest.mark.parametrize("context_sensitive", [False, True])
+def test_blocking_override(context_sensitive):
+    overrides: Any = {"a": "_"}
+    if context_sensitive:
+        overrides = InheritedKeysDict(specific={"ctx": overrides})
+    mapper: Mapper[str, str, str] = Mapper("equality", overrides=overrides, on_unmapped="raise")
+
+    dm = mapper.apply(["a", "b"], ["a", "b"], "ctx")
+    assert dm.left_to_right == {"b": ("b",)}
+    assert "_" not in dm.right
 
 
 def test_mapping_failure(candidates):

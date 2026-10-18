@@ -450,13 +450,13 @@ and `to` placeholders, which are set to `'?'`.
 
 .. warning::
 
-   Overrides have no fixed keys. No validation is performed and errors may be silent. The
+   Overrides have no fixed keys, and the keys are not validated, so errors may be silent. The
    :attr:`mapping process <id_translation.mapping.Mapper.apply>` provides detailed information in debug mode, which may
    be used to discover issues.
 
 .. hint::
 
-   Overrides may also be used to `prevent` mapping certain values.
+   Overrides may also be used to `prevent` mapping certain values: override them to ``"_"``.
 
 Preventing unwanted mappings
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -469,9 +469,12 @@ identical contents. We would like to use a format ``'[{title}. ]{name}'`` to out
   [fetching.mapping.overrides.title_basics]
   title = "_"
 
-to force the fetcher to inform the ``Translator`` that the `title` placeholder (column) does not exist for the
-`title_basics` source (we used `'_'` since TOML `does not have <https://github.com/toml-lang/toml/issues/30>`__ a
-``null``-type).
+to the fetcher configuration.
+
+An override to ``"_"`` blocks the match, so the fetcher does not fetch `title` for the `title_basics` source (TOML `does
+not have <https://github.com/toml-lang/toml/issues/30>`__ a ``null``-type). The ``id`` cannot be blocked:
+:meth:`~.Fetcher.initialize_sources` raises. Other required placeholders cannot be blocked either: translating raises,
+and :meth:`~.Fetcher.fetch_all` skips the source when ``selective_fetch_all=True`` (the default).
 
 .. _translator-config-transform:
 

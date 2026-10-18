@@ -1,5 +1,5 @@
 import logging
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from math import isinf
 from time import perf_counter
 from typing import Any, Generic, Self
@@ -38,6 +38,7 @@ from .types import (
 )
 
 inf = float("inf")
+BLOCK = "_"  # TOML has no null; an override to this candidate means "don't match".
 FilterFunctionArgItem = tuple[str | FilterFunction[ValueType, CandidateType, ContextType], dict[str, Any]]
 FilterFunctionWithKwargs = tuple[FilterFunction[ValueType, CandidateType, ContextType], dict[str, Any]]
 
@@ -55,7 +56,8 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
         min_score: Minimum score `s_i`, as given by ``score(k, c_i)``, to consider `k` a match for `c_i`.
         overrides: If a dict, assumed to be 1:1 mappings (`value` to `candidate`) which override the scoring logic. If
             :class:`rics.collections.dicts.InheritedKeysDict`, the context passed to
-            :meth:`~id_translation.mapping.Mapper.apply` is used to retrieve specific overrides.
+            :meth:`~id_translation.mapping.Mapper.apply` is used to retrieve specific overrides. An override to ``"_"``
+            prevents the value from matching any candidate, and the value is not reported as unmapped.
         on_unmapped: Action to take if mapping fails for any values.
         on_unknown_user_override: Action to take if an :attr:`~id_translation.mapping.types.UserOverrideFunction`
             returns an unknown candidate. Unknown candidates, i.e. candidates not in the input `candidates` collection,
@@ -349,7 +351,8 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
 
         def apply(v: ValueType, oc: CandidateType) -> None:
             scores[v, :] = -inf
-            scores[v, oc] = inf
+            if oc != BLOCK:
+                scores[v, oc] = inf
             unmapped_values.remove(v)
             applied[v] = oc
 
@@ -391,17 +394,29 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
         values: Iterable[ValueType],
         context: ContextType | None,
     ) -> dict[ValueType, CandidateType]:
+        overrides = self._get_context_overrides(context)
+        return {value: overrides[value] for value in overrides if value in values}
+
+    def _get_context_overrides(self, context: ContextType | None) -> Mapping[ValueType, CandidateType]:
         if not self._overrides:
             return {}
 
         if isinstance(self._overrides, InheritedKeysDict):
             if context is None:
                 raise MappingError("Must pass a context in context-sensitive mode.")
-            overrides = self._overrides.get(context, {})
-        else:
-            overrides = self._overrides
+            return self._overrides.get(context, {})
 
-        return {value: overrides[value] for value in overrides if value in values}
+        return self._overrides
+
+    def _get_shared_overrides(self, context: ContextType) -> dict[ValueType, CandidateType]:
+        """Return the static overrides that `context` shares with other contexts instead of setting itself."""
+        if not isinstance(self._overrides, InheritedKeysDict):
+            return dict(self._overrides)  # Context-free: shared by every context.
+        specific = self._overrides._specific.get(context, {})
+        return {value: candidate for value, candidate in self._overrides._default.items() if value not in specific}
+
+    def _blocked(self, values: Iterable[ValueType], context: ContextType | None) -> set[ValueType]:
+        return {value for value, candidate in self._get_static_overrides(values, context).items() if candidate == BLOCK}
 
     def _get_function_overrides(
         self,

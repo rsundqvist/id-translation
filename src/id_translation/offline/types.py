@@ -41,7 +41,7 @@ class PlaceholderTranslations(_t.Generic[_tt.SourceType]):
     """Alternative :attr:`placeholder <id_translation.offline.types.PlaceholderTranslations.placeholders>` names.
 
     Given as ``{alias: placeholder}``. After fetching, the aliases are the source's own names for the placeholders, e.g.
-    ``{'code': 'id'}`` when ``id`` was mapped to a ``code`` column.
+    ``{'code': 'id'}`` when ``id`` was mapped to a ``code`` column, or another wanted name for the same column.
     """
 
     @classmethod

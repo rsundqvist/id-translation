@@ -68,8 +68,12 @@ class MyCacheAccess(CacheAccess[SourceType, IdType]):
             print(f"Reject cache ({age=} > ttl={self._ttl}) at path='{path}'.")
             return None
 
-        print(f"Load cache (age={age} <= {self._ttl}=ttl) at path='{path}'.")
         df = pd.read_feather(path)
+        if missing := set(instr.placeholders).difference(df.columns):
+            print(f"Reject cache (missing placeholders {sorted(missing)}) at path='{path}'.")
+            return None
+
+        print(f"Load cache (age={age} <= {self._ttl}=ttl) at path='{path}'.")
         return PlaceholderTranslations.from_dataframe(instr.source, df)
 
     @staticmethod

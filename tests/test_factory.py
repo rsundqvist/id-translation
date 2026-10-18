@@ -7,6 +7,7 @@ import pytest
 from id_translation import Translator
 from id_translation.exceptions import ConfigurationError
 from id_translation.fetching import AbstractFetcher, CacheAccess, MemoryFetcher, MultiFetcher
+from id_translation.fetching.exceptions import UnknownPlaceholderError
 from id_translation.toml._factory import SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS
 from id_translation.toml.factories._fetcher import default_fetcher_factory
 from id_translation.types import IdType, SourceType
@@ -56,6 +57,52 @@ def test_top_level_mapping_key_raises(tmp_path):
 
     with pytest.raises(ConfigurationError, match=r"Forbidden keys \['mapping'\]"):
         Translator.from_config(path)
+
+
+def test_dummy_override_hides_optional_placeholder(tmp_path):
+    # The "Preventing unwanted mappings" example in translator-config.rst.
+    path = tmp_path / "main.toml"
+    config = """
+    [translator]
+    fmt = "[{title}. ]{name}"
+
+    [fetching.MemoryFetcher.data.title_basics]
+    id = [1]
+    title = ["Top Hat"]
+    name = ["Top Hat"]
+
+    [fetching.MemoryFetcher.data.people]
+    id = [2]
+    title = ["Mr"]
+    name = ["Astaire"]
+
+    [fetching.mapping.overrides.title_basics]
+    title = "_"
+    """
+    path.write_text(config, encoding="utf-8")
+
+    translator: Translator[str, str, int] = Translator.from_config(path)
+    expected = {"title_basics": "Top Hat", "people": "Mr. Astaire"}
+    assert translator.translate({"title_basics": 1, "people": 2}) == expected
+
+
+@pytest.mark.parametrize("table", ["", ".people"])
+def test_override_tables_to_absent_column(tmp_path, table):
+    path = tmp_path / "main.toml"
+    config = f"""
+    [fetching.MemoryFetcher.data.people]
+    id = [1]
+    name = ["Ada"]
+
+    [fetching.mapping.overrides{table}]
+    name = "nope"
+    """
+    path.write_text(config, encoding="utf-8")
+
+    translator: Translator[str, str, int] = Translator.from_config(path)
+    with pytest.raises(UnknownPlaceholderError, match=r"\['nope'\] not recognized") as ec:
+        translator.initialize_sources()
+    assert ("shared override" in ec.value.__notes__[0]) is not bool(table)
 
 
 class TestEnvVars:

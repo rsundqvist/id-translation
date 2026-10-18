@@ -52,7 +52,8 @@ class CacheAccess(ABC, Generic[SourceType, IdType]):
           or a complete hit instead).
 
         Args:
-            instr: A :class:`~id_translation.fetching.types.FetchInstruction`.
+            instr: A :class:`~id_translation.fetching.types.FetchInstruction` in wanted names, like the `translations`
+                passed to :meth:`~id_translation.fetching.CacheAccess.store`. Return translations in the same names.
 
         Returns:
             Cached :class:`~id_translation.offline.types.PlaceholderTranslations`, a
@@ -84,7 +85,8 @@ class CacheAccess(ABC, Generic[SourceType, IdType]):
         given `instr` is ``True``.
 
         Args:
-            instr: The :class:`~id_translation.fetching.types.FetchInstruction` which produced the `translations`.
+            instr: The :class:`~id_translation.fetching.types.FetchInstruction` which produced the `translations`, in
+                wanted names.
             translations: A :class:`~id_translation.offline.types.PlaceholderTranslations` produced by
                 :meth:`~id_translation.fetching.AbstractFetcher.fetch_translations`. Its placeholders use the wanted
                 names and always include ``id``; find the ID column with ``translations.placeholders.index("id")``.

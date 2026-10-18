@@ -357,7 +357,7 @@
     },
     "overrides": {
       "type": "object",
-      "description": "Shared and context-specific key-value overrides (`InheritedKeysDict`). No fixed keys: shared items at the top level, context-specific items in `[*.overrides.<context>]` subsections. See [the docs](https://id-translation.readthedocs.io/en/stable/documentation/translator-config.html#subsection-overrides).",
+      "description": "Shared and context-specific key-value overrides (`InheritedKeysDict`). No fixed keys: shared items at the top level, context-specific items in `[*.overrides.<context>]` subsections. In a `[*.mapping]` section, a value of `\"_\"` blocks the match. See [the docs](https://id-translation.readthedocs.io/en/stable/documentation/translator-config.html#subsection-overrides).",
       "additionalProperties": true
     }
   }
