@@ -52,6 +52,8 @@ each other silently. Give each run its own:
 - **`.venv`** — `uv run --python <version>` retargets the project venv, and `uv sync --active` recreates it. Both
   change the interpreter under any run already in flight. Build a throwaway venv elsewhere instead.
 - **`docs/_build`, `docs/api`** — `inv docs` regenerates both; two builds at once interleave.
+- **Branch switches** — other sessions may hold uncommitted work here. Message them before `git checkout`, and stash
+  only the paths that differ between the two commits (`git stash push -- <path>`), never a bare `git stash`.
 
 ## Docs build
 
@@ -77,6 +79,9 @@ Ruff enforces the mechanical rules (Google docstrings, PEP 604 unions, import or
 
 - **Heavy generics:** `Generic[NameType, SourceType, IdType]` and `@overload` throughout; match the existing
   parameterization when extending public API.
+- **Wrapped signatures:** a `def` that doesn't fit one line gets one parameter per line plus a trailing comma, never
+  several parameters on one indented line. Ruff can't enforce it. Explode wrapped signatures in code you write, and in
+  existing code a commit already edits; no sweeps.
 - **Log extras must be JSON-serializable** (enforced by test fixtures; use `sorted()` or `list()` to convert sets).
 - **Types per module:** each subpackage has its own `types.py` and `exceptions.py` — put new ones there.
 
@@ -88,7 +93,16 @@ Ruff enforces the mechanical rules (Google docstrings, PEP 604 unions, import or
 - **Never rebase on your own:** don't run the autosquash — the unsquashed history is useful during
   development. Rebase only when explicitly instructed.
 - **Isolate disposable notes:** keep scratch/working notes (e.g. an `adoption-notes/` folder or `claude-todos.txt` file)
-  in their own standalone commits, separate from real code/docs, so they can be dropped later.
+  in their own standalone commits, separate from real code/docs, so they can be dropped later. Later edits to them are
+  `fixup!` commits to the commit that holds them, never part of a code commit.
+- **One changelog commit:** until the final changelog is drafted just before a release, every `CHANGELOG.md` entry goes
+  in one commit, as `fixup!` commits to it. Spread over code commits, it conflicts on every rebase.
+- **Commit fixups directly:** don't ask which sha to patch; the maintainer checks the targets before any autosquash.
 - **Write lean messages:** state the *why* and any non-obvious *what*; omit whatever the diff shows.
   Prefer a single-line message when the subject already conveys the why. No mechanical consequences
   (renames, updated references, call-site fixups), and no "verified"/"tests pass"/"build clean" lines.
+- **Shape messages for skimming:** an area prefix on every subject (`fetching:`, `toml:`, `translator:`, ...), naming
+  the area the change is *about*, not every package it touches; a sweep with no single origin takes a broad one
+  (`api:`, `deps:`). A body with one explanation, or two short points within three lines, reads fine as prose; more
+  points or more lines go in `- ` bullets, one point each. Cut what carries no signal ("so it is a change of its own").
+  These are guidelines: use judgement, and flag a message you're unsure about so the maintainer can decide.

@@ -28,7 +28,7 @@ EXPECTED = {
     "40E6215D-B5C6-4896-987C-F30F3678F608": "upper",
 }
 
-_TESTED_DIALECTS = set()
+_TESTED_DIALECTS: set[str] = set()
 
 
 def run(dialect: str, *, use_uuid_column: bool, id_type: Callable[[str], IdType]) -> None:

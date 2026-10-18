@@ -282,7 +282,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             attribute.
         """
         # docs: https://id-translation.readthedocs.io/en/stable/documentation/translator-config.html
-        factory: TranslatorFactory[NameType, SourceType, IdType] = TranslatorFactory(path, extra_fetchers, cls)
+        factory = TranslatorFactory(path, extra_fetchers, cls)
         return factory.create()  # type: ignore[return-value]
 
     @property
@@ -955,7 +955,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         task_id = _logging.generate_task_id()
         self.initialize_sources(task_id)
 
-        task: TranslationTask[NameType, SourceType, IdType] = TranslationTask(
+        task = TranslationTask(
             self,
             translatable,
             self._fmt if fmt is None else Format.parse(fmt),
@@ -981,7 +981,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
         task.verify(translation_map)
 
-        ans: Translatable[NameType, str] | None = task.insert(translation_map)
+        ans = task.insert(translation_map)
 
         self._translated_names = (task_id, dict(task.name_to_source))
         task.finished()
@@ -1269,7 +1269,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         metadata_path = cache_dir / "metadata.json"
         cache_path = cache_dir / "translator.pkl"
 
-        extra_fetcher_paths: list[str] = list(map(str, extra_fetchers))
+        extra_fetcher_paths = list(map(str, extra_fetchers))
 
         metadata = meta.ConfigMetadata.from_toml_paths(
             str(path),

@@ -174,7 +174,7 @@ class ScoreHelper(Generic[ValueType, CandidateType]):
         cardinality: Cardinality | None = None,
     ) -> tuple[list[Record[ValueType, CandidateType]], list[Reject[ValueType, CandidateType]]]:
         rejections: list[Reject[ValueType, CandidateType]] | None = None
-        records: list[Record[ValueType, CandidateType]] = self.above()
+        records = self.above()
 
         if _logging.ENABLE_VERBOSE_LOGGING and self.logger.isEnabledFor(logging.DEBUG):
             rejections = []

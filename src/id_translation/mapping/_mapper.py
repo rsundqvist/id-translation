@@ -150,7 +150,7 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
 
         scores = self.compute_scores(values, candidates, context, override_function, task_id=task_id, **kwargs)
 
-        dm: DirectionalMapping[ValueType, CandidateType] = self.to_directional_mapping(scores, task_id=task_id)
+        dm = self.to_directional_mapping(scores, task_id=task_id)
 
         unmapped = scores.get_finite_values().difference(dm.left)
         if unmapped:

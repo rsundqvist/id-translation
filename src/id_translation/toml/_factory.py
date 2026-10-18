@@ -153,7 +153,7 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
         """Create :class:`~id_translation.Translator` instance."""
         config_metadata = ConfigMetadata.from_toml_paths(self.file, self.extra_fetchers, self.clazz)
         with _rethrow_with_file(self.file):
-            config: dict[str, Any] = self.load_toml_file(self.file)
+            config = self.load_toml_file(self.file)
 
         fetcher, fetcher_file_transformers = self._handle_fetching(
             config.pop("fetching", {}),
