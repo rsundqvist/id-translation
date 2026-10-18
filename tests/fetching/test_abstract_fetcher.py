@@ -153,6 +153,7 @@ class CachingFetcher(MemoryFetcher[str, int]):
         self.calls = {"store": 0, "load": 0, "fetch": 0}
         super().__init__(
             data={"people": {1999: "Sofia"}},
+            return_all=True,
             cache_access=StoreFetchAllCacheAccess(windows_hack_temp_dir, self.calls),
         )
 
@@ -168,14 +169,14 @@ class CachingFetcher(MemoryFetcher[str, int]):
 class TestBadImplementation:
     def test_initialize_sources(self):
         fetcher = BadFetcher()
-        match = r"Call to .*test_abstract_fetcher\.BadFetcher.initialize_sources\(\) failed."
-        with pytest.raises(RuntimeError, match=match):
+        match = r"test_abstract_fetcher\.BadFetcher\._initialize_sources\(\) returned None"
+        with pytest.raises(exceptions.ImplementationError, match=match):
             fetcher.initialize_sources()
 
     def test_fetch(self):
         fetcher = BadFetcher()
-        match = r"Call to .*test_abstract_fetcher\.BadFetcher.initialize_sources\(\) failed."
-        with pytest.raises(RuntimeError, match=match):
+        match = r"test_abstract_fetcher\.BadFetcher\._initialize_sources\(\) returned None"
+        with pytest.raises(exceptions.ImplementationError, match=match):
             fetcher.fetch([IdsToFetch("source", {1})])
 
     def test_id_column(self):
@@ -267,3 +268,26 @@ class TestCacheAccessParent:
         with pytest.raises(RuntimeError, match="already belongs to") as exc_info:
             MemoryFetcher({"s": {"id": [1]}}, cache_access=cache)
         assert exc_info.value.__notes__ == ["Hint: Give each fetcher its own CacheAccess instance."]
+
+
+@pytest.mark.parametrize("call", ["fetch", "fetch_all", "fetch_all_mixed"])
+def test_unknown_source_raises_on_a_fresh_fetcher(call):
+    fetcher: MemoryFetcher[str, int] = MemoryFetcher({"people": {"id": [1], "name": ["Ada"]}})
+
+    with pytest.raises(exceptions.UnknownSourceError):
+        if call == "fetch":
+            fetcher.fetch([IdsToFetch("nope", {1})])
+        else:
+            fetcher.fetch_all(sources={"nope", "people"} if call == "fetch_all_mixed" else {"nope"})
+
+
+@pytest.mark.parametrize("hook", ["default_mapper_kwargs", "default_score_function"])
+def test_overriding_a_removed_public_hook_raises(hook):
+    with pytest.raises(TypeError, match=f"overrides \\['{hook}'\\], which are private"):
+        type("LegacyFetcher", (MemoryFetcher,), {hook: classmethod(lambda *_: None)})
+
+
+def test_repeated_source_in_ids_to_fetch_raises():
+    fetcher: MemoryFetcher[str, int] = MemoryFetcher({"a": {"id": [1, 2], "name": ["x", "y"]}})
+    with pytest.raises(ValueError, match=r"Repeated sources in ids_to_fetch: \['a'\]"):
+        fetcher.fetch([IdsToFetch("a", {1}), IdsToFetch("a", {2})])

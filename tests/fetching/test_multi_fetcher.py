@@ -444,3 +444,8 @@ def test_fetch_all_debug_extras_are_json_serializable(caplog):
     fetcher: MultiFetcher[str, int] = MultiFetcher(MemoryFetcher({"s": {"id": [1], "name": ["a"]}}))
 
     fetcher.fetch_all(("id", "name"), placeholder_attributes={"name": {"upper"}})
+
+
+def test_fetch_all_unknown_source_raises(multi_fetcher):
+    with pytest.raises(exceptions.UnknownSourceError):
+        multi_fetcher.fetch_all(sources={"humans", "no-such-source"})

@@ -26,7 +26,9 @@ class MemoryFetcher(AbstractFetcher[SourceType, IdType]):
 
             The first two forms are plain dicts, so they may be written directly in TOML configuration as
             ``[fetching.MemoryFetcher.data.<source>]``-sections (see :ref:`translator-config-fetching`).
-        return_all: If ``False``, return only the requested IDs and placeholders.
+        return_all: If ``True``, return every ID and placeholder of a source instead of only the requested ones.
+            Translations then include IDs that were not asked for, e.g. as extra categories when translating to a
+            categorical ``dtype``.
         **kwargs: See :class:`~id_translation.fetching.AbstractFetcher`.
     """
 
@@ -39,7 +41,7 @@ class MemoryFetcher(AbstractFetcher[SourceType, IdType]):
             | Mapping[SourceType, Mapping[str, Sequence[Any]]]
         ),
         *,
-        return_all: bool = True,
+        return_all: bool = False,
         **kwargs: Unpack[AbstractFetcherParams[SourceType, IdType]],
     ) -> None:
         super().__init__(**kwargs)
@@ -53,7 +55,7 @@ class MemoryFetcher(AbstractFetcher[SourceType, IdType]):
 
     @property
     def return_all(self) -> bool:
-        """If ``True``, :meth:`~id_translation.fetching.MemoryFetcher.fetch_translations` will filter by ID."""
+        """If ``True``, return all data instead of only the requested IDs and placeholders."""
         return self._return_all
 
     def _initialize_sources(self, task_id: int) -> dict[SourceType, list[str]]:  # noqa: ARG002

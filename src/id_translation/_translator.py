@@ -1139,8 +1139,8 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         return list(self.placeholders)
 
     @property
-    def placeholders(self) -> dict[SourceType, list[str]]:
-        """A dict ``{source: [placeholders, ...]}``.
+    def placeholders(self) -> Mapping[SourceType, Sequence[str]]:
+        """A mapping ``{source: [placeholders, ...]}``.
 
         Placeholders shown here are the names as they appear **in the source**.
         """

@@ -303,7 +303,7 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
         config = config.pop("mapping")
         for_fetcher = parent_section.startswith("fetching")
         if for_fetcher:
-            config = {**AbstractFetcher.default_mapper_kwargs(), **config}
+            config = {**AbstractFetcher._default_mapper_kwargs(), **config}
 
         return cls.MAPPER_FACTORY(config, for_fetcher)
 

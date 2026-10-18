@@ -64,8 +64,9 @@ class PandasIO(_dio.DataStructureIO[PandasT, _tt.NameType, _tt.SourceType, _tt.I
     * ``False``: Sort by translated name, but leave the dtype unordered. Use when `ordered` dtypes are in the way;
       pandas refuses to combine ordered categoricals that don't share their `categories`.
 
-    Certain fetchers, such as the :class:`MemoryFetcher(return_all=True) <id_translation.fetching.MemoryFetcher>`, will
-    return more IDs than requested. In this case the `categories` may also include values not present in the input data.
+    Certain fetchers, such as the :class:`~id_translation.fetching.PandasFetcher` and the
+    :class:`MemoryFetcher(return_all=True) <id_translation.fetching.MemoryFetcher>`, will return more IDs than
+    requested. In this case the `categories` may also include values not present in the input data.
     This may also happen if data was prepared with :meth:`Translator.go_offline <id_translation.Translator.go_offline>`,
     or if multiple columns were :ref:`mapped <mapping-primer>` to the same source. Set ``observed=True`` to drop these;
     the `categories` are then determined by the IDs in the input rather than by what the fetcher returned.

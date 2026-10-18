@@ -48,10 +48,7 @@ class ConcurrentOperationWarning(FetcherWarning):
 class FetcherError(RuntimeError):
     """Base class for ``Fetcher`` exceptions."""
 
-    # TODO(2.0.0): Drop the `msg` default; it exists only to keep `raise UnknownIdError()`-style calls from
-    #  third-party `Fetcher` implementations working after `msg` became a real constructor arg.
-
-    def __init__(self, msg: str = "", *, hints: str | _Iterable[str] = ()) -> None:
+    def __init__(self, msg: str, *, hints: str | _Iterable[str] = ()) -> None:
         super().__init__(msg)
         _add_hints(self, hints)
 
@@ -167,10 +164,6 @@ class UnknownPlaceholderError(FetcherError):
         return cls(
             msg, missing_placeholders=missing_placeholders, placeholders=placeholders, source=source, hints=hints
         )
-
-
-class UnknownIdError(FetcherError):
-    """Caller requested unknown id(s)."""
 
 
 class UnknownSourceError(FetcherError):

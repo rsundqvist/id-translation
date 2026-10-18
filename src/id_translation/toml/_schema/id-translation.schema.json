@@ -140,7 +140,7 @@
         },
         "return_all": {
           "type": "boolean",
-          "description": "Return all available data for fetch-all operations. Default true."
+          "description": "Return every ID and placeholder of a source instead of only the requested ones. Default false."
         }
       },
       "additionalProperties": true

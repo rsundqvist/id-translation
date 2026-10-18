@@ -1028,3 +1028,15 @@ class TestIoKwargs:
     def test_without_translatable(self, translator):
         with pytest.raises(ValueError, match="io_kwargs requires a translatable"):
             translator.fetch(io_kwargs={"missing_as_nan": True})
+
+
+@pytest.mark.parametrize("multi", [False, True])
+def test_online_placeholders_are_read_only(multi):
+    fetcher: MemoryFetcher[str, int] = MemoryFetcher({"people": {"id": [1], "name": ["Ada"]}})
+    translator: RealTranslator[str, str, int] = RealTranslator(MultiFetcher(fetcher) if multi else fetcher)
+
+    with pytest.raises(TypeError):
+        translator.placeholders["people"] = []  # type: ignore[index]
+    with pytest.raises(TypeError):
+        del translator.placeholders["people"]  # type: ignore[attr-defined]
+    assert translator.translate(1, names="people") == "1:Ada", "discovery results must be intact"

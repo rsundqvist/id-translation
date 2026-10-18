@@ -1,6 +1,7 @@
 """Types related to translation fetching."""
 
 import typing as _t
+from dataclasses import KW_ONLY as _KW_ONLY
 from dataclasses import dataclass as _dataclass
 
 from .. import types as _tt
@@ -23,6 +24,7 @@ class FetchInstruction(_t.Generic[_tt.SourceType, _tt.IdType]):
 
     source: _tt.SourceType
     """Where to fetch from."""
+    _: _KW_ONLY
     placeholders: _ot.PlaceholdersTuple
     """All desired placeholders in preferred order."""
     required: set[str]

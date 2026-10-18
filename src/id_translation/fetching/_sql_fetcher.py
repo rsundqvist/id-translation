@@ -199,6 +199,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
 
     def fetch_translations(self, instr: FetchInstruction[str, IdType]) -> PlaceholderTranslations[str]:
         """Fetch translations for an SQL source."""
+        self._assert_connected()
         ts = self._table_summaries[instr.source]
 
         if instr.fetch_all and not ts.fetch_all_permitted:  # pragma: no cover
@@ -338,9 +339,9 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
 
         return id_column
 
-    @property
-    def online(self) -> bool:
-        return self._engine is not None  # pragma: no cover
+    def _assert_connected(self) -> None:
+        if self._engine is None:
+            raise ConnectionStatusError(f"No engine: {self} was closed or could not connect.")
 
     def _initialize_sources(self, task_id: int) -> dict[str, list[str]]:
         self._ensure_engine()
@@ -370,14 +371,14 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         pretty_kwargs = ", " + format_kwargs(kwargs, max_value_length=1024) if kwargs else ""
         if self._estr is None:
             return f"{type(self).__name__}(<uninitialized>{pretty_kwargs})"
-        disconnected = "<disconnected>: " if not self.online else ""
+        disconnected = "<disconnected>: " if self._engine is None else ""
         return f"{type(self).__name__}({disconnected}{self._estr}{pretty_kwargs})"
 
     @property
     def engine(self) -> sqlalchemy.engine.Engine:
         """The :class:`~sqlalchemy.engine.Engine` used by this fetcher."""
         self._ensure_engine()
-        self.assert_online()
+        self._assert_connected()
         assert self._engine is not None  # noqa: S101
         return self._engine
 

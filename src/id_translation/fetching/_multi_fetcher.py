@@ -3,6 +3,7 @@ from collections.abc import Iterable, Mapping, Sequence
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from copy import deepcopy
 from time import perf_counter
+from types import MappingProxyType
 from typing import Any, Literal, Never, Self
 
 from rics.collections.dicts import reverse_dict
@@ -69,10 +70,6 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
     def allow_fetch_all(self) -> bool:
         return all(f.allow_fetch_all for f in self._id_to_fetcher.values())  # pragma: no cover
 
-    @property
-    def online(self) -> bool:
-        return all(f.online for f in self._id_to_fetcher.values())  # pragma: no cover
-
     def close(self) -> None:
         """Close all :attr:`child <id_translation.fetching.MultiFetcher.children>` fetchers."""
         for fetcher in self.children:
@@ -124,12 +121,12 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         return self.get_child(source).get_transformer(source)
 
     @property
-    def placeholders(self) -> dict[SourceType, list[str]]:
+    def placeholders(self) -> Mapping[SourceType, Sequence[str]]:
         if self._placeholders is None:
             self.initialize_sources()
             return self.placeholders
 
-        return self._placeholders
+        return MappingProxyType(self._placeholders)
 
     def initialize_sources(self, task_id: int | None = None) -> None:
         """Perform source discovery.
@@ -243,7 +240,7 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
                         extra={"task_id": task_id},
                     )
 
-            retval[fid] = placeholders
+            retval[fid] = {source: list(names) for source, names in placeholders.items()}
 
         return retval
 
@@ -374,6 +371,8 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         if task_id is None:
             task_id = generate_task_id()
         self.initialize_sources(task_id)
+        if sources is not None and (unknown := set(sources).difference(self._source_to_id)):
+            raise exceptions.UnknownSourceError.for_sources(unknown, sources=self.sources)
 
         placeholders = tuple(placeholders)
         required = tuple(required)

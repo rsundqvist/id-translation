@@ -133,11 +133,11 @@ class HasSources(_abc.ABC, _t.Generic[SourceType]):
 
     @property
     @_abc.abstractmethod
-    def placeholders(self) -> dict[SourceType, list[str]]:
+    def placeholders(self) -> _cabc.Mapping[SourceType, _cabc.Sequence[str]]:
         """Placeholders for all known Source names, such as ``id`` or ``name``.
 
         These are the (possibly unmapped) placeholders that may be used for translation.
 
         Returns:
-            A dict ``{source: [placeholders, ...]}``.
+            A mapping ``{source: [placeholders, ...]}``.
         """

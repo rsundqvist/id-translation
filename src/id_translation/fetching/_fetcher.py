@@ -56,11 +56,6 @@ class Fetcher(Generic[SourceType, IdType], HasSources[SourceType]):
         return None
 
     @property
-    @abstractmethod
-    def online(self) -> bool:
-        """Return connectivity status. If ``False``, no new translations may be fetched."""
-
-    @property
     def optional(self) -> bool:
         """Return ``True`` if this fetcher has been marked as `optional`.
 
@@ -86,7 +81,9 @@ class Fetcher(Generic[SourceType, IdType], HasSources[SourceType]):
         """Retrieve placeholder translations from the source.
 
         Args:
-            ids_to_fetch: An iterable of :class:`~id_translation.fetching.types.IdsToFetch`.
+            ids_to_fetch: An iterable of :class:`~id_translation.fetching.types.IdsToFetch`, at most one per source.
+                The :class:`~id_translation.Translator` never repeats a source; other callers must merge the IDs
+                themselves. :class:`~id_translation.fetching.AbstractFetcher` raises ``ValueError`` for a repeat.
             placeholders: All desired placeholders in preferred order.
             required: Placeholders that must be included in the response.
             placeholder_attributes: Attributes that will be accessed for each placeholder.
@@ -129,7 +126,7 @@ class Fetcher(Generic[SourceType, IdType], HasSources[SourceType]):
             placeholders: All desired placeholders in preferred order.
             required: Placeholders that must be included in the response.
             placeholder_attributes: Attributes that will be accessed for each placeholder.
-            sources: A subset of sources to fetch. Unknown sources are ignored. Set to ``None`` to fetch all sources.
+            sources: A subset of sources to fetch. Set to ``None`` to fetch all sources.
             task_id: Used for logging.
             enable_uuid_heuristics: Improves matching when :py:class:`~uuid.UUID`-like IDs are in use.
 
@@ -147,5 +144,7 @@ class Fetcher(Generic[SourceType, IdType], HasSources[SourceType]):
                 permitted.
             ~id_translation.fetching.exceptions.UnknownPlaceholderError: For placeholder(s) that are unknown to the
                 ``Fetcher``.
+            ~id_translation.fetching.exceptions.UnknownSourceError: If `sources` holds a source the ``Fetcher`` does not
+                serve.
             ~id_translation.fetching.exceptions.ImplementationError: For errors made by the inheriting implementation.
         """
