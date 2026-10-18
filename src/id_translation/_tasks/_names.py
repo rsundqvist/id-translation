@@ -25,6 +25,7 @@ class NamesTask(BaseTask[NameType, SourceType, IdType]):
         self,
         caller: "Translator[NameType, SourceType, IdType]",
         translatable: Translatable[NameType, IdType],
+        *,
         names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
         ignore_names: Names[NameType] | None = None,
         override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,

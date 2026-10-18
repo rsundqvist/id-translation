@@ -83,6 +83,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
     def __init__(
         self,
         connection_string: str | sqlalchemy.engine.URL,
+        *,
         password: str | None = None,
         whitelist_tables: Iterable[str] | None = None,
         blacklist_tables: Iterable[str] = (),

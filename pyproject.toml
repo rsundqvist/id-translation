@@ -160,7 +160,6 @@ ignore = [
     "TRY003", # Avoid specifying long messages outside the exception class
     "TRY300", # Consider moving this statement to an `else` block
     "PLR0913", # Too many arguments.
-    "PLR0917", # Too many positional arguments. Ruff 0.16 adds it. Temporary, until trailing arguments are keyword-only.
     "SIM108", #  Use ternary operator - coverage issue, see https://github.com/nedbat/coveragepy/issues/509
 ]
 allowed-confusables = ["ℹ"]  # ℹ️INFO in docstrings

@@ -71,7 +71,16 @@ class ScoringDisabledError(MappingError):
 class AmbiguousScoreError(MappingError):
     """Indicates that the scoring logic has produces ambiguous scores."""
 
-    def __init__(self, kind: str, key: _Any, match0: _Any, match1: _Any, cardinality: str, scores: str) -> None:
+    def __init__(
+        self,
+        kind: str,
+        *,
+        key: _Any,
+        match0: _Any,
+        match1: _Any,
+        cardinality: str,
+        scores: str,
+    ) -> None:
         super().__init__(
             f"Ambiguous mapping of {kind}={key!r}; matches ({match0}) and ({match1}) "
             f"are in conflict since {cardinality=}.\n{scores}",

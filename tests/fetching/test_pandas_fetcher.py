@@ -24,7 +24,7 @@ class TestUuids:
     @classmethod
     def run(cls, read_function, tmp_path):
         translator: Translator[str, str, str | UUID] = Translator(
-            PandasFetcher(read_function, read_path_format=str(tmp_path / "{}.suffix")),
+            PandasFetcher(str(tmp_path / "{}.suffix"), read_function=read_function),
             fmt="{id!s:.8}:{name}",
             enable_uuid_heuristics=True,
         )
