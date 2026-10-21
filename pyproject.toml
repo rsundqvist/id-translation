@@ -68,7 +68,7 @@ docs = [
     "myst-parser~=5.1.0 ; python_version >= '3.12'", # https://github.com/executablebooks/MyST-Parser/issues/749
     "nbsphinx~=0.9.8 ; python_version >= '3.12'",
     "ipython~=9.17.1 ; python_version >= '3.12'",
-    "sphinx-llm~=1.0.0 ; python_version >= '3.12'",  # 1.1 fails -W on unknown nodes: https://github.com/NVIDIA/sphinx-llm/issues/161
+    "sphinx-llm>=1.0,<1.2 ; python_version >= '3.12'",  # 1.1 fails -W on unknown nodes: https://github.com/NVIDIA/sphinx-llm/issues/161
     "log-lexer",
 ]
 notebooks = [
