@@ -4,7 +4,7 @@ import pyarrow as pa  # type: ignore[import-untyped]
 import pytest
 
 from id_translation import Translator
-from id_translation.dio import load_integrations
+from id_translation.dio import reload_integrations
 from id_translation.dio.exceptions import NotInplaceTranslatableError
 from id_translation.dio.integration.pyarrow import ArrowIO
 from id_translation.types import IdTypes
@@ -80,4 +80,4 @@ def register():
         ArrowIO.register()
         yield
 
-    load_integrations()
+    reload_integrations()
