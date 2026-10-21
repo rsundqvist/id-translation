@@ -258,7 +258,6 @@ def test_bad_level(level: str | int, cls: type[PandasT]) -> None:
     assert f"PandasIO.{level=}" in info.value.__notes__
 
 
-@pytest.mark.filterwarnings("ignore::pandas.errors.Pandas4Warning")
 class TestAsCategory:
     @pytest.mark.parametrize(
         "missing_as_nan, expected_values, expected_categories",
@@ -320,7 +319,6 @@ class TestAsCategory:
         assert result.to_list() == ["1:StrOne", "<Failed: id=str>"]
 
 
-@pytest.mark.filterwarnings("ignore::pandas.errors.Pandas4Warning")
 class TestOrdered:
     """IDs are chosen so that ID order and translated-name order disagree."""
 
@@ -497,7 +495,6 @@ class TestCategoricalInput:
         assert actual.to_list() == expected
 
 
-@pytest.mark.filterwarnings("ignore::pandas.errors.Pandas4Warning")
 class TestObservedCategories:
     """``observed=True`` derives categories from the data, not from everything the fetcher returned."""
 
@@ -561,7 +558,6 @@ class TestObservedCategories:
         assert result.cat.categories.to_list() == ["1:StrOne", "<Failed: id=str>"]
 
 
-@pytest.mark.filterwarnings("ignore::pandas.errors.Pandas4Warning")
 def test_nan_ids_do_not_make_category_order_row_dependent():
     """Under `observed` the ID order follows the data, so NaN must not float where it lands."""
     translator: Translator[str, str, int] = Translator({"animals": {0: "Tarzan", 1: "Morris", 2: "Simba"}})
