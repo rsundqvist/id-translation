@@ -63,7 +63,7 @@ manual-extras = [
     "pyarrow ~= 26.0.0",
 ]
 docs = [
-    "sphinx~=9.1.0 ; python_version >= '3.12'",
+    "sphinx>=9.1,<9.1 ; python_version >= '3.12'",
     "pydata-sphinx-theme~=0.23.0 ; python_version >= '3.12'",
     "myst-parser~=5.1.0 ; python_version >= '3.12'", # https://github.com/executablebooks/MyST-Parser/issues/749
     "nbsphinx~=0.9.8 ; python_version >= '3.12'",
