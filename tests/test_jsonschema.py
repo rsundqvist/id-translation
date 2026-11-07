@@ -68,3 +68,12 @@ def test_enumerated_builtin_fetchers_exist() -> None:
     assert builtins, "expected built-in fetchers to be enumerated"
     for name in builtins:
         assert hasattr(fetching, name), name
+
+
+def test_schema_matches_runtime_cardinality_and_memory_fetcher_data() -> None:
+    main = jsonschema.Draft7Validator(schemas()[MAIN_FILENAME])
+    memory: dict[str, Any] = {"data": {}}
+
+    assert main.is_valid({"fetching": {"MemoryFetcher": memory, "mapping": {"cardinality": "OneToOne"}}})
+    assert not main.is_valid({"fetching": {"MemoryFetcher": memory, "mapping": {"cardinality": "N:N"}}})
+    assert not main.is_valid({"fetching": {"MemoryFetcher": {}}}), "MemoryFetcher requires data"

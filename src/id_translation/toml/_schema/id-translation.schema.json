@@ -133,6 +133,9 @@
           "$ref": "#/definitions/fetcherCommon"
         }
       ],
+      "required": [
+        "data"
+      ],
       "properties": {
         "data": {
           "type": "object",
@@ -303,7 +306,10 @@
             "1:N",
             "N:1",
             "M:N",
-            "N:N"
+            "OneToOne",
+            "OneToMany",
+            "ManyToOne",
+            "ManyToMany"
           ],
           "description": "How many candidates a single value may map to."
         },

@@ -64,6 +64,8 @@ Each emits a `FutureWarning`.
   * A `PartialCacheHit` never covered IDs cached as strings under UUID heuristics.
 - TOML:
   * A TOML date or time literal crashed `from_config()`.
+  * The JSON schema allowed `cardinality = "N:N"`, rejected the `Cardinality` names, and
+    did not require `MemoryFetcher` data.
 - Documentation: the name-to-source mapping diagram.
 
 ## [1.4.2] - 2026-10-10
