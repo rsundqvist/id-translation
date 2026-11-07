@@ -80,7 +80,7 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
             raise ValueError(f"Got {min_score=}. The score limit should be a finite positive value.")
 
         self._score = get_by_full_name(score_function, sf) if isinstance(score_function, str) else score_function
-        self._score_kwargs = score_function_kwargs or {}
+        self._score_kwargs = dict(score_function_kwargs or {})  # A copy: task_id is written into it.
         self._min_score = min_score
         self._overrides: InheritedKeysDict[ContextType, ValueType, CandidateType] | dict[ValueType, CandidateType] = (
             overrides if isinstance(overrides, InheritedKeysDict) else (overrides or {})
@@ -538,9 +538,10 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
         filter_functions: Iterable[FilterFunctionArgItem[ValueType, CandidateType, ContextType]],
     ) -> list[FilterFunctionWithKwargs[ValueType, CandidateType, ContextType]]:
         rv = []
-        for func_or_str, kwargs in filter_functions:
+        for func_or_str, given_kwargs in filter_functions:
             func = get_by_full_name(func_or_str, ff) if isinstance(func_or_str, str) else func_or_str
 
+            kwargs = {**given_kwargs}  # A copy: task_id is written into it.
             if "task_id" in getattr(func, "__annotations__", {}):
                 kwargs.setdefault("task_id", None)
 

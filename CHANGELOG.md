@@ -35,6 +35,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * Inline `{id: name}` data with e.g. numpy `int` IDs was read as columns.
   * Verification log records with numpy `bool` sample IDs were not JSON serializable.
   * `TranslationHelper.apply()` raised `ValueError` before any translation, e.g. with `ID_TRANSLATION_DISABLED`.
+- Mapping:
+  * `Mapper` wrote `task_id` into the caller's kwargs dicts.
 - Fetching:
   * A `CacheAccess` that skipped `super().__init__()` raised `AttributeError`, and one shared by two fetchers
     a bare `RuntimeError`.

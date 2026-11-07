@@ -1,10 +1,11 @@
 import logging
 from collections.abc import Iterable
+from typing import Any
 
 import pytest
 from rics.collections.dicts import InheritedKeysDict
 
-from id_translation.mapping import Cardinality, Mapper, exceptions
+from id_translation.mapping import Cardinality, HeuristicScore, Mapper, exceptions
 from id_translation.mapping.exceptions import MappingError, ScoringDisabledError, UserMappingError, UserMappingWarning
 from id_translation.mapping.types import MatchTuple
 
@@ -215,3 +216,18 @@ def test_disabled():
     mapper = Mapper("disabled", overrides={"a": 1}, score_function_kwargs=dict(strict=False))
     assert mapper.apply("ab", {1}).flatten() == {"a": 1}
     assert mapper.apply("b", {1}).flatten() == {}
+
+
+def test_caller_kwargs_are_not_mutated() -> None:
+    score_kwargs: dict[str, Any] = {"positional_penalty": 0.0}
+    filter_kwargs: dict[str, Any] = {"regex": ".*"}
+    mapper: Mapper[str, str, None] = Mapper(
+        HeuristicScore[str, str, None]("modified_hamming", heuristics=[]),
+        score_function_kwargs=score_kwargs,
+        filter_functions=[("filter_names", filter_kwargs)],
+    )
+
+    mapper.apply(["a"], ["aa", "b"], task_id=7)
+
+    assert score_kwargs == {"positional_penalty": 0.0}
+    assert filter_kwargs == {"regex": ".*"}
