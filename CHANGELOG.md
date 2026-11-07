@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     translation changed the process-wide warnings filters.
   * Verification (`max_fails`, `DEBUG` logging) crashed on IDs with braces, and counted correct UUID-like reverse
     translations as failed.
+  * Mapped names without IDs (e.g. an all-null column) returned the input itself, not a copy, and left
+    `translated_names()` unchanged online; offline, an empty or all-missing `pandas` Series raised.
   * A `DataFrame` with `MultiIndex` columns raised `KeyError` for any column that was not translated, and a sequence
     that repeated a name kept only the last element's IDs.
   * An integration that called `register()` at import hung the process; it now raises `RegistryReentryError`.

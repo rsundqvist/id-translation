@@ -87,3 +87,8 @@ def register():
         yield
 
     load_integrations()
+
+
+def test_all_missing_ids(translator):
+    actual = translator.translate(pa.array([None], pa.int64()), names="ints", max_fails=0.0)
+    assert actual.to_pylist() == [None]  # Missing values are pass-throughs.

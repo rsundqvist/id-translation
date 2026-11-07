@@ -1079,3 +1079,29 @@ class TestIoKwargs:
         assert [r.msg for r in caplog.records] == [
             "Ignoring io_kwargs={'missing_as_nan': True} since translatable=None."
         ]
+
+
+@pytest.mark.parametrize("online", [True, False])
+@pytest.mark.parametrize(
+    "data",
+    [
+        {"people": []},
+        pd.DataFrame({"people": [np.nan]}),
+        pd.Series([], dtype=float, name="people"),
+        pd.Series([np.nan], name="people"),
+    ],
+    ids=["empty", "all-null", "empty-series", "all-null-series"],
+)
+def test_mapped_names_without_ids_return_a_copy(data, online):
+    translator: RealTranslator[str, str, int] = RealTranslator(MemoryFetcher({"people": {"id": [1], "name": ["Ada"]}}))
+    if not online:
+        translator.go_offline()
+
+    # max_fails < 1 makes verify() extract IDs offline too; at the default, offline gives failed labels by design.
+    actual = translator.translate(data, copy=True, max_fails=0.0)
+    assert actual is not data, "a copy; only an abort returns the input itself"
+    if isinstance(data, dict):
+        assert actual == data
+    else:
+        assert actual.equals(data)  # Missing values stay as they are.
+    assert translator.translated_names() == {"people": "people"}

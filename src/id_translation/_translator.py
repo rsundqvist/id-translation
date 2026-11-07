@@ -973,13 +973,14 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         task.log_key_event_enter()
 
         translation_map = self._get_updated_tmap(task)
-        if not translation_map:
+        if not task.name_to_source:
             # Return unchanged; this is technically against the API spec. If the user has required translation to
             # success through configuration, exceptions will be raised elsewhere. I don't know how to express this using
             # the Python type system.
             return translatable if copy else None
 
-        task.verify(translation_map)
+        if translation_map:  # Empty when no mapped name had IDs: nothing was fetched, and nothing can fail.
+            task.verify(translation_map)
 
         ans = task.insert(translation_map)
 
