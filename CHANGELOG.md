@@ -52,6 +52,9 @@ Each emits a `FutureWarning`.
     name had a known suffix, and used the first known suffix instead of the last (`'{}.csv.parquet'` was read as CSV).
   * With UUID heuristics, `SqlFetcher` missed dashed UUIDs in SQLite `CHAR(36)` columns. Its source
     order varied between runs.
+  * For fetchers that return every column, such as `MemoryFetcher`, swapped placeholder overrides formatted the wrong
+    columns, an `id` override lost to a literal `id` column, and several names mapped to one column kept only one. The
+    fetched data was renamed in place.
   * A `CacheAccess` that skipped `super().__init__()` raised `AttributeError`, and one shared by two fetchers
     a bare `RuntimeError`.
 - Documentation: the name-to-source mapping diagram.

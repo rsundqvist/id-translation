@@ -614,7 +614,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         ids: set[IdType] | None = None,
     ) -> PlaceholderTranslations[SourceType]:
         placeholders = self._deduplicate(placeholders)
-        reverse_mappings, instr = self._make_fetch_instruction(
+        reverse_mappings, aliases, instr = self._make_fetch_instruction(
             source,
             placeholders,
             required_placeholders=required_placeholders,
@@ -628,6 +628,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
             instr,
             placeholders,
             reverse_mappings=reverse_mappings,
+            aliases=aliases,
             required_placeholders=required_placeholders,
             placeholder_attributes=placeholder_attributes,
         )
@@ -712,7 +713,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         ids: set[IdType] | None,
         task_id: int,
         enable_uuid_heuristics: bool,
-    ) -> tuple[dict[str, str], FetchInstruction[SourceType, IdType]]:
+    ) -> tuple[dict[str, str], dict[str, str], FetchInstruction[SourceType, IdType]]:
         required_placeholders.add(ID)
         if ID not in placeholders:
             placeholders = (ID, *placeholders)
@@ -720,17 +721,18 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         wanted_to_actual = self._wanted_to_actual(source, placeholders, task_id)
         placeholder_attributes = self._placeholder_attributes(wanted_to_actual, placeholder_attributes, placeholders)
 
-        actual_to_wanted = {actual: wanted for wanted, actual in wanted_to_actual.items() if wanted != actual}
-        if actual_to_wanted:
+        actual_to_wanted, aliases = _reverse_mappings(wanted_to_actual, placeholders)
+        if actual_to_wanted or aliases:
             # We'll just map what we can here. If anything is missing it'll be caught later.
             def apply(c: Iterable[str]) -> Iterable[str]:
                 return (wanted_to_actual[p] for p in c if p in wanted_to_actual)
 
-            placeholders = tuple(apply(placeholders))
+            placeholders = tuple(dict.fromkeys(apply(placeholders)))  # Wanted names may share a column.
             required_placeholders = set(apply(required_placeholders))
 
         return (
             actual_to_wanted,
+            aliases,
             FetchInstruction(
                 source=source,
                 placeholders=placeholders,
@@ -866,3 +868,27 @@ def format_sources(placeholders: Mapping[Any, Any] | None) -> str:
     if placeholders is None:
         return "<uninitialized>"
     return repr(list(placeholders)) if placeholders else "<no sources>"
+
+
+def _reverse_mappings(
+    wanted_to_actual: dict[str, str],
+    placeholders: PlaceholdersTuple,
+) -> tuple[dict[str, str], dict[str, str]]:
+    """Name each fetched column by one wanted name, returning ``{actual: wanted}`` renames and aliases for the rest.
+
+    Several wanted names may map to one column. The ID wins, then the column's own name, then placeholder order; the
+    others become aliases of the chosen name instead of being lost.
+    """
+    by_actual: dict[str, list[str]] = {}
+    for wanted in placeholders:
+        if (actual := wanted_to_actual.get(wanted)) is not None:
+            by_actual.setdefault(actual, []).append(wanted)
+
+    renames: dict[str, str] = {}
+    aliases: dict[str, str] = {}
+    for actual, names in by_actual.items():
+        chosen = ID if ID in names else actual if actual in names else names[0]
+        if chosen != actual:
+            renames[actual] = chosen
+        aliases.update((other, chosen) for other in names if other != chosen)
+    return renames, aliases
