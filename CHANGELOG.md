@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `TypeError`, and an offline `copy()` lost the snapshot's `fmt` and names.
   * `extract_names()` ran source discovery, so a fetcher that was down made it raise.
   * Verification log records with numpy `bool` sample IDs were not JSON serializable.
+  * `TranslationHelper.apply()` raised `ValueError` before any translation, e.g. with `ID_TRANSLATION_DISABLED`.
 - Fetching:
   * A `CacheAccess` that skipped `super().__init__()` raised `AttributeError`, and one shared by two fetchers
     a bare `RuntimeError`.

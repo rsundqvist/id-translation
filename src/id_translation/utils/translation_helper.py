@@ -117,6 +117,7 @@ Examples:
     See the :func:`~id_translation.utils.translation_helper.example` function below for output.
 """
 
+import contextlib as _contextlib
 import os as _os
 import typing as _t
 from collections import abc as _abc
@@ -258,7 +259,8 @@ class TranslationHelper(_t.Generic[_tt.NameType, _tt.SourceType, _tt.IdType]):
         translator = self.get_translator()
         result = translator.translate(translatable, copy=copy, **params)  # type: ignore[call-overload]
 
-        self._translated_names = translator.translated_names(with_source=True)
+        with _contextlib.suppress(ValueError):  # Aborted before this translator ever translated; nothing to record.
+            self._translated_names = translator.translated_names(with_source=True)
         return result
 
     def name_to_source(self) -> _tt.NameToSource[_tt.NameType, _tt.SourceType]:
