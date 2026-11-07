@@ -13,6 +13,7 @@ This will launch a postgres instance with data already loaded. For more informat
 
 import os
 import sys
+from pathlib import Path
 
 import pandas
 import rics
@@ -37,11 +38,8 @@ except Exception as exc:
 
 # Download data to translate
 url = CONNECTION_STRING.format(password=PASSWORD)
-with (
-    open("query.sql") as query,
-    sqlalchemy.create_engine(url).connect() as con,
-):
-    df = pandas.read_sql(query.read(), con)
+with sqlalchemy.create_engine(url).connect() as con:
+    df = pandas.read_sql(Path("query.sql").read_text(), con)
 
 sample = df.sample(10)
 print(sample)

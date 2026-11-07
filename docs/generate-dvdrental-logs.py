@@ -17,7 +17,6 @@ import sqlalchemy
 
 from id_translation import Translator
 from id_translation import logging as _logging
-
 from id_translation._tasks import _base_task
 
 ROOT = Path(__file__).parent.parent.joinpath("tests/dvdrental/")
@@ -142,7 +141,7 @@ def handle_rst() -> None:
             any_missing = True
 
     if any_missing:
-        print(f"  In file: \033[31m{repr(str(RST_FILE))}\033[0m")
+        print(f"  In file: \033[31m{str(RST_FILE)!r}\033[0m")
 
 
 def find_doc_lines() -> tuple[int, int]:

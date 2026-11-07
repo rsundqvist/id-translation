@@ -1,11 +1,11 @@
 from pygments.lexer import RegexLexer, words
-from pygments.token import Whitespace, Keyword, Name, Generic, Number, Text, String
+from pygments.token import Generic, Keyword, Name, Number, String, Text, Whitespace
 
 
 class LogLexer(RegexLexer):
     name = "log"
 
-    tokens = {
+    tokens = {  # noqa: RUF012
         "root": [
             (r"\w+=", Keyword),
             (r"\n", Whitespace),

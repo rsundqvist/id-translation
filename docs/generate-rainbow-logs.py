@@ -5,6 +5,7 @@ import tempfile
 from contextlib import redirect_stdout
 from datetime import datetime
 from pathlib import Path
+from typing import override
 
 import pandas as pd
 import sqlalchemy
@@ -21,6 +22,7 @@ class TempFormatter(debug_logging_formatter.DebugLoggingFormatter):
         super().__init__(*args, **kwargs)
         self.start = datetime.now()
 
+    @override
     def formatMessage(self, record: logging.LogRecord) -> str:
         _, mid, right = record.pathname.partition("/id_translation/")
         record.pathname = "".join(("<site-packages>", mid, right))
@@ -72,7 +74,7 @@ def write_logs(level, style, tmpdir):
             "--no-wrap",
             "--white",  # Dark made isn't supported (by me), so need for two versions.
         ]
-        output = subprocess.check_output(args, input=tmp_file.read_bytes())
+        output = subprocess.check_output(args, input=tmp_file.read_bytes())  # noqa: S603
         out_path.write_bytes(output)
 
     print(f"\033[92mUpdated: '{out_path}'\033[0m")

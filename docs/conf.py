@@ -16,6 +16,7 @@ if True:  # E402 hack
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 import shutil
 from importlib import metadata
+from pathlib import Path
 
 from rics._internal_support import myst_parser_markdown_doc_refs
 from rics._internal_support.changelog import split_changelog
@@ -25,12 +26,11 @@ from id_translation.fetching import AbstractFetcher
 
 myst_parser_markdown_doc_refs.patch()
 
-if not os.path.exists("api"):
-    os.mkdir("api")
+Path("api").mkdir(exist_ok=True)
 shutil.copyfile("translator.rst", "api/translator.rst")
 
 
-def callback(_app, _env, node, _contnode):  # noqa
+def callback(_app, _env, node, _contnode):
     reftarget = node.get("reftarget")
 
     dio = {
@@ -48,7 +48,7 @@ def callback(_app, _env, node, _contnode):  # noqa
     return None
 
 
-def skip_member(app, what, name, obj, skip, options):
+def skip_member(app, what, name, obj, skip, options):  # noqa: PLR0917
     if obj is AbstractFetcher._initialize_sources:
         return False
     return skip or name.startswith("_")
@@ -113,7 +113,7 @@ def forbid_downstream_unresolvable_references(app, env):
             logger.warning(msg, location=node)
 
 
-def setup(app):  # noqa
+def setup(app):
     app.connect("missing-reference", callback)
     app.connect("autodoc-skip-member", skip_member)
     app.connect("build-finished", publish_jsonschema)
@@ -136,7 +136,7 @@ def publish_jsonschema(app, exception):
     from id_translation.toml._schema import published_schemas
 
     for filename, schema in published_schemas().items():
-        with open(os.path.join(app.outdir, filename), "w", encoding="utf-8") as f:
+        with Path(app.outdir, filename).open("w", encoding="utf-8") as f:
             json.dump(schema, f, indent=2)
             f.write("\n")
 

@@ -233,7 +233,7 @@ def _handle_models(models: ModelsArg) -> dict[str, ModelClass]:
 
 def suggest_id_column(model: ModelClass) -> QueryableAttribute[Any] | None:
     """Attempt to derive a suitable ID column for `model`."""
-    rv: None | QueryableAttribute[Any] = None
+    rv: QueryableAttribute[Any] | None = None
 
     for name in dir(model):
         attr = getattr(model, name)

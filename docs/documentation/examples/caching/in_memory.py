@@ -82,19 +82,22 @@ class InMemoryCacheAccess(CacheAccess[SourceType, IdType]):
         instr: FetchInstruction[SourceType, IdType],
     ) -> PartialCacheHit[SourceType, IdType] | None:
         if instr.ids is None:
-            return None  # An accumulated cache cannot prove it holds *all* IDs (fetch_all).
+            # An accumulated cache cannot prove it holds *all* IDs (fetch_all).
+            return None
 
         sc = self._cache.get(instr.source)
         if sc is None or not set(instr.placeholders).issubset(sc.placeholders):
-            # Nothing cached for this source, or we lack a requested placeholder. Let the fetcher fetch everything;
-            # store() will (re)set the layout.
+            # Nothing cached for this source, or we lack a requested placeholder.
+            # Let the fetcher fetch everything; store() will (re)set the layout.
             return None
 
         deadline = time.monotonic() - self._ttl
-        records = [sc.rows[id_][1] for id_ in instr.ids if id_ in sc.rows and sc.rows[id_][0] >= deadline]
+        hits = (sc.rows[id_] for id_ in instr.ids if id_ in sc.rows)
+        records = [row for stored_at, row in hits if stored_at >= deadline]
 
-        # Return whatever subset is hot; the fetcher fetches the rest at our layout and merges. `covered` is left to
-        # default to the IDs in these rows, so any missing/expired IDs are re-fetched (and re-cached via store()).
+        # Return whatever subset is hot; the fetcher fetches the rest at our layout
+        # and merges. `covered` is left to default to the IDs in these rows, so any
+        # missing/expired IDs are re-fetched (and re-cached via store()).
         return PartialCacheHit(
             PlaceholderTranslations(
                 source=instr.source,

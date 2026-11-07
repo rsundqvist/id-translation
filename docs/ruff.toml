@@ -1,0 +1,28 @@
+extend = "../pyproject.toml"
+# Not in `inv lint` / `inv format`. Ruff reads `fix` from the working directory's config only, so this keeps a bare
+# `ruff check` run from docs/ from rewriting the included examples; from the root, the root's `fix = true` applies.
+fix = false
+# Also when given explicit paths (format-on-save, pre-commit), not only on directory runs.
+force-exclude = true
+
+[format]
+# Wrapped narrower than 120 by hand, so the rendered code blocks do not scroll or wrap in Sphinx.
+exclude = ["documentation/examples/caching/on_disk.py", "documentation/examples/orm/*"]
+
+[lint]
+extend-ignore = [
+    "D", # Examples and scripts, not API.
+    "ANN", # Sphinx hooks and example functions.
+    "ARG001", # Sphinx hook signatures.
+    "ARG002", # Example methods implement an interface; a per-line noqa would render.
+    "PLC0415", # `import` inside conf.py hooks.
+    "E402", # Examples import next to the code they explain.
+    "S105", # Example credentials.
+]
+
+[lint.per-file-ignores]
+# Imports in the examples are grouped and ordered by hand, to tell the story.
+"documentation/examples/**" = ["I001"]
+
+[lint.isort]
+known-first-party = ["id_translation"]

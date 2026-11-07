@@ -113,6 +113,4 @@ print("person=", translator.translate(1904, "people"))
 print("person=", create().translate(1904, "people"))
 
 # ==================================================================================================================== #
-import os
-
-os.remove("cache/people.ftr")
+Path("cache/people.ftr").unlink()
