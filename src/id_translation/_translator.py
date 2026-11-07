@@ -895,9 +895,9 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             copy: If ``False``, translate in-place and return ``None``.
             override_function: A callable ``(name, sources, context) -> Source | None``, where `context` is always
                 ``None``. See :meth:`Mapper.apply <id_translation.mapping.Mapper.apply>` for details.
-            max_fails: The maximum fraction of IDs for which translation may fail. 1=disabled. Missing IDs (e.g.
-                ``NaN``) in ``pandas`` types are pass-throughs and never count; a ``None`` in a builtin collection is
-                an ordinary -- unknown -- ID, and does.
+            max_fails: The maximum fraction of IDs for which translation may fail. 1=disabled. Missing values (``NaN``,
+                null) in ``pandas``, ``dask``, ``polars`` and ``pyarrow`` data are pass-throughs and never count; in a
+                builtin collection or array, ``None`` and ``NaN`` are ordinary (unknown) IDs, and do.
             reverse: If ``True``, perform translations back to IDs. Offline mode only.
             fmt: A :class:`format string <id_translation.offline.Format>` such as **'{id}:{name}'** to use. Default is
                 :attr:`Translator.fmt <id_translation.Translator.fmt>`.
@@ -1345,9 +1345,9 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             override_function: A callable ``(name, sources, context) -> Source | None``, where `context` is always
                 ``None``. See :meth:`Mapper.apply <id_translation.mapping.Mapper.apply>` for details. Ignored when
                 `translatable` is given.
-            max_fails: The maximum fraction of IDs for which translation may fail. 1=disabled. Missing IDs (e.g.
-                ``NaN``) in ``pandas`` types are pass-throughs and never count; a ``None`` in a builtin collection is
-                an ordinary (unknown) ID, and does.
+            max_fails: The maximum fraction of IDs for which translation may fail. 1=disabled. Missing values (``NaN``,
+                null) in ``pandas``, ``dask``, ``polars`` and ``pyarrow`` data are pass-throughs and never count; in a
+                builtin collection or array, ``None`` and ``NaN`` are ordinary (unknown) IDs, and do.
             fmt: A :class:`format string <id_translation.offline.Format>` such as **'{id}:{name}'** to use. Default is
                 :attr:`Translator.fmt <id_translation.Translator.fmt>`. The snapshot is only guaranteed to hold the
                 placeholders of `fmt` when `translatable` is given, and those of `Translator.fmt` otherwise; list any
@@ -1488,9 +1488,9 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             override_function: A callable ``(name, sources, context) -> Source | None``, where `context` is always
                 ``None``. See :meth:`Mapper.apply <id_translation.mapping.Mapper.apply>` for details. Ignored when
                 `translatable` is given.
-            max_fails: The maximum fraction of IDs for which translation may fail. 1=disabled. Missing IDs (e.g.
-                ``NaN``) in ``pandas`` types are pass-throughs and never count; a ``None`` in a builtin collection is
-                an ordinary (unknown) ID, and does.
+            max_fails: The maximum fraction of IDs for which translation may fail. 1=disabled. Missing values (``NaN``,
+                null) in ``pandas``, ``dask``, ``polars`` and ``pyarrow`` data are pass-throughs and never count; in a
+                builtin collection or array, ``None`` and ``NaN`` are ordinary (unknown) IDs, and do.
             fmt: A :class:`format string <id_translation.offline.Format>` such as **'{id}:{name}'** to use. Default is
                 :attr:`Translator.fmt <id_translation.Translator.fmt>`.
             io_kwargs: Keyword arguments for the IO class (e.g.

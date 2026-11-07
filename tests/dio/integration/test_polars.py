@@ -1,5 +1,7 @@
 from uuid import UUID
 
+import numpy as np
+import pandas as pd
 import polars as pl
 import pytest
 
@@ -60,6 +62,23 @@ def test_series(translator, df, column):
     series = df[column]
     actual: pl.Series = translator.translate(series)
     assert actual.to_list() == EXPECTED[series.name]
+
+
+@pytest.mark.parametrize("ids", [[0, 0, None], [0.0, 0.0, None, float("nan")]])
+def test_missing_ids_are_not_counted(translator, ids):
+    actual = translator.translate(pl.Series("ints", ids), max_fails=0.0)
+    assert actual.to_list() == ["0:int-zero", "0:int-zero", *(f"<Failed: id={idx}>" for idx in ids[2:])]
+
+
+@pytest.mark.parametrize("missing", [None, float("nan"), np.float32("nan"), pd.NA])
+def test_object_missing_values_are_not_extracted(missing):
+    series = pl.Series("x", [0, 0, missing], dtype=pl.Object)
+    assert PolarsIO.extract(series, ["x"]) == {"x": ["0"]}
+
+
+@pytest.mark.parametrize("ids", [[None, None], []])
+def test_object_without_ids(ids):
+    assert PolarsIO.extract(pl.Series("x", ids, dtype=pl.Object), ["x"]) == {"x": []}
 
 
 def test_dataframe_fast(translator):

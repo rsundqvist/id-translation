@@ -101,9 +101,10 @@ class DaskIO(_DataStructureIO[DaskT, str, _tt.SourceType, _tt.IdType]):
             if len(names) != 1:
                 msg = f"{len(names)=} != 1 is not supported for {_tname(translatable, include_module=True)}"
                 raise NotImplementedError(msg)
-            return {names[0]: translatable.unique().compute().to_list()}
+            return {names[0]: translatable.dropna().unique().compute().to_list()}
         else:
-            delayed = {n: translatable[n].unique() for n in names}
+            # Missing values are pass-throughs, as for pandas: never fetched, and never counted by `max_fails`.
+            delayed = {n: translatable[n].dropna().unique() for n in names}
             name_to_ids = _compute(delayed)[0]
             return {name: ids.to_list() for name, ids in name_to_ids.items()}
 

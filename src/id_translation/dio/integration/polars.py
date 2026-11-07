@@ -1,5 +1,8 @@
 """Integration for `Polars <https://pola.rs/>`_ types."""
 
+import math as _math
+import numbers as _numbers
+import sys as _sys
 import typing as _t
 from collections import abc as _abc
 
@@ -48,7 +51,11 @@ class PolarsIO(_dio.DataStructureIO[PolarsT, str, _tt.SourceType, _tt.IdType]):
     @classmethod
     def extract(cls, translatable: PolarsT, names: list[str]) -> dict[str, _abc.Sequence[_tt.IdType]]:
         def extract(series: _pl.Series) -> _abc.Sequence[_tt.IdType]:
-            return cls.obj_to_str(series).unique().to_list()
+            # Missing values are pass-throughs, as for pandas: never fetched, and never counted by `max_fails`.
+            series = cls.obj_to_str(series).drop_nulls()
+            if series.dtype.is_float():
+                series = series.drop_nans()
+            return series.unique().to_list()
 
         if isinstance(translatable, _pl.Series):
             if len(names) != 1:
@@ -94,7 +101,8 @@ class PolarsIO(_dio.DataStructureIO[PolarsT, str, _tt.SourceType, _tt.IdType]):
         """Utility method for dtype conversion.
 
         Will cast ``polars.Object`` to ``polars.String``, which is slow but required for translation. Elements are
-        mapped using the regular builtin ``str`` function.
+        mapped using the regular builtin ``str`` function, except that missing values such as ``None``, ``NaN`` and
+        ``pandas.NA`` become null.
 
         This method is never called when ``fast=True``.
 
@@ -105,4 +113,13 @@ class PolarsIO(_dio.DataStructureIO[PolarsT, str, _tt.SourceType, _tt.IdType]):
             return series
 
         # Not map_elements(str): it warns, and suppressing that swaps the process-wide warnings filters.
-        return _pl.Series(series.name, [None if v is None else str(v) for v in series], dtype=_pl.String)
+        return _pl.Series(series.name, [None if _is_missing(v) else str(v) for v in series], dtype=_pl.String)
+
+
+def _is_missing(value: object) -> bool:
+    if value is None:
+        return True
+    if isinstance(value, _numbers.Real) and not isinstance(value, _numbers.Integral):
+        return _math.isnan(value)  # Not on an Integral: math.isnan() overflows on a large int.
+    pd = _sys.modules.get("pandas")  # Optional: pd.NA cannot exist before pandas is imported.
+    return pd is not None and value is pd.NA

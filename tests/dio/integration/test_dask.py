@@ -149,3 +149,14 @@ def test_series_cat_ordered(ordered, expected_categories):
 
     assert pd_series.cat.categories.to_list() == expected_categories
     assert pd_series.to_list() == ["c", "a", "b"]
+
+
+# pandas 2 warns when PandasIO assigns into a partition that is a slice of the original frame, as before 1.5.
+@pytest.mark.filterwarnings(r"ignore:\s*A value is trying to be set on a copy of a slice")
+@pytest.mark.parametrize("frame", [False, True])
+def test_missing_ids_are_not_counted(translator, frame):
+    pandas = pd.DataFrame({"ints": [0, 0, np.nan]})
+    translatable = dd.from_pandas(pandas if frame else pandas["ints"], npartitions=2)
+
+    actual = translator.translate(translatable, max_fails=0.0).compute()
+    assert (actual["ints"] if frame else actual).tolist() == ["0:int-zero", "0:int-zero", "<Failed: id=nan>"]

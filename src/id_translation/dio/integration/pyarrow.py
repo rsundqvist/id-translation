@@ -2,6 +2,7 @@
 
 import typing as _t
 from collections import abc as _abc
+from math import isnan as _isnan
 
 import pyarrow as _pa  #  type: ignore[import-untyped]
 from rics.misc import tname as _tname
@@ -52,13 +53,14 @@ class ArrowIO(_dio.DataStructureIO[ArrowT, str, _tt.SourceType, _tt.IdType]):
 
     @classmethod
     def extract(cls, translatable: ArrowT, names: list[str]) -> dict[str, _abc.Sequence[_tt.IdType]]:
+        # Missing values are pass-throughs, as for pandas: never fetched, and never counted by `max_fails`.
         if isinstance(translatable, _pa.Table):
-            return {name: cls._extract_unique(translatable.column(name)) for name in names}
+            return {name: cls._extract_present(translatable.column(name)) for name in names}
         else:
             if len(names) != 1:
                 msg = f"{len(names)=} != 1 is not supported for {_tname(translatable, include_module=True)}"
                 raise NotImplementedError(msg)
-            return {names[0]: cls._extract_unique(translatable)}
+            return {names[0]: cls._extract_present(translatable)}
 
     def insert(
         self,
@@ -85,6 +87,13 @@ class ArrowIO(_dio.DataStructureIO[ArrowT, str, _tt.SourceType, _tt.IdType]):
     @classmethod
     def _extract_unique(cls, ids: _ArrayT) -> list[_tt.IdType]:
         return ids.unique().to_pylist()  # type: ignore[no-any-return]
+
+    @classmethod
+    def _extract_present(cls, ids: _ArrayT) -> list[_tt.IdType]:
+        # Narrower than PolarsIO's: to_pylist() gives NaN only as a float, and Arrow holds no pd.NA.
+        return [
+            idx for idx in cls._extract_unique(ids) if not (idx is None or (isinstance(idx, float) and _isnan(idx)))
+        ]
 
     def _translate_array(self, ids: _ArrayT, magic_dict: _MagicDict[_tt.IdType]) -> _ArrayT:
         get_item = magic_dict.real_get if self._missing_as_nan else magic_dict.__getitem__

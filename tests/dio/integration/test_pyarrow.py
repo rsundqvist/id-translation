@@ -70,6 +70,12 @@ def test_array(translator, table, column):
     assert actual.to_pylist() == EXPECTED[column]
 
 
+@pytest.mark.parametrize("ids", [[0, 0, None], [0.0, 0.0, None, float("nan")]])
+def test_missing_ids_are_not_counted(translator, ids):
+    actual = translator.translate(pa.array(ids), names="ints", max_fails=0.0)
+    assert actual.to_pylist() == ["0:int-zero", "0:int-zero", *(f"<Failed: id={idx}>" for idx in ids[2:])]
+
+
 @pytest.fixture(autouse=True)
 def register():
     assert not ArrowIO.is_registered(), f"{ArrowIO.priority=}"
