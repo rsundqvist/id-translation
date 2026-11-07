@@ -60,6 +60,22 @@ def tests(session: Session) -> None:
             session.notify("coverage")
 
 
+@nox.session(python="3.11")
+def tests_pandas2(session: Session) -> None:
+    """Run the pandas IO tests on pandas 2, which the ``fetching`` extra still allows.
+
+    Runs ``pytest`` directly, since ``uv run`` would sync pandas 3 back.
+    """
+    install(session)
+    session.run("uv", "pip", "install", f"--python={session.virtualenv.location}", "pandas<3", external=True)
+    session.run(
+        "pytest",
+        "tests/dio/integration/test_pandas.py",
+        "tests/dio/integration/test_dask.py",
+        "tests/test_translator.py::TestIoKwargs",
+    )
+
+
 @nox.session(python=["3.14t", "3.15t"])
 def free_threading(session: Session) -> None:
     """Run the free-threaded (GIL-less) race tests on a Py_GIL_DISABLED build.

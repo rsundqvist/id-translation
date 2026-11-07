@@ -999,7 +999,7 @@ class TestIoKwargs:
 
     def test_io_kwargs(self, series, translator):
         actual = translator.translate(series, fmt="{hex}", io_kwargs={"missing_as_nan": True}).to_dict()
-        assert actual == {-1: np.nan, 1: "0x1"}
+        assert actual == {-1: None if int(pd.__version__.split(".")[0]) < 3 else np.nan, 1: "0x1"}  # pandas 2: None.
 
     def test_bad_io_kwargs(self, series, translator, caplog):
         caplog.set_level(logging.WARNING, logger="id_translation.dio")

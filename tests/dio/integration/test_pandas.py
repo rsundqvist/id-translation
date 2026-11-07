@@ -17,6 +17,8 @@ from id_translation.types import IdTypes
 PandasIO = _PandasIO[PandasT, str, str, int | str]
 del _PandasIO
 UUID_ID = UUID(fields=(1, 0, 0, 0, 0, 0))
+PANDAS_2 = int(pd.__version__.split(".")[0]) < 3
+MISSING = None if PANDAS_2 else np.nan  # pandas 2 leaves None in an object column.
 
 
 @pytest.mark.parametrize("ttype", [pd.Series, pd.Index])
@@ -48,17 +50,17 @@ class TestMissingAsNan:
     def test_series(self, tmap):
         series = pd.Series(["1", float("nan")])
         self.insert(series, tmap, names=["str_source"])
-        assert series.to_list() == ["1:StrOne", np.nan]
+        assert series.to_list() == ["1:StrOne", MISSING]
 
     def test_frame(self, tmap):
         df = pd.Series(["1", float("nan")]).to_frame("str_source")
         self.insert(df, tmap, names=["str_source"])
-        assert df["str_source"].to_list() == ["1:StrOne", np.nan]
+        assert df["str_source"].to_list() == ["1:StrOne", MISSING]
 
     def test_single_repeated_name(self, tmap):
         series = pd.Series(["1", float("nan")])
         self.insert(series, tmap, names=["str_source", "str_source"])
-        assert series.to_list() == ["1:StrOne", np.nan]
+        assert series.to_list() == ["1:StrOne", MISSING]
 
     def test_different_names(self, tmap):
         series = pd.Series(list("ab"))
@@ -69,7 +71,7 @@ class TestMissingAsNan:
     @pytest.mark.parametrize(
         "missing_as_nan, expected",
         [
-            (True, ["00000001:UuidOne", "00000001:UuidOne", np.nan, np.nan]),
+            (True, ["00000001:UuidOne", "00000001:UuidOne", MISSING, MISSING]),
             (False, ["00000001:UuidOne", "00000001:UuidOne", "<Failed: id=UUID>", "<Failed: id=str>"]),
         ],
     )
@@ -86,6 +88,7 @@ class TestInplace:
         with pytest.raises(NotInplaceTranslatableError, match="Index"):
             PandasIO[pd.Index]().insert(index, names=[], tmap=tmap, copy=False)
 
+    @pytest.mark.skipif(PANDAS_2, reason="pandas 2 upcasts in place, with a FutureWarning (PDEP-6).")
     def test_series_int(self, tmap):
         source = "int_source"
         series = pd.Series([1], name=source)
