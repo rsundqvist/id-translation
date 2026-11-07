@@ -677,3 +677,16 @@ class TestUuidCategories:
         expected = ["first", "second"] if observed else ["first", "second", "third"]
         assert actual.cat.categories.to_list() == [*expected, f"<Failed: id={self.UNKNOWN}>"]
         assert actual.dtype.ordered is True
+
+
+@pytest.mark.parametrize(
+    "series",
+    [
+        pd.Series([1, None], dtype=object),
+        pd.Series(["a", None]),  # pandas 3 infers `str`; pandas 2 `object`.
+        pd.Series([UUID_ID, None]),
+    ],
+    ids=["int", "str", "uuid"],
+)
+def test_extract_skips_missing_among_objects(series):
+    assert PandasIO[pd.Series]().extract(series, names=["x"]) == {"x": series.dropna().tolist()}

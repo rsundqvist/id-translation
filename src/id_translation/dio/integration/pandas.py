@@ -481,18 +481,21 @@ def _is_missing(idx: object) -> bool:
 
 
 def _extract(translatable: _ExtractArgType) -> list[_tt.IdType]:
-    """Many database drivers dislike floats, especially NaN."""
+    """Return the IDs to fetch.
+
+    A float array becomes ``int``, without NaN: many database drivers dislike floats, especially NaN.
+    """
+    values: _NumpyVector = _np.asarray(translatable).ravel()
+    if values.dtype == object:
+        # Missing values are pass-throughs, and np.unique cannot sort None or NaN among other IDs.
+        values = values[~_pd.isna(values)]
     try:
-        unique: _NumpyVector = _np.unique(translatable, axis=None)
+        unique: _NumpyVector = _np.unique(values)
     except TypeError as exc:
-        if (
-            isinstance(exc, TypeError)
-            and not isinstance(translatable, _np.ndarray)
-            and _pd.api.types.is_object_dtype(translatable.dtypes)
-        ):
+        if not isinstance(translatable, _np.ndarray) and values.dtype == object:
             # Last-ditch effort. Mixed dtypes will raise if not comparable (e.g., UUID/str; np.unique will sort). Cast
             # to str is both hacky and slow, but if you're mixing dtypes you probably don't care anyway.
-            return _extract(translatable.astype(str))
+            return _extract(values.astype(str))
         else:
             exc.add_note(f"{type(translatable)=}")
             raise
