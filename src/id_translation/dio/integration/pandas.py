@@ -1,7 +1,6 @@
 """Integration for `Pandas <https://pandas.pydata.org/>`_ types."""
 
 import typing as _t
-import warnings as _warnings
 from collections import abc as _abc
 from contextlib import contextmanager as _contextmanager
 from uuid import UUID as _UUID
@@ -230,25 +229,9 @@ class PandasIO(_dio.DataStructureIO[PandasT, _tt.NameType, _tt.SourceType, _tt.I
             return self._translate_frame(translatable, names, tmap, copy)
 
         if isinstance(translatable, _pd.Series):
-            if not copy:
-                msg = self._check_pdep_6(translatable)
-                if msg:
-                    exc = _NotInplaceTranslatableError(translatable)
-                    exc.add_note(f"Hint: {msg}")
-                    raise exc
             return self._translate_series(translatable, names, tmap, copy)
 
         raise TypeError(f"This should not happen: {type(translatable)=}")  # pragma: no cover
-
-    @classmethod
-    def _check_pdep_6(cls, series: _pd.Series) -> str | None:
-        """Check if # https://pandas.pydata.org/pdeps/0006-ban-upcasting.html applies."""
-        copy = series.head(1)
-        try:
-            copy[:] = "<string>"  # See _translate_series
-            return None
-        except TypeError as e:
-            return str(e)
 
     @staticmethod
     def _join_map(pvt: _PandasVectorT, magic_dict: _MagicDict[_tt.IdType]) -> dict[_tt.IdType, str]:
@@ -418,10 +401,13 @@ class PandasIO(_dio.DataStructureIO[PandasT, _tt.NameType, _tt.SourceType, _tt.I
             # This typically means we're translating multiple names.
             return _pd.Series(result, index=series.index, name=series.name, copy=False)
 
-        with _warnings.catch_warnings():
-            # TODO: Stop suppressing this warning.
-            _warnings.simplefilter(action="ignore", category=FutureWarning)
+        try:
             series[:] = result
+        except TypeError:  # https://pandas.pydata.org/pdeps/0006-ban-upcasting.html
+            hint = f"Use copy=True, or a Series that can hold strings (not {series.dtype})."
+            exc = _NotInplaceTranslatableError(series)
+            exc.add_note(f"Hint: {hint}")
+            raise exc from None
         return None
 
     @_contextmanager

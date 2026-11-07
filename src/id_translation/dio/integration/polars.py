@@ -1,7 +1,6 @@
 """Integration for `Polars <https://pola.rs/>`_ types."""
 
 import typing as _t
-import warnings as _w
 from collections import abc as _abc
 
 import polars as _pl
@@ -105,6 +104,5 @@ class PolarsIO(_dio.DataStructureIO[PolarsT, str, _tt.SourceType, _tt.IdType]):
         if series.dtype != _pl.Object:
             return series
 
-        with _w.catch_warnings():
-            _w.filterwarnings("ignore", category=_pl.exceptions.PolarsInefficientMapWarning)
-            return series.map_elements(str, return_dtype=_pl.String)
+        # Not map_elements(str): it warns, and suppressing that swaps the process-wide warnings filters.
+        return _pl.Series(series.name, [None if v is None else str(v) for v in series], dtype=_pl.String)

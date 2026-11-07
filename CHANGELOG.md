@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Translation:
   * A `pandas` object or `str` column that mixed IDs with missing values raised `TypeError` under pandas 3. Under
     pandas 2, `None` was fetched as the ID `'None'`, and `int` IDs in the column no longer matched.
+  * In-place translation of an object `Series` failed every ID under pandas 2, and in-place `pandas` and `polars`
+    translation changed the process-wide warnings filters.
 
 ## [1.4.2] - 2026-10-10
 

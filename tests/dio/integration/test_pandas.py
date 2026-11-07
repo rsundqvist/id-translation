@@ -690,3 +690,25 @@ class TestUuidCategories:
 )
 def test_extract_skips_missing_among_objects(series):
     assert PandasIO[pd.Series]().extract(series, names=["x"]) == {"x": series.dropna().tolist()}
+
+
+def test_in_place_translation_leaves_the_warnings_filters_alone(tmap, monkeypatch):
+    """catch_warnings() swaps the process-wide filters, so another thread's warnings could be lost meanwhile."""
+    import types
+
+    import polars as pl
+
+    from id_translation.dio.integration import pandas as pandas_io
+    from id_translation.dio.integration import polars as polars_io
+
+    def fail(*_args, **_kwargs):
+        raise AssertionError("catch_warnings() called")
+
+    no_catch = types.SimpleNamespace(catch_warnings=fail, simplefilter=fail, filterwarnings=fail)
+    for module, name in [(pandas_io, "_warnings"), (polars_io, "_w")]:  # How 1.4 imported it.
+        monkeypatch.setattr(module, name, no_catch, raising=False)
+
+    series = pd.Series(["1"], name="str_source", dtype=object)
+    PandasIO[pd.Series]().insert(series, names=["str_source"], tmap=tmap, copy=False)
+    assert series[0] == "1:StrOne"
+    assert polars_io.PolarsIO.obj_to_str(pl.Series("x", [1, None], dtype=pl.Object)).to_list() == ["1", None]
