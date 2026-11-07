@@ -147,17 +147,15 @@ def smurf_columns(
     table = to_singular(table.lower())
 
     placeholder = placeholder.lower()
-    columns = {c.lower() for c in columns}
+    by_lower: dict[str, str] = {}
+    for column in columns:
+        by_lower.setdefault(column.lower(), column)
 
-    if placeholder == "name" and table in columns:
-        return {table}
+    if placeholder == "name" and table in by_lower:
+        return {by_lower[table]}
 
     smurf = f"{table}_{placeholder}"
-    for column in columns:
-        if smurf == column.lower():
-            return {smurf}
-
-    return set()
+    return {by_lower[smurf]} if smurf in by_lower else set()
 
 
 def short_circuit(

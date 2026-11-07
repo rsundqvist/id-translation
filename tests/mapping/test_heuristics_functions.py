@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 
+from id_translation.mapping import HeuristicScore, Mapper
 from id_translation.mapping import heuristic_functions as hf
 
 SINGULAR_TO_PLURAL = list(
@@ -171,3 +172,19 @@ class TestNounTransformer:
 
 
 cached_transformer_instance = TestNounTransformer.CachedTransformer()
+
+
+@pytest.mark.parametrize(
+    "placeholder, columns, expected",
+    [
+        ("id", ["Animal_ID", "name"], {"Animal_ID"}),
+        ("name", ["ANIMAL", "Animal_Name"], {"ANIMAL"}),
+        ("name", ["animal_id", "Animal_Name"], {"Animal_Name"}),
+        ("id", ["Animal_ID", "animal_id"], {"Animal_ID"}),
+    ],
+)
+def test_smurf_columns_returns_the_candidate(placeholder, columns, expected):
+    assert hf.smurf_columns(placeholder, columns, "Animals", plural_to_singular=True) == expected
+    score = HeuristicScore[str, str, str]("equality", [("smurf_columns", {"plural_to_singular": True})])
+    mapper: Mapper[str, str, str] = Mapper(score)
+    assert mapper.apply([placeholder], columns, "Animals").flatten() == {placeholder: next(iter(expected))}

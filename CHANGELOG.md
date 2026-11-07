@@ -37,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * `TranslationHelper.apply()` raised `ValueError` before any translation, e.g. with `ID_TRANSLATION_DISABLED`.
 - Mapping:
   * `Mapper` wrote `task_id` into the caller's kwargs dicts.
+  * `smurf_columns` returned a mixed-case column lowercased, so it never matched.
 - Fetching:
   * A `CacheAccess` that skipped `super().__init__()` raised `AttributeError`, and one shared by two fetchers
     a bare `RuntimeError`.
