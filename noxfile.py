@@ -9,7 +9,7 @@ from nox.sessions import Session
 
 nox.options.default_venv_backend = "uv"
 nox.options.sessions = ["tests", "mypy"]
-python_versions = ["3.11", "3.12", "3.13", "3.14"]
+python_versions = ["3.11", "3.12", "3.13", "3.14", "3.15"]
 
 
 def install(session: Session) -> None:
@@ -49,6 +49,7 @@ def tests(session: Session) -> None:
         run_invoke(
             session,
             "tests",
+            *session.posargs,
             env={
                 # An explicit env= beats os.environ in nox, so the default must not shadow an outer COVERAGE_FILE.
                 "COVERAGE_FILE": os.environ.get("COVERAGE_FILE", f".coverage.{platform.system()}.{session.python}"),
@@ -59,7 +60,7 @@ def tests(session: Session) -> None:
             session.notify("coverage")
 
 
-@nox.session(python="3.14t")
+@nox.session(python=["3.14t", "3.15t"])
 def free_threading(session: Session) -> None:
     """Run the free-threaded (GIL-less) race tests on a Py_GIL_DISABLED build.
 

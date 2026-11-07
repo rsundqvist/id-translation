@@ -185,7 +185,11 @@ class DummyCacheAccess(CacheAccess[Any, Any]):
 @pytest.mark.parametrize(
     "clazz, expected_error",
     [
-        ("does_not_exist.FetcherClass", ModuleNotFoundError("No module named 'does_not_exist'")),
+        (
+            "does_not_exist.FetcherClass",
+            # The name too: from Python 3.15, an ImportError's repr() includes it.
+            ModuleNotFoundError("No module named 'does_not_exist'", name="does_not_exist"),
+        ),
         (f"{__name__}.CrashesOnInitFetcher", ValueError("I always crash!")),
     ],
 )

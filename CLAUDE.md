@@ -26,12 +26,12 @@ Run everything through `uv run`; `uv run inv --list` has the full task list. The
 - **`inv docs` builds with `-W`** and generates `llms.txt` / `llms-full.txt`. RTD sets `fail_on_warning: true`.
 - **`./run-docker-dvdrental.sh`** starts the databases `tests/dvdrental/` needs. That suite fails with an explicit
   message naming the script when they aren't running.
-- **`uv run nox`** runs the CI matrix locally: `tests-3.11` … `tests-3.14` plus `mypy-3.*`. Use it to catch the
+- **`uv run nox`** runs the CI matrix locally: `tests-3.*` plus `mypy-3.*`. Use it to catch the
   version-specific breakage a single-interpreter run cannot — a bare `sys.version_info` assert, a 3.11-only syntax
   gap. `uv run nox -s tests-3.11` runs one session. Check the result, not the exit code of a pipeline ending in
   `tail`: a multi-session run prints `* tests-3.11: failed` per session, a single-session run only
   `Session tests-3.11 failed` — and a session killed by the interpreter assert says **`aborted`**, not
-  `failed`. That assert is what stops a wrong interpreter quietly testing the same version four times.
+  `failed`. That assert is what stops a wrong interpreter quietly testing the same version multiple times.
   `uv run` bootstraps the outer `.venv` *unlocked* before nox starts, so run `uv sync --locked --all-extras`
   first (as CI does) if you want lockfile drift to be refused rather than silently written.
 
@@ -45,7 +45,7 @@ each other silently. Give each run its own:
   even when you invoke `inv tests`.
 - **`.coverage`** — `inv tests` passes `--cov-append`, so a second run inflates the first's totals. Set
   `COVERAGE_FILE=...`; nox sessions honour it in preference to their own per-version name, which also
-  means all four `tests` sessions then share one file and you lose the per-version split.
+  means all the `tests` sessions then share one file and you lose the per-version split.
 - **`.nox/`** — sessions of the same name share one venv, so two concurrent runs sync over each other.
   Pass `--envdir ...`.
 - **`.mypy_cache`** — not concurrency-safe within a version. Set `MYPY_CACHE_DIR=...`.

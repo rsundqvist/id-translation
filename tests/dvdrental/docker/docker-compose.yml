@@ -18,7 +18,8 @@ services:
 
   s3:
     image: docker.io/chrislusf/seaweedfs:4.47
-    command: [ "server", "-s3" ]
+    # Small volumes, many slots: on small runner disks the filer's own log otherwise takes every slot, and PUTs fail.
+    command: [ "server", "-s3", "-master.volumeSizeLimitMB=16", "-volume.max=100" ]
     environment:
       AWS_ACCESS_KEY_ID: s3admin
       AWS_SECRET_ACCESS_KEY: s3admin

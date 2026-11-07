@@ -125,8 +125,8 @@ def mypy(c: Context) -> None:
     _run(c, f"uv run mypy {SOURCE_DIR} {TEST_DIR} {NOXFILE} {TASKS}")
 
 
-@task
-def tests(c: Context) -> None:
+@task(help={"path": "Run only the tests under this path, instead of all tests and the doctests in src."})
+def tests(c: Context, path: str = "") -> None:
     """Run tests."""
     pytest_options = [
         "--xdoctest",
@@ -135,7 +135,7 @@ def tests(c: Context) -> None:
         "--cov-report=",
         "--cov-fail-under=0",
     ]
-    _run(c, f"uv run pytest {' '.join(pytest_options)} {TEST_DIR} {SOURCE_DIR}")
+    _run(c, f"uv run pytest {' '.join(pytest_options)} {path or f'{TEST_DIR} {SOURCE_DIR}'}")
 
 
 @task(

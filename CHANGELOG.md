@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Python `3.15` support.
 - `logging.enable_verbose_debug_messages()` returns an `UndoLogging`, which also undoes a call made without `with`.
 
 ## [1.4.2] - 2026-10-10

@@ -44,8 +44,12 @@ jobs:
       fail-fast: true
       matrix:
         os: [ 'Ubuntu', 'MacOS', 'Windows' ]
-        python-version: [ '3.11', '3.12', '3.13', '3.14' ]
+        python-version: [ '3.11', '3.12', '3.13', '3.14', '3.15' ]
         experimental: [ false ]
+        # include:
+        #  - { os: 'Ubuntu', python-version: '3.16', experimental: true }
+        #  - { os: 'MacOS', python-version: '3.15', experimental: true }
+        #  - { os: 'Windows', python-version: '3.15', experimental: true }
     steps:
       - uses: actions/checkout@v6
 
@@ -53,12 +57,6 @@ jobs:
         uses: astral-sh/setup-uv@v7
         with:
           python-version: ${{ matrix.python-version }}
-
-      - name: Start Docker databases
-        # No Docker for Mac and Windows in CI/CD.
-        if: matrix.os == 'Ubuntu'
-        shell: bash
-        run: ./run-docker-dvdrental.sh
 
       - name: Install the project
         run: uv sync --locked --all-extras
@@ -69,6 +67,8 @@ jobs:
 
       - name: Run tests with nox
         shell: bash
+        env:
+          PYTEST_ADDOPTS: --ignore=tests/dvdrental # The dvdrental job runs these.
         run: uv run nox --force-color -s tests-${{ matrix.python-version }}
 
       - name: Run audit
@@ -84,35 +84,72 @@ jobs:
           if-no-files-found: "error"
           include-hidden-files: true
 
-  free-threading:
+  dvdrental:
     needs: linting
-    name: Free-threaded / 3.14t
-    runs-on: ubuntu-latest
-    # Non-blocking: exercises the no-GIL build to surface data races without gating merges. We use
-    # step-level continue-on-error (not job-level) so the job stays green and doesn't emit a
-    # "job failed" notification; a failing race test is re-surfaced as a warning in the run summary.
+    name: Docker / ${{ matrix.python-version }}
+    runs-on: ubuntu-latest # No Docker for Mac and Windows in CI/CD.
+    strategy:
+      fail-fast: true
+      matrix:
+        python-version: [ '3.11', '3.15' ] # Oldest and newest, for the database drivers.
     steps:
       - uses: actions/checkout@v6
 
-      - name: Set up free-threaded Python 3.14t with uv
+      - name: Set up Python ${{ matrix.python-version }} with uv
         uses: astral-sh/setup-uv@v7
         with:
-          python-version: '3.14t'
+          python-version: ${{ matrix.python-version }}
+
+      - name: Start Docker databases
+        shell: bash
+        run: ./run-docker-dvdrental.sh
+
+      - name: Install the project
+        run: uv sync --locked --all-extras
+
+      - name: Run Docker tests with nox
+        shell: bash
+        env:
+          COVERAGE_FILE: .coverage.Linux-dvdrental.${{ matrix.python-version }} # Not the tests job's name.
+        run: uv run nox --force-color -s tests-${{ matrix.python-version }} -- --path=tests/dvdrental
+
+      - name: Upload coverage data
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-data-dvdrental-${{ matrix.python-version }}
+          path: ".coverage.*"
+          if-no-files-found: "error"
+          include-hidden-files: true
+
+  free-threading:
+    needs: linting
+    name: ${{ matrix.os }} / ${{ matrix.python-version }}
+    runs-on: ${{ matrix.os }}-latest
+    continue-on-error: ${{ matrix.experimental }}
+    strategy:
+      fail-fast: true
+      matrix:
+        os: [ 'Ubuntu' ] # Ubuntu only, for the foreseeable future.
+        python-version: [ '3.14t', '3.15t' ]
+        experimental: [ false ]
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up free-threaded Python ${{ matrix.python-version }} with uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: ${{ matrix.python-version }}
 
       - name: Install nox
         run: uv tool install nox
 
       - name: Run free-threaded race tests with nox
-        id: free_threading
-        continue-on-error: true
-        run: nox --force-color -s free_threading
-
-      - name: Flag race-test outcome
-        if: steps.free_threading.outcome == 'failure'
-        run: echo "⚠️ Free-threaded race tests failed (non-gating) — a no-GIL data race surfaced; see the job logs." >> "$GITHUB_STEP_SUMMARY"
+        shell: bash
+        # Tool-installed nox, not `uv run`: syncing the project's default groups fails on free-threaded builds.
+        run: nox --force-color -s free_threading-${{ matrix.python-version }}
 
   coverage:
-    needs: tests
+    needs: [ tests, dvdrental ]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
