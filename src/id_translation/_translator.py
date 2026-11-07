@@ -1272,14 +1272,15 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         See Also:
             The :meth:`~id_translation.Translator.from_config` method, which will read the `config_path`.
         """
-        path = any_path_to_path(config_path)
+        path = any_path_to_path(config_path).expanduser()
         cache_dir = any_path_to_path(cache_dir).expanduser().absolute()
         cache_dir.mkdir(parents=True, exist_ok=True)
 
         metadata_path = cache_dir / "metadata.json"
         cache_path = cache_dir / "translator.pkl"
 
-        extra_fetcher_paths = list(map(str, extra_fetchers))
+        fetcher_paths: list[AnyPath] = as_list(extra_fetchers)  # A bare path is one path, not characters.
+        extra_fetcher_paths = [str(any_path_to_path(p).expanduser()) for p in fetcher_paths]
 
         metadata = meta.ConfigMetadata.from_toml_paths(
             str(path),

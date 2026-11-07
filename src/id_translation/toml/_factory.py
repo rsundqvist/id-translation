@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Generic, TypeAlias
 
 from rics.collections.dicts import InheritedKeysDict
+from rics.collections.misc import as_list
 from rics.env.read import read_bool
 from rics.types import AnyPath
 
@@ -132,8 +133,10 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
     ) -> None:
         from id_translation import Translator  # noqa: PLC0415
 
-        self.file = str(file)
-        self.extra_fetchers = list(map(str, fetchers))
+        # Expanded once, here: every later read (fingerprint, metaconf.toml, the files themselves) uses these.
+        self.file = str(Path(file).expanduser())
+        fetcher_paths: list[AnyPath] = as_list(fetchers)  # A bare path is one path, not characters.
+        self.extra_fetchers = [str(Path(p).expanduser()) for p in fetcher_paths]
         self.clazz: type[Translator[NameType, SourceType, IdType]] = clazz or Translator[NameType, SourceType, IdType]
 
         metaconf_path = Path(self.file).with_name("metaconf.toml")

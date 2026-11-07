@@ -66,6 +66,8 @@ Each emits a `FutureWarning`.
   * A TOML date or time literal crashed `from_config()`.
   * The JSON schema allowed `cardinality = "N:N"`, rejected the `Cardinality` names, and
     did not require `MemoryFetcher` data.
+  * A single `extra_fetchers` path was read one character per path, and `~` in a config path was expanded only
+    for the fingerprint.
 - Documentation: the name-to-source mapping diagram.
 
 ## [1.4.2] - 2026-10-10

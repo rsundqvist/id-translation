@@ -270,3 +270,18 @@ class CrashesOnInitFetcher(MemoryFetcher[Any, Any]):
         super().__init__(**kwargs)
 
         raise ValueError("I always crash!")
+
+
+@pytest.mark.parametrize("extra", ["~/aux.toml", ["~/aux.toml"]], ids=["bare", "list"])
+@pytest.mark.parametrize("persistent", [False, True])
+def test_home_relative_paths_and_a_single_extra_path(tmp_path, monkeypatch, extra, persistent):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))  # What expanduser() reads on Windows.
+    (tmp_path / "main.toml").write_text('[fetching.MemoryFetcher.data]\npeople = { id = [1], name = ["Ada"] }\n')
+    (tmp_path / "aux.toml").write_text('[fetching.MemoryFetcher.data]\npets = { id = [2], name = ["Rex"] }\n')
+
+    if persistent:
+        translator = Translator[str, str, int].load_persistent_instance(tmp_path / "cache", "~/main.toml", extra)
+    else:
+        translator = Translator[str, str, int].from_config("~/main.toml", extra)
+    assert translator.sources == ["people", "pets"]
