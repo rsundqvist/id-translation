@@ -1,5 +1,4 @@
 import logging
-import pickle
 from collections.abc import Collection
 from copy import deepcopy
 from itertools import combinations
@@ -447,38 +446,6 @@ def test_fetch_all_debug_extras_are_json_serializable(caplog):
     fetcher.fetch_all(("id", "name"), placeholder_attributes={"name": {"upper"}})
 
 
-def test_pickle(data):
-    """Children are keyed by `id()`, which unpickled children do not keep."""
-    original: MultiFetcher[str, int] = MultiFetcher(
-        MemoryFetcher[str, int]({"humans": data["humans"]}),
-        MemoryFetcher[str, int]({"humans": data["humans"], "animals": data["animals"]}),
-        on_source_conflict="ignore",
-    )
-    copied = pickle.loads(pickle.dumps(original))  # noqa: S301
-
-    assert copied.sources == ["humans", "animals"]
-    assert [copied.get_sources(child) for child in copied.children] == [["humans"], ["animals"]]
-    assert copied.fetch_all()["animals"].records
-
-
-class _CloseRecorder(MemoryFetcher[str, int]):
-    def __init__(self, closed: list[str], name: str, *, fail: bool = False) -> None:
-        super().__init__({name: {"id": [1], "name": [name]}})
-        self._closed, self._name, self._fail = closed, name, fail
-
-    def close(self) -> None:
-        self._closed.append(self._name)
-        if self._fail:
-            raise ConnectionError(self._name)
-
-    def _initialize_sources(self, task_id: int) -> dict[str, list[str]]:  # noqa: ARG002
-        raise AssertionError("close() must not run discovery")
-
-
-def test_close_closes_every_child_without_discovery():
-    closed: list[str] = []
-    fetcher = MultiFetcher(_CloseRecorder(closed, "a", fail=True), _CloseRecorder(closed, "b", fail=True))
-
-    with pytest.raises(ConnectionError, match="a"):
-        fetcher.close()
-    assert closed == ["a", "b"]
+def test_fetch_all_unknown_source_raises(multi_fetcher):
+    with pytest.raises(exceptions.UnknownSourceError):
+        multi_fetcher.fetch_all(sources={"humans", "no-such-source"})

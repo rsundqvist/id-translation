@@ -8,7 +8,6 @@ import pytest
 
 from id_translation import Translator
 from id_translation.fetching import AbstractFetcher
-from id_translation.fetching.exceptions import UnknownIdError
 from id_translation.fetching.types import FetchInstruction
 from id_translation.mapping import Mapper
 from id_translation.offline import MagicDict, TranslationMap
@@ -92,9 +91,8 @@ class HexFetcher(AbstractFetcher[str, int]):
 
     @staticmethod
     def _run(placeholders: list[str], ids: Iterable[int] | None, source: str) -> Iterable[tuple[Any, ...]]:
-        ids = tuple(range(-10, 10) if ids is None else ids)
-        if max(ids) > 9 or min(ids) < -10:
-            raise UnknownIdError(f"Id(s) out of range in {ids=}; the TestFetcher only knows -10..9.")
+        # Unknown IDs are omitted, so that the Translator reports them as untranslated.
+        ids = tuple(range(-10, 10) if ids is None else (i for i in ids if -10 <= i <= 9))
 
         funcs = {
             "hex": hex,

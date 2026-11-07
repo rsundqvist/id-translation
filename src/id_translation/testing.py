@@ -68,10 +68,6 @@ class TestFetcher(_Fetcher[SourceType, IdType]):
         return False  # pragma: no cover
 
     @property
-    def online(self) -> bool:
-        return False  # pragma: no cover
-
-    @property
     def placeholders(self) -> dict[SourceType, list[str]]:
         return {source: [] for source in self._sources}
 

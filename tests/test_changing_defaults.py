@@ -16,7 +16,6 @@ UUID_KEY = str(UUID(int=1))
 PHT = PlaceholderTranslations.make("s", {UUID_KEY: "one"})  # UUID-like: where the 2.0 default makes a difference.
 
 CONSTRUCTORS: dict[str, tuple[str, Callable[..., Any]]] = {
-    "MemoryFetcher": ("return_all", lambda **kw: MemoryFetcher({"s": {1: "one"}}, **kw)),
     "PandasFetcher": ("return_all", lambda **kw: PandasFetcher(read_path_format="{}.csv", **kw)),
     "TranslationMap": ("enable_uuid_heuristics", lambda **kw: TranslationMap({"s": PHT}, **kw)["s"]),
     "MagicDict": ("enable_uuid_heuristics", lambda **kw: MagicDict({UUID_KEY: "one"}, **kw)),

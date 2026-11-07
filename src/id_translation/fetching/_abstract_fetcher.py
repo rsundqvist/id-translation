@@ -6,6 +6,7 @@ from contextlib import contextmanager
 from copy import deepcopy
 from functools import cached_property
 from time import perf_counter
+from types import MappingProxyType
 from typing import Any, Generic, Self, TypedDict, final
 
 from rics.collections.dicts import InheritedKeysDict, reverse_dict
@@ -14,7 +15,6 @@ from rics.strings import format_seconds as fmt_sec
 
 from .. import logging as _logging
 from .._utils.emit_warning import emit_warning
-from ..exceptions import ConnectionStatusError
 from ..mapping import HeuristicScore, Mapper
 from ..mapping.exceptions import MappingWarning
 from ..mapping.score_functions import modified_hamming
@@ -89,7 +89,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         optional: bool = False,
         cache_access: CacheAccess[SourceType, IdType] | None = None,
     ) -> None:
-        self._mapper: Mapper[str, str, SourceType] = mapper or Mapper(**self.default_mapper_kwargs())
+        self._mapper: Mapper[str, str, SourceType] = mapper or Mapper(**self._default_mapper_kwargs())
         if self._mapper.on_unmapped == "raise":
             emit_warning(
                 "Using on_unmapped='raise' will treat optional placeholders as "
@@ -140,8 +140,10 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
             self._placeholders = self._initialize_sources(task_id)
 
         if self._placeholders is None:
-            msg = f"Call to {self._cls_name()}.{self.initialize_sources.__name__}() failed."
-            raise RuntimeError(msg)
+            raise exceptions.ImplementationError(
+                f"{self._cls_name()}._initialize_sources() returned None;"
+                " it must return a dict {source: [placeholder, ...]}."
+            )
 
         if logger.isEnabledFor(logging.INFO):
             seconds = perf_counter() - start
@@ -193,12 +195,12 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
 
     @final
     @property
-    def placeholders(self) -> dict[SourceType, list[str]]:
+    def placeholders(self) -> Mapping[SourceType, Sequence[str]]:
         if self._placeholders is None:
             self.initialize_sources()
             return self.placeholders
 
-        return self._placeholders
+        return MappingProxyType(self._placeholders)
 
     @final
     @property
@@ -326,19 +328,6 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         return self._cache.cache_access
 
     @property
-    def online(self) -> bool:
-        return False  # pragma: no cover
-
-    def assert_online(self) -> None:
-        """Raise an error if offline.
-
-        Raises:
-            ~id_translation.exceptions.ConnectionStatusError: If not online.
-        """
-        if not self.online:  # pragma: no cover
-            raise ConnectionStatusError("disconnected")
-
-    @property
     def allow_fetch_all(self) -> bool:
         return self._allow_fetch_all
 
@@ -382,10 +371,14 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         start = perf_counter()
         if task_id is None:
             task_id = _logging.generate_task_id(start)
+        self.initialize_sources(task_id)  # Before any source lookup: an unknown one must raise UnknownSourceError.
 
         placeholders = tuple(placeholders)
         required_placeholders = set(required)
         ids_to_fetch = tuple(ids_to_fetch)
+        if len(sources := [itf.source for itf in ids_to_fetch]) != len(set(sources)):
+            repeated = sorted({source for source in sources if sources.count(source) > 1}, key=str)
+            raise ValueError(f"Repeated sources in ids_to_fetch: {repeated}. Merge the IDs of each source into one.")
 
         logger = self.logger
         if logger.isEnabledFor(logging.DEBUG):
@@ -457,6 +450,10 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
 
         if not self._allow_fetch_all:
             raise exceptions.ForbiddenOperationError.for_operation("FETCH_ALL", fetcher_class=self._cls_name())
+
+        self.initialize_sources(task_id)
+        if sources is not None and (unknown := set(sources).difference(self.sources)):
+            raise exceptions.UnknownSourceError.for_sources(unknown, sources=self.sources)
 
         placeholders = tuple(placeholders)
         required_placeholders = set(required)
@@ -610,6 +607,8 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         If the :attr:`IDs <id_translation.fetching.types.FetchInstruction.ids>` of the instruction are ``None``, the
         fetcher should retrieve data for as many IDs as possible. Use
         :attr:`~id_translation.fetching.AbstractFetcher.allow_fetch_all` to disallow.
+
+        Exceptions propagate to the caller.
 
         Args:
             instr: A single :class:`~id_translation.fetching.types.FetchInstruction` instance.
@@ -799,29 +798,21 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         wanted_to_actual = self.map_placeholders(source, wanted_placeholders, task_id=task_id)
         return {wanted: actual for wanted, actual in wanted_to_actual.items() if actual is not None}
 
-    def __init_subclass__(cls, **kwargs: Any) -> None:
-        super().__init_subclass__(**kwargs)
-        if overridden := [name for name in ("default_mapper_kwargs", "default_score_function") if name in vars(cls)]:
-            emit_warning(
-                f"{cls.__qualname__} overrides {overridden}, which 2.0 removes: such overrides are then ignored."
-                " Pass a Mapper as `mapper` instead."
-                "\nWARNING: This will be ignored in `id-translation==2.0.0`.",
-                FutureWarning,
-            )
-
+    # Private: the TOML factory merges [fetching.mapping] into these, so a subclass override would apply in Python only.
+    # Pass a `mapper` to change them.
     @classmethod
-    def default_mapper_kwargs(cls) -> dict[str, Any]:
+    def _default_mapper_kwargs(cls) -> dict[str, Any]:
         """Return default :class:`~id_translation.mapping.Mapper` arguments for ``AbstractFetcher`` implementations."""
         return dict(
             score_function=HeuristicScore(
-                cls.default_score_function,  # type: ignore
+                cls._default_score_function,  # type: ignore
                 heuristics=[("force_lower_case", {})],
             ),
             overrides=InheritedKeysDict(),
         )
 
     @classmethod
-    def default_score_function(cls, value: str, candidates: Iterable[str], context: str) -> Iterable[float]:
+    def _default_score_function(cls, value: str, candidates: Iterable[str], context: str) -> Iterable[float]:
         """Compute score for candidates."""
         return modified_hamming(value, candidates, context)
 
