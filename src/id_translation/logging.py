@@ -1,5 +1,6 @@
 """Logging utilities; see :ref:`translation-logging` page for help."""
 
+import abc as _abc
 import logging as _l
 import typing as _t
 from random import Random as _Random
@@ -38,7 +39,7 @@ def enable_verbose_debug_messages(
     *,
     use_custom_handler: bool | _t.Literal["auto"] = "auto",
     style: _t.Literal["minimal", "basic", "pretty", "rainbow"] = "pretty",
-) -> _t.ContextManager[None]:
+) -> "UndoLogging":
     """Enable verbose logging. May be used as a context.
 
     **Styles**
@@ -60,6 +61,9 @@ def enable_verbose_debug_messages(
             :data:`namespace root logger <id_translation.logging.LOGGER>`.
         style: Formatting style to use. Ignored when `use_custom_handler` evaluates to ``False``.
 
+    Returns:
+        An :class:`~id_translation.logging.UndoLogging`.
+
     Examples:
         Basic usage.
 
@@ -70,10 +74,12 @@ def enable_verbose_debug_messages(
 
         Forcing custom handlers. These add formatting (e.g. color) to namespace logger messages.
 
-        >>> enable_verbose_debug_messages(use_custom_handler=True, style="rainbow")
+        >>> undo = enable_verbose_debug_messages(use_custom_handler=True, style="rainbow")
         >>> Mapper().apply("ab", candidates="abc")
 
-        The changes aren't automatically undone if a regular function call is used.
+        A regular function call isn't undone automatically; call the returned object to undo the changes.
+
+        >>> undo()
 
     Notes:
         🧵 This method is not thread safe. See :ref:`thread-safety` for details.
@@ -138,11 +144,32 @@ def enable_verbose_debug_messages(
             LOGGER.propagate = propagate_before
             LOGGER.removeHandler(handler)
 
-    class Undo(_t.ContextManager[None]):
-        def __exit__(self, *_: _t.Any) -> None:
-            undo()
+    return _UndoLogging(undo)
 
-    return Undo()
+
+class UndoLogging(_abc.ABC):
+    """Restores the logging state from before :func:`~id_translation.logging.enable_verbose_debug_messages` was called.
+
+    Call it, or use it as a context manager.
+    """
+
+    @_abc.abstractmethod
+    def __call__(self) -> None:
+        """Undo the changes."""
+
+    def __enter__(self) -> _t.Self:
+        return self
+
+    def __exit__(self, *_: _t.Any) -> None:
+        self()
+
+
+class _UndoLogging(UndoLogging):
+    def __init__(self, undo: _t.Callable[[], None]) -> None:
+        self._undo = undo
+
+    def __call__(self) -> None:
+        self._undo()
 
 
 def generate_task_id(seed: float | None = None) -> int:
