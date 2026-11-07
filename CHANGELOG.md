@@ -75,7 +75,8 @@ Each emits a `FutureWarning`.
   * A plain function set as `FETCHER_FACTORY` on a subclass raised `TypeError`.
   * An unparsable `metadata.json`, or a missing or torn `translator.pkl`, made `load_persistent_instance()` raise on
     every call. Both files are now replaced atomically.
-- Documentation: the name-to-source mapping diagram, and docstrings that misstated 1.x behaviour.
+- Documentation: the name-to-source mapping diagram, the on-disk caching example, and docstrings that
+  misstated 1.x behaviour.
 
 ## [1.4.2] - 2026-10-10
 

@@ -14,6 +14,7 @@ be called every single time that data is requested, so slow operations such as
 disk reads should be used with care.
 """
 
+import json
 from datetime import datetime
 from pathlib import Path
 
@@ -51,6 +52,8 @@ class MyCacheAccess(CacheAccess[SourceType, IdType]):
         path = self._root / f"{translations.source}.ftr"
         print(f"Store cache at path='{path}'.")
         df.to_feather(path)
+        # What was asked for, to compare with later instructions; the frame's columns may use other names.
+        path.with_suffix(".json").write_text(json.dumps(list(instr.placeholders)))
 
     def load(
         self,
@@ -66,6 +69,12 @@ class MyCacheAccess(CacheAccess[SourceType, IdType]):
 
         if age > self._ttl:
             print(f"Reject cache ({age=} > ttl={self._ttl}) at path='{path}'.")
+            return None
+
+        stored = json.loads(path.with_suffix(".json").read_text())
+        have = self.parent.placeholders.get(instr.source, ())  # Ignore optional placeholders the source lacks.
+        if missing := {p for p in instr.placeholders if p in have}.difference(stored):
+            print(f"Reject cache (missing placeholders {sorted(missing)}) at path='{path}'.")
             return None
 
         print(f"Load cache (age={age} <= {self._ttl}=ttl) at path='{path}'.")
@@ -112,3 +121,4 @@ print("person=", create().translate(1904, "people"))
 import os
 
 os.remove("cache/people.ftr")
+os.remove("cache/people.json")
