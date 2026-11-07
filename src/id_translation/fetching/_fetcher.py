@@ -60,7 +60,10 @@ class Fetcher(Generic[SourceType, IdType], HasSources[SourceType]):
         """Return ``True`` if this fetcher has been marked as `optional`.
 
         In multi-fetcher mode, optional fetchers may be discarded if :attr:`~id_translation.types.HasSources.sources`
-        cannot be resolved (raises an exception). Default value is ``False``.
+        cannot be resolved (raises an exception). Configuration errors (a
+        :class:`~id_translation.exceptions.ConfigurationError`, or a source missing a required placeholder, such as an
+        ID column) are not suppressed: `optional` covers an unavailable source, not a misconfigured one. Default value
+        is ``False``.
 
         Returns:
             Optionality status.

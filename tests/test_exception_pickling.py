@@ -24,6 +24,7 @@ from id_translation.fetching.exceptions import (
     ConcurrentOperationWarning,
     DuplicateSourceError,
     ForbiddenOperationError,
+    UnknownIdPlaceholderError,
     UnknownPlaceholderError,
     UnknownSourceError,
 )
@@ -93,6 +94,9 @@ FACTORY_SAMPLES: dict[str, Callable[[], BaseException]] = {
     ),
     "UnknownPlaceholderError.for_placeholders": lambda: UnknownPlaceholderError.for_placeholders(
         "id", placeholders=["key", "name"], source="source", caller=_FETCHER, hints="Check it."
+    ),
+    "UnknownIdPlaceholderError.for_placeholders": lambda: UnknownIdPlaceholderError.for_placeholders(
+        "id", placeholders=["key", "name"], source="source", caller=_FETCHER
     ),
     "UnknownSourceError.for_sources": lambda: UnknownSourceError.for_sources({"x"}, sources={"source"}),
     # A type that pickle cannot find by name.

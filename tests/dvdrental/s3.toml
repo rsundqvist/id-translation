@@ -9,13 +9,3 @@ read_path_format = "s3://pytest/imdb/{}.csv"
 
 [fetching.PandasFetcher.read_function_kwargs.storage_options]
 client_kwargs = { endpoint_url = "http://localhost:9000" }
-
-[fetching.mapping]
-# on_unmapped = "ignore"
-
-[fetching.mapping.overrides.name_basics]
-id = "nconst"
-name = "primaryName"
-[fetching.mapping.overrides.title_basics]
-id = "tconst"
-name = "primaryTitle"

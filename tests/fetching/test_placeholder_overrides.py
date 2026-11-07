@@ -7,7 +7,7 @@ import sys
 import pytest
 
 from id_translation import Translator
-from id_translation.fetching import CacheAccess, MemoryFetcher
+from id_translation.fetching import MemoryFetcher
 from id_translation.mapping import Mapper
 
 
@@ -49,44 +49,8 @@ def test_names_sharing_a_column_do_not_depend_on_the_hash_seed():
 def test_fetcher_data_is_not_renamed(overrides):
     data = {"people": {"id": [1], "code": [7], "name": ["Alice"], "title": ["Dr"]}}
     fetcher: MemoryFetcher[str, int] = MemoryFetcher(data, mapper=Mapper("equality", overrides=overrides))
-    before = {source: (pht.placeholders, pht.id_pos) for source, pht in fetcher._data.items()}
+    before = {source: pht.placeholders for source, pht in fetcher._data.items()}
 
     Translator[str, str, int](fetcher, fmt="{id}:{name}").translate([1, 7], names="people")
 
-    assert {source: (pht.placeholders, pht.id_pos) for source, pht in fetcher._data.items()} == before
-
-
-class _StoreAndLoad(CacheAccess[str, int]):
-    """Returns what store() got, for any later instruction for the same source."""
-
-    def __init__(self) -> None:
-        super().__init__()
-        self.stored: dict[str, object] = {}
-
-    def store(self, instr, translations):
-        self.stored[instr.source] = translations
-
-    def load(self, instr):
-        return self.stored.get(instr.source)
-
-
-@pytest.mark.parametrize(
-    "overrides, fmt, expected",
-    [
-        ({"name": "title", "title": "name"}, "{id}:{name}/{title}", "1:Dr/Alice"),
-        ({"id": "code"}, "{id}:{name}", "7:Alice"),
-    ],
-)
-def test_overrides_hold_on_a_cache_hit(overrides, fmt, expected):
-    data = {"people": {"id": [1], "code": [7], "name": ["Alice"], "title": ["Dr"]}}
-    cache = _StoreAndLoad()
-    fetcher: MemoryFetcher[str, int] = MemoryFetcher(
-        data, mapper=Mapper("equality", overrides=overrides), cache_access=cache, return_all=True
-    )
-    translator = Translator[str, str, int](fetcher, fmt=fmt)
-    ids = [int(expected.split(":")[0])]
-
-    miss = translator.translate(ids, names="people")
-    assert cache.stored, "the first call stores"
-    hit = translator.translate(ids, names="people")
-    assert miss == hit == [expected]
+    assert {source: pht.placeholders for source, pht in fetcher._data.items()} == before

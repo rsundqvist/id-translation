@@ -40,7 +40,6 @@ from id_translation.types import IdType, SourceType
 @dataclass
 class _SourceCache:
     placeholders: PlaceholdersTuple
-    id_pos: int
     aliases: dict[str, str]
     rows: dict  # id -> (stored_at, row)
 
@@ -66,14 +65,13 @@ class InMemoryCacheAccess(CacheAccess[SourceType, IdType]):
             # module docstring): start fresh.
             sc = _SourceCache(
                 translations.placeholders,
-                translations.id_pos,
                 aliases=dict(translations.placeholder_aliases),
                 rows={},
             )
             self._cache[source] = sc
 
         now = time.monotonic()
-        id_pos = translations.id_pos
+        id_pos = translations.placeholders.index("id")
         for row in translations.records:
             sc.rows[row[id_pos]] = (now, tuple(row))
 
@@ -102,7 +100,6 @@ class InMemoryCacheAccess(CacheAccess[SourceType, IdType]):
                 source=instr.source,
                 placeholders=sc.placeholders,
                 records=records,
-                id_pos=sc.id_pos,
                 placeholder_aliases=dict(sc.aliases),
             )
         )

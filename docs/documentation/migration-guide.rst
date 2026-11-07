@@ -94,6 +94,9 @@ source, so a uniform convention needs only one line; add per-source sections for
    [fetching.mapping.overrides.orders]
    id = "order_id"        # ...except this one
 
+A shared default applies to every source of the fetcher declared in the same file, so a source without a ``code`` column
+makes the whole fetcher fail, including the sources that have one. Give such sources their own section.
+
 :ref:`Heuristics <placeholder-mapping>` can *infer* names like ``customer_id`` from a ``customers`` table, but an
 irregular PK like ``code`` matches nothing, so when retro-fitting an existing schema, explicit overrides are the
 reliable choice.

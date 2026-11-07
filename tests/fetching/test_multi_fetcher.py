@@ -449,3 +449,19 @@ def test_fetch_all_debug_extras_are_json_serializable(caplog):
 def test_fetch_all_unknown_source_raises(multi_fetcher):
     with pytest.raises(exceptions.UnknownSourceError):
         multi_fetcher.fetch_all(sources={"humans", "no-such-source"})
+
+
+def test_configuration_error_escapes_optional():
+    """`optional` covers an unavailable source, not a misconfigured one such as a source without an ID column."""
+
+    class NoIdColumn(MemoryFetcher[str, int]):
+        def _initialize_sources(self, task_id: int) -> dict[str, list[str]]:  # noqa: ARG002
+            return {"notes": ["title"]}
+
+    fetcher = MultiFetcher(MemoryFetcher({"people": {"id": [1]}}), NoIdColumn({}, optional=True))
+
+    with pytest.raises(exceptions.UnknownIdPlaceholderError) as exc_info:
+        fetcher.initialize_sources()
+    assert any("child= rank-1" in note for note in exc_info.value.__notes__), (
+        "must name the child, as for a required one"
+    )

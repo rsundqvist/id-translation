@@ -10,7 +10,7 @@ def fmt():
 
 
 def test_no_explicit_placeholders(fmt):
-    translations = PlaceholderTranslations("source", ("id", "baz", "foo"), [(1, 1, 3), (2, 2, 4)], 0)
+    translations = PlaceholderTranslations("source", ("id", "baz", "foo"), [(1, 1, 3), (2, 2, 4)])
     applier = FormatApplier[str, str, int](translations)
 
     ans = applier(fmt, default_fmt=Format(""))
@@ -19,7 +19,7 @@ def test_no_explicit_placeholders(fmt):
 
 
 def test_explicit_placeholders(fmt):
-    translations = PlaceholderTranslations("source", ("id", "baz", "foo"), [(1, 1, 3), (2, 2, 4)], 0)
+    translations = PlaceholderTranslations("source", ("id", "baz", "foo"), [(1, 1, 3), (2, 2, 4)])
     applier = FormatApplier[str, str, int](translations)
 
     ans = applier(

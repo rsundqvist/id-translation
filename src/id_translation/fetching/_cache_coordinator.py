@@ -99,6 +99,7 @@ class CacheCoordinator(Generic[SourceType, IdType]):
 
         log("{}.load() returned None.", "miss")
         translations = _normalize(fetcher._call_user_impl(instr), reverse_mappings, aliases)
+        fetcher._check_required(translations, reverse_mappings, required_placeholders, returned_by=_FETCHED_BY)
         if cache.enabled:
             log(f"Calling {{}}.store() with {len(translations.records)} IDs.", "store")
             cache.store(instr, translations)
@@ -144,13 +145,12 @@ class CacheCoordinator(Generic[SourceType, IdType]):
             task_id=instr.task_id,
             enable_uuid_heuristics=instr.enable_uuid_heuristics,
         )
+        # `not records` is ambiguous for e.g. numpy arrays.
+        merged = fetched if len(cached.records) == 0 else _merge(_normalize(cached, reverse_mappings, aliases), fetched)
+
         log(f"Calling {{}}.store() with {len(fetched.records)} IDs.", "store")
         self._cache.store(complement_instr, fetched)
-
-        if len(cached.records) == 0:  # `not records` is ambiguous for e.g. numpy arrays.
-            return fetched
-
-        return _merge(_normalize(cached, reverse_mappings, aliases, cached=True), fetched)
+        return merged
 
     def _fetch_complement(
         self,
@@ -174,8 +174,12 @@ class CacheCoordinator(Generic[SourceType, IdType]):
             enable_uuid_heuristics=enable_uuid_heuristics,
         )
 
-        translations = self._fetcher._call_user_impl(instr)
-        return _normalize(translations, reverse_mappings, aliases), instr
+        translations = _normalize(self._fetcher._call_user_impl(instr), reverse_mappings, aliases)
+        self._fetcher._check_required(translations, reverse_mappings, required_placeholders, returned_by=_FETCHED_BY)
+        return translations, instr
+
+
+_FETCHED_BY = "fetch_translations()"
 
 
 def _covered_ids(hit: PartialCacheHit[SourceType, IdType], *, enable_uuid_heuristics: bool) -> set[IdType]:
@@ -189,12 +193,15 @@ def _covered_ids(hit: PartialCacheHit[SourceType, IdType], *, enable_uuid_heuris
     if len(rows.records) == 0:
         covered: set[IdType] = set()
     else:
-        # Caches are not required to set `id_pos` (default -1 = the wrong column); derive it like _normalize does.
-        try:
-            id_pos = rows.placeholders.index(ID)
-        except ValueError:
-            msg = f"Cannot compute coverage for {rows.source!r}: partial-hit rows have no {ID!r} placeholder."
-            raise exceptions.FetcherError(msg) from None
+        if ID not in rows.placeholders:
+            raise exceptions.UnknownIdPlaceholderError(
+                f"Cannot compute coverage for {rows.source!r}: partial-hit rows have no {ID!r} placeholder.",
+                missing_placeholders=ID,
+                placeholders=rows.placeholders,
+                source=rows.source,
+            )
+
+        id_pos = rows.placeholders.index(ID)
         covered = {row[id_pos] for row in rows.records}
 
     if hit.covered:
@@ -226,7 +233,6 @@ def _merge(
         source=fetched.source,
         placeholders=fetched.placeholders,
         records=[*cached.records, *fetched.records],
-        id_pos=fetched.id_pos,
         placeholder_aliases={**cached.placeholder_aliases, **fetched.placeholder_aliases},
     )
 
@@ -238,10 +244,10 @@ def _normalize(
     *,
     cached: bool = False,
 ) -> PlaceholderTranslations[SourceType]:
-    """Map fetched placeholders back to wanted names and (re)compute :attr:`~id_translation.offline.types.PlaceholderTranslations.id_pos`.
+    """Map fetched placeholders back to wanted names.
 
-    Returns a new instance: `translations` may be the fetcher's own data (e.g. ``MemoryFetcher(return_all=True)``).
-    Records are shared unless a column is dropped: one shadowed by a mapped column or by an alias.
+    Returns a new instance: `translations` may be the fetcher's own data (e.g. ``MemoryFetcher(return_all=True)``) or a
+    cached object. Records are shared, unless a column is dropped: one shadowed by a mapped column or by an alias.
     """
     if cached:
         # Stored data was normalized already (CacheAccess.store() gets it after this function). A source name that is also
@@ -256,6 +262,7 @@ def _normalize(
 
     # A fetcher may return columns nobody asked for, e.g. a literal 'id' next to the column that 'id' was mapped to.
     # The mapped column wins; keeping both would leave duplicate names, and the first one would be used.
+    # Only targets of columns actually present count: cached rows already use the mapped names.
     targets = {reverse_mappings[p] for p in translations.placeholders if p in reverse_mappings}
     keep = [
         i
@@ -266,24 +273,14 @@ def _normalize(
         placeholders = tuple(placeholders[i] for i in keep)
         records = [tuple(record[i] for i in keep) for record in records]
 
-    try:
-        id_pos = placeholders.index(ID)
-    except ValueError:
-        # No placeholder mapped to "id" for this source. Rely on AbstractFetcher._verify_placeholders to raise.
-        id_pos = -1
-
-    # Source names answer for the wanted names they were mapped from, unless they are wanted names themselves (e.g. when
-    # overrides swap two placeholders).
-    wanted = set(reverse_mappings.values())
-    placeholder_aliases = {
-        **translations.placeholder_aliases,
-        **{actual: w for actual, w in reverse_mappings.items() if actual not in wanted},
-        **aliases,
-    }
     return dataclasses.replace(
         translations,
         placeholders=placeholders,
         records=records,
-        id_pos=id_pos,
-        placeholder_aliases=placeholder_aliases,
+        placeholder_aliases={
+            **translations.placeholder_aliases,
+            # Unless they are wanted names themselves, e.g. when overrides swap two placeholders.
+            **{actual: w for actual, w in reverse_mappings.items() if actual not in set(reverse_mappings.values())},
+            **aliases,
+        },
     )
