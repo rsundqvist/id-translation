@@ -74,8 +74,8 @@ isn't included in the message itself. The full ``Translator.translate:exit``-rec
 
 .. literalinclude:: dvdrental-records.json
    :caption: Translation exit event. Click :download:`here <dvdrental-records.json>` to download.
-   :lines: 10432-10484
-   :lineno-start: 10432
+   :lines: 10491-10543
+   :lineno-start: 10491
 
 About 350 messages were emitted since ``ENABLE_VERBOSE_LOGGING=True``. If we were using regular ``🪲 DEBUG``-logging,
 about 40 messages would have been emitted instead. The vast majority of the verbose messages relate to mapping and
