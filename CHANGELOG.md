@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-11-07
+
 ### Added
 - Python `3.15` support.
 - `PandasFetcher(return_all=...)`, and readers derived for Excel, ORC, `.pq`, `.arrow` and `.ndjson`.
@@ -779,7 +781,8 @@ cookiecutter template.
 - Switch to relative imports.
 - Fix some intersphinx issues.
 
-[Unreleased]: https://github.com/rsundqvist/id-translation/compare/v1.4.2...HEAD
+[Unreleased]: https://github.com/rsundqvist/id-translation/compare/v1.5.0...HEAD
+[1.5.0]: https://github.com/rsundqvist/id-translation/compare/v1.4.2...v1.5.0
 [1.4.2]: https://github.com/rsundqvist/id-translation/compare/v1.4.1...v1.4.2
 [1.4.1]: https://github.com/rsundqvist/id-translation/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/rsundqvist/id-translation/compare/v1.3.0...v1.4.0
