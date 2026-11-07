@@ -73,10 +73,10 @@ class PandasFetcher(AbstractFetcher[str, IdType]):
        :meth:`~id_translation.fetching.PandasFetcher.find_sources`-method.
 
     Args:
-        read_function: A function ``(str) -> DataFrame``. Derive from `read_path_format` if ``None``. Strings are
-            resolved by :func:`~rics.misc.get_by_full_name` (with ``default_module=pandas``).
         read_path_format: A string on the form ``protocol://path/to/sources/{}.<ext>``, or a callable to apply to a
             source before passing them to `read_function`. Every matching file is a source.
+        read_function: A function ``(str) -> DataFrame``. Derive from `read_path_format` if ``None``. Strings are
+            resolved by :func:`~rics.misc.get_by_full_name` (with ``default_module=pandas``).
         read_function_kwargs: Additional keyword arguments for `read_function`.
         return_all: If ``True``, return every ID and placeholder of a source instead of only the requested ones.
             Translations then include IDs that were not asked for, e.g. as extra categories when translating to a
@@ -91,8 +91,9 @@ class PandasFetcher(AbstractFetcher[str, IdType]):
 
     def __init__(
         self,
-        read_function: PandasReadFunction | str | None = None,
         read_path_format: str | FormatFn = "data/{}.csv",
+        *,
+        read_function: PandasReadFunction | str | None = None,
         read_function_kwargs: Mapping[str, Any] | None = None,
         return_all: bool | None = None,
         **kwargs: Unpack[AbstractFetcherParams[str, IdType]],

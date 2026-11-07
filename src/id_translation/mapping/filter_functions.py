@@ -20,10 +20,10 @@ def filter_names(
     value: str,
     candidates: _Iterable[str],
     context: _Any,
-    # TODO(2.0.0): pos-only/kw-only split.
+    /,
+    *,
     regex: str,
     remove: bool = False,
-    *,
     task_id: int | None = None,
 ) -> set[str]:
     """Filter names to translate based on `regex`.
@@ -49,8 +49,8 @@ def filter_names(
         >>> name = "employee_id"
         >>> allowed = filter_names(
         ...     name,
-        ...     candidates=sources,
-        ...     context=None,
+        ...     sources,
+        ...     None,  # context
         ...     regex=".*_id$",
         ... )
         >>> sorted(allowed)
@@ -76,10 +76,10 @@ def filter_sources(
     value: str,
     candidates: _Iterable[str],
     context: _Any,
-    # TODO(2.0.0): pos-only/kw-only split.
+    /,
+    *,
     regex: str,
     remove: bool = False,
-    *,
     task_id: int | None = None,
 ) -> set[str]:
     """Filter sources based on `regex`.
@@ -104,8 +104,8 @@ def filter_sources(
         >>> source = "some_metadata_table"
         >>> allowed = filter_sources(
         ...     "id",
-        ...     candidates={"id", "name", "some_other_column"},
-        ...     context=source,
+        ...     {"id", "name", "some_other_column"},
+        ...     source,
         ...     regex=".*metadata.*",
         ...     remove=True,
         ... )
@@ -137,7 +137,8 @@ def filter_placeholders(
     value: str,  # noqa: ARG001
     candidates: _Iterable[str],
     context: _Any,
-    # TODO(2.0.0): pos-only/kw-only split.
+    /,
+    *,
     regex: str,
     remove: bool = False,
     task_id: int | None = None,
@@ -160,9 +161,9 @@ def filter_placeholders(
 
         >>> actual_placeholders = {"id", "name", "old_id", "previous_id"}
         >>> allowed = filter_placeholders(
-        ...     value="ignored",
-        ...     candidates=actual_placeholders,
-        ...     context="ignored",
+        ...     "ignored",  # value
+        ...     actual_placeholders,
+        ...     "ignored",  # context
         ...     regex="^(old|previous).*",
         ...     remove=True,
         ... )
@@ -197,12 +198,12 @@ def _check_context(name: str, context: _Any, want_none: bool) -> None:
 
 def _filter_single(
     string: str,
+    *,
     regex: str,
     remove: bool,
     label: str,
     function_name: str,
     action: str = "Discard",
-    *,
     task_id: int | None = None,
 ) -> bool:
     keep = (re.match(regex, string, re.IGNORECASE) is None) is remove

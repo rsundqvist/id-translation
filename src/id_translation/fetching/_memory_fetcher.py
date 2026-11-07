@@ -43,6 +43,7 @@ class MemoryFetcher(AbstractFetcher[SourceType, IdType]):
             | Mapping[SourceType, "pandas.DataFrame"]
             | Mapping[SourceType, Mapping[str, Sequence[Any]]]
         ),
+        *,
         return_all: bool | None = None,
         **kwargs: Unpack[AbstractFetcherParams[SourceType, IdType]],
     ) -> None:

@@ -137,7 +137,7 @@ class HeuristicScore(Generic[ValueType, CandidateType, ContextType]):
                     raise TypeError(f"Filter function {_stringify((func, func_kwargs))} cannot use {mutate=}.")
 
                 if logger:
-                    base_args = ", ".join([repr(h_value), repr(h_candidates), f"{context=}"])
+                    base_args = ", ".join([repr(h_value), repr(h_candidates), repr(context)])
                     extra_args = ", ".join(f"{k}={v!r}" for k, v in func_kwargs.items())
                     info = f"{tname(func)}({', '.join([base_args, extra_args])})"
                     logger.debug(

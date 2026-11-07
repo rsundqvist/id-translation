@@ -66,6 +66,7 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
     def __init__(
         self,
         score_function: str | ScoreFunction[ValueType, CandidateType, ContextType] = "disabled",
+        *,
         score_function_kwargs: dict[str, Any] | None = None,
         filter_functions: Iterable[FilterFunctionArgItem[ValueType, CandidateType, ContextType]] = (),
         min_score: float = 0.90,
