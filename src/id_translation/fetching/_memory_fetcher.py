@@ -1,3 +1,4 @@
+import dataclasses
 from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Any, Unpack
 
@@ -45,7 +46,7 @@ class MemoryFetcher(AbstractFetcher[SourceType, IdType]):
     ) -> None:
         super().__init__(**kwargs)
         self._data = {
-            source: pht
+            source: _with_source(pht, source)
             if isinstance(pht, PlaceholderTranslations)
             else PlaceholderTranslations[SourceType].make(source, pht)
             for source, pht in data.items()
@@ -98,3 +99,8 @@ class MemoryFetcher(AbstractFetcher[SourceType, IdType]):
 
 def _identity(value: Any) -> Any:
     return value
+
+
+def _with_source(pht: PlaceholderTranslations[Any], source: SourceType) -> PlaceholderTranslations[SourceType]:
+    # Labelled by its key in `data`, which may differ from the label it was made with.
+    return pht if pht.source == source else dataclasses.replace(pht, source=source)

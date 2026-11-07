@@ -3,7 +3,7 @@ from uuid import UUID
 import pytest
 
 from id_translation import Translator
-from id_translation.fetching import MemoryFetcher
+from id_translation.fetching import MemoryFetcher, MultiFetcher
 from id_translation.fetching.types import FetchInstruction, IdsToFetch
 from id_translation.mapping import Mapper
 from id_translation.offline.types import PlaceholderTranslations
@@ -78,3 +78,12 @@ def test_uuid_heuristics_with_ids_that_are_not_all_uuid_like():
     fetcher: MemoryFetcher[str, str] = MemoryFetcher({"s": {u: "uuid", "x": "ex"}}, return_all=False)
     translator: Translator[str, str, str] = Translator(fetcher, fmt="{name}", enable_uuid_heuristics=True)
     assert translator.translate([u, "x"], names="s") == ["uuid", "ex"]
+
+
+def test_ready_made_translations_take_the_source_name():
+    pht = PlaceholderTranslations("old", ("id", "name"), [(1, "a")], id_pos=0)
+    fetcher: MemoryFetcher[str, int] = MemoryFetcher({"new": pht})
+    assert fetcher.fetch_all()["new"].source == "new"
+
+    multi = MultiFetcher(fetcher, MemoryFetcher({"other": {1: "x"}}))
+    assert Translator[str, str, int](multi, fmt="{name}").translate([1], names="new") == ["a"]
