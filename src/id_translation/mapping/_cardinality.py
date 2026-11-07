@@ -9,7 +9,7 @@ class Cardinality(Enum):
 
     Cardinalities are comparable using numerical operators, and can be thought of as comparing "preciseness". The less
     ambiguity there is for a given cardinality, the smaller it is in comparison to the others. The hierarchy is given by
-    ``1:1 < 1:N = N:1 < M:N``. Note that ``1:N`` and ``N:1`` are considered equally precise.
+    ``1:1 < 1:N < M:N`` and ``1:1 < N:1 < M:N``. Neither of ``1:N`` and ``N:1`` is ``>=`` the other.
 
     Examples:
         Comparing cardinalities
