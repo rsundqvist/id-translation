@@ -2,6 +2,7 @@
 
 import dataclasses as _dataclasses
 import typing as _t
+from collections.abc import Mapping as _Mapping
 from collections.abc import Sequence as _Sequence
 
 from .. import types as _tt
@@ -57,7 +58,7 @@ class PlaceholderTranslations(_t.Generic[_tt.SourceType]):
         except ImportError:
             pass
 
-        if isinstance(data, dict):
+        if isinstance(data, _Mapping):
             return cls.from_dict(source, data)
         if isinstance(data, PlaceholderTranslations):
             return cls(**_dataclasses.asdict(data))

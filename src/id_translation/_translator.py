@@ -14,6 +14,7 @@ from typing import (
     NoReturn,
     Self,
     Unpack,
+    cast,
     overload,
 )
 
@@ -209,12 +210,13 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             emit_warning("No fetcher given. Translation data will be automatically generated.")
         elif isinstance(fetcher, Fetcher):
             self._fetcher = fetcher
-        elif isinstance(fetcher, dict):
-            source_translations = {source: PlaceholderTranslations.make(source, pht) for source, pht in fetcher.items()}
-            self._cached_tmap = self._to_translation_map(source_translations)
         elif isinstance(fetcher, TranslationMap):
             # Extract raw translations and "overwrite" inherited properties, such as format specs and transformers.
             source_translations = fetcher._extract_translations()
+            self._cached_tmap = self._to_translation_map(source_translations)
+        elif isinstance(fetcher, Mapping):  # After TranslationMap, which is a Mapping too.
+            data = cast("Mapping[SourceType, Any]", fetcher)
+            source_translations = {source: PlaceholderTranslations.make(source, pht) for source, pht in data.items()}
             self._cached_tmap = self._to_translation_map(source_translations)
         else:
             raise TypeError(type(fetcher))  # pragma: no cover
@@ -401,6 +403,12 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         new = cls(**kwargs)
         new._config_metadata = self._config_metadata
         new._transformers_queried = settled
+        if not self.online and "fetcher" not in overrides:
+            # The constructor rebuilt the cache from records alone; keep what the snapshot knew, as pickling does.
+            cache = new.cache
+            cache.name_to_source = self.cache.name_to_source
+            if "fmt" not in overrides:
+                cache.fmt = self.cache.fmt
         return new
 
     def _pop_fetcher_copy_mode(self, overrides: CopyParams[NameType, SourceType, IdType]) -> FetcherCopyMode:
@@ -1312,8 +1320,8 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         with full_path.open("rb") as f:
             ans = pickle.load(f)  # noqa: S301
 
-        if type(ans) is not cls:  # pragma: no cover
-            raise TypeError(f"Serialized object at '{full_path}' is a {type(ans)}, not {cls}.")
+        if not isinstance(ans, cls):  # pragma: no cover
+            raise TypeError(f"Serialized object at '{full_path}' is a {type(ans).__name__}, not {cls}.")
 
         if LOGGER.isEnabledFor(logging.DEBUG):
             extra = "" if ans._config_metadata is None else f" with {ans.config_metadata}"

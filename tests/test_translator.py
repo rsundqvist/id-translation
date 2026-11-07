@@ -1105,3 +1105,28 @@ def test_mapped_names_without_ids_return_a_copy(data, online):
     else:
         assert actual.equals(data)  # Missing values stay as they are.
     assert translator.translated_names() == {"people": "people"}
+
+
+def test_restore_a_subtype(hex_fetcher, tmp_path):
+    path = tmp_path.joinpath("translator.pkl")
+    UnitTestTranslator(hex_fetcher, fmt="{id}:{hex}").go_offline({"positive_numbers": [1]}, path=path)
+
+    restored: RealTranslator[str, str, int] = RealTranslator.restore(path)
+    assert isinstance(restored, UnitTestTranslator)
+
+
+def test_offline_copy_keeps_snapshot_cache():
+    original: RealTranslator[str, str, int]
+    original = RealTranslator(MemoryFetcher({"people": {"id": [1, 2], "name": ["Richard", "Sofia"]}}))
+    original.go_offline({"person_id": [1]}, names={"person_id": "people"}, fmt="{name}")
+
+    copy = original.copy()
+    assert copy.cache.name_to_source == {"person_id": "people"}
+    assert copy.cache["person_id"][1] == "Richard"
+
+    assert original.copy(fmt="{id}-{name}").cache["people"][1] == "1-Richard"
+
+
+def test_inline_data_from_any_mapping():
+    translator: RealTranslator[str, str, int] = RealTranslator(MappingProxyType({"a": MappingProxyType({1: "one"})}))
+    assert translator.translate({"a": 1}) == {"a": "1:one"}
