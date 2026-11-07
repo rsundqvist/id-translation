@@ -1,6 +1,7 @@
 from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Any, Unpack
 
+from .. import _uuid_utils
 from ..offline.types import PlaceholderTranslations, SourcePlaceholderTranslations
 from ..translator_typing import AbstractFetcherParams
 from ..types import ID, IdType, SourceType
@@ -75,11 +76,16 @@ class MemoryFetcher(AbstractFetcher[SourceType, IdType]):
         if instr.ids is None:
             records = tuple(tuple(record[i] for i in placeholder_indices) for record in ret.records)
         else:
+            # The ID column may be overridden; a literal `id` column is then just another column.
+            id_column = self.id_column(instr.source, candidates=ret.placeholders, task_id=instr.task_id)
+            id_pos = ret.id_pos if id_column is None else ret.placeholders.index(id_column)
             ids = set(instr.ids)
+            cast = _uuid_utils.try_cast_one if instr.enable_uuid_heuristics else _identity
             records = tuple(
                 tuple(record[i] for i in placeholder_indices)
                 for record in ret.records
-                if record[ret.id_pos] in ids  # crash on missing IDs
+                # Both forms: requested IDs are cast only when every one of them is UUID-like.
+                if record[id_pos] in ids or cast(record[id_pos]) in ids  # crash on missing IDs
             )
         placeholders = tuple(ret.placeholders[i] for i in placeholder_indices)
         id_pos = placeholders.index(ID) if ID in placeholders else -1
@@ -88,3 +94,7 @@ class MemoryFetcher(AbstractFetcher[SourceType, IdType]):
     def __str__(self) -> str:
         return_all = self.return_all
         return f"{type(self).__name__}(sources={format_sources(self._placeholders)}, {return_all=})"
+
+
+def _identity(value: Any) -> Any:
+    return value

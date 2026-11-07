@@ -1,5 +1,11 @@
+from uuid import UUID
+
+import pytest
+
+from id_translation import Translator
 from id_translation.fetching import MemoryFetcher
-from id_translation.fetching.types import FetchInstruction
+from id_translation.fetching.types import FetchInstruction, IdsToFetch
+from id_translation.mapping import Mapper
 from id_translation.offline.types import PlaceholderTranslations
 
 
@@ -31,3 +37,44 @@ def fetch_translations(data, return_all):
     )
 
     return fetcher.fetch_translations(instr)
+
+
+@pytest.mark.parametrize("return_all", [False, True])
+def test_mapped_id_column(return_all):
+    # The ID column is found through the mapper, not by the literal name 'id'. With return_all=False the fetcher filters
+    # on it; it used to filter on the last column instead, so nothing survived or the wrong records did.
+    fetcher: MemoryFetcher[str, str] = MemoryFetcher(
+        {"countries": {"code": ["US", "SE", "NO"], "name": ["USA", "Sweden", "Norway"]}},
+        return_all=return_all,
+        mapper=Mapper(overrides={"id": "code"}),
+    )
+
+    actual = fetcher.fetch([IdsToFetch("countries", {"US", "SE"})], placeholders=("name",))["countries"]
+
+    assert actual.placeholders == ("id", "name")
+    expected = {"US": "USA", "SE": "Sweden"}
+    if return_all:
+        expected["NO"] = "Norway"
+    columns = actual.to_dict()
+    assert dict(zip(columns["id"], columns["name"], strict=True)) == expected
+
+
+_UUID = UUID("550e8400-e29b-41d4-a716-446655440000")
+_UUID_FORMS = [_UUID, str(_UUID), str(_UUID).upper(), _UUID.hex]
+
+
+@pytest.mark.parametrize("source_id", _UUID_FORMS, ids=repr)
+@pytest.mark.parametrize("data_id", _UUID_FORMS, ids=repr)
+def test_uuid_heuristics_filtered(source_id, data_id):
+    fetcher: MemoryFetcher[str, str | UUID] = MemoryFetcher(
+        {"s": {"id": [source_id], "name": ["found"]}}, return_all=False
+    )
+    translator: Translator[str, str, str | UUID] = Translator(fetcher, fmt="{name}", enable_uuid_heuristics=True)
+    assert translator.translate([data_id], names="s") == ["found"]
+
+
+def test_uuid_heuristics_with_ids_that_are_not_all_uuid_like():
+    u = str(UUID(int=7))
+    fetcher: MemoryFetcher[str, str] = MemoryFetcher({"s": {u: "uuid", "x": "ex"}}, return_all=False)
+    translator: Translator[str, str, str] = Translator(fetcher, fmt="{name}", enable_uuid_heuristics=True)
+    assert translator.translate([u, "x"], names="s") == ["uuid", "ex"]

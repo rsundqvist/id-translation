@@ -55,6 +55,7 @@ Each emits a `FutureWarning`.
   * For fetchers that return every column, such as `MemoryFetcher`, swapped placeholder overrides formatted the wrong
     columns, an `id` override lost to a literal `id` column, and several names mapped to one column kept only one. The
     fetched data was renamed in place.
+  * `MemoryFetcher(return_all=False)` filtered on the wrong column with an `id` override, and ignored UUID heuristics.
   * A `CacheAccess` that skipped `super().__init__()` raised `AttributeError`, and one shared by two fetchers
     a bare `RuntimeError`.
 - Documentation: the name-to-source mapping diagram.
