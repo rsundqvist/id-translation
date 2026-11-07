@@ -29,7 +29,8 @@ class TranslationMap(
         fmt: A :class:`~id_translation.offline.Format` specification for translations.
         default_fmt: Alternative format specification to use instead of `fmt` for fallback translation.
         default_fmt_placeholders: Per-source default placeholder values.
-        enable_uuid_heuristics: Improves matching when :py:class:`~uuid.UUID`-like IDs are in use.
+        enable_uuid_heuristics: Improves matching when :py:class:`~uuid.UUID`-like IDs are in use. Default ``True``, with a
+            ``FutureWarning`` where the heuristics apply: the default becomes ``False`` in 2.0.
         transformers: A dict ``{source: transformer}`` of initialized
             :class:`~id_translation.transform.types.Transformer` instances.
 
@@ -43,7 +44,7 @@ class TranslationMap(
         default_fmt: FormatType = Format.DEFAULT_FAILED,
         name_to_source: NameToSource[NameType, SourceType] | None = None,
         default_fmt_placeholders: InheritedKeysDict[SourceType, str, Any] | None = None,
-        enable_uuid_heuristics: bool = True,
+        enable_uuid_heuristics: bool | None = None,
         transformers: Transformers[SourceType, IdType] | None = None,
     ) -> None:
         self.fmt = Format.parse(fmt)
@@ -59,7 +60,9 @@ class TranslationMap(
         self.name_to_source = name_to_source or {}
 
         self._reverse_mode: bool = False
-        self.enable_uuid_heuristics = enable_uuid_heuristics
+        # Omitted: passed on as None, so the MagicDict warns where the 1.x default makes a difference.
+        self._uuid_default = enable_uuid_heuristics is None
+        self._enable_uuid_heuristics = True if enable_uuid_heuristics is None else enable_uuid_heuristics
 
     def to_dicts(self) -> dict[SourceType, dict[str, Sequence[Any]]]:
         """Get the underlying data used for translations as dicts.
@@ -178,7 +181,7 @@ class TranslationMap(
                 fmt,
                 default_fmt=default_fmt,
                 default_fmt_placeholders=self.default_fmt_placeholders.get(source),
-                enable_uuid_heuristics=self.enable_uuid_heuristics,
+                enable_uuid_heuristics=None if self._uses_uuid_default else self.enable_uuid_heuristics,
             )
         except Exception as e:
             e.add_note(f"{name_or_source=}")
@@ -274,6 +277,11 @@ class TranslationMap(
     @enable_uuid_heuristics.setter
     def enable_uuid_heuristics(self, value: bool) -> None:
         self._enable_uuid_heuristics = value
+        self._uuid_default = False
+
+    @property
+    def _uses_uuid_default(self) -> bool:
+        return getattr(self, "_uuid_default", False)  # Snapshots from before 1.5.0 lack it.
 
     @property
     def transformers(self) -> dict[SourceType, Transformer[IdType]]:

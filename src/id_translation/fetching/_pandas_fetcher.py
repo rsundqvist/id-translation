@@ -11,6 +11,7 @@ from rics.misc import get_by_full_name, tname
 from rics.types import AnyPath
 
 from .. import _uuid_utils
+from .._utils import resolve_changing_default
 from .._utils.emit_warning import emit_warning
 from ..logging import generate_task_id
 from ..offline.types import PlaceholderTranslations
@@ -79,7 +80,7 @@ class PandasFetcher(AbstractFetcher[str, IdType]):
         read_function_kwargs: Additional keyword arguments for `read_function`.
         return_all: If ``True``, return every ID and placeholder of a source instead of only the requested ones.
             Translations then include IDs that were not asked for, e.g. as extra categories when translating to a
-            categorical ``dtype``.
+            categorical ``dtype``. Default ``True``, with a ``FutureWarning``: the default becomes ``False`` in 2.0.
         **kwargs: See :class:`~id_translation.fetching.AbstractFetcher`.
 
     See Also:
@@ -93,7 +94,7 @@ class PandasFetcher(AbstractFetcher[str, IdType]):
         read_function: PandasReadFunction | str | None = None,
         read_path_format: str | FormatFn = "data/{}.csv",
         read_function_kwargs: Mapping[str, Any] | None = None,
-        return_all: bool = True,
+        return_all: bool | None = None,
         **kwargs: Unpack[AbstractFetcherParams[str, IdType]],
     ) -> None:
         super().__init__(**kwargs)
@@ -103,7 +104,7 @@ class PandasFetcher(AbstractFetcher[str, IdType]):
         self._kwargs = read_function_kwargs or {}
 
         self._source_paths: dict[str, str] = {}
-        self._return_all = return_all
+        self._return_all = resolve_changing_default(return_all, owner="PandasFetcher", argument="return_all")
 
     @property
     def return_all(self) -> bool:

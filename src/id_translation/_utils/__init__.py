@@ -12,6 +12,8 @@ __all__ = [
     "DOC_LINK",
     "add_hints",
     "replace_atomically",
+    "resolve_changing_default",
+    "warn_changing_default",
 ]
 
 
@@ -19,6 +21,25 @@ def add_hints(exc: BaseException, hints: str | _Iterable[str]) -> None:
     """Attach `hints` to `exc` as PEP 678 notes, each prefixed with ``Hint: ``."""
     for hint in (hints,) if isinstance(hints, str) else hints:
         exc.add_note(f"Hint: {hint}")
+
+
+def resolve_changing_default(value: bool | None, *, owner: str, argument: str) -> bool:
+    """Return `value`, or ``True`` with a ``FutureWarning`` if it was omitted: the default becomes ``False`` in 2.0."""
+    if value is not None:
+        return value
+    warn_changing_default(owner=owner, argument=argument)
+    return True
+
+
+def warn_changing_default(*, owner: str, argument: str) -> None:
+    """Emit the ``FutureWarning`` for an omitted `argument` whose default, ``True``, becomes ``False`` in 2.0."""
+    from .emit_warning import emit_warning  # noqa: PLC0415
+
+    emit_warning(
+        f"{owner}({argument}=...) defaults to True. Pass {argument}=True to keep it, or {argument}=False as in 2.0."
+        f"\nWARNING: The default changes to {argument}=False in `id-translation==2.0.0`.",
+        FutureWarning,
+    )
 
 
 def replace_atomically(path: _Path, write: _Callable[[_IO[bytes]], _Any]) -> None:

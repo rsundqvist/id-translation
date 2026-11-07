@@ -198,6 +198,8 @@ max-line-length = 150
 testpaths = ["tests"]
 filterwarnings = [
     "error",
+    # Defaults that change in 2.0 (return_all, enable_uuid_heuristics); tests pass them where the value matters.
+    "ignore:.*=...\\) defaults to True. Pass:FutureWarning",
     "ignore::pytest.PytestUnraisableExceptionWarning",
     "ignore:Did not recognize type:sqlalchemy.exc.SAWarning",
     "ignore:No fetcher given:UserWarning",

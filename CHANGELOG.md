@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Deprecated
 Each emits a `FutureWarning`.
+- Omitting `return_all` (`MemoryFetcher`, `PandasFetcher`) or `enable_uuid_heuristics` (`TranslationMap`, `MagicDict`,
+  `FormatApplier.apply`): the defaults change from `True` to `False` in 2.0.
 - A `FETCHER_FACTORY` set on a `TranslatorFactory` instance, which 2.0 ignores.
 - A `FETCHER_FACTORY` that is called with the `TranslatorFactory` first; 2.0 calls it as a plain function.
 - Deriving `PandasFetcher`'s `read_function` from a known suffix that is not a suffix of the file name, e.g.

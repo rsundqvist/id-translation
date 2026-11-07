@@ -3,6 +3,7 @@ from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Any, Unpack
 
 from .. import _uuid_utils
+from .._utils import resolve_changing_default
 from ..offline.types import PlaceholderTranslations, SourcePlaceholderTranslations
 from ..translator_typing import AbstractFetcherParams
 from ..types import ID, IdType, SourceType
@@ -29,7 +30,8 @@ class MemoryFetcher(AbstractFetcher[SourceType, IdType]):
 
             The first two forms are plain dicts, so they may be written directly in TOML configuration as
             ``[fetching.MemoryFetcher.data.<source>]``-sections (see :ref:`translator-config-fetching`).
-        return_all: If ``False``, return only the requested IDs and placeholders.
+        return_all: If ``False``, return only the requested IDs and placeholders. Default ``True``, with a
+            ``FutureWarning``: the default becomes ``False`` in 2.0.
         **kwargs: See :class:`~id_translation.fetching.AbstractFetcher`.
     """
 
@@ -41,7 +43,7 @@ class MemoryFetcher(AbstractFetcher[SourceType, IdType]):
             | Mapping[SourceType, "pandas.DataFrame"]
             | Mapping[SourceType, Mapping[str, Sequence[Any]]]
         ),
-        return_all: bool = True,
+        return_all: bool | None = None,
         **kwargs: Unpack[AbstractFetcherParams[SourceType, IdType]],
     ) -> None:
         super().__init__(**kwargs)
@@ -51,7 +53,7 @@ class MemoryFetcher(AbstractFetcher[SourceType, IdType]):
             else PlaceholderTranslations[SourceType].make(source, pht)
             for source, pht in data.items()
         }
-        self._return_all = return_all
+        self._return_all = resolve_changing_default(return_all, owner="MemoryFetcher", argument="return_all")
 
     @property
     def return_all(self) -> bool:

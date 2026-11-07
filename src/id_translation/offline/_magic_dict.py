@@ -4,6 +4,7 @@ from typing import Any
 from uuid import UUID
 
 from .. import _uuid_utils
+from .._utils import warn_changing_default
 from ..transform.types import Transformer
 from ..types import IdType
 from ._format import Format
@@ -20,7 +21,8 @@ class MagicDict(MutableMapping[IdType, str]):
         real_translations: A dict holding :attr:`~id_translation.offline.MagicDict.real` translations.
         default_value: A string with exactly one or zero positional placeholders.
         enable_uuid_heuristics: Improves matching when :py:class:`~uuid.UUID`-like IDs are in use. Forcibly set to
-            ``False`` if any of the `real_translations` are not ``UUID``-like.
+            ``False`` if any of the `real_translations` are not ``UUID``-like. Default ``True``, with a
+            ``FutureWarning`` where the heuristics apply: the default becomes ``False`` in 2.0.
         transformer: Initialized :class:`~id_translation.transform.types.Transformer` instance. The
             :meth:`Transformer.update_translations <id_translation.transform.types.Transformer.update_translations>`-method
             is called after UUID heuristics are applied.
@@ -92,17 +94,20 @@ class MagicDict(MutableMapping[IdType, str]):
         self,
         real_translations: TranslatedIds[IdType],
         default_value: str = Format(Format.DEFAULT_FAILED).fstring(positional=True),
-        enable_uuid_heuristics: bool = True,
+        enable_uuid_heuristics: bool | None = None,
         transformer: Transformer[IdType] | None = None,
     ) -> None:
-        if enable_uuid_heuristics and real_translations:
-            real_translations, enable_uuid_heuristics = _try_stringify_many(real_translations)
+        use_heuristics = True if enable_uuid_heuristics is None else enable_uuid_heuristics
+        if use_heuristics and real_translations:
+            real_translations, use_heuristics = _try_stringify_many(real_translations)
+            if enable_uuid_heuristics is None and use_heuristics:  # Only UUID-like keys differ with the 2.0 default.
+                warn_changing_default(owner="MagicDict", argument="enable_uuid_heuristics")
         if transformer is not None:
             transformer.update_translations(real_translations)
 
         self._real: TranslatedIds[IdType] = real_translations
         self._default = self._verify_default_value(default_value)
-        self._enable_uuid_heuristics = enable_uuid_heuristics
+        self._enable_uuid_heuristics = use_heuristics
         self._transformer = transformer
 
     def get(self, key: IdType, /, _: Any = None) -> str:
