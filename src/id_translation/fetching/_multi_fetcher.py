@@ -75,9 +75,21 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         return all(f.online for f in self._id_to_fetcher.values())  # pragma: no cover
 
     def close(self) -> None:
-        """Close all :attr:`child <id_translation.fetching.MultiFetcher.children>` fetchers."""
-        for fetcher in self.children:
-            fetcher.close()
+        """Close all :attr:`child <id_translation.fetching.MultiFetcher.children>` fetchers.
+
+        Every child is closed, even if one raises; the first error is raised afterwards.
+        """
+        error: Exception | None = None
+        for fetcher in [*self._id_to_fetcher.values()]:  # Not self.children, which would run discovery first.
+            try:
+                fetcher.close()
+            except Exception as e:
+                if error is None:
+                    error = e
+                else:
+                    LOGGER.exception(f"Failed to close {fetcher}.")
+        if error is not None:
+            raise error
 
     @property
     def children(self) -> list[Fetcher[SourceType, IdType]]:
@@ -572,6 +584,18 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         note += f"\n - child= {self.format_child(fetcher)}"
         e.add_note(note)
         raise e
+
+    def __setstate__(self, state: dict[str, Any]) -> None:
+        # Unpickled children have new identities, and with them new `id()` keys.
+        children: dict[int, Fetcher[SourceType, IdType]] = state["_id_to_fetcher"]
+        new_id = {old_id: id(child) for old_id, child in children.items()}
+        state = {
+            **state,
+            "_id_to_fetcher": {new_id[old_id]: child for old_id, child in children.items()},
+            "_id_to_rank": {new_id[old_id]: rank for old_id, rank in state["_id_to_rank"].items()},
+            "_source_to_id": {source: new_id[old_id] for source, old_id in state["_source_to_id"].items()},
+        }
+        self.__dict__.update(state)
 
     def __deepcopy__(self, memo: dict[int, Any] | None = None) -> Self:
         if memo is None:

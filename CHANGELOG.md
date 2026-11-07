@@ -57,6 +57,8 @@ Each emits a `FutureWarning`.
     fetched data was renamed in place.
   * `MemoryFetcher(return_all=False)` filtered on the wrong column with an `id` override, and ignored UUID heuristics.
   * A ready-made `PlaceholderTranslations` given to `MemoryFetcher` under another source name kept its own.
+  * An unpickled `MultiFetcher` could not find its children, and `close()` ran discovery and stopped at the first child
+    that failed to close.
   * A `CacheAccess` that skipped `super().__init__()` raised `AttributeError`, and one shared by two fetchers
     a bare `RuntimeError`.
 - Documentation: the name-to-source mapping diagram.
