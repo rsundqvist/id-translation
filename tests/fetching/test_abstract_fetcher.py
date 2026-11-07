@@ -267,3 +267,20 @@ class TestCacheAccessParent:
         with pytest.raises(RuntimeError, match="already belongs to") as exc_info:
             MemoryFetcher({"s": {"id": [1]}}, cache_access=cache)
         assert exc_info.value.__notes__ == ["Hint: Give each fetcher its own CacheAccess instance."]
+
+
+@pytest.mark.parametrize(
+    "identifiers, expected",
+    [((), None), (["MemoryFetcher"], None), (["MemoryFetcher", "fetchers.toml", "other.toml"], "fetchers.toml")],
+)
+def test_config_file(identifiers, expected):
+    assert MemoryFetcher[str, int]({}, identifiers=identifiers).config_file == expected
+
+
+def test_a_subclass_may_assign_config_file():
+    class Custom(MemoryFetcher[str, int]):
+        def __init__(self) -> None:
+            super().__init__({})
+            self.config_file = "my.yaml"
+
+    assert Custom().config_file == "my.yaml"

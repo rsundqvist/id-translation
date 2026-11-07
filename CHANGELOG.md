@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Python `3.15` support.
 - `PandasFetcher(return_all=...)`, and readers derived for Excel, ORC, `.pq`, `.arrow` and `.ndjson`.
+- The `AbstractFetcher.config_file`.
 - `logging.enable_verbose_debug_messages()` returns an `UndoLogging`, which also undoes a call made without `with`.
 - `types.ExplicitNames`, the type of a `names` argument that may also be a `{name: source}` mapping; any `Mapping` is accepted.
 - `dio.exceptions.RegistryReentryError`, raised when an entrypoint module uses the IO registry at import.

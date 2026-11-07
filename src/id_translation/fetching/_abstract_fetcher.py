@@ -4,6 +4,7 @@ from abc import abstractmethod
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from copy import deepcopy
+from functools import cached_property
 from time import perf_counter
 from typing import Any, Self, final
 
@@ -206,6 +207,14 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
     def identifiers(self) -> tuple[str, ...]:
         """A collection of hierarchical identifiers for this fetcher."""
         return self._identifiers
+
+    @cached_property  # Not a property: a subclass may already assign its own `config_file`.
+    def config_file(self) -> str | None:
+        """The name of the TOML file this fetcher was declared in, or ``None`` if it wasn't built from one.
+
+        Derived from :attr:`identifiers`; ``None`` unless one of them ends with ``.toml``.
+        """
+        return next((identifier for identifier in self._identifiers if identifier.endswith(".toml")), None)
 
     def map_placeholders(
         self,
