@@ -1010,6 +1010,14 @@ def test_nan_with_objects(nan_value, object_value):
     assert actual == [f"{nan_value}:name-of-{nan_value}", f"{object_value}:name-of-{object_value}"]
 
 
+def test_numpy_bool_ids_in_log_records():
+    translator: RealTranslator[str, str, bool] = RealTranslator({"flags": {False: "no"}})
+    array: Any = np.array([False, True])  # The overloads do not cover ndarray.
+
+    with pytest.raises(TooManyFailedTranslationsError):  # The record's sample_ids must still be JSON serializable.
+        translator.translate(array, names="flags", max_fails=0)
+
+
 def test_both_wanted_and_actual_placeholder_present_in_format(imdb_translator):
     actual = imdb_translator.translate(1, "name_basics", fmt="{id}:{nconst}:{name}")
     assert actual == "1:1:Fred Astaire"

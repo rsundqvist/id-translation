@@ -359,8 +359,9 @@ def _json_safe_types(items: list[Any]) -> list[Any]:
     converters: dict[type[Any], Callable[[Any], Any]] = {UUID: str}
 
     try:
-        from numpy import floating, integer  # noqa: PLC0415
+        from numpy import bool_, floating, integer  # noqa: PLC0415
 
+        converters[bool_] = bool
         converters[integer] = int
         converters[floating] = float
     except ImportError:
