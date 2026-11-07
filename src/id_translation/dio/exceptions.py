@@ -40,3 +40,11 @@ class NotInplaceTranslatableError(DataStructureIOError):
 
     def __init__(self, arg: _Any) -> None:
         super().__init__(f"Inplace translation not possible or implemented for type: {type(arg)}")
+
+
+class RegistryReentryError(DataStructureIOError):
+    """The IO registry was used while it was loading the ``id_translation.dio`` entrypoint integrations.
+
+    Typically raised when a module loaded as an entrypoint calls :meth:`~id_translation.dio.DataStructureIO.register`
+    at import time. Not an ``ImportError``, so that optional-import guards in the entrypoint module do not swallow it.
+    """

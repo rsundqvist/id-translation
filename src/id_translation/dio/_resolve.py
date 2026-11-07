@@ -1,22 +1,35 @@
 from collections.abc import Mapping
-from threading import Lock
+from threading import RLock
 from typing import Any
 
 from .._utils.emit_warning import emit_warning
 from ..types import IdType, NameType, SourceType, TranslatableT
 from ._data_structure_io import DataStructureIO
 from ._repository import ENTRYPOINT_GROUP, AnyIoType, Repository
+from .exceptions import RegistryReentryError
 
-_INSTANCE_LOCK = Lock()
+_INSTANCE_LOCK = RLock()  # Re-entrant, so that a thread re-entering from entrypoint loading reaches the check below.
 _INSTANCE: Repository | None = None
+_LOADING = False  # Only read and written while holding _INSTANCE_LOCK.
 
 
 def _get_repository(*, reset: bool = False) -> Repository:
-    global _INSTANCE  # noqa: PLW0603
+    global _INSTANCE, _LOADING  # noqa: PLW0603
 
     with _INSTANCE_LOCK:
+        if _LOADING:  # An entrypoint module used the registry at import. Deferring it would hide that from 2.0 too.
+            raise RegistryReentryError(
+                f"The IO registry was used while loading the '{ENTRYPOINT_GROUP}' entrypoint integrations.",
+                hints="Do not call register() or otherwise use the registry at import time in a module loaded as an"
+                " entrypoint, or in one of its parent packages. Discovery registers the class the entrypoint names.",
+            )
+
         if reset or _INSTANCE is None:
-            _INSTANCE = Repository()
+            _LOADING = True
+            try:
+                _INSTANCE = Repository()
+            finally:
+                _LOADING = False
 
     return _INSTANCE
 
@@ -109,6 +122,7 @@ def load_integrations() -> None:
 
     Raises:
         TypeError: If an integration does not inherit from :class:`~id_translation.dio.DataStructureIO`.
+        ~id_translation.dio.exceptions.RegistryReentryError: If an entrypoint module uses the registry at import.
 
     Notes:
         The registry loads integrations the same way on first use.

@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Python `3.15` support.
 - `logging.enable_verbose_debug_messages()` returns an `UndoLogging`, which also undoes a call made without `with`.
 - `types.ExplicitNames`, the type of a `names` argument that may also be a `{name: source}` mapping; any `Mapping` is accepted.
+- `dio.exceptions.RegistryReentryError`, raised when an entrypoint module uses the IO registry at import.
 
 ### Fixed
 - Translation:
@@ -23,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     translation changed the process-wide warnings filters.
   * A `DataFrame` with `MultiIndex` columns raised `KeyError` for any column that was not translated, and a sequence
     that repeated a name kept only the last element's IDs.
+  * An integration that called `register()` at import hung the process; it now raises `RegistryReentryError`.
   * Verification log records with numpy `bool` sample IDs were not JSON serializable.
 - Fetching:
   * A `CacheAccess` that skipped `super().__init__()` raised `AttributeError`, and one shared by two fetchers
