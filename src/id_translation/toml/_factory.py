@@ -170,6 +170,7 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
         with _rethrow_with_file(self.file):
             _check_allowed_keys(self.TOP_LEVEL_KEYS, actual=config, toml_path="<root>")
             translator_config = config.pop("translator", {})
+            _warn_legacy_translator_keys(translator_config)
             mapper = self._make_mapper("translator", translator_config)
             _make_default_translations(translator_config, config.pop("unknown_ids", {}))
 
@@ -383,6 +384,12 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
         cache_access = self._make_cache_access(config.pop("cache")) if "cache" in config else None
 
         clazz, kwargs = self._pop_single_impl(config, what="Fetcher")
+        if misplaced := sorted({"mapper", "cache_access"}.intersection(kwargs)):
+            emit_warning(
+                f"Fetcher keys {misplaced} are replaced by the [fetching.mapping] and [fetching.cache.'<type>'] sections."
+                "\nWARNING: This will raise in `id-translation==2.0.0`.",
+                FutureWarning,
+            )
 
         kwargs["identifiers"] = kwargs.get("identifiers", __identifiers)
         kwargs["mapper"] = mapper
@@ -434,6 +441,23 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
             for source, transformers in level.items():
                 chains.setdefault(source, []).extend(transformers)
         return {source: as_transformer(chain) for source, chain in chains.items()}
+
+
+_LEGACY_TRANSLATOR_KEYS = {
+    "default_fmt": "fmt under [unknown_ids]",
+    "default_fmt_placeholders": "[unknown_ids.overrides]",
+    "transformers": "[transform.'<source>'] (it is not used under [translator])",
+}
+
+
+def _warn_legacy_translator_keys(translator_config: dict[str, Any]) -> None:
+    if legacy := [key for key in _LEGACY_TRANSLATOR_KEYS if key in translator_config]:
+        replacements = "; ".join(f"{key}: use {_LEGACY_TRANSLATOR_KEYS[key]}" for key in legacy)
+        emit_warning(
+            f"Keys {legacy} under [translator] are replaced ({replacements})."
+            "\nWARNING: This will raise in `id-translation==2.0.0`.",
+            FutureWarning,
+        )
 
 
 def _make_default_translations(

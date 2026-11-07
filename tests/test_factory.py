@@ -343,3 +343,26 @@ def test_fetcher_factory_on_an_instance_warns(tmp_path):
     with pytest.warns(FutureWarning, match="will be ignored"):
         translator = factory.create()
     assert translator.fetcher.made_by_plain  # type: ignore[attr-defined]
+
+
+_PEOPLE = '[fetching.MemoryFetcher.data]\npeople = { id = [1], name = ["Ada"] }\n'
+
+
+@pytest.mark.parametrize(
+    "toml, match",
+    [
+        ('[translator]\ndefault_fmt = "{id}"\n' + _PEOPLE, r"\['default_fmt'\] under \[translator\]"),
+        (
+            "[translator.default_fmt_placeholders.default]\nname = 'x'\n" + _PEOPLE,
+            r"\['default_fmt_placeholders'\] under",
+        ),
+        ("[translator.transformers]\nx = 1\n" + _PEOPLE, r"\['transformers'\] under \[translator\]"),
+        ("[fetching.MemoryFetcher]\nreturn_all = true\nmapper = { x = 1 }\n" + _PEOPLE, r"\['mapper'\] are replaced"),
+        ("[translator.mapping]\nscore_function_kwargs = {}\n" + _PEOPLE, "score_function_kwargs mapping key"),
+    ],
+)
+def test_keys_that_2_0_rejects_warn(tmp_path, toml, match):
+    path = tmp_path / "main.toml"
+    path.write_text(toml)
+    with pytest.warns(FutureWarning, match=match):
+        Translator.from_config(path)
