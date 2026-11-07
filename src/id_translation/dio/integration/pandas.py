@@ -199,7 +199,7 @@ class PandasIO(_dio.DataStructureIO[PandasT, _tt.NameType, _tt.SourceType, _tt.I
             if isinstance(translatable.columns, _pd.MultiIndex):
                 rv: dict[_tt.NameType, _abc.Sequence[_tt.IdType]] = {}
                 level_values = translatable.columns.get_level_values(self._level)
-                for name in level_values.unique():
+                for name in names:
                     rv[name] = _extract(translatable.loc[:, level_values == name])
                 return rv
 

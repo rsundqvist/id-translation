@@ -42,11 +42,13 @@ class SequenceIO(DataStructureIO[SequenceT, NameType, SourceType, IdType]):
     @classmethod
     def extract(cls, translatable: SequenceT, names: list[NameType]) -> dict[NameType, Sequence[IdType]]:
         verify_names(len(translatable), names)
-        return (
-            {names[0]: as_list(translatable)}
-            if len(names) == 1
-            else {n: as_list(r) for n, r in zip(names, translatable, strict=True)}
-        )
+        if len(names) == 1:
+            return {names[0]: as_list(translatable)}
+
+        ids: dict[NameType, list[IdType]] = {}
+        for n, r in zip(names, translatable, strict=True):
+            ids.setdefault(n, []).extend(as_list(r))  # Names may be repeated.
+        return dict(ids)  # Typing only: dict is invariant in its value type.
 
     @classmethod
     def insert(

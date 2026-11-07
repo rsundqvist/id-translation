@@ -9,6 +9,8 @@ from id_translation import Translator
 from id_translation.dio.exceptions import NotInplaceTranslatableError
 from id_translation.dio.integration.pandas import PandasIO as _PandasIO
 from id_translation.dio.integration.pandas import PandasT, _is_missing, _sorted_ids
+from id_translation.fetching import MemoryFetcher
+from id_translation.mapping import Mapper
 from id_translation.offline import TranslationMap
 from id_translation.offline.types import PlaceholderTranslations
 from id_translation.transform.types import Transformer
@@ -27,6 +29,18 @@ def test_reverse_keeps_int_ids_next_to_a_miss(ttype):
     actual = translator.translate(ttype(["1:Alice", "2:Bob", "x"], name="people"), reverse=True)
     assert actual.tolist() == [1, 2, "<Failed: id='x'>"]
     assert [type(i) for i in actual[:2]] == [int, int]
+
+
+@pytest.mark.parametrize("names", [None, ["people"]])
+def test_multiindex_columns_skip_unmapped(names):
+    df = pd.DataFrame({"people": [1, 2], "other": [7, 8]})
+    df.columns = pd.MultiIndex.from_tuples([("a", "people"), ("a", "other")])
+    translator: Translator[str, str, int] = Translator(
+        MemoryFetcher({"people": {"id": [1, 2], "name": ["Alice", "Bob"]}}),
+        mapper=Mapper(score_function_kwargs={"strict": False}),
+    )
+    actual = translator.translate(df, names=names, max_fails=0.0)
+    assert actual.iloc[0].tolist() == ["1:Alice", 7]
 
 
 def test_extract_float():
