@@ -11,7 +11,16 @@ class ConfigurationError(TypeError):
 
 
 class ConfigurationChangedError(Exception):
-    """See :meth:`Translator.load_persistent_instance <id_translation.Translator.load_persistent_instance>`."""
+    """See :meth:`Translator.load_persistent_instance <id_translation.Translator.load_persistent_instance>`.
+
+    Args:
+        *args: Passed to :class:`Exception`, typically the message.
+        cache_dir: The cache directory of the persistent instance, if known.
+    """
+
+    def __init__(self, *args: object, cache_dir: str | None = None) -> None:
+        super().__init__(*args)
+        self.cache_dir = cache_dir
 
 
 class ConnectionStatusError(ConnectionError):

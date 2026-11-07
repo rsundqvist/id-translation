@@ -1,5 +1,6 @@
 import inspect
 import logging
+import pickle
 import warnings
 from contextlib import contextmanager
 from itertools import product
@@ -650,8 +651,10 @@ def test_load_persistent_instance(tmp_path):
     with pytest.raises(
         ConfigurationChangedError,
         match=r"cached instance is not equivalent: Expected python='3\.\d+\.\d+' \(your environment\) but got python='-1'",
-    ):
+    ) as exc_info:
         RealTranslator.load_persistent_instance(tmp_path, config_path, on_config_changed="raise")
+    assert exc_info.value.cache_dir == str(tmp_path)
+    assert "on_config_changed='recreate'" in exc_info.value.__notes__[0]
 
     real_translator = RealTranslator.load_persistent_instance(tmp_path, config_path)
     assert type(real_translator) is RealTranslator
@@ -1139,3 +1142,61 @@ def test_extract_names_does_not_discover():
 
     translator: RealTranslator[str, str, int] = RealTranslator(DownFetcher({}))
     assert translator.extract_names({"a": [1]}) == ["a"]  # Names need only the IO: no discovery, so no raise.
+
+
+@pytest.mark.parametrize(
+    "damage",
+    [
+        lambda p: p.unlink(),  # Missing.
+        lambda p: p.write_bytes(p.read_bytes()[:20]),  # Torn.
+        lambda p: p.write_bytes(pickle.dumps({"not": "a Translator"})),  # Wrong type.
+    ],
+)
+def test_load_persistent_instance_recreates_an_unreadable_snapshot(tmp_path, damage, caplog):
+    config_path = ROOT.joinpath("dvdrental/translation.toml")  # Uses an in-memory fetcher.
+    RealTranslator.load_persistent_instance(tmp_path, config_path)
+    damage(tmp_path / "translator.pkl")
+
+    with caplog.at_level(logging.INFO, logger="id_translation"):
+        translator = RealTranslator[str, str, int].load_persistent_instance(
+            tmp_path, config_path, on_config_changed="raise"
+        )
+    assert translator.translate(1, "category_id") == "1:Action"
+    assert any("cached instance is unreadable" in r.getMessage() for r in caplog.records)
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["metadata.json", "translator.pkl"], "no temporary files"
+
+
+@pytest.mark.parametrize("name", ["metadata.json", "translator.pkl"])
+def test_load_persistent_instance_raises_for_a_cache_file_it_cannot_read(tmp_path, name, monkeypatch):
+    config_path = ROOT.joinpath("dvdrental/translation.toml")  # Uses an in-memory fetcher.
+    RealTranslator.load_persistent_instance(tmp_path, config_path)
+    (tmp_path / name).unlink()
+    (tmp_path / name).mkdir()  # Not a permission change, which root ignores.
+    monkeypatch.setattr(RealTranslator, "from_config", None)  # Raise before recreating, not when writing.
+
+    with pytest.raises(OSError):
+        RealTranslator.load_persistent_instance(tmp_path, config_path)
+
+
+def test_load_persistent_instance_files_follow_the_umask(tmp_path):
+    RealTranslator.load_persistent_instance(tmp_path, ROOT.joinpath("dvdrental/translation.toml"))
+    reference = tmp_path / "reference"
+    reference.write_bytes(b"")
+
+    modes = {p.name: p.stat().st_mode & 0o777 for p in tmp_path.iterdir()}
+    assert modes == dict.fromkeys(["metadata.json", "reference", "translator.pkl"], modes["reference"])
+
+
+def test_go_offline_path_keeps_an_existing_files_mode_and_link(tmp_path):
+    target = tmp_path / "real.pkl"
+    target.write_bytes(b"old")
+    target.chmod(0o640)
+    mode = target.stat().st_mode & 0o777  # 0o666 on Windows, where chmod() only sets the read-only flag.
+    link = tmp_path / "link.pkl"
+    link.symlink_to(target)
+
+    RealTranslator[str, str, int](MemoryFetcher({"s": {1: "one"}}, return_all=True)).go_offline(path=link)
+
+    assert link.is_symlink(), "the link is kept, and its target replaced"
+    assert target.read_bytes() != b"old"
+    assert target.stat().st_mode & 0o777 == mode

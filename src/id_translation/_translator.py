@@ -28,6 +28,7 @@ from rics.types import LiteralHelper
 
 from . import logging as _logging
 from ._tasks import MappingTask, NamesTask, TranslationTask
+from ._utils import add_hints, replace_atomically
 from ._utils.emit_warning import emit_warning
 from .exceptions import (
     ConfigurationChangedError,
@@ -1239,7 +1240,8 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         Instances are created, stored and loaded as determined by a metadata file located in the given `cache_dir`. A
         new :class:`~id_translation.Translator` will be created if:
 
-        * There is no `'metadata'` file, or
+        * There is no `'metadata'` file, or it cannot be parsed, or
+        * the cached instance cannot be restored, e.g. because it is missing or was only partly written, or
         * the original :class:`~id_translation.Translator` is too old (see `max_age`), or
         * the current configuration, as defined by `config_path` and `extra_fetchers`, has changed in such a way
           that it is no longer equivalent to the configuration used to create the original
@@ -1290,16 +1292,29 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         )
         use_cached, reason, reason_type = metadata.use_cached(metadata_path, max_age)
         if use_cached:
-            LOGGER.info(f"Reuse existing Translator; {reason}. Cache dir: '{cache_dir}'.")
-            return cls.restore(cache_path)
+            try:
+                cached = cls.restore(cache_path)
+            except Exception as e:  # Missing, torn or incompatible: a cache miss like any other.
+                if isinstance(e, OSError) and not isinstance(e, FileNotFoundError):
+                    raise  # E.g. no permission: fail now rather than after recreating, which may not fix it.
+                reason = f"cached instance is unreadable: {e!r}"
+            else:
+                LOGGER.info(f"Reuse existing Translator; {reason}. Cache dir: '{cache_dir}'.")
+                return cached
 
         if reason_type == "metadata-changed" and on_config_changed.lower() == "raise":
-            raise ConfigurationChangedError(reason)
+            exc = ConfigurationChangedError(reason, cache_dir=str(cache_dir))
+            add_hints(
+                exc, f"Pass on_config_changed='recreate', or delete the cache directory '{cache_dir}', to rebuild it."
+            )
+            raise exc
 
         LOGGER.info(f"Create new Translator; {reason}. Cache dir: '{cache_dir}'.")
         translator = cls.from_config(path, extra_fetcher_paths)
         translator.go_offline(path=cache_path)
-        metadata_path.write_text(translator.config_metadata.to_json(), encoding="utf-8")
+        # Last, and replaced atomically like the snapshot: metadata never vouches for a torn or missing snapshot.
+        metadata_json = translator.config_metadata.to_json().encode("utf-8")
+        replace_atomically(metadata_path, lambda f: f.write(metadata_json))
         return translator
 
     @classmethod
@@ -1441,8 +1456,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         if path:
             path = any_path_to_path(path).expanduser()
             path.parent.mkdir(parents=True, exist_ok=True)
-            with path.open("wb") as f:
-                pickle.dump(self, f)
+            replace_atomically(path, lambda f: pickle.dump(self, f))
 
             cls = tname(self, include_module=True)
             LOGGER.info(
