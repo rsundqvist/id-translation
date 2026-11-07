@@ -323,12 +323,13 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         uuid_string_lengths = {_String32Uuid.length, _String36Uuid.length}
 
         if (ids_are_uuid_like is True or length in uuid_string_lengths) and issubclass(python_type, str):
-            if self.engine.dialect.name != "mysql":
-                return id_column.cast(sqlalchemy.types.Uuid)
-
-            # MySQL doesn't work even with SQLAlchemy > 2. This seems to be because UUIDs are converted to strings
-            # without dashes by the driver (see log output), and databases may contain dashed UUID-like strings.
-            return id_column.cast(_String32Uuid if length == _String32Uuid.length else _String36Uuid)  # type: ignore[arg-type]
+            dialect = self.engine.dialect.name
+            if dialect == "mysql" or (dialect == "sqlite" and length in uuid_string_lengths):
+                # MySQL doesn't work even with SQLAlchemy > 2. This seems to be because UUIDs are converted to strings
+                # without dashes by the driver (see log output), and databases may contain dashed UUID-like strings.
+                # SQLite binds Uuid as 32 hex digits, so it only matches CHAR(32) columns unless we pick the length.
+                return id_column.cast(_String32Uuid if length == _String32Uuid.length else _String36Uuid)  # type: ignore[arg-type]
+            return id_column.cast(sqlalchemy.types.Uuid)
 
         if length == _BinaryUuid.length and issubclass(python_type, bytes):
             # Binary-form UUIDs, e.g. MySQL using UUID_TO_BIN and BIN_TO_UUID.

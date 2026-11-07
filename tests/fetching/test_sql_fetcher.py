@@ -1,5 +1,6 @@
 import pickle
 from copy import deepcopy
+from uuid import UUID
 
 import pandas as pd
 import pytest
@@ -253,3 +254,28 @@ class TestUrlConnectionString:
         RealSqlFetcher.parse_connection_string(sqlalchemy.make_url("postgresql+pg8000://user@host/db"), "secret")
 
         assert [str(w.message) for w in recwarn] == []
+
+
+@pytest.mark.parametrize(
+    "column_type, stored",
+    [
+        ("CHAR(36)", "550e8400-e29b-41d4-a716-446655440000"),
+        ("CHAR(32)", "550e8400e29b41d4a716446655440000"),
+        ("TEXT", "550e8400e29b41d4a716446655440000"),
+    ],
+)
+def test_sqlite_uuid_heuristics(tmp_path, column_type, stored):
+    url = f"sqlite:///{tmp_path / 'db.sqlite'}"
+    engine = sqlalchemy.create_engine(url)
+    with engine.begin() as conn:
+        conn.execute(sqlalchemy.text(f"CREATE TABLE things (id {column_type} PRIMARY KEY, name TEXT)"))
+        conn.execute(sqlalchemy.text(f"INSERT INTO things VALUES ('{stored}', 'found')"))
+    engine.dispose()
+
+    fetcher: RealSqlFetcher[UUID] = RealSqlFetcher(url)
+    ids = {UUID("550e8400-e29b-41d4-a716-446655440000")}
+    translations = fetcher.fetch([IdsToFetch("things", ids)], ["id", "name"], enable_uuid_heuristics=True)
+    assert [name for _, name in translations["things"].records] == ["found"]
+
+    # Unclosed SQLite connections emit a ResourceWarning whenever the GC gets to them, failing an unrelated test.
+    fetcher.close()

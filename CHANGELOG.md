@@ -49,6 +49,7 @@ Each emits a `FutureWarning`.
 - Fetching:
   * `PandasFetcher` read `.jsonl` without `lines=True`, derived `read_function` from a directory name even when the file
     name had a known suffix, and used the first known suffix instead of the last (`'{}.csv.parquet'` was read as CSV).
+  * With UUID heuristics, `SqlFetcher` missed dashed UUIDs in SQLite `CHAR(36)` columns.
   * A `CacheAccess` that skipped `super().__init__()` raised `AttributeError`, and one shared by two fetchers
     a bare `RuntimeError`.
 - Documentation: the name-to-source mapping diagram.
