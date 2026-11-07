@@ -142,7 +142,7 @@ class TranslationMap(
         Args:
             name_or_source: A name or source to translate.
             fmt: :class:`~id_translation.offline.Format` to use. If ``None``, fall back to init format.
-            default_fmt: Alternative format for default translation. Resolution: Arg -> init arg, fmt arg, init fmt arg
+            default_fmt: Alternative format for default translation. If ``None``, fall back to the init `default_fmt`.
 
         Returns:
             Translations for `name` as a dict ``{id: translation}``.
