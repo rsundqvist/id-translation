@@ -126,3 +126,13 @@ def test_metaconf_from_dict_does_not_mutate_input():
 
     assert config == expected
     assert metaconf.equivalence.extra_packages == ["rics"]
+
+
+def test_toml_date_literals(tmp_path):
+    def fingerprint(value: str) -> str:
+        path = tmp_path / "config.toml"
+        path.write_text(f"[fetching.MemoryFetcher.data.holidays]\nid = [1]\nname = [{value}]\n", encoding="utf-8")
+        return ConfigMetadata.from_toml_paths(str(path), [], Translator).main[1]
+
+    assert fingerprint("2026-12-24") != fingerprint('"2026-12-24"')
+    assert fingerprint("12:30:00") != fingerprint('"12:30:00"')

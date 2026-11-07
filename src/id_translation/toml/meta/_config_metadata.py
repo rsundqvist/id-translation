@@ -1,6 +1,7 @@
 import json
 import logging
 import sys
+from datetime import date, time
 from hashlib import sha256
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -127,7 +128,7 @@ class ConfigMetadata(BaseMetadata):
                 allow_nested=metaconf.env.allow_nested,
                 allow_blank=metaconf.env.allow_blank,
             )
-            return p, sha256(json.dumps(content, sort_keys=True).encode()).hexdigest()
+            return p, sha256(json.dumps(content, sort_keys=True, default=_fingerprint_default).encode()).hexdigest()
 
         return ConfigMetadata(
             main=_create_path_tuple(path),
@@ -135,3 +136,10 @@ class ConfigMetadata(BaseMetadata):
             clazz=clazz.__module__ + "." + clazz.__qualname__,  # Fully qualified name
             metaconf=metaconf,
         )
+
+
+def _fingerprint_default(obj: Any) -> str:
+    # TOML date and time literals. Tagged, so that changing a date to an equal string still changes the fingerprint.
+    if isinstance(obj, date | time):
+        return f"{type(obj).__name__}:{obj.isoformat()}"
+    raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")

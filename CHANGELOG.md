@@ -62,6 +62,8 @@ Each emits a `FutureWarning`.
   * A `CacheAccess` that skipped `super().__init__()` raised `AttributeError`, and one shared by two fetchers
     a bare `RuntimeError`.
   * A `PartialCacheHit` never covered IDs cached as strings under UUID heuristics.
+- TOML:
+  * A TOML date or time literal crashed `from_config()`.
 - Documentation: the name-to-source mapping diagram.
 
 ## [1.4.2] - 2026-10-10
