@@ -27,12 +27,11 @@ class ConfigMetadata(BaseMetadata):
         - Use the same fully qualified class name, and
         - The main configuration is equal after parsing, and
         - They have the same number of auxiliary (`"extra"`) fetcher configurations, and
-        - All auxiliary fetcher configurations are equal after parsing.
+        - All auxiliary fetcher configurations are equal after parsing, and
+        - They have the same meta configuration (``metaconf.toml``).
 
-    The :class:`~id_translation.toml.meta.Metaconf` is not explicitly included in the equivalence check, but changing it
-    will invalidate cached instances. Environment variable changes may also invalidate the cache if
-    :attr:`EnvConf.allow_interpolation <id_translation.toml.meta.EnvConf.allow_interpolation>` is set and interpolations
-    such as ``${VAR}`` are present.
+    Environment variable changes may also invalidate the cache if interpolations such as ``${VAR}`` are present and
+    :attr:`EnvConf.allow_interpolation <id_translation.toml.meta.EnvConf.allow_interpolation>` is set.
 
     Args:
         main: Absolute path and fingerprint of the main translation configuration."

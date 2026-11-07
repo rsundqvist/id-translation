@@ -115,7 +115,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
     Args:
         fetcher: A :class:`~id_translation.fetching.Fetcher` or ready-to-use translations.
-        fmt: String :class:`~id_translation.offline.Format` specification for translations.
+        fmt: A :class:`~id_translation.offline.Format` specification for translations.
         mapper: A :class:`~id_translation.mapping.Mapper` instance for binding names to sources.
         default_fmt: Alternative :class:`~id_translation.offline.Format` to use for fallback translation of unknown IDs.
         default_fmt_placeholders: Shared and/or source-specific default placeholder values for unknown IDs. See
@@ -350,7 +350,8 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             A copy of this :class:`~id_translation.Translator` with `overrides` applied.
 
         Notes:
-            User types are copied using :func:`copy.deepcopy`. The `fetcher` override selects how the current
+            Transformers are copied using :func:`copy.deepcopy`; one that cannot be is reused, with a warning. The
+            `fetcher` override selects how the current
             :attr:`~id_translation.Translator.fetcher` is carried over -- ``'keep'`` reuses it as-is, ``'copy'``
             requires a successful :func:`~copy.deepcopy`, and the default, ``'auto'``, tries to clone and falls back
             to ``'keep'`` with a warning if that fails; see
@@ -939,7 +940,8 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             ~id_translation.mapping.exceptions.MappingError: If name-to-source mapping fails, e.g.
                 :class:`~id_translation.mapping.exceptions.ScoringDisabledError` for a name that is neither a source
                 nor overridden, when using the default :class:`~id_translation.mapping.Mapper`.
-            ValueError: If `max_fails` is not a valid fraction.
+            ValueError: If `max_fails` is not a valid fraction, or if ``reverse=True`` and several IDs of a source share
+                a translation.
             ~id_translation.exceptions.TooManyFailedTranslationsError: If translation fails for more than `max_fails` of
                 IDs.
             ~id_translation.exceptions.ConnectionStatusError: If ``reverse=True`` while the
@@ -1005,7 +1007,10 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
     def translated_names(self, with_source: Literal[False] = False) -> list[NameType]: ...
 
     def translated_names(self, with_source: bool = True) -> NameToSource[NameType, SourceType] | list[NameType]:
-        """Return the names that were translated by the most recent :meth:`~id_translation.Translator.translate`-call.
+        """Return the names translated by the last successful :meth:`~id_translation.Translator.translate`-call.
+
+        A call is successful if it translates at least one name. Calls that raise or abort leave the result unchanged:
+        when no name maps to a source, or when ``ID_TRANSLATION_DISABLED`` is set.
 
         Args:
             with_source: If ``True``, return a dict ``{name: source}`` instead of a list.

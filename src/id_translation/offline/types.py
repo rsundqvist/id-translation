@@ -49,6 +49,7 @@ class PlaceholderTranslations(_t.Generic[_tt.SourceType]):
 
         Raises:
             TypeError: If `data` cannot be converted.
+            ValueError: If `data` is a dict of columns that differ in length.
         """
         try:
             from pandas import DataFrame  # noqa: PLC0415

@@ -22,9 +22,9 @@ Finish configuring it before sharing it.
      - Invoked implicitly before all translation tasks. Results are cached when using a :class:`.MultiFetcher` or
        :class:`.AbstractFetcher` subtype, after which ``initialize_sources`` is thread-safe for these types.
    * - :meth:`.Translator.translated_names`
-     - Reflects the most recent :meth:`.Translator.translate` call on the instance. The ``translate`` call itself is
-       thread safe (when ``copy=True``), but the recorded names are not. Use :meth:`.Translator.map` in multi-threaded
-       contexts.
+     - Reflects the last :meth:`~.Translator.translate` call on the instance that translated at least one name. The call
+       itself is thread safe (when ``copy=True``), but the recorded names are not. Use :meth:`.Translator.map` in
+       multi-threaded contexts.
    * - :meth:`.TranslationHelper.name_to_source`
      - Read from :meth:`.Translator.translated_names` after each :meth:`~.TranslationHelper.apply` call, so the same
        applies when the ``Translator`` is shared.

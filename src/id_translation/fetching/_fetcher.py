@@ -135,7 +135,7 @@ class Fetcher(Generic[SourceType, IdType], HasSources[SourceType]):
             placeholders: All desired placeholders in preferred order.
             required: Placeholders that must be included in the response.
             placeholder_attributes: Attributes that will be accessed for each placeholder.
-            sources: A subset of sources to fetch. Unknown sources are ignored. Set to ``None`` to fetch all sources.
+            sources: A subset of sources to fetch. Set to ``None`` to fetch all sources.
             task_id: Used for logging.
             enable_uuid_heuristics: Improves matching when :py:class:`~uuid.UUID`-like IDs are in use.
 

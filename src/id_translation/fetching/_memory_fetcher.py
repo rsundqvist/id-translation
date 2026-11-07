@@ -55,7 +55,7 @@ class MemoryFetcher(AbstractFetcher[SourceType, IdType]):
 
     @property
     def return_all(self) -> bool:
-        """If ``True``, :meth:`~id_translation.fetching.MemoryFetcher.fetch_translations` will filter by ID."""
+        """If ``True``, return all data instead of only the requested IDs and placeholders."""
         return self._return_all
 
     def _initialize_sources(self, task_id: int) -> dict[SourceType, list[str]]:  # noqa: ARG002

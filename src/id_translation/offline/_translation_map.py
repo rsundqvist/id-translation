@@ -26,7 +26,7 @@ class TranslationMap(
     Args:
         source_translations: Fetched translations ``{source: PlaceholderTranslations}``.
         name_to_source: Mappings ``{name: source}``, but may be overridden by the user.
-        fmt: A translation format. Must be given to use as a mapping.
+        fmt: A :class:`~id_translation.offline.Format` specification for translations.
         default_fmt: Alternative format specification to use instead of `fmt` for fallback translation.
         default_fmt_placeholders: Per-source default placeholder values.
         enable_uuid_heuristics: Improves matching when :py:class:`~uuid.UUID`-like IDs are in use.
@@ -119,7 +119,7 @@ class TranslationMap(
 
         Args:
             frames: A dict ``{source: DataFrame}``.
-            fmt: A translation format. Must be given to use as a mapping.
+            fmt: A :class:`~id_translation.offline.Format` specification for translations.
             default_fmt: Alternative format specification to use instead of `fmt` for fallback translation.
 
         Returns:

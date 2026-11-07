@@ -24,7 +24,7 @@ def modified_hamming(
         name: A name that should be mapped one of the sources in `candidates`.
         candidates: Candidate sources.
         context: Should be ``None``. Always ignored, exists for compatibility.
-        add_length_ratio_term: If ``True``, score is divided by ``abs(len(name) - len(candidate))``.
+        add_length_ratio_term: If ``True``, the score is multiplied by ``1 / (1 + abs(len(name) - len(candidate)))``.
         positional_penalty: A penalty applied to prefer earlier `candidates`, according to the formulare
             ``penalty = index(candidate) * positional_penalty)``.
 
