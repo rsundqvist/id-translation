@@ -24,6 +24,7 @@ class PolarsIO(_dio.DataStructureIO[PolarsT, str, _tt.SourceType, _tt.IdType]):
 
     Args:
         fast: Apply optimizations if ``True``. Can be faster for large amounts of data but is much less flexible.
+            Gains little for a ``polars.Object`` column.
     """
 
     def __init__(
@@ -87,12 +88,12 @@ class PolarsIO(_dio.DataStructureIO[PolarsT, str, _tt.SourceType, _tt.IdType]):
             return self._translate_series(translatable, tmap[names[0]])
 
     def _translate_series(self, series: _pl.Series, magic_dict: _MagicDict[_tt.IdType]) -> _pl.Series:
+        series = self.obj_to_str(series)  # extract() fetched the str IDs, also in fast mode.
         if self._fast:
             return series.replace_strict(magic_dict.real, return_dtype=_pl.String, default="")
 
         # Create the mappings before Polars can disappear into Rust, where the MagicDict logic will disappear. For
         # the base case this is fine, but things like Transformer.try_add_missing_key will break.
-        series = self.obj_to_str(series)
         mapping = {idx: magic_dict[idx] for idx in series.unique()}
         return series.replace_strict(mapping, return_dtype=_pl.String)
 
@@ -103,8 +104,6 @@ class PolarsIO(_dio.DataStructureIO[PolarsT, str, _tt.SourceType, _tt.IdType]):
         Will cast ``polars.Object`` to ``polars.String``, which is slow but required for translation. Elements are
         mapped using the regular builtin ``str`` function, except that missing values such as ``None``, ``NaN`` and
         ``pandas.NA`` become null.
-
-        This method is never called when ``fast=True``.
 
         Returns:
             A series which does *not* use the ``polars.Object`` dtype. No changes are made if any other dtype is used.

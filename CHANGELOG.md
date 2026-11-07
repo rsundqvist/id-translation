@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Translation:
   * Missing values in `dask` (`NaN`), `polars` and `pyarrow` (null, `NaN`; in a polars `Object` column also `pd.NA`)
     were counted by `max_fails`, and could be fetched.
+  * `PolarsIO(fast=True)` did not translate an `Object` column.
   * A `pandas` object or `str` column that mixed IDs with missing values raised `TypeError` under pandas 3. Under
     pandas 2, `None` was fetched as the ID `'None'`, and `int` IDs in the column no longer matched.
   * In-place translation of an object `Series` failed every ID under pandas 2, and in-place `pandas` and `polars`

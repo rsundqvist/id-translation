@@ -81,6 +81,16 @@ def test_object_without_ids(ids):
     assert PolarsIO.extract(pl.Series("x", ids, dtype=pl.Object), ["x"]) == {"x": []}
 
 
+@pytest.mark.parametrize("fast", [False, True])
+def test_object_nan_does_not_take_the_nan_string_ids_translation(fast):
+    translator = Translator[str, str, IdTypes](fetcher={"x": {"0": "zero", "nan": "nan-row"}}, fmt="{name}")
+    series = pl.Series("x", [0, None, float("nan"), "nan"], dtype=pl.Object)
+    actual = translator.translate(series, max_fails=0.0, io_kwargs={"fast": fast})
+    assert isinstance(actual, pl.Series)
+    missing = "" if fast else "<Failed: id=None>"
+    assert actual.to_list() == ["zero", missing, missing, "nan-row"]
+
+
 def test_dataframe_fast(translator):
     translator = Translator[str, str, IdTypes](
         fetcher={
