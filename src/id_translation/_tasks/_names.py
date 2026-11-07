@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 
 from ..exceptions import MissingNamesError
 from ..mapping.types import UserOverrideFunction
-from ..types import IdType, Names, NameToSource, NameType, NameTypes, SourceType, Translatable
+from ..types import ExplicitNames, IdType, Names, NameToSource, NameType, SourceType, Translatable
 from ._base_task import BaseTask
 
 LOGGER = logging.getLogger("id_translation.Translator")
@@ -25,7 +25,7 @@ class NamesTask(BaseTask[NameType, SourceType, IdType]):
         self,
         caller: "Translator[NameType, SourceType, IdType]",
         translatable: Translatable[NameType, IdType],
-        names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
+        names: ExplicitNames[NameType, SourceType] | None = None,
         ignore_names: Names[NameType] | None = None,
         override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
         io_kwargs: Mapping[str, Any] | None = None,
@@ -120,15 +120,15 @@ class NamesTask(BaseTask[NameType, SourceType, IdType]):
 
 
 def _handle_input_names(
-    names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None,
+    names: ExplicitNames[NameType, SourceType] | None,
     override_function: UserOverrideFunction[NameType, SourceType, None] | None,
 ) -> tuple[list[NameType] | None, UserOverrideFunction[NameType, SourceType, None] | None]:
     if names is None:
         return None, override_function
 
-    if isinstance(names, dict):
+    if isinstance(names, Mapping):
         if override_function is not None:
-            raise ValueError(f"Dict-type {names=} cannot be combined with {override_function=}.")
+            raise ValueError(f"Mapping {names=} cannot be combined with {override_function=}.")
 
         override_function = _UserDefinedNameToSourceMapping(dict(names))
 

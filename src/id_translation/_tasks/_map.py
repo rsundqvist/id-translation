@@ -11,7 +11,7 @@ from ..exceptions import TranslationAbortedWarning
 from ..mapping.exceptions import MappingError, UnmappedExplicitNamesError
 from ..mapping.matrix import ScoreMatrix
 from ..mapping.types import UserOverrideFunction
-from ..types import IdType, Names, NameToSource, NameType, NameTypes, SourceType, Translatable
+from ..types import ExplicitNames, IdType, Names, NameToSource, NameType, SourceType, Translatable
 from ._names import NamesTask
 
 if TYPE_CHECKING:
@@ -29,7 +29,7 @@ class MappingTask(NamesTask[NameType, SourceType, IdType]):
         self,
         caller: "Translator[NameType, SourceType, IdType]",
         translatable: Translatable[NameType, IdType],
-        names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
+        names: ExplicitNames[NameType, SourceType] | None = None,
         *,
         ignore_names: Names[NameType] | None = None,
         override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,

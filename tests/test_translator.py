@@ -1,7 +1,9 @@
+import inspect
 import logging
 import warnings
 from contextlib import contextmanager
 from itertools import product
+from types import MappingProxyType
 from typing import Any, assert_type
 from uuid import UUID
 
@@ -740,7 +742,7 @@ class TestDictNames:
         assert "override_function=UserArgument" in record
 
     def test_dict_with_override_function(self):
-        with pytest.raises(ValueError, match="Dict-type names="):
+        with pytest.raises(ValueError, match="Mapping names="):
             assert self.translate("", names={}, override_function=crash)
 
     def test_mapping_to_unknown_source(self, caplog):
@@ -881,6 +883,31 @@ def test_map_scores(translator):
     actual = translator.map_scores({"p": 0, "positive_numbers": 1, "foo": 0}).to_pandas().to_numpy().tolist()
     inf = float("inf")
     assert actual == [[inf, -inf], [inf, -inf], [0.0, 0.0]]
+
+
+@pytest.mark.parametrize("method", ["map", "map_scores"])
+def test_map_accepts_name_to_source(translator, method):
+    # Iterable[NameType] admits a dict too, so mypy cannot tell if the explicit mapping falls out of the signature.
+    annotation = inspect.signature(getattr(RealTranslator, method)).parameters["names"].annotation
+    assert annotation == inspect.signature(RealTranslator.translate).parameters["names"].annotation
+
+    result = getattr(translator, method)({"x": 0, "y": 1}, names={"x": "positive_numbers"})
+    if method == "map":
+        assert result == {"x": "positive_numbers"}
+    else:
+        assert result.to_pandas().loc["x", "positive_numbers"] == float("inf")
+
+
+@pytest.mark.parametrize("method", ["translate", "map", "go_offline"])
+def test_names_accepts_any_mapping(translator, method):
+    names = MappingProxyType({"x": "positive_numbers"})  # Iterable too: must not be read as a list of names.
+    data = {"x": [1], "y": [1]}
+    if method == "translate":
+        assert translator.translate(data, names=names) == {"x": [translator.translate(1, "positive_numbers")], "y": [1]}
+    elif method == "map":
+        assert translator.map(data, names=names) == {"x": "positive_numbers"}
+    else:
+        assert translator.copy().go_offline(data, names=names).sources == ["positive_numbers"]
 
 
 def test_not_cloneable_fetcher_raises_on_deepcopy():

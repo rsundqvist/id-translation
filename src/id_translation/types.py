@@ -118,6 +118,8 @@ NameTypes: _t.TypeAlias = NameType | _cabc.Iterable[NameType]
 """A union of a name type, or an iterable thereof."""
 Names: _t.TypeAlias = NameTypes[NameType] | NamesPredicate[NameType]
 """Acceptable name types."""
+ExplicitNames: _t.TypeAlias = NameTypes[NameType] | _cabc.Mapping[NameType, SourceType]
+"""Names to translate, or a mapping from name to the source to use for it."""
 
 TranslatableT = _t.TypeVar("TranslatableT", bound=Translatable[_t.Any, _t.Any])  # TODO: Higher-Kinded TypeVars
 """Simplified ``Translatable`` type."""

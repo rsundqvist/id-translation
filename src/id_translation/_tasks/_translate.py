@@ -13,7 +13,7 @@ from .._utils.emit_warning import emit_warning
 from ..exceptions import TooManyFailedTranslationsError
 from ..mapping.types import UserOverrideFunction
 from ..offline import Format, MagicDict, TranslationMap
-from ..types import IdType, IdTypes, Names, NameToSource, NameType, NameTypes, SourceType, Translatable
+from ..types import ExplicitNames, IdType, IdTypes, Names, NameType, SourceType, Translatable
 from ._map import MappingTask
 
 LOGGER = logging.getLogger("id_translation.Translator")
@@ -32,7 +32,7 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
         caller: "Translator[NameType, SourceType, IdType]",
         translatable: Translatable[NameType, IdType],
         fmt: Format,
-        names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
+        names: ExplicitNames[NameType, SourceType] | None = None,
         *,
         ignore_names: Names[NameType] | None = None,
         override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,

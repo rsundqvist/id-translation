@@ -78,7 +78,7 @@ class MapParams(_t.TypedDict, _t.Generic[_tt.NameType, _tt.SourceType, _tt.IdTyp
     """Arguments of :meth:`Translator.map <id_translation.Translator.map>` and :meth:`~id_translation.Translator.map_scores`."""
 
     translatable: _t.Required[_tt.Translatable[_tt.NameType, _tt.IdType]]
-    names: _tt.NameTypes[_tt.NameType] | None
+    names: _tt.ExplicitNames[_tt.NameType, _tt.SourceType] | None
     ignore_names: _tt.Names[_tt.NameType] | None
     override_function: _UserOverrideFunction[_tt.NameType, _tt.SourceType, None] | None
     io_kwargs: _abc.Mapping[str, _t.Any] | None
@@ -149,7 +149,7 @@ class TranslateParams(_t.TypedDict, _t.Generic[_tt.NameType, _tt.SourceType, _tt
     use :py:func:`functools.wraps` instead.
     """
 
-    names: _tt.NameTypes[_tt.NameType] | _tt.NameToSource[_tt.NameType, _tt.SourceType] | None
+    names: _tt.ExplicitNames[_tt.NameType, _tt.SourceType] | None
     ignore_names: _tt.Names[_tt.NameType] | None
     override_function: _UserOverrideFunction[_tt.NameType, _tt.SourceType, None] | None
     max_fails: float
@@ -169,7 +169,7 @@ class FetchParams(_t.TypedDict, _t.Generic[_tt.NameType, _tt.SourceType, _tt.IdT
     """All arguments of :meth:`Translator.fetch <id_translation.Translator.fetch>`."""
 
     translatable: _tt.Translatable[_tt.NameType, _tt.IdType] | None
-    names: _tt.NameTypes[_tt.NameType] | _tt.NameToSource[_tt.NameType, _tt.SourceType] | None
+    names: _tt.ExplicitNames[_tt.NameType, _tt.SourceType] | None
     ignore_names: _tt.Names[_tt.NameType] | None
     override_function: _UserOverrideFunction[_tt.NameType, _tt.SourceType, None] | None
     max_fails: float

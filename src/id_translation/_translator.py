@@ -64,6 +64,7 @@ from .types import (
     DictToThreeTuple,
     DictToTwoTuple,
     DictToVarTuple,
+    ExplicitNames,
     HasSources,
     IdType,
     IdTypes,
@@ -71,7 +72,6 @@ from .types import (
     Names,
     NameToSource,
     NameType,
-    NameTypes,
     SourceType,
     Translatable,
 )
@@ -491,7 +491,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         def translate(
             self,
             translatable: InplaceTranslatable[NameType, IdType],
-            names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
+            names: ExplicitNames[NameType, SourceType] | None = None,
             *,
             # https://github.com/python/mypy/issues/7333#issuecomment-788255229
             copy: Literal[False],
@@ -508,7 +508,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         def translate(
             self,
             translatable: CopyTranslatable[IdType],
-            names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
+            names: ExplicitNames[NameType, SourceType] | None = None,
             *,
             # https://github.com/python/mypy/issues/7333#issuecomment-788255229
             copy: Literal[False],
@@ -525,7 +525,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         def translate(
             self,
             translatable: IdTypes,
-            names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
+            names: ExplicitNames[NameType, SourceType] | None = None,
             *,
             copy: Literal[True] = True,
             ignore_names: Names[NameType] | None = None,
@@ -541,7 +541,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         def translate(
             self,
             translatable: list[IdType],
-            names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
+            names: ExplicitNames[NameType, SourceType] | None = None,
             *,
             copy: Literal[True] = True,
             ignore_names: Names[NameType] | None = None,
@@ -557,7 +557,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         def translate(
             self,
             translatable: set[IdType],
-            names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
+            names: ExplicitNames[NameType, SourceType] | None = None,
             *,
             copy: Literal[True] = True,
             ignore_names: Names[NameType] | None = None,
@@ -576,7 +576,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             # at this time (python 3.11.3, mypy 1.5.1). Higher-Kinded TypeVars might solve this.
             # TODO: Higher-Kinded TypeVars
             translatable: DictToId[NameType, int] | DictToId[NameType, str] | DictToId[NameType, UUID],
-            names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
+            names: ExplicitNames[NameType, SourceType] | None = None,
             *,
             copy: Literal[True] = True,
             ignore_names: Names[NameType] | None = None,
@@ -592,7 +592,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         def translate(
             self,
             translatable: DictToSet[NameType, IdType],
-            names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
+            names: ExplicitNames[NameType, SourceType] | None = None,
             *,
             copy: Literal[True] = True,
             ignore_names: Names[NameType] | None = None,
@@ -608,7 +608,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         def translate(
             self,
             translatable: DictToList[NameType, IdType],
-            names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
+            names: ExplicitNames[NameType, SourceType] | None = None,
             *,
             copy: Literal[True] = True,
             ignore_names: Names[NameType] | None = None,
@@ -624,7 +624,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         def translate(  # Overlaps with DictToVarTuple
             self,
             translatable: DictToOneTuple[NameType, IdType],
-            names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
+            names: ExplicitNames[NameType, SourceType] | None = None,
             *,
             copy: Literal[True] = True,
             ignore_names: Names[NameType] | None = None,
@@ -640,7 +640,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         def translate(  # Overlaps with DictToVarTuple
             self,
             translatable: DictToTwoTuple[NameType, IdType],
-            names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
+            names: ExplicitNames[NameType, SourceType] | None = None,
             *,
             copy: Literal[True] = True,
             ignore_names: Names[NameType] | None = None,
@@ -656,7 +656,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         def translate(  # Overlaps with DictToVarTuple
             self,
             translatable: DictToThreeTuple[NameType, IdType],
-            names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
+            names: ExplicitNames[NameType, SourceType] | None = None,
             *,
             copy: Literal[True] = True,
             ignore_names: Names[NameType] | None = None,
@@ -672,7 +672,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         def translate(
             self,
             translatable: DictToVarTuple[NameType, IdType],
-            names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
+            names: ExplicitNames[NameType, SourceType] | None = None,
             *,
             copy: Literal[True] = True,
             ignore_names: Names[NameType] | None = None,
@@ -688,7 +688,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         def translate(
             self,
             translatable: tuple[IdType],
-            names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
+            names: ExplicitNames[NameType, SourceType] | None = None,
             *,
             copy: Literal[True] = True,
             ignore_names: Names[NameType] | None = None,
@@ -704,7 +704,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         def translate(
             self,
             translatable: tuple[IdType, IdType],
-            names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
+            names: ExplicitNames[NameType, SourceType] | None = None,
             *,
             copy: Literal[True] = True,
             ignore_names: Names[NameType] | None = None,
@@ -720,7 +720,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         def translate(
             self,
             translatable: tuple[IdType, IdType, IdType],
-            names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
+            names: ExplicitNames[NameType, SourceType] | None = None,
             *,
             copy: Literal[True] = True,
             ignore_names: Names[NameType] | None = None,
@@ -736,7 +736,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         def translate(
             self,
             translatable: tuple[IdType, ...],
-            names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
+            names: ExplicitNames[NameType, SourceType] | None = None,
             *,
             copy: Literal[True] = True,
             ignore_names: Names[NameType] | None = None,
@@ -755,7 +755,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             def translate(
                 self,
                 translatable: "pandas.DataFrame",
-                names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
+                names: ExplicitNames[NameType, SourceType] | None = None,
                 *,
                 copy: Literal[True] = True,
                 ignore_names: Names[NameType] | None = None,
@@ -771,7 +771,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             def translate(
                 self,
                 translatable: "pandas.Series[Any]",
-                names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
+                names: ExplicitNames[NameType, SourceType] | None = None,
                 *,
                 copy: Literal[True] = True,
                 ignore_names: Names[NameType] | None = None,
@@ -787,7 +787,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             def translate(
                 self,
                 translatable: "pandas.Index[Any]",
-                names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
+                names: ExplicitNames[NameType, SourceType] | None = None,
                 *,
                 copy: Literal[True] = True,
                 ignore_names: Names[NameType] | None = None,
@@ -803,7 +803,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             def translate(
                 self,
                 translatable: "pandas.DataFrame" | "pandas.Series[Any]",
-                names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
+                names: ExplicitNames[NameType, SourceType] | None = None,
                 *,
                 copy: Literal[False],
                 ignore_names: Names[NameType] | None = None,
@@ -819,7 +819,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             def translate(
                 self,
                 translatable: "pandas.Index[Any]",
-                names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
+                names: ExplicitNames[NameType, SourceType] | None = None,
                 *,
                 # https://github.com/python/mypy/issues/7333#issuecomment-788255229
                 copy: Literal[False],
@@ -836,7 +836,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         def translate(
             self,
             translatable: Translatable[NameType, IdType],
-            names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
+            names: ExplicitNames[NameType, SourceType] | None = None,
             *,
             ignore_names: Names[NameType] | None = None,
             copy: Literal[True] = True,
@@ -851,7 +851,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         def translate(
             self,
             translatable: Translatable[NameType, str],
-            names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
+            names: ExplicitNames[NameType, SourceType] | None = None,
             *,
             ignore_names: Names[NameType] | None = None,
             copy: Literal[True] = True,
@@ -865,7 +865,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
     def translate(
         self,
         translatable: Translatable[NameType, IdType],
-        names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
+        names: ExplicitNames[NameType, SourceType] | None = None,
         *,
         ignore_names: Names[NameType] | None = None,
         copy: bool = True,
@@ -1076,7 +1076,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
     def map(
         self,
         translatable: Translatable[NameType, IdType],
-        names: NameTypes[NameType] | None = None,
+        names: ExplicitNames[NameType, SourceType] | None = None,
         *,
         ignore_names: Names[NameType] | None = None,
         override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
@@ -1086,7 +1086,8 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
         Args:
             translatable: A data structure to map names for.
-            names: Explicit names to translate. Derive from `translatable` if ``None``.
+            names: Explicit names to translate. Derive from `translatable` if ``None``. Alternatively, you may pass a
+                ``dict`` on the form ``{name_in_translatable: source_to_use}``.
             ignore_names: Names **not** to translate, or a predicate ``(NameType) -> bool``.
             override_function: A callable ``(name, sources, context) -> Source | None``, where `context` is always
                 ``None``. See :meth:`Mapper.apply <id_translation.mapping.Mapper.apply>` for details.
@@ -1128,7 +1129,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
     def map_scores(
         self,
         translatable: Translatable[NameType, IdType],
-        names: NameTypes[NameType] | None = None,
+        names: ExplicitNames[NameType, SourceType] | None = None,
         *,
         ignore_names: Names[NameType] | None = None,
         override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
@@ -1322,7 +1323,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
     def go_offline(
         self,
         translatable: Translatable[NameType, IdType] | None = None,
-        names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
+        names: ExplicitNames[NameType, SourceType] | None = None,
         *,
         ignore_names: Names[NameType] | None = None,
         override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
@@ -1463,7 +1464,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
     def fetch(
         self,
         translatable: Translatable[NameType, IdType] | None = None,
-        names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
+        names: ExplicitNames[NameType, SourceType] | None = None,
         *,
         ignore_names: Names[NameType] | None = None,
         override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
@@ -1570,7 +1571,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
     def _user_fetch(
         self,
         translatable: Translatable[NameType, IdType] | None = None,
-        names: NameTypes[NameType] | NameToSource[NameType, SourceType] | None = None,
+        names: ExplicitNames[NameType, SourceType] | None = None,
         *,
         ignore_names: Names[NameType] | None = None,
         override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
@@ -1599,8 +1600,8 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
             if names is None:
                 pass  # Callers must perform mapping unless name=source.
-            elif isinstance(names, dict):
-                translation_map.name_to_source = names
+            elif isinstance(names, Mapping):
+                translation_map.name_to_source = dict(names)
             else:
                 translation_map.name_to_source = self.mapper.apply(
                     as_list(names),

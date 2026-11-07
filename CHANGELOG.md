@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Python `3.15` support.
 - `logging.enable_verbose_debug_messages()` returns an `UndoLogging`, which also undoes a call made without `with`.
+- `types.ExplicitNames`, the type of a `names` argument that may also be a `{name: source}` mapping; any `Mapping` is accepted.
 
 ### Fixed
 - Translation:
