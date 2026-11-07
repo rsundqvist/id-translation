@@ -15,10 +15,13 @@ Base fetchers:
     * :class:`~id_translation.fetching.AbstractFetcher`: Implements high-level operations such as
       :ref:`placeholder mapping <placeholder-mapping>`.
 
+Keyword arguments of the base class are given by
+:class:`~id_translation.fetching.AbstractFetcherParams`, for use with :class:`~typing.Unpack`.
+
 Fetchers may have additional dependencies.
 """
 
-from ._abstract_fetcher import AbstractFetcher
+from ._abstract_fetcher import AbstractFetcher, AbstractFetcherParams
 from ._cache_access import CacheAccess
 from ._fetcher import Fetcher
 from ._memory_fetcher import MemoryFetcher
@@ -48,6 +51,7 @@ except ImportError as e:
 
 __all__ = [
     "AbstractFetcher",
+    "AbstractFetcherParams",
     "CacheAccess",
     "Fetcher",
     "MemoryFetcher",

@@ -7,7 +7,6 @@ from rics.collections.dicts import MakeType as _MakeType
 from rics.paths import AnyPath as _AnyPath
 
 from . import types as _tt
-from .fetching import CacheAccess as _CacheAccess
 from .fetching import Fetcher as _Fetcher
 from .mapping import Mapper as _Mapper
 from .mapping.types import UserOverrideFunction as _UserOverrideFunction
@@ -50,19 +49,6 @@ FetcherCopyMode = _t.Literal["keep", "copy", "auto"]
 Applies only while :attr:`~id_translation.Translator.online`; an offline copy always shares the original's cached
 translation records, which are never mutated in place.
 """
-
-
-class AbstractFetcherParams(_t.TypedDict, _t.Generic[_tt.SourceType, _tt.IdType], total=False):
-    """Keyword arguments for the :class:`~id_translation.fetching.AbstractFetcher` base class."""
-
-    # TODO(2.0.0): move to fetching.typing submodule? Or _abstract_fetcher.py + expose in __init__.py?
-
-    mapper: _Mapper[str, str, _tt.SourceType] | None
-    allow_fetch_all: bool
-    selective_fetch_all: bool
-    identifiers: _abc.Sequence[str] | None
-    optional: bool
-    cache_access: _CacheAccess[_tt.SourceType, _tt.IdType] | None
 
 
 class ExtractNamesParams(_t.TypedDict, _t.Generic[_tt.NameType, _tt.SourceType, _tt.IdType], total=False):
