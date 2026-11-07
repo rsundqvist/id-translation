@@ -38,7 +38,7 @@ class TestOptionalFetchers:
         loaded = {io.__module__.rpartition(".")[2] for io in get_resolution_order()}
         assert "pandas" not in loaded
         assert "dask" not in loaded
-        assert {"_dict", "_sequence", "_set", "_single_value", "polars"} <= loaded
+        assert {"_dict", "_sequence", "_set", "_scalar", "polars"} <= loaded
 
     def test_pandas_without_fsspec(self, tmp_path, sqlalchemy_missing, fsspec_missing):
         from id_translation import Translator

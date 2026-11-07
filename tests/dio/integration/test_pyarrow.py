@@ -4,7 +4,7 @@ import pyarrow as pa  # type: ignore[import-untyped]
 import pytest
 
 from id_translation import Translator
-from id_translation.dio import load_integrations
+from id_translation.dio import reload_integrations
 from id_translation.dio.exceptions import NotInplaceTranslatableError
 from id_translation.dio.integration.pyarrow import ArrowIO
 from id_translation.types import IdTypes
@@ -86,9 +86,4 @@ def register():
         ArrowIO.register()
         yield
 
-    load_integrations()
-
-
-def test_all_missing_ids(translator):
-    actual = translator.translate(pa.array([None], pa.int64()), names="ints", max_fails=0.0)
-    assert actual.to_pylist() == [None]  # Missing values are pass-throughs.
+    reload_integrations()

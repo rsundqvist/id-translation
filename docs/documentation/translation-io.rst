@@ -39,7 +39,7 @@ snippet below shows how the :mod:`bundled <.integration>` integrations are regis
    dask_io = "id_translation.dio.integration.dask:DaskIO"
    polars_io = "id_translation.dio.integration.polars:PolarsIO"
 
-The :func:`loader <id_translation.dio.load_integrations>` will skip the integration if calling
+The :func:`loader <id_translation.dio.reload_integrations>` will skip the integration if calling
 :class:`EntryPoint.load() <importlib.metadata.EntryPoint>` raises a :py:class:`ModuleNotFoundError`,
 or if the :attr:`~DataStructureIO.priority` is negative.
 

@@ -10,11 +10,11 @@ from typing import Any
 import pytest
 
 from id_translation.dio import _repository, _resolve, get_resolution_order, register_io
-from id_translation.dio.default import SingleValueIO
+from id_translation.dio.default import ScalarIO
 from id_translation.dio.exceptions import RegistryReentryError
 
 
-class PluginIO(SingleValueIO):  # type: ignore[type-arg]
+class PluginIO(ScalarIO):  # type: ignore[type-arg]
     priority = 42
 
     @classmethod
