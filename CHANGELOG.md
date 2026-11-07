@@ -9,9 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Python `3.15` support.
+- `PandasFetcher(return_all=...)`, and readers derived for Excel, ORC, `.pq`, `.arrow` and `.ndjson`.
 - `logging.enable_verbose_debug_messages()` returns an `UndoLogging`, which also undoes a call made without `with`.
 - `types.ExplicitNames`, the type of a `names` argument that may also be a `{name: source}` mapping; any `Mapping` is accepted.
 - `dio.exceptions.RegistryReentryError`, raised when an entrypoint module uses the IO registry at import.
+
+### Deprecated
+Each emits a `FutureWarning`.
+- Deriving `PandasFetcher`'s `read_function` from a known suffix that is not a suffix of the file name, e.g.
+  `'data.csv/{}'` or `'export.parquet_{}'`, which 2.0 rejects.
+- Deriving `PandasFetcher`'s `read_function` from a URL's path where its query or fragment makes 2.0 derive another
+  reader or raise, e.g. `'https://host/{}.csv?raw=1'`.
 
 ### Fixed
 - Translation:
@@ -39,6 +47,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * `Mapper` wrote `task_id` into the caller's kwargs dicts.
   * `smurf_columns` returned a mixed-case column lowercased, so it never matched.
 - Fetching:
+  * `PandasFetcher` read `.jsonl` without `lines=True`, derived `read_function` from a directory name even when the file
+    name had a known suffix, and used the first known suffix instead of the last (`'{}.csv.parquet'` was read as CSV).
   * A `CacheAccess` that skipped `super().__init__()` raised `AttributeError`, and one shared by two fetchers
     a bare `RuntimeError`.
 - Documentation: the name-to-source mapping diagram.

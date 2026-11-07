@@ -165,6 +165,10 @@
         "read_function_kwargs": {
           "type": "object",
           "description": "Extra keyword arguments forwarded to the read function."
+        },
+        "return_all": {
+          "type": "boolean",
+          "description": "Return every ID and placeholder of a source instead of only the requested ones. Default true."
         }
       },
       "additionalProperties": true
