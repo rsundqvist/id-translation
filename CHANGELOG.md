@@ -23,7 +23,8 @@ Each emits a `FutureWarning`.
   `FormatApplier.apply`): the defaults change from `True` to `False` in 2.0.
 - The `[translator]` keys `default_fmt`, `default_fmt_placeholders` and `transformers`, a fetcher's `mapper` and
   `cache_access` keys, and `score_function_kwargs` under `[*.mapping]`, which 2.0 rejects.
-- A `FETCHER_FACTORY` set on a `TranslatorFactory` instance, which 2.0 ignores.
+- A `FETCHER_FACTORY` set on a `TranslatorFactory` instance, and overriding `AbstractFetcher.default_mapper_kwargs()` or
+  `default_score_function()`, which 2.0 ignores.
 - A `FETCHER_FACTORY` that is called with the `TranslatorFactory` first; 2.0 calls it as a plain function.
 - Deriving `PandasFetcher`'s `read_function` from a known suffix that is not a suffix of the file name, e.g.
   `'data.csv/{}'` or `'export.parquet_{}'`, which 2.0 rejects.

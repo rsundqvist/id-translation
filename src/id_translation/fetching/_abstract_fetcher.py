@@ -772,6 +772,16 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         wanted_to_actual = self.map_placeholders(source, wanted_placeholders, task_id=task_id)
         return {wanted: actual for wanted, actual in wanted_to_actual.items() if actual is not None}
 
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        super().__init_subclass__(**kwargs)
+        if overridden := [name for name in ("default_mapper_kwargs", "default_score_function") if name in vars(cls)]:
+            emit_warning(
+                f"{cls.__qualname__} overrides {overridden}, which 2.0 removes: such overrides are then ignored."
+                " Pass a Mapper as `mapper` instead."
+                "\nWARNING: This will be ignored in `id-translation==2.0.0`.",
+                FutureWarning,
+            )
+
     @classmethod
     def default_mapper_kwargs(cls) -> dict[str, Any]:
         """Return default :class:`~id_translation.mapping.Mapper` arguments for ``AbstractFetcher`` implementations."""

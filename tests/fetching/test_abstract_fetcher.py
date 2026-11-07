@@ -284,3 +284,9 @@ def test_a_subclass_may_assign_config_file():
             self.config_file = "my.yaml"
 
     assert Custom().config_file == "my.yaml"
+
+
+@pytest.mark.parametrize("hook", ["default_mapper_kwargs", "default_score_function"])
+def test_overriding_a_removed_hook_warns(hook):
+    with pytest.warns(FutureWarning, match=rf"overrides \['{hook}'\], which 2.0 removes"):
+        type("Custom", (MemoryFetcher,), {hook: classmethod(getattr(MemoryFetcher, hook).__func__)})
