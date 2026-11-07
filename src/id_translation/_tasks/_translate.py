@@ -299,8 +299,9 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
             if not (fail or LOGGER.isEnabledFor(logging.DEBUG)):
                 continue
 
+            reason = f"{'>' if fail else '<='} max_fails={max_fails:.2%}"
             message = (
-                f"Failed to translate {n_untranslated}/{n_total} ({f_untranslated:.2%}{{reason}}) of IDs "
+                f"Failed to translate {n_untranslated}/{n_total} ({f_untranslated:.2%} {reason}) of IDs "
                 f"for {name=} using source={source!r}. Sample IDs: {sample_ids}."
             )
             extra = {
@@ -314,19 +315,17 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
             }
 
             if fail:
-                message = message.format(reason=f" > max_fails={max_fails:.2%}")
                 LOGGER.error(message, extra=extra)
                 raise TooManyFailedTranslationsError(message)
 
-            message = message.format(reason=f" <= max_fails={max_fails:.2%}")
             LOGGER.debug(message, extra=extra)
 
         self.add_timing("verify", perf_counter() - start)
 
     def _name_to_ids_in_order(self) -> dict[NameType, Sequence[Any]]:
         name_to_ids = self._extract_ids()
-        if not self.enable_uuid_heuristics:
-            return name_to_ids
+        if self.reverse or not self.enable_uuid_heuristics:
+            return name_to_ids  # Reversed "IDs" are translations, which are never cast.
         return {name: _uuid_utils.try_cast_many(ids) for name, ids in name_to_ids.items()}
 
     def _extract_ids(self) -> dict[NameType, Sequence[IdType]]:

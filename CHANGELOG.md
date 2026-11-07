@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     pandas 2, `None` was fetched as the ID `'None'`, and `int` IDs in the column no longer matched.
   * In-place translation of an object `Series` failed every ID under pandas 2, and in-place `pandas` and `polars`
     translation changed the process-wide warnings filters.
+  * Verification (`max_fails`, `DEBUG` logging) crashed on IDs with braces, and counted correct UUID-like reverse
+    translations as failed.
   * A `DataFrame` with `MultiIndex` columns raised `KeyError` for any column that was not translated, and a sequence
     that repeated a name kept only the last element's IDs.
   * An integration that called `register()` at import hung the process; it now raises `RegistryReentryError`.

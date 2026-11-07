@@ -501,6 +501,20 @@ def test_untranslated_fraction_ignores_other_sources():
     assert translator.translate(1, names="staff", fmt="{name} ({team})", max_fails=0.5) == "Ada (sales)"
 
 
+@pytest.mark.parametrize("max_fails", [0.0, 1.0])
+def test_untranslated_ids_with_braces(max_fails, caplog):
+    translator = UnitTestTranslator({"source": {"id": ["a"], "name": ["A"]}})
+
+    with caplog.at_level(logging.DEBUG, logger="id_translation"):
+        if max_fails:
+            translator.translate(["a", "{b}"], names="source", max_fails=max_fails)
+        else:
+            with pytest.raises(TooManyFailedTranslationsError, match=r"Sample IDs: \['\{b\}'\]"):
+                translator.translate(["a", "{b}"], names="source", max_fails=max_fails)
+
+    assert any("Sample IDs: ['{b}']" in r.getMessage() for r in caplog.records)
+
+
 def test_untranslated_fraction_multiple_names(translator, hex_fetcher):
     translator = UnitTestTranslator(hex_fetcher, enable_uuid_heuristics=True, fmt="{id}:{hex}")
     translatable = {"negative_numbers": [1, 1], "positive_numbers": [0, 1, 2]}
@@ -554,6 +568,13 @@ def test_reverse_primitive(hex_fetcher):
     actual = t.translate(translated, reverse=True, names="positive_numbers")
     assert_type(actual, int)  # type: ignore[assert-type]  # Can't make this work without overlapping overloads
     assert actual == 1
+
+
+def test_reverse_uuid_like_translations_verify():
+    u = UUID(int=5)
+    t: RealTranslator[str, str, UUID] = RealTranslator({"s": {u: "five"}}, enable_uuid_heuristics=True, fmt="{id}")
+    forward = t.translate({"s": [u]})
+    assert t.translate(forward, reverse=True, max_fails=0.0) == {"s": [u]}
 
 
 def test_simple_function_overrides(translator):
