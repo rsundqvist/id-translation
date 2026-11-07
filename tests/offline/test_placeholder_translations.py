@@ -1,6 +1,7 @@
 import json
 from dataclasses import replace
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -58,3 +59,14 @@ def test_to_dicts():
             expected[source] = json.load(f)
 
     assert actual == expected
+
+
+@pytest.mark.parametrize(
+    "data, records",
+    [
+        ({np.int64(1): "a", np.int64(2): "b"}, ((1, "a"), (2, "b"))),
+        ({"id": np.array([1, 2]), "name": ("a", "b")}, ((1, "a"), (2, "b"))),
+    ],
+)
+def test_from_dict_form(data, records):
+    assert PlaceholderTranslations.from_dict("s", data).records == records

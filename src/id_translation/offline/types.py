@@ -110,8 +110,8 @@ class PlaceholderTranslations(_t.Generic[_tt.SourceType]):
 
     @classmethod
     def _is_simple_form(cls, data: DictMakeTypes[_tt.IdType]) -> _t.TypeGuard[dict[_tt.IdType, str]]:
-        id_types = _t.get_args(_tt.IdTypes)
-        return all(isinstance(key, id_types) and isinstance(value, str) for key, value in data.items())
+        # By the values only: keys may be any ID type, e.g. numpy ints from dict(zip(df.id, df.name)).
+        return all(isinstance(value, str) for value in data.values())
 
 
 MakeTypes = _t.Union[PlaceholderTranslations[_tt.SourceType], "pandas.DataFrame", DictMakeTypes[_tt.IdType]]

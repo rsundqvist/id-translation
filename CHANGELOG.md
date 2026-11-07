@@ -32,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * `Translator.restore()` raised `TypeError` for a subclass's snapshot, a non-`dict` `Mapping` as inline data raised
     `TypeError`, and an offline `copy()` lost the snapshot's `fmt` and names.
   * `extract_names()` ran source discovery, so a fetcher that was down made it raise.
+  * Inline `{id: name}` data with e.g. numpy `int` IDs was read as columns.
   * Verification log records with numpy `bool` sample IDs were not JSON serializable.
   * `TranslationHelper.apply()` raised `ValueError` before any translation, e.g. with `ID_TRANSLATION_DISABLED`.
 - Fetching:
