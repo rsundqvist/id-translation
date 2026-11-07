@@ -1,6 +1,8 @@
+import inspect
 import logging
 from collections.abc import Callable, Generator, Iterable
 from contextlib import contextmanager
+from functools import partial
 from os import getenv
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Generic, TypeAlias
@@ -343,6 +345,35 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
         clazz, kwargs = cls._pop_single_impl(config, what="Cache")
         return cls.CACHE_ACCESS_FACTORY(clazz, kwargs)
 
+    def _fetcher_factory(self) -> FetcherFactory:
+        if (factory := vars(self).get("FETCHER_FACTORY")) is not None:
+            emit_warning(
+                "A FETCHER_FACTORY assigned to a TranslatorFactory instance is used, but will be ignored."
+                " Set it on the class or a subclass instead, as for the other factories."
+                "\nWARNING: This will be ignored in `id-translation==2.0.0`.",
+                FutureWarning,
+            )
+            return factory  # type: ignore[no-any-return]
+
+        bound = self.FETCHER_FACTORY
+        try:
+            inspect.signature(bound).bind("clazz", {})
+        except TypeError:
+            # A plain function on the class binds `self` like a method; call it as the other factories are called.
+            return type(self).FETCHER_FACTORY
+        except ValueError:  # pragma: no cover
+            pass  # No signature to inspect.
+
+        # 2.0 calls the class attribute. Equal callables behave the same; a partialmethod is rebuilt on each access.
+        if bound != type(self).FETCHER_FACTORY and _passes_first(bound, self):
+            emit_warning(
+                "FETCHER_FACTORY is called as FETCHER_FACTORY(<TranslatorFactory>, clazz, config), as in 1.4.2."
+                " Use a staticmethod or a function of exactly (clazz, config), as for the other factories."
+                "\nWARNING: `id-translation==2.0.0` calls FETCHER_FACTORY(clazz, config).",
+                FutureWarning,
+            )
+        return bound
+
     def _make_fetcher(
         self,
         __identifiers: list[str],
@@ -365,7 +396,7 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
             is_optional = False
 
         try:
-            return self.FETCHER_FACTORY(clazz, kwargs)
+            return self._fetcher_factory()(clazz, kwargs)
         except Exception as e:
             if is_optional:
                 return e
@@ -467,3 +498,12 @@ def _rethrow_with_file(
         else:
             msg = f"{type(e).__name__}: {e}\n    raised when parsing file: {Path(file).resolve()}"
             raise ConfigurationError(msg) from e
+
+
+def _passes_first(func: Any, obj: object) -> bool:
+    # A method bound to `obj`, or a partial of one, which is what a partialmethod gives.
+    if inspect.ismethod(func):
+        return func.__self__ is obj
+    if isinstance(func, partial):
+        return (bool(func.args) and func.args[0] is obj) or _passes_first(func.func, obj)
+    return False

@@ -1,5 +1,6 @@
 import logging
 import re
+from functools import partialmethod
 from typing import Any
 
 import pytest
@@ -7,6 +8,7 @@ import pytest
 from id_translation import Translator
 from id_translation.exceptions import ConfigurationError
 from id_translation.fetching import AbstractFetcher, CacheAccess, MemoryFetcher, MultiFetcher
+from id_translation.toml import TranslatorFactory
 from id_translation.toml._factory import SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS
 from id_translation.toml.factories._fetcher import default_fetcher_factory
 from id_translation.types import IdType, SourceType
@@ -285,3 +287,59 @@ def test_home_relative_paths_and_a_single_extra_path(tmp_path, monkeypatch, extr
     else:
         translator = Translator[str, str, int].from_config("~/main.toml", extra)
     assert translator.sources == ["people", "pets"]
+
+
+def _plain_factory(clazz: str, config: dict[str, Any]) -> AbstractFetcher[Any, Any]:
+    fetcher: AbstractFetcher[Any, Any] = default_fetcher_factory(clazz, config)
+    fetcher.made_by_plain = True  # type: ignore[attr-defined]
+    return fetcher
+
+
+class _PlainFunctionFactory(TranslatorFactory[str, str, int]):
+    FETCHER_FACTORY = _plain_factory  # type: ignore[assignment]  # mypy binds it like a method, as 1.4.2 did.
+
+
+class _MethodFactory(TranslatorFactory[str, str, int]):
+    def FETCHER_FACTORY(self, clazz, config):  # noqa: N802
+        assert isinstance(self, TranslatorFactory)
+        return _plain_factory(clazz, config)
+
+
+class _PartialMethodFactory(TranslatorFactory[str, str, int]):
+    FETCHER_FACTORY = partialmethod(_MethodFactory.FETCHER_FACTORY)
+
+
+class _PartialStaticMethodFactory(TranslatorFactory[str, str, int]):
+    FETCHER_FACTORY = partialmethod(staticmethod(_plain_factory))
+
+
+class _ClassMethodFactory(TranslatorFactory[str, str, int]):
+    @classmethod
+    def FETCHER_FACTORY(cls, clazz, config):  # noqa: N802
+        return _plain_factory(clazz, config)
+
+
+@pytest.mark.parametrize(
+    "factory_class",
+    [_PlainFunctionFactory, _MethodFactory, _PartialMethodFactory, _PartialStaticMethodFactory, _ClassMethodFactory],
+)
+def test_fetcher_factory_on_a_subclass(tmp_path, factory_class):
+    path = tmp_path / "main.toml"
+    path.write_text('[fetching.MemoryFetcher.data]\npeople = { id = [1], name = ["Ada"] }\n')
+    if factory_class in (_MethodFactory, _PartialMethodFactory):  # Bound to the instance; 2.0 calls them unbound.
+        with pytest.warns(FutureWarning, match=r"called as FETCHER_FACTORY\(<TranslatorFactory>"):
+            translator = factory_class(path, []).create()
+    else:
+        translator = factory_class(path, []).create()  # Warnings are errors.
+    assert translator.fetcher.made_by_plain
+
+
+def test_fetcher_factory_on_an_instance_warns(tmp_path):
+    path = tmp_path / "main.toml"
+    path.write_text('[fetching.MemoryFetcher.data]\npeople = { id = [1], name = ["Ada"] }\n')
+    factory: TranslatorFactory[str, str, int] = TranslatorFactory(path, [])
+    factory.FETCHER_FACTORY = _plain_factory
+
+    with pytest.warns(FutureWarning, match="will be ignored"):
+        translator = factory.create()
+    assert translator.fetcher.made_by_plain  # type: ignore[attr-defined]

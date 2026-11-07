@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Deprecated
 Each emits a `FutureWarning`.
+- A `FETCHER_FACTORY` set on a `TranslatorFactory` instance, which 2.0 ignores.
+- A `FETCHER_FACTORY` that is called with the `TranslatorFactory` first; 2.0 calls it as a plain function.
 - Deriving `PandasFetcher`'s `read_function` from a known suffix that is not a suffix of the file name, e.g.
   `'data.csv/{}'` or `'export.parquet_{}'`, which 2.0 rejects.
 - Deriving `PandasFetcher`'s `read_function` from a URL's path where its query or fragment makes 2.0 derive another
@@ -68,6 +70,7 @@ Each emits a `FutureWarning`.
     did not require `MemoryFetcher` data.
   * A single `extra_fetchers` path was read one character per path, and `~` in a config path was expanded only
     for the fingerprint.
+  * A plain function set as `FETCHER_FACTORY` on a subclass raised `TypeError`.
 - Documentation: the name-to-source mapping diagram.
 
 ## [1.4.2] - 2026-10-10
