@@ -46,7 +46,7 @@ def df(data: dict[str, dict[IdTypes, str]]) -> pl.DataFrame:
 
 @pytest.mark.parametrize("copy", [True, False])
 def test_dataframe(translator, df, copy):
-    actual: None | pl.DataFrame = translator.translate(df, copy=copy)
+    actual: pl.DataFrame | None = translator.translate(df, copy=copy)
     if copy:
         assert actual is not None
         assert actual.to_dict(as_series=False) == EXPECTED

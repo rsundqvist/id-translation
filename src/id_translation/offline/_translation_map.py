@@ -174,7 +174,7 @@ class TranslationMap(
         applier = self._format_appliers[source]
 
         try:
-            translations: MagicDict[IdType] = applier.apply(
+            translations = applier.apply(
                 fmt,
                 default_fmt=default_fmt,
                 default_fmt_placeholders=self.default_fmt_placeholders.get(source),

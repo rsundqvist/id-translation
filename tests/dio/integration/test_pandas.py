@@ -140,7 +140,8 @@ class TestMultipleNames:
         assert actual == ["00000001:UuidOne", "1:IntOne", "1:StrOne"]
 
     @pytest.fixture(scope="class")
-    def data(self) -> dict[str, IdTypes]:
+    @classmethod
+    def data(cls) -> dict[str, IdTypes]:
         return {"uuid_source": UUID_ID, "int_source": 1, "str_source": "1"}
 
 
@@ -257,7 +258,6 @@ def test_bad_level(level: str | int, cls: type[PandasT]) -> None:
     assert f"PandasIO.{level=}" in info.value.__notes__
 
 
-@pytest.mark.filterwarnings("ignore::pandas.errors.Pandas4Warning")
 class TestAsCategory:
     @pytest.mark.parametrize(
         "missing_as_nan, expected_values, expected_categories",
@@ -319,7 +319,6 @@ class TestAsCategory:
         assert result.to_list() == ["1:StrOne", "<Failed: id=str>"]
 
 
-@pytest.mark.filterwarnings("ignore::pandas.errors.Pandas4Warning")
 class TestOrdered:
     """IDs are chosen so that ID order and translated-name order disagree."""
 
@@ -385,7 +384,8 @@ class TestOrdered:
             PandasIO[pd.Series](as_category=True, ordered=ordered)
 
     @pytest.fixture(scope="class")
-    def ordered_tmap(self) -> TranslationMap[str, str, IdTypes]:
+    @classmethod
+    def ordered_tmap(cls) -> TranslationMap[str, str, IdTypes]:
         # ID 3 shares a translation with ID 2.
         translations = PlaceholderTranslations.from_dict("s", {1: "c", 2: "a", 3: "a", 10: "b"})
         return TranslationMap(
@@ -495,7 +495,6 @@ class TestCategoricalInput:
         assert actual.to_list() == expected
 
 
-@pytest.mark.filterwarnings("ignore::pandas.errors.Pandas4Warning")
 class TestObservedCategories:
     """``observed=True`` derives categories from the data, not from everything the fetcher returned."""
 
@@ -559,7 +558,6 @@ class TestObservedCategories:
         assert result.cat.categories.to_list() == ["1:StrOne", "<Failed: id=str>"]
 
 
-@pytest.mark.filterwarnings("ignore::pandas.errors.Pandas4Warning")
 def test_nan_ids_do_not_make_category_order_row_dependent():
     """Under `observed` the ID order follows the data, so NaN must not float where it lands."""
     translator: Translator[str, str, int] = Translator({"animals": {0: "Tarzan", 1: "Morris", 2: "Simba"}})
@@ -625,8 +623,9 @@ class TestUuidCategories:
     UNKNOWN = "0000dead-bbbb-cccc-dddd-eeeeeeeeeeee"
 
     @pytest.fixture(scope="class")
-    def translator(self) -> Translator[str, str, str]:
-        data = {"src": {"id": self.UUIDS, "name": ["first", "second", "third"]}}
+    @classmethod
+    def translator(cls) -> Translator[str, str, str]:
+        data = {"src": {"id": cls.UUIDS, "name": ["first", "second", "third"]}}
         return Translator(data, fmt="{name}", default_fmt="<Failed: id={id}>", enable_uuid_heuristics=True)
 
     @staticmethod

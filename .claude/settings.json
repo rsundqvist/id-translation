@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "deny": [
+      "Edit(docs/_build/**)",
+      "Edit(docs/api/**)"
+    ]
+  }
+}

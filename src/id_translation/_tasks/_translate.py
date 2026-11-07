@@ -324,10 +324,10 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
         self.add_timing("verify", perf_counter() - start)
 
     def _name_to_ids_in_order(self) -> dict[NameType, Sequence[Any]]:
-        name_to_ids: dict[NameType, Sequence[Any]] = self._extract_ids()
-        if self.enable_uuid_heuristics:
-            name_to_ids = {name: _uuid_utils.try_cast_many(name_to_ids[name]) for name in name_to_ids}
-        return name_to_ids
+        name_to_ids = self._extract_ids()
+        if not self.enable_uuid_heuristics:
+            return name_to_ids
+        return {name: _uuid_utils.try_cast_many(ids) for name, ids in name_to_ids.items()}
 
     def _extract_ids(self) -> dict[NameType, Sequence[IdType]]:
         name_to_ids: dict[NameType, Sequence[IdType]] = self.io.extract(self.translatable, self.io_names)

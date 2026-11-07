@@ -32,8 +32,7 @@ Follow these steps to begin local development.
    ```
 
    The project targets **regular CPython 3.14** (pinned via `.python-version`), matching CI and Read the Docs; uv
-   selects it automatically. Avoid the free-threaded `3.14t` build — some dependencies (e.g. `pymssql`) have no wheels
-   for it.
+   selects it automatically.
    
    Generating documentation has a few dependencies which may need to be installed
    manually.
