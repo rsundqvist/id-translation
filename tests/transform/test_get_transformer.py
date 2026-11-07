@@ -10,6 +10,7 @@ from typing import Any
 import pytest
 
 from id_translation import Translator
+from id_translation.exceptions import TranslationWarning
 from id_translation.fetching import MemoryFetcher, MultiFetcher
 from id_translation.offline.types import PlaceholderTranslations
 from id_translation.transform import TransformerStack
@@ -207,13 +208,13 @@ class TestOverlap:
         assert "already has a registration" not in notes, "nothing was registered; this source has no such thing"
 
     def test_arbitrary_exception_rolls_back(self):
-        """Not just TypeError/ValueError: a duplicate chain warns, and `-W error` makes that a UserWarning."""
+        """Not just TypeError/ValueError: a duplicate chain warns, and `-W error` makes that a TranslationWarning."""
         duplicate = Marker("duplicate")
         fetcher = ProvidingFetcher(TWO_SOURCES, {"bitmasks": Marker("fetcher"), "plain": [duplicate, duplicate]})
         translator = Translator[str, str, int](fetcher)
 
-        with warnings.catch_warnings(), pytest.raises(UserWarning, match="Duplicate transformer"):
-            warnings.simplefilter("error", UserWarning)
+        with warnings.catch_warnings(), pytest.raises(TranslationWarning, match="Duplicate transformer"):
+            warnings.simplefilter("error", TranslationWarning)
             translator.initialize_sources()
 
         assert translator.transformers == {}, "'bitmasks' must not survive the failed pass"

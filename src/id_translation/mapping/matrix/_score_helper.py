@@ -231,12 +231,9 @@ class ScoreHelper(Generic[ValueType, CandidateType]):
 
         if record.score == old_match.score:
             raise AmbiguousScoreError(
-                kind=kind,
-                key=key,
-                match0=record,
-                match1=old_match,
-                cardinality=cardinality.name,
-                scores=self._matrix.to_string(),
+                f"Ambiguous mapping of {kind}={key!r}; matches ({record}) and ({old_match}) "
+                f"are in conflict since cardinality={cardinality.name!r}.\n{self._matrix.to_string()}",
+                hints="Inspect the matrix above for details. You may wish to use a different scoring method.",
             )
 
     def _select_one_to_one(

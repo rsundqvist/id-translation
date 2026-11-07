@@ -11,6 +11,7 @@ DOC_LINK: str
 __all__ = [
     "DOC_LINK",
     "add_hints",
+    "as_tuple",
     "replace_atomically",
     "resolve_changing_default",
     "warn_changing_default",
@@ -60,6 +61,11 @@ def replace_atomically(path: _Path, write: _Callable[[_IO[bytes]], _Any]) -> Non
     except BaseException:
         tmp.unlink(missing_ok=True)
         raise
+
+
+def as_tuple(values: _Iterable[_Any] | str) -> tuple[_Any, ...]:
+    """Convert `values` to a tuple, treating a bare string as a single value rather than a sequence of characters."""
+    return (values,) if isinstance(values, str) else tuple(values)
 
 
 def __getattr__(name: str) -> _Any:

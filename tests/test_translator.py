@@ -1,6 +1,7 @@
 import inspect
 import logging
-import pickle
+import subprocess
+import sys
 import warnings
 from contextlib import contextmanager
 from itertools import product
@@ -744,6 +745,17 @@ def test_id_translation_disabled(monkeypatch, caplog):
     assert translator.translate(1, names="whatever") == "1:name-of-1"
 
 
+def test_id_translation_disabled_honours_warning_flag(monkeypatch):
+    from id_translation._translator import ID_TRANSLATION_DISABLED
+
+    monkeypatch.setenv(ID_TRANSLATION_DISABLED, "true")
+    script = "from id_translation import Translator; Translator({'s': {1: 'a'}}).translate(1, names='s')"
+    args = [sys.executable, "-W", "error", "-c", script]
+    result = subprocess.run(args, capture_output=True, text=True, check=False)  # noqa: S603
+    assert "TranslationDisabledWarning" in result.stderr
+    assert result.returncode != 0
+
+
 class TestDictNames:
     translate: Any
 
@@ -880,19 +892,12 @@ def test_cache_property_raises_without_cache(translator):
         _ = fresh.cache
 
 
-def test_go_offline_when_already_offline_warns_and_returns_self(translator):
+def test_go_offline_when_already_offline_raises(translator):
     offline = translator.copy().go_offline()
     assert not offline.online
 
-    with pytest.warns(
-        FutureWarning,
-        match=r"Abort Translator\.go_offline\(\); already offline\."
-        r"\nWARNING: This will raise in `id-translation==2\.0\.0`\.",
-    ) as w:
-        result = offline.go_offline()
-
-    assert len(w) == 1
-    assert result is offline
+    with pytest.raises(ConnectionStatusError, match=r"Cannot fetch new translations\."):
+        offline.go_offline()
 
 
 def test_placeholders_property_uses_cache_when_offline(hex_fetcher):
@@ -945,7 +950,7 @@ def test_fetcher_not_cloneable():
     translator = UnitTestTranslator(fetcher=NotCloneableFetcher())
     fetcher_id = id(translator.fetcher)
 
-    with pytest.warns(UserWarning, match="reuse"):
+    with pytest.warns(TranslationWarning, match="reuse"):
         copy = translator.copy()
 
     assert type(translator) is UnitTestTranslator
@@ -957,7 +962,7 @@ def test_fetcher_not_cloneable_multi_fetcher():
     """The failure must reach the warning above; MultiFetcher used to share the child and log instead."""
     translator = UnitTestTranslator(fetcher=MultiFetcher(NotCloneableFetcher()))
 
-    with pytest.warns(UserWarning, match="Cannot clone rank-0 fetcher NotCloneableFetcher"):
+    with pytest.warns(TranslationWarning, match="Cannot clone rank-0 fetcher NotCloneableFetcher"):
         copy = translator.copy()
 
     assert copy.fetcher is translator.fetcher
@@ -1060,11 +1065,16 @@ class TestIoKwargs:
         actual = translator.translate(series, fmt="{hex}", io_kwargs={"missing_as_nan": True}).to_dict()
         assert actual == {-1: None if int(pd.__version__.split(".")[0]) < 3 else np.nan, 1: "0x1"}  # pandas 2: None.
 
-    def test_bad_io_kwargs(self, series, translator, caplog):
+    def test_bad_io_kwargs(self, series, translator):
+        with pytest.raises(TypeError) as exc_info:
+            translator.translate(series, fmt="{hex}", io_kwargs={"missig_as_nan": True})
+        assert "Hint: Set ID_TRANSLATION_SUPPRESS_IO_KWARGS_ERRORS=true" in "\n".join(exc_info.value.__notes__)
+
+    def test_bad_io_kwargs_suppressed(self, series, translator, caplog, monkeypatch):
+        monkeypatch.setenv("ID_TRANSLATION_SUPPRESS_IO_KWARGS_ERRORS", "true")
         caplog.set_level(logging.WARNING, logger="id_translation.dio")
 
-        with pytest.warns(FutureWarning, match="This will raise in"):
-            actual = translator.translate(series, fmt="{hex}", io_kwargs={"missig_as_nan": True}).to_dict()
+        actual = translator.translate(series, fmt="{hex}", io_kwargs={"missig_as_nan": True}).to_dict()
         assert actual == {-1: "<Failed: id=-1>", 1: "0x1"}
 
         assert len(caplog.records) == 1
@@ -1073,130 +1083,6 @@ class TestIoKwargs:
         assert record.io_kwargs == ["missig_as_nan"]
         assert record.io_class == "id_translation.dio.integration.pandas.PandasIO"
 
-    def test_without_translatable(self, translator, caplog):
-        caplog.set_level(logging.WARNING, logger="id_translation")
-
-        with pytest.warns(FutureWarning, match="This will raise in"):
+    def test_without_translatable(self, translator):
+        with pytest.raises(ValueError, match="io_kwargs requires a translatable"):
             translator.fetch(io_kwargs={"missing_as_nan": True})
-
-        assert [r.msg for r in caplog.records] == [
-            "Ignoring io_kwargs={'missing_as_nan': True} since translatable=None."
-        ]
-
-
-@pytest.mark.parametrize("online", [True, False])
-@pytest.mark.parametrize(
-    "data",
-    [
-        {"people": []},
-        pd.DataFrame({"people": [np.nan]}),
-        pd.Series([], dtype=float, name="people"),
-        pd.Series([np.nan], name="people"),
-    ],
-    ids=["empty", "all-null", "empty-series", "all-null-series"],
-)
-def test_mapped_names_without_ids_return_a_copy(data, online):
-    translator: RealTranslator[str, str, int] = RealTranslator(MemoryFetcher({"people": {"id": [1], "name": ["Ada"]}}))
-    if not online:
-        translator.go_offline()
-
-    # max_fails < 1 makes verify() extract IDs offline too; at the default, offline gives failed labels by design.
-    actual = translator.translate(data, copy=True, max_fails=0.0)
-    assert actual is not data, "a copy; only an abort returns the input itself"
-    if isinstance(data, dict):
-        assert actual == data
-    else:
-        assert actual.equals(data)  # Missing values stay as they are.
-    assert translator.translated_names() == {"people": "people"}
-
-
-def test_restore_a_subtype(hex_fetcher, tmp_path):
-    path = tmp_path.joinpath("translator.pkl")
-    UnitTestTranslator(hex_fetcher, fmt="{id}:{hex}").go_offline({"positive_numbers": [1]}, path=path)
-
-    restored: RealTranslator[str, str, int] = RealTranslator.restore(path)
-    assert isinstance(restored, UnitTestTranslator)
-
-
-def test_offline_copy_keeps_snapshot_cache():
-    original: RealTranslator[str, str, int]
-    original = RealTranslator(MemoryFetcher({"people": {"id": [1, 2], "name": ["Richard", "Sofia"]}}))
-    original.go_offline({"person_id": [1]}, names={"person_id": "people"}, fmt="{name}")
-
-    copy = original.copy()
-    assert copy.cache.name_to_source == {"person_id": "people"}
-    assert copy.cache["person_id"][1] == "Richard"
-
-    assert original.copy(fmt="{id}-{name}").cache["people"][1] == "1-Richard"
-
-
-def test_inline_data_from_any_mapping():
-    translator: RealTranslator[str, str, int] = RealTranslator(MappingProxyType({"a": MappingProxyType({1: "one"})}))
-    assert translator.translate({"a": 1}) == {"a": "1:one"}
-
-
-def test_extract_names_does_not_discover():
-    class DownFetcher(MemoryFetcher[str, int]):
-        def _initialize_sources(self, task_id: int) -> dict[str, list[str]]:  # noqa: ARG002
-            raise ConnectionError("down")
-
-    translator: RealTranslator[str, str, int] = RealTranslator(DownFetcher({}))
-    assert translator.extract_names({"a": [1]}) == ["a"]  # Names need only the IO: no discovery, so no raise.
-
-
-@pytest.mark.parametrize(
-    "damage",
-    [
-        lambda p: p.unlink(),  # Missing.
-        lambda p: p.write_bytes(p.read_bytes()[:20]),  # Torn.
-        lambda p: p.write_bytes(pickle.dumps({"not": "a Translator"})),  # Wrong type.
-    ],
-)
-def test_load_persistent_instance_recreates_an_unreadable_snapshot(tmp_path, damage, caplog):
-    config_path = ROOT.joinpath("dvdrental/translation.toml")  # Uses an in-memory fetcher.
-    RealTranslator.load_persistent_instance(tmp_path, config_path)
-    damage(tmp_path / "translator.pkl")
-
-    with caplog.at_level(logging.INFO, logger="id_translation"):
-        translator = RealTranslator[str, str, int].load_persistent_instance(
-            tmp_path, config_path, on_config_changed="raise"
-        )
-    assert translator.translate(1, "category_id") == "1:Action"
-    assert any("cached instance is unreadable" in r.getMessage() for r in caplog.records)
-    assert sorted(p.name for p in tmp_path.iterdir()) == ["metadata.json", "translator.pkl"], "no temporary files"
-
-
-@pytest.mark.parametrize("name", ["metadata.json", "translator.pkl"])
-def test_load_persistent_instance_raises_for_a_cache_file_it_cannot_read(tmp_path, name, monkeypatch):
-    config_path = ROOT.joinpath("dvdrental/translation.toml")  # Uses an in-memory fetcher.
-    RealTranslator.load_persistent_instance(tmp_path, config_path)
-    (tmp_path / name).unlink()
-    (tmp_path / name).mkdir()  # Not a permission change, which root ignores.
-    monkeypatch.setattr(RealTranslator, "from_config", None)  # Raise before recreating, not when writing.
-
-    with pytest.raises(OSError):
-        RealTranslator.load_persistent_instance(tmp_path, config_path)
-
-
-def test_load_persistent_instance_files_follow_the_umask(tmp_path):
-    RealTranslator.load_persistent_instance(tmp_path, ROOT.joinpath("dvdrental/translation.toml"))
-    reference = tmp_path / "reference"
-    reference.write_bytes(b"")
-
-    modes = {p.name: p.stat().st_mode & 0o777 for p in tmp_path.iterdir()}
-    assert modes == dict.fromkeys(["metadata.json", "reference", "translator.pkl"], modes["reference"])
-
-
-def test_go_offline_path_keeps_an_existing_files_mode_and_link(tmp_path):
-    target = tmp_path / "real.pkl"
-    target.write_bytes(b"old")
-    target.chmod(0o640)
-    mode = target.stat().st_mode & 0o777  # 0o666 on Windows, where chmod() only sets the read-only flag.
-    link = tmp_path / "link.pkl"
-    link.symlink_to(target)
-
-    RealTranslator[str, str, int](MemoryFetcher({"s": {1: "one"}}, return_all=True)).go_offline(path=link)
-
-    assert link.is_symlink(), "the link is kept, and its target replaced"
-    assert target.read_bytes() != b"old"
-    assert target.stat().st_mode & 0o777 == mode

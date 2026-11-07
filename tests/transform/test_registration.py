@@ -10,7 +10,7 @@ from copy import deepcopy
 import pytest
 
 from id_translation import Translator
-from id_translation.exceptions import TransformerConflictError
+from id_translation.exceptions import TransformerConflictError, TranslationWarning
 from id_translation.fetching import MemoryFetcher, MultiFetcher
 from id_translation.transform import BitmaskTransformer, TransformerStack
 from id_translation.transform.types import Transformer
@@ -242,7 +242,7 @@ class TestUnknownSources:
         translator: Translator[str, str, int] = Translator(MemoryFetcher(DATA))
         translator.register_transformer("typo", Marker("x"))
 
-        with pytest.warns(UserWarning, match="unknown sources"):
+        with pytest.warns(TranslationWarning, match="unknown sources"):
             translator.initialize_sources()
 
     def test_known_source_does_not_warn(self):
@@ -256,7 +256,7 @@ class TestUnknownSources:
         """The check runs per translate; in a request loop, warning each time is noise."""
         translator: Translator[str, str, int] = Translator(MemoryFetcher(DATA), transformers={"typo": Marker("x")})
 
-        with pytest.warns(UserWarning, match="unknown sources"):
+        with pytest.warns(TranslationWarning, match="unknown sources"):
             translate(translator)
 
         with warnings.catch_warnings():
@@ -267,19 +267,19 @@ class TestUnknownSources:
     def test_new_registration_is_checked(self):
         """Warning once must not mean checking once: a later registration may name a source of its own."""
         translator: Translator[str, str, int] = Translator(MemoryFetcher(DATA), transformers={"typo": Marker("x")})
-        with pytest.warns(UserWarning, match="unknown sources"):
+        with pytest.warns(TranslationWarning, match="unknown sources"):
             translate(translator)
 
         translator.register_transformer("another-typo", Marker("y"))
 
-        with pytest.warns(UserWarning, match="another-typo"):
+        with pytest.warns(TranslationWarning, match="another-typo"):
             translate(translator)
 
     def test_fetcher_serving_nothing_still_warns(self):
         """Every registration is unreachable -- the case the auto-installed TestFetcher exemption must not cover."""
         translator: Translator[str, str, int] = Translator(_EmptyFetcher({}), transformers={"gone": Marker("x")})
 
-        with pytest.warns(UserWarning, match="unknown sources"):
+        with pytest.warns(TranslationWarning, match="unknown sources"):
             translator.initialize_sources()
 
     def test_discarded_optional_child_is_named(self):
@@ -289,7 +289,7 @@ class TestUnknownSources:
             transformers={"served_by_the_discarded_child": Marker("x")},
         )
 
-        with pytest.warns(UserWarning, match="source discovery raised for 1 optional fetcher") as record:
+        with pytest.warns(TranslationWarning, match="source discovery raised for 1 optional fetcher") as record:
             translator.initialize_sources()
 
         assert "_RaisingFetcher" in str(record[0].message), "the discarded child must be identifiable"
@@ -301,7 +301,7 @@ class TestUnknownSources:
             transformers={"typo": Marker("x")},
         )
 
-        with pytest.warns(UserWarning, match="unknown sources") as record:
+        with pytest.warns(TranslationWarning, match="unknown sources") as record:
             translator.initialize_sources()
 
         assert "source discovery raised" not in str(record[0].message)
@@ -315,7 +315,7 @@ class TestUnknownSources:
             translator.initialize_sources()
 
         fetcher.recovered = True
-        with pytest.warns(UserWarning, match="unknown sources"):
+        with pytest.warns(TranslationWarning, match="unknown sources"):
             translator.initialize_sources()
 
     def test_promoted_warning_does_not_disable_the_check(self):
@@ -325,12 +325,12 @@ class TestUnknownSources:
         with warnings.catch_warnings():
             warnings.simplefilter("error")
             for _ in range(3):
-                with pytest.raises(UserWarning, match="unknown sources"):
+                with pytest.raises(TranslationWarning, match="unknown sources"):
                     translate(translator)
 
     def test_auto_installed_test_fetcher_is_exempt(self):
         """It reports no sources but serves every source, so nothing registered is unreachable."""
-        with pytest.warns(UserWarning, match="No fetcher given"):
+        with pytest.warns(TranslationWarning, match="No fetcher given"):
             translator: Translator[str, str, int] = Translator(transformers={"anything": Marker("x")})
 
         with warnings.catch_warnings():
@@ -343,14 +343,14 @@ class TestUnknownSources:
         translator.register_transformer("bitmasks", Marker("x"))
 
         with warnings.catch_warnings():
-            warnings.simplefilter("error", UserWarning)
+            warnings.simplefilter("error", TranslationWarning)
             translator.initialize_sources()
 
     def test_offline_registration_warns_immediately(self):
         """Offline sources are fixed and known, e.g. after ``restore()``; a typo would otherwise never surface."""
         translator: Translator[str, str, int] = Translator(MemoryFetcher(DATA)).go_offline()
 
-        with pytest.warns(UserWarning, match="unknown sources"):
+        with pytest.warns(TranslationWarning, match="unknown sources"):
             translator.register_transformer("typo", Marker("x"))
 
         with warnings.catch_warnings():
@@ -369,7 +369,7 @@ class TestUnknownSources:
         translator: Translator[str, str, int] = Translator(MemoryFetcher(DATA)).go_offline()
 
         for _ in range(2):  # A retry must report the same problem, not a conflict with the failed attempt.
-            with warnings.catch_warnings(), pytest.raises(UserWarning, match="unknown sources"):
+            with warnings.catch_warnings(), pytest.raises(TranslationWarning, match="unknown sources"):
                 warnings.simplefilter("error")
                 translator.register_transformer("typo", Marker("x"))
 
@@ -385,7 +385,7 @@ class TestUnknownSources:
         translator.go_offline({"a": [1]}, names="a")  # The cache can serve only 'a', so 'b' is now unknown.
         old = translator.transformers["b"]
 
-        with warnings.catch_warnings(), pytest.raises(UserWarning, match="unknown sources"):
+        with warnings.catch_warnings(), pytest.raises(TranslationWarning, match="unknown sources"):
             warnings.simplefilter("error")
             translator.register_transformer("b", Marker("z"), on_existing=on_existing)
 
@@ -403,7 +403,7 @@ class TestUnknownSources:
         )
         translator.go_offline({"a": [1]}, names="a")  # The cache can serve only 'a', so 'b' is now unknown.
 
-        with warnings.catch_warnings(), pytest.raises(UserWarning, match="unknown sources"):
+        with warnings.catch_warnings(), pytest.raises(TranslationWarning, match="unknown sources"):
             warnings.simplefilter("error")
             translator.register_transformer("b", Marker("z"), on_existing="append")
 
@@ -415,7 +415,7 @@ class TestUnknownSources:
 
     def test_inline_data_registration_warns(self):
         """Offline from birth: `initialize_sources` is a no-op, so the constructor is the only chance to warn."""
-        with pytest.warns(UserWarning, match="unknown sources"):
+        with pytest.warns(TranslationWarning, match="unknown sources"):
             Translator[str, str, int]({"bitmasks": {1: "one"}}, transformers={"typo": Marker("x")})
 
     def test_inline_data_registration_for_known_source_does_not_warn(self):
@@ -444,7 +444,7 @@ class TestUnknownSources:
         translator.go_offline({"a": [1]}, names="a")  # The cache can now serve only 'a'.
         copy = translator.copy()
 
-        with pytest.warns(UserWarning, match="unknown sources") as record:
+        with pytest.warns(TranslationWarning, match="unknown sources") as record:
             copy.register_transformer("typo", Marker("z"))
 
         assert "'typo'" in str(record[0].message), "the new registration is still checked"
@@ -458,7 +458,7 @@ class TestUnknownSources:
         )
         translator.go_offline({"a": [1]}, names="a")  # The cache can now serve only 'a'.
 
-        with pytest.warns(UserWarning, match="unknown sources") as record:
+        with pytest.warns(TranslationWarning, match="unknown sources") as record:
             translator.register_transformer("typo", Marker("z"))
 
         assert "'typo'" in str(record[0].message), "the new registration is still checked"
@@ -710,7 +710,7 @@ class TestSharedInstance:
         """A failure partway through deepcopy must not leave a half-built shell for the next source."""
         translator, shared = translator_with_lock
 
-        with pytest.warns(UserWarning, match="Failed to clone the transformer"):
+        with pytest.warns(TranslationWarning, match="Failed to clone the transformer"):
             copy = translator.copy()
 
         assert copy.transformers["a"] is shared, "both sources fall back to the original"
@@ -732,7 +732,7 @@ class TestSharedInstance:
         data = {"a": {"id": [1], "name": ["a1"]}, "plain": {"id": [1], "name": ["p1"]}}
 
         translator = Translator[str, str, int](Providing(data), transformers={"a": Unclonable("A")})
-        with pytest.warns(UserWarning, match="also disables fetcher-provided discovery") as caught:
+        with pytest.warns(TranslationWarning, match="also disables fetcher-provided discovery") as caught:
             plain_copy = translator.copy()
         assert "Failed to clone the transformer for 'a'" in str(caught[0].message)
         plain_copy.initialize_sources()
@@ -776,7 +776,7 @@ class TestSharedInstance:
             transformers={"a": Tagged(shared, "A"), "b": Tagged(shared, "B")},
         )
 
-        with pytest.warns(UserWarning, match="Failed to clone the transformer") as caught:
+        with pytest.warns(TranslationWarning, match="Failed to clone the transformer") as caught:
             copy = translator.copy()
 
         assert len(caught) == 2, "each source must be reported"
@@ -808,7 +808,7 @@ class TestSharedInstance:
             entries = {"b": entries["b"], "a": entries["a"]}
         translator = Translator[str, str, int](MemoryFetcher(self.DATA), transformers=entries)
 
-        with pytest.warns(UserWarning, match="Failed to clone the transformer") as caught:
+        with pytest.warns(TranslationWarning, match="Failed to clone the transformer") as caught:
             copy = translator.copy()
 
         assert len(caught) == 2, "each source must be reported"

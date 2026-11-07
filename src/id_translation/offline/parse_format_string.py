@@ -7,6 +7,8 @@ from string import Formatter as _Formatter
 from typing import Any as _Any
 from typing import NamedTuple as _NamedTuple
 
+from .._utils import add_hints as _add_hints
+
 OPTIONAL_BLOCK_START_DELIMITER = "["
 _START = OPTIONAL_BLOCK_START_DELIMITER
 OPTIONAL_BLOCK_END_DELIMITER = "]"
@@ -31,46 +33,13 @@ class ParseBlockResult(_NamedTuple):
 class MalformedOptionalBlockError(ValueError):
     """Error raised for improper optional blocks."""
 
-    @staticmethod
-    def get_marker_row(format_string: str, open_idx: int = -1, idx: int = -1) -> str:
-        """Get a string of length equal to `format_string` which marks problem locations."""
-        markers = [" "] * len(format_string)
-
-        if idx != -1:
-            markers[idx] = "^"
-        if open_idx != -1:
-            markers[open_idx] = "^"
-        return "".join(markers)
+    def __init__(self, msg: str, *, hints: str | _abc.Iterable[str] = ()) -> None:
+        super().__init__(msg)
+        _add_hints(self, hints)
 
 
 class BadDelimiterError(MalformedOptionalBlockError):
     """Errors raised due to mismatched delimiters."""
-
-    def __init__(self, format_string: str, open_idx: int, idx: int) -> None:
-        problem_locations = MalformedOptionalBlockError.get_marker_row(format_string, open_idx, idx)
-
-        if idx == -1:
-            super().__init__(
-                f"""Malformed optional block. Optional block opened at i={open_idx} was never closed.
-'{format_string}'
- {problem_locations}""".strip()
-            )
-        else:
-            info = (
-                "there is no block to close"
-                if open_idx == -1
-                else f"nested optional blocks are not supported (opened at {open_idx})"
-            )
-
-            super().__init__(
-                f"""Malformed optional block. Got '{format_string[idx]}' at i={idx}, but {info}.
-    '{format_string}'
-     {problem_locations}""".strip()
-            )
-            self.add_note(
-                f"Hint: Use double characters to escape '{_START}' and '{_END}', "
-                f"e.g. '{_START * 2}' to render a single '{_START}'-character."
-            )
 
 
 @_dataclass(frozen=True)
@@ -324,11 +293,11 @@ def get_elements(fmt: str) -> list[Element]:  # noqa: PLR0912
             if same_count % 2 and is_delimiter_char:
                 if char == _START:
                     if open_idx != -1:
-                        raise BadDelimiterError(fmt, open_idx, idx)
+                        raise _bad_delimiter_error(fmt, open_idx=open_idx, idx=idx)
                     open_idx = idx
                 else:
                     if open_idx == -1:
-                        raise BadDelimiterError(fmt, open_idx, idx)
+                        raise _bad_delimiter_error(fmt, open_idx=open_idx, idx=idx)
                     open_idx = -1
 
                 if prev_idx != idx:
@@ -350,6 +319,36 @@ def get_elements(fmt: str) -> list[Element]:  # noqa: PLR0912
         ans.append(Element.make(fmt[prev_idx:], in_optional_block))
 
     if in_optional_block:
-        raise BadDelimiterError(fmt, open_idx, -1)
+        raise _bad_delimiter_error(fmt, open_idx=open_idx, idx=-1)
 
     return ans
+
+
+def _bad_delimiter_error(format_string: str, *, open_idx: int, idx: int) -> BadDelimiterError:
+    markers = [" "] * len(format_string)
+    for i in (open_idx, idx):
+        if i != -1:
+            markers[i] = "^"
+    problem_locations = "".join(markers)
+
+    if idx == -1:
+        return BadDelimiterError(
+            f"""Malformed optional block. Optional block opened at i={open_idx} was never closed.
+'{format_string}'
+ {problem_locations}""".strip()
+        )
+
+    info = (
+        "there is no block to close"
+        if open_idx == -1
+        else f"nested optional blocks are not supported (opened at {open_idx})"
+    )
+    return BadDelimiterError(
+        f"""Malformed optional block. Got '{format_string[idx]}' at i={idx}, but {info}.
+'{format_string}'
+ {problem_locations}""".strip(),
+        hints=(
+            f"Use double characters to escape '{_START}' and '{_END}', "
+            f"e.g. '{_START * 2}' to render a single '{_START}'-character."
+        ),
+    )

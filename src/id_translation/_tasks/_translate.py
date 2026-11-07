@@ -325,7 +325,15 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
 
             if fail:
                 LOGGER.error(message, extra=extra)
-                raise TooManyFailedTranslationsError(message)
+                raise TooManyFailedTranslationsError(
+                    message,
+                    name=name,
+                    source=source,
+                    n_untranslated=n_untranslated,
+                    n_total=n_total,
+                    max_fails=max_fails,
+                    sample_ids=sample_ids,
+                )
 
             LOGGER.debug(message, extra=extra)
 

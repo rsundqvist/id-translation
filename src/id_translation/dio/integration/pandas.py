@@ -222,7 +222,7 @@ class PandasIO(_dio.DataStructureIO[PandasT, _tt.NameType, _tt.SourceType, _tt.I
     ) -> PandasT | None:
         if isinstance(translatable, _pd.Index):
             if not copy:
-                raise _NotInplaceTranslatableError(translatable)
+                raise _NotInplaceTranslatableError.for_translatable(translatable)
             return self._translate_index(translatable, names, tmap)
 
         if isinstance(translatable, _pd.DataFrame):
@@ -405,9 +405,7 @@ class PandasIO(_dio.DataStructureIO[PandasT, _tt.NameType, _tt.SourceType, _tt.I
             series[:] = result
         except TypeError:  # https://pandas.pydata.org/pdeps/0006-ban-upcasting.html
             hint = f"Use copy=True, or a Series that can hold strings (not {series.dtype})."
-            exc = _NotInplaceTranslatableError(series)
-            exc.add_note(f"Hint: {hint}")
-            raise exc from None
+            raise _NotInplaceTranslatableError.for_translatable(series, hints=hint) from None
         return None
 
     @_contextmanager

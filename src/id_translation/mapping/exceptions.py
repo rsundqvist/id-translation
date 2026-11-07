@@ -4,6 +4,7 @@ from collections.abc import Iterable as _Iterable
 from typing import Any as _Any
 
 from .._utils import add_hints as _add_hints
+from .._utils import as_tuple as _as_tuple
 from ..exceptions import IdTranslationWarning as _IdTranslationWarning
 
 
@@ -32,79 +33,109 @@ class MappingError(Exception):
 
 
 class UnmappedValuesError(MappingError):
-    """Raised when there are unmapped values left after filtering and on_unmapped='raise'."""
+    """Raised when there are unmapped values left after filtering and on_unmapped='raise'.
+
+    Args:
+        msg: The error message.
+        unmapped: Values that could not be mapped. A single value may be given as a string.
+        hints: Additional context, attached as notes.
+    """
+
+    def __init__(self, msg: str, *, unmapped: _Iterable[_Any] | str = (), hints: str | _Iterable[str] = ()) -> None:
+        super().__init__(msg, hints=hints)
+        self.unmapped = _as_tuple(unmapped)
 
 
-class UnmappedExplicitNamesError(MappingError):  # TODO(2.0.0): Inherit from UnmappedValuesError.
-    """Raised when names explicitly provided by the user could not be mapped."""
+class UnmappedExplicitNamesError(UnmappedValuesError):
+    """Raised when names explicitly provided by the user could not be mapped.
 
-    def __init__(self, msg: str, *, names: list[_Any], unmapped: set[_Any]) -> None:
-        super().__init__(msg)
-        self.names = names
-        self.unmapped = unmapped
+    Args:
+        msg: The error message.
+        names: Names explicitly provided by the user. A single name may be given as a string.
+        unmapped: Elements of `names` that could not be mapped. A single name may be given as a string.
+        hints: Additional context, attached as notes.
+    """
+
+    def __init__(
+        self,
+        msg: str,
+        *,
+        names: _Iterable[_Any] | str = (),
+        unmapped: _Iterable[_Any] | str = (),
+        hints: str | _Iterable[str] = (),
+    ) -> None:
+        super().__init__(msg, unmapped=unmapped, hints=hints)
+        self.names = _as_tuple(names)
 
         self.add_note("Note: This error is NOT controlled by the `Mapper.on_unmapped` property.")
-        self.add_note(f"Hint: Remove {len(unmapped)} unmapped name(s) from the provided {names=} to continue.")
+        if self.unmapped:
+            self.add_note(
+                f"Hint: Remove {len(self.unmapped)} unmapped name(s) from the provided names={list(self.names)}"
+                " to continue."
+            )
 
 
 class ScoringDisabledError(MappingError):
     """Indicates that the scoring logic has been disabled.
 
     Raised by :func:`score_functions.disabled <id_translation.mapping.score_functions.disabled>`.
+
+    Args:
+        msg: The error message.
+        value: The value that could not be mapped.
+        candidates: Candidates that `value` could have been mapped to. A single candidate may be given as a string.
+        context: Context in which mapping was attempted.
+        hints: Additional context, attached as notes.
     """
 
-    def __init__(self, value: _Any, candidates: _Any, context: _Any) -> None:
-        super().__init__(
-            "Scoring disabled.\n"
-            f"The Mapper is working in strict override-only mode, so the {value=} in {context=} "
-            f"cannot be mapped to any of the {candidates=}. Possible solutions:\n"
-            "    * Add an override or filter for this value, or\n"
-            "    * Set strict=False (silently refuse to map instead of raising), or\n"
-            "    * Choose an appropriate score function to use.",
-            ref="override-only-mapping",
-        )
+    def __init__(
+        self,
+        msg: str,
+        *,
+        value: _Any = None,
+        candidates: _Iterable[_Any] | str = (),
+        context: _Any = None,
+        hints: str | _Iterable[str] = (),
+    ) -> None:
+        super().__init__(msg, ref="override-only-mapping", hints=hints)
         self.value = value
-        self.candidates = candidates
+        self.candidates = _as_tuple(candidates)
         self.context = context
 
 
 class AmbiguousScoreError(MappingError):
-    """Indicates that the scoring logic has produces ambiguous scores."""
-
-    def __init__(
-        self,
-        kind: str,
-        *,
-        key: _Any,
-        match0: _Any,
-        match1: _Any,
-        cardinality: str,
-        scores: str,
-    ) -> None:
-        super().__init__(
-            f"Ambiguous mapping of {kind}={key!r}; matches ({match0}) and ({match1}) "
-            f"are in conflict since {cardinality=}.\n{scores}",
-            hints="Inspect the matrix above for details. You may wish to use a different scoring method.",
-        )
+    """Indicates that the scoring logic has produced ambiguous scores."""
 
 
 class UserMappingError(MappingError):
-    """A user-defined mapping function did something forbidden."""
+    """A user-defined mapping function did something forbidden.
 
-    def __init__(self, msg: str, value: _Any, candidates: set[_Any]) -> None:
-        super().__init__(msg)
+    Args:
+        msg: The error message.
+        value: The value that was being mapped.
+        candidates: Candidates that `value` could be mapped to. A single candidate may be given as a string.
+        hints: Additional context, attached as notes.
+    """
+
+    def __init__(
+        self,
+        msg: str,
+        *,
+        value: _Any = None,
+        candidates: _Iterable[_Any] | str = (),
+        hints: str | _Iterable[str] = (),
+    ) -> None:
+        super().__init__(msg, hints=hints)
         self.value = value
-        self.candidates = candidates
+        self.candidates = _as_tuple(candidates)
 
 
 class CardinalityError(MappingError):
     """Base class for cardinality issues."""
 
 
-class MappingWarning(_IdTranslationWarning, UserWarning):
+class MappingWarning(_IdTranslationWarning):
     """Base warning class for all mapping-related issues."""
-
-    # TODO(2.0.0): Drop the `UserWarning` base.
 
 
 class UnmappedValuesWarning(MappingWarning):
