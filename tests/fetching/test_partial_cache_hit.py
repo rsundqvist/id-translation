@@ -187,3 +187,28 @@ def test_fetched_rows_win_over_stale_cached_rows():
 
     assert translator.translate([1, 2], names="people") == ["1:Alice", "2:Bob"]
     assert fetcher.calls == [((ID, "name"), {2})]
+
+
+def test_ids_cached_as_strings_are_covered_under_uuid_heuristics():
+    u = "550e8400-e29b-41d4-a716-446655440000"
+
+    class StrUuidFetcher(AbstractFetcher[str, str]):
+        def __init__(self, **kwargs):
+            super().__init__(**kwargs)
+            self.calls = 0
+
+        def _initialize_sources(self, task_id):  # noqa: ARG002
+            return {"people": [ID, "name"]}
+
+        def fetch_translations(self, instr):  # noqa: ARG002
+            self.calls += 1
+            return PlaceholderTranslations("people", (ID, "name"), [(u, "Alice")], id_pos=0)
+
+    hit: PartialCacheHit[str, str] = PartialCacheHit(
+        PlaceholderTranslations("people", (ID, "name"), [(u, "Alice")], id_pos=0)
+    )
+    fetcher = StrUuidFetcher(cache_access=StubCache(hit))
+    translator: Translator[str, str, str] = Translator(fetcher, fmt="{name}", enable_uuid_heuristics=True)
+
+    assert translator.translate([u], names="people") == ["Alice"]
+    assert fetcher.calls == 0, "the hit covers the ID"

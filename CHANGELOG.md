@@ -61,6 +61,7 @@ Each emits a `FutureWarning`.
     that failed to close.
   * A `CacheAccess` that skipped `super().__init__()` raised `AttributeError`, and one shared by two fetchers
     a bare `RuntimeError`.
+  * A `PartialCacheHit` never covered IDs cached as strings under UUID heuristics.
 - Documentation: the name-to-source mapping diagram.
 
 ## [1.4.2] - 2026-10-10

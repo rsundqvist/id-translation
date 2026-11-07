@@ -11,6 +11,7 @@ import logging
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, Generic
 
+from .. import _uuid_utils
 from ..offline.types import PlaceholderAttributes, PlaceholdersTuple, PlaceholderTranslations
 from ..types import ID, IdType, SourceType
 from . import exceptions
@@ -120,7 +121,7 @@ class CacheCoordinator(Generic[SourceType, IdType]):
             raise exceptions.ImplementationError(msg)
 
         cached = hit.translations
-        covered = _covered_ids(hit)
+        covered = _covered_ids(hit, enable_uuid_heuristics=instr.enable_uuid_heuristics)
         missing = instr.ids - covered
         log(f"{{}}.load() partial hit: covered {len(covered)}/{len(instr.ids)}, fetching {len(missing)}.", "partial")
         if not missing:
@@ -177,8 +178,12 @@ class CacheCoordinator(Generic[SourceType, IdType]):
         return _normalize(translations, reverse_mappings, aliases), instr
 
 
-def _covered_ids(hit: PartialCacheHit[SourceType, IdType]) -> set[IdType]:
-    """Return the requested IDs a partial hit satisfies: the rows it holds, plus any it explicitly vouches for."""
+def _covered_ids(hit: PartialCacheHit[SourceType, IdType], *, enable_uuid_heuristics: bool) -> set[IdType]:
+    """Return the requested IDs a partial hit satisfies: the rows it holds, plus any it explicitly vouches for.
+
+    With `enable_uuid_heuristics`, requested IDs are UUIDs, while rows hold the source's own IDs (often ``str``); both
+    sides are compared as UUIDs, where possible.
+    """
     rows = hit.translations
 
     if len(rows.records) == 0:
@@ -194,6 +199,9 @@ def _covered_ids(hit: PartialCacheHit[SourceType, IdType]) -> set[IdType]:
 
     if hit.covered:
         covered = covered | hit.covered
+    if enable_uuid_heuristics:
+        # Both forms: requested IDs are cast only when every one of them is UUID-like.
+        covered = covered | {_uuid_utils.try_cast_one(idx) for idx in covered}
     return covered
 
 
