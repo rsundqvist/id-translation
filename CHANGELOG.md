@@ -31,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * An integration that called `register()` at import hung the process; it now raises `RegistryReentryError`.
   * `Translator.restore()` raised `TypeError` for a subclass's snapshot, a non-`dict` `Mapping` as inline data raised
     `TypeError`, and an offline `copy()` lost the snapshot's `fmt` and names.
+  * `extract_names()` ran source discovery, so a fetcher that was down made it raise.
   * Verification log records with numpy `bool` sample IDs were not JSON serializable.
 - Fetching:
   * A `CacheAccess` that skipped `super().__init__()` raised `AttributeError`, and one shared by two fetchers

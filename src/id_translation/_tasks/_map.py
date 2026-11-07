@@ -45,6 +45,8 @@ class MappingTask(NamesTask[NameType, SourceType, IdType]):
             io_kwargs=io_kwargs,
             task_id=task_id,
         )
+        if caller.online:  # Here, not in BaseTask: extracting names needs only the IO, not sources.
+            caller.fetcher.initialize_sources(self.task_id)
 
         # Task outputs
         self._name_to_source: NameToSource[NameType, SourceType] | None = None

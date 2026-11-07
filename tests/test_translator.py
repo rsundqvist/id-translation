@@ -1130,3 +1130,12 @@ def test_offline_copy_keeps_snapshot_cache():
 def test_inline_data_from_any_mapping():
     translator: RealTranslator[str, str, int] = RealTranslator(MappingProxyType({"a": MappingProxyType({1: "one"})}))
     assert translator.translate({"a": 1}) == {"a": "1:one"}
+
+
+def test_extract_names_does_not_discover():
+    class DownFetcher(MemoryFetcher[str, int]):
+        def _initialize_sources(self, task_id: int) -> dict[str, list[str]]:  # noqa: ARG002
+            raise ConnectionError("down")
+
+    translator: RealTranslator[str, str, int] = RealTranslator(DownFetcher({}))
+    assert translator.extract_names({"a": [1]}) == ["a"]  # Names need only the IO: no discovery, so no raise.

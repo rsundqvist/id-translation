@@ -37,9 +37,6 @@ class BaseTask(Generic[NameType, SourceType, IdType]):
 
         self._timings: dict[str, float] = {}
 
-        if caller.online:
-            caller.fetcher.initialize_sources(self.task_id)
-
     def add_timing(self, key: str, value: float, /) -> None:
         """Add timing."""
         # assert key not in self._timings, f"duplicate {key=}"
