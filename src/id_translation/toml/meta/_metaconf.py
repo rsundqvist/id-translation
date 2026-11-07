@@ -4,6 +4,8 @@ from typing import Any, Self
 
 from rics.paths import AnyPath, any_path_to_path
 
+from id_translation.exceptions import ConfigurationError
+
 from .._load_toml import load_toml_file
 
 LOGGER = logging.getLogger(__package__).getChild("Translator").getChild("config")
@@ -100,13 +102,16 @@ class Metaconf:
 
         Returns:
             A new ``Metaconf`` instance.
+
+        Raises:
+            ~id_translation.exceptions.ConfigurationError: For unknown keys.
         """
         config = dict(config)
         env = config.pop("env", {})
         equivalence = config.pop("equivalence", {})
 
         if config:
-            raise TypeError(f"Unknown keys: {sorted(config)}")
+            raise ConfigurationError(f"Unknown keys: {sorted(config)}")
 
         return cls(
             env=EnvConf.from_dict(env),

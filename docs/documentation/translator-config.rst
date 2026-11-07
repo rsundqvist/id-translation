@@ -28,6 +28,18 @@ Only a fetcher is required, in this file or in one of the ``extra_fetchers``. Th
 
 is loaded with ``Translator.from_config("translation.toml")``.
 
+JSON Schemas
+------------
+JSON Schemas for this format are published with the documentation, for editor and CI validation:
+
+* ``id-translation.schema.json`` for the main configuration file,
+* ``id-translation-fetcher.schema.json`` for auxiliary fetcher files (``extra_fetchers``), and
+* ``id-translation-metaconf.schema.json`` for ``metaconf.toml``.
+
+Each is at ``https://id-translation.readthedocs.io/en/stable/<file>``, and at ``.../en/v<version>/<file>`` for a
+release (1.3.0 and later). They check the file's structure; the arguments of fetchers, transformers, caches and
+functions, and overrides, are checked loosely.
+
 Sections
 --------
 The valid top-level keys are ``translator``, ``fetching``, ``unknown_ids``, and ``transform`` (the
@@ -227,11 +239,6 @@ name, and its keys are passed to the constructor as-is:
 
 This is equivalent to ``SqlFetcher(connection_string=..., cache_access=MyCacheAccess(ttl=3600))``. With
 :ref:`Multiple fetchers`, each file's cache applies only to the fetcher declared in that file.
-
-.. deprecated:: 1.3.0
-
-   The ``[fetching.cache]`` + ``type = "..."`` form. It still works, with a ``FutureWarning``, and is rejected in
-   ``id-translation==2.0.0``. Giving both forms is an error.
 
 .. _choosing-a-cache:
 
@@ -595,8 +602,9 @@ The ``metaconf.toml``-file is read as-is, without any preprocessing.
 Custom TOML initialization
 --------------------------
 All TOML configuration is interpreted by the :class:`.TranslatorFactory` class. To customize how different components
-are created, overwrite the all-caps factory properties of this class. For example, you may overwrite the
-:attr:`.TranslatorFactory.FETCHER_FACTORY` attribute with your own implementation to customize how fetcher instances are
-created. Likewise, set :attr:`.TranslatorFactory.MAPPER_FACTORY` to use custom :class:`.Mapper` implementations.
+are created, set the all-caps factory attributes to plain functions on a subclass, or on the class itself. An instance
+attribute is ignored. For example, you may overwrite the :attr:`.TranslatorFactory.FETCHER_FACTORY` attribute with your
+own implementation to customize how fetcher instances are created. Likewise, set
+:attr:`.TranslatorFactory.MAPPER_FACTORY` to use custom :class:`.Mapper` implementations.
 
 If your use case is not covered, consider opening an issue in the repository: https://github.com/rsundqvist/id-translation/issues

@@ -1,11 +1,15 @@
 """Guards against the bundled JSON schemas drifting from the runtime grammar."""
 
+import inspect
 from dataclasses import fields
-from typing import Any
+from typing import Any, get_args
 
 import jsonschema
 
 from id_translation import fetching
+from id_translation.fetching._multi_fetcher import OnSourceConflict
+from id_translation.mapping import Cardinality, Mapper
+from id_translation.mapping.types import OnUnknownUserOverride, OnUnmapped
 from id_translation.toml import TranslatorFactory
 from id_translation.toml._schema import (
     FETCHER_FILENAME,
@@ -42,17 +46,16 @@ def test_fetcher_top_level_matches_aux_allow_list() -> None:
     assert fetcher["definitions"]["fetching"]["properties"]["MultiFetcher"] is False
 
 
-def test_cache_accepts_both_grammars() -> None:
+def test_cache_grammar() -> None:
     validator = jsonschema.Draft7Validator(schemas()[MAIN_FILENAME]["definitions"]["cache"])
 
     assert validator.is_valid({"my.lib.MyCacheAccess": {"ttl": 3600}})
     assert validator.is_valid({"my.lib.MyCacheAccess": {}})
-    assert validator.is_valid({"type": "my.lib.MyCacheAccess", "ttl": 3600}), "deprecated since 1.3.0"
 
     assert not validator.is_valid({})
-    assert not validator.is_valid({"ttl": 3600}), "neither grammar"
+    assert not validator.is_valid({"ttl": 3600}), "not a type section"
     assert not validator.is_valid({"a.A": {}, "b.B": {}}), "one implementation only"
-    assert not validator.is_valid({"type": "my.lib.MyCacheAccess", "my.lib.MyCacheAccess": {}}), "half-migrated"
+    assert not validator.is_valid({"type": "my.lib.MyCacheAccess", "ttl": 3600}), "the 1.x type= key is rejected"
 
 
 def test_metaconf_top_level_matches_dataclass() -> None:
@@ -70,10 +73,40 @@ def test_enumerated_builtin_fetchers_exist() -> None:
         assert hasattr(fetching, name), name
 
 
-def test_schema_matches_runtime_cardinality_and_memory_fetcher_data() -> None:
+def test_enums_match_runtime() -> None:
+    definitions = schemas()[MAIN_FILENAME]["definitions"]
+    mapping = definitions["mapping"]["properties"]
+    assert mapping["cardinality"]["enum"] == [c.value for c in Cardinality] + [c.name for c in Cardinality]
+    assert mapping["on_unmapped"]["enum"] == list(get_args(OnUnmapped))
+    assert mapping["on_unknown_user_override"]["enum"] == list(get_args(OnUnknownUserOverride))
+    assert definitions["multiFetcher"]["properties"]["on_source_conflict"]["enum"] == list(get_args(OnSourceConflict))
+
+
+def test_mapping_keys_are_mapper_parameters() -> None:
+    mapping = schemas()[MAIN_FILENAME]["definitions"]["mapping"]["properties"]
+    parameters = set(inspect.signature(Mapper).parameters)
+    # The TOML handler builds these from list-subsections instead of passing them as-is.
+    assert set(mapping) - parameters == {"score_function_heuristics"}
+    assert parameters - set(mapping) == {"score_function_kwargs"}
+
+
+def test_required_fetcher_keys_have_no_default() -> None:
+    definitions = schemas()[MAIN_FILENAME]["definitions"]
+    for name in ["memoryFetcher", "pandasFetcher", "sqlFetcher"]:
+        cls = getattr(fetching, name[0].upper() + name[1:])
+        without_default = {
+            p.name
+            for p in inspect.signature(cls).parameters.values()
+            if p.default is p.empty and p.kind not in (p.VAR_KEYWORD, p.VAR_POSITIONAL)
+        }
+        assert set(definitions[name].get("required", [])) == without_default, name
+
+
+def test_runtime_rejected_keys() -> None:
     main = jsonschema.Draft7Validator(schemas()[MAIN_FILENAME])
     memory: dict[str, Any] = {"data": {}}
 
     assert main.is_valid({"fetching": {"MemoryFetcher": memory, "mapping": {"cardinality": "OneToOne"}}})
-    assert not main.is_valid({"fetching": {"MemoryFetcher": memory, "mapping": {"cardinality": "N:N"}}})
-    assert not main.is_valid({"fetching": {"MemoryFetcher": {}}}), "MemoryFetcher requires data"
+    assert not main.is_valid({"translator": {"mapping": {"score_function_kwargs": {}}}}), "use a score_function table"
+    assert not main.is_valid({"fetching": {"MemoryFetcher": {**memory, "mapper": {}}}}), "use [fetching.mapping]"
+    assert not main.is_valid({"fetching": {"my.lib.Fetcher": {"cache_access": {}}}}), "use [fetching.cache.'<type>']"

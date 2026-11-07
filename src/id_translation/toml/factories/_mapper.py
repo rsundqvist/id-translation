@@ -3,18 +3,11 @@ from typing import Any
 from rics.collections.dicts import InheritedKeysDict
 
 from id_translation import exceptions
-from id_translation._utils.emit_warning import emit_warning
 from id_translation.mapping import HeuristicScore, Mapper
 
 
 def default_mapper_factory(config: dict[str, Any], for_fetcher: bool) -> Mapper[Any, Any, Any] | None:
     """Create a :class:`~id_translation.mapping.Mapper` from config."""
-    if "score_function_kwargs" in config:
-        emit_warning(
-            "The score_function_kwargs mapping key is replaced by a [*.mapping.score_function.<name>] table."
-            "\nWARNING: This will raise in `id-translation==2.0.0`.",
-            FutureWarning,
-        )
     if "score_function" in config and isinstance(config["score_function"], dict):
         score_function = config.pop("score_function")
 

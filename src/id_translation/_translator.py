@@ -266,7 +266,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
     def from_config(
         cls,
         path: AnyPath,
-        extra_fetchers: Iterable[AnyPath] = (),
+        extra_fetchers: AnyPath | Iterable[AnyPath] = (),
     ) -> Self:
         """Create a :class:`~id_translation.Translator` from TOML inputs.
 
@@ -274,8 +274,8 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
         Args:
             path: Path to the main TOML configuration file.
-            extra_fetchers: Paths to fetching configuration TOML files. If multiple fetchers are defined, they are
-                ranked by input order. A fetcher defined in the main configuration is prioritized (rank=0).
+            extra_fetchers: A path, or paths, to fetching configuration TOML files. If multiple fetchers are defined,
+                they are ranked by input order. A fetcher defined in the main configuration is prioritized (rank=0).
 
         Returns:
             A new :class:`~id_translation.Translator` instance with a :attr:`~id_translation.Translator.config_metadata`
@@ -1218,8 +1218,8 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         cls,
         cache_dir: AnyPath,
         config_path: AnyPath,
-        extra_fetchers: Iterable[AnyPath] = (),
-        max_age: str | int | timedelta | None = "12h",
+        extra_fetchers: AnyPath | Iterable[AnyPath] = (),
+        max_age: str | timedelta | None = "12h",
         on_config_changed: Literal["raise", "recreate"] = "recreate",
     ) -> Self:
         """Load or create a persistent, offline :class:`~id_translation.Translator`.
@@ -1239,11 +1239,10 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         Args:
             cache_dir: Root directory where the cached translator and associated metadata is stored.
             config_path: Path to the main TOML configuration file.
-            extra_fetchers: Paths to fetching configuration TOML files. If multiple fetchers are defined, they are
-                ranked by input order. A fetcher defined in the main configuration is prioritized (rank=0).
-            max_age: The maximum age of the cached :class:`~id_translation.Translator` before it must be recreated; an
-                ``int`` is a number of seconds. Pass ``0``, ``'0s'`` or ``timedelta(0)`` to force recreation, or ``None``
-                to ignore.
+            extra_fetchers: A path, or paths, to fetching configuration TOML files. If multiple fetchers are defined,
+                they are ranked by input order. A fetcher defined in the main configuration is prioritized (rank=0).
+            max_age: The maximum age of the cached :class:`~id_translation.Translator` before it must be recreated. Pass
+                ``'0s'`` or ``timedelta(0)`` to force recreation, or ``None`` to ignore.
             on_config_changed: One of ``raise|recreate``. If ``'raise'``, crash instead of creating a new instance if
                 the configuration (as determined by `config_path` and `extra_fetchers`) has changed, including after a
                 version upgrade.

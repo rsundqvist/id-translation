@@ -4,6 +4,8 @@ from typing import Any
 from rics.env.interpolation import replace_in_string
 from rics.paths import AnyPath, any_path_to_path
 
+from id_translation.exceptions import ConfigurationError
+
 
 def load_toml_file(
     path: AnyPath,
@@ -28,11 +30,19 @@ def load_toml_file(
 
     Returns:
         A dict parsed from `path`.
+
+    Raises:
+        ConfigurationError: If the file is not valid TOML, or interpolation fails. The original error is the cause.
+        OSError: If the file cannot be read, e.g. :class:`FileNotFoundError`.
     """
-    with any_path_to_path(path).open(encoding="UTF-8") as f:
-        toml_string = f.read()
+    path = any_path_to_path(path)
+    data = path.read_bytes()
 
-    if allow_interpolation:
-        toml_string = replace_in_string(toml_string, allow_nested=allow_nested, allow_blank=allow_blank)
-
-    return tomllib.loads(toml_string)
+    try:
+        toml_string = data.decode("UTF-8")
+        if allow_interpolation:
+            toml_string = replace_in_string(toml_string, allow_nested=allow_nested, allow_blank=allow_blank)
+        return tomllib.loads(toml_string)
+    except Exception as e:
+        # One exception type for any problem with the content; a missing file is the environment's, and stays OSError.
+        raise ConfigurationError(f"{type(e).__name__}: {e}", hints=f"In file: {path.resolve()}") from e

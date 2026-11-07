@@ -1,6 +1,6 @@
 import logging
 import re
-from functools import partialmethod
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -37,11 +37,47 @@ def test_default_fetcher_factory(
     assert isinstance(fetcher, expected_type)
 
 
+def _recording_fetcher_factory(clazz: str, config: dict[str, Any]) -> AbstractFetcher[Any, Any]:
+    config["data"] = {"recorded": {"id": [1], "name": ["one"]}}
+    return default_fetcher_factory(clazz, config)
+
+
+class _FunctionFactory(TranslatorFactory[str, str, int]):
+    FETCHER_FACTORY = _recording_fetcher_factory
+
+
+class _StaticMethodFactory(TranslatorFactory[str, str, int]):
+    FETCHER_FACTORY = staticmethod(_recording_fetcher_factory)  # type: ignore[assignment]
+
+
+@pytest.mark.parametrize("factory", [_FunctionFactory, _StaticMethodFactory])
+def test_custom_fetcher_factory(tmp_path, factory):
+    path = tmp_path / "main.toml"
+    path.write_text("[fetching.MemoryFetcher]\ndata = {}\n", encoding="utf-8")
+
+    translator = factory(path, []).create()
+    assert translator.translate(1, names="recorded", fmt="{name}") == "one"
+
+
 def test_missing_config():
     path = ROOT.joinpath("bad-config.toml")
     with pytest.raises(ConfigurationError) as e:
         Translator.from_config(path)
     assert str(path) in str(e.value)
+
+
+@pytest.mark.parametrize("content", ['fmt = "{id}\n', 'fmt = "${ID_TRANSLATION_UNSET_VARIABLE}"\n'])
+@pytest.mark.parametrize("broken", ["main.toml", "fetcher.toml"])
+def test_unreadable_file_is_named(tmp_path, content, broken):
+    main = tmp_path / "main.toml"
+    main.write_text("[translator]\n", encoding="utf-8")
+    fetcher = tmp_path / "fetcher.toml"
+    fetcher.write_text("[fetching.MemoryFetcher]\ndata = {}\n", encoding="utf-8")
+    (tmp_path / broken).write_text(f"[translator]\n{content}", encoding="utf-8")
+
+    with pytest.raises(Exception) as exc_info:
+        Translator.from_config(main, extra_fetchers=[fetcher])
+    assert f"Hint: In file: {(tmp_path / broken).resolve()}" in exc_info.value.__notes__
 
 
 def test_top_level_mapping_key_raises(tmp_path):
@@ -57,8 +93,75 @@ def test_top_level_mapping_key_raises(tmp_path):
     path = tmp_path / "main.toml"
     path.write_text(main, encoding="utf-8")
 
-    with pytest.raises(ConfigurationError, match=r"Forbidden keys \['mapping'\]"):
+    with pytest.raises(ConfigurationError, match=r"Forbidden keys \['mapping'\]") as exc_info:
         Translator.from_config(path)
+    assert "Hint: Use [translator.mapping] or [fetching.mapping]." in exc_info.value.__notes__
+
+
+@pytest.mark.parametrize("key", ["default_fmt", "transformers", "mapper", "bad"])
+def test_translator_section_rejects_other_keys(tmp_path, key):
+    path = tmp_path / "main.toml"
+    path.write_text(f"[translator]\n{key} = 1\n\n[fetching.MemoryFetcher]\ndata = {{}}\n", encoding="utf-8")
+
+    with pytest.raises(ConfigurationError, match=rf"Forbidden keys \['{key}'\] in \[translator\]-section") as exc_info:
+        Translator.from_config(path)
+    if key == "default_fmt":
+        assert "Hint: Use [unknown_ids] fmt." in exc_info.value.__notes__
+
+
+@pytest.mark.parametrize("broken", ["main.toml", "fetcher.toml"])
+def test_section_given_a_value(tmp_path, broken):
+    main = tmp_path / "main.toml"
+    main.write_text("[translator]\n", encoding="utf-8")
+    fetcher = tmp_path / "fetcher.toml"
+    fetcher.write_text("[fetching.MemoryFetcher]\ndata = {}\n", encoding="utf-8")
+    (tmp_path / broken).write_text("transform = 1\n[fetching.MemoryFetcher]\ndata = {}\n", encoding="utf-8")
+
+    with pytest.raises(ConfigurationError, match=r"Top-level keys \['transform'\] must be sections"):
+        Translator.from_config(main, extra_fetchers=[fetcher])
+
+
+def test_unknown_ids_section_is_named(tmp_path):
+    path = tmp_path / "main.toml"
+    path.write_text("[unknown_ids]\nbad = 1\n\n[fetching.MemoryFetcher]\ndata = {}\n", encoding="utf-8")
+
+    with pytest.raises(ConfigurationError, match=r"Forbidden keys \['bad'\] in \[unknown_ids\]-section"):
+        Translator.from_config(path)
+
+
+class RegionalTranslator(Translator[str, str, int]):
+    def __init__(self, fetcher: Any = None, *, region: str = "eu", **kwargs: Any) -> None:
+        super().__init__(fetcher, **kwargs)
+        self.region = region
+
+
+@pytest.mark.parametrize("key, value", [("region", "'us'"), ("default_fmt", "'x'")])
+def test_translator_section_accepts_subclass_arguments(tmp_path, key, value):
+    path = tmp_path / "main.toml"
+    path.write_text(f"[translator]\n{key} = {value}\n\n[fetching.MemoryFetcher]\ndata = {{}}\n", encoding="utf-8")
+
+    if key == "default_fmt":
+        with pytest.raises(ConfigurationError, match=r"Forbidden keys \['default_fmt'\]"):
+            RegionalTranslator.from_config(path)
+    else:
+        assert RegionalTranslator.from_config(path).region == "us"
+
+
+def test_top_level_mapping_key_in_fetcher_file_raises(tmp_path):
+    fetcher = """
+    [fetching.MemoryFetcher]
+    data = {}
+
+    [mapping]
+    """
+    path = tmp_path / "fetcher.toml"
+    path.write_text(fetcher, encoding="utf-8")
+    main = tmp_path / "main.toml"
+    main.write_text("[translator]\n", encoding="utf-8")
+
+    with pytest.raises(ConfigurationError, match=r"Forbidden keys \['mapping'\]") as exc_info:
+        Translator.from_config(main, extra_fetchers=[path])
+    assert "Hint: Use [fetching.mapping]." in exc_info.value.__notes__
 
 
 def test_dummy_override_hides_optional_placeholder(tmp_path):
@@ -178,36 +281,18 @@ class TestCacheAccess:
         with pytest.raises(CacheAccessNotAvailableError, match=r"documentation/examples/caching/on_disk.html"):
             _ = fetcher_animals.cache_access
 
-    def test_type_key_is_deprecated(self, tmp_path):
-        clazz = f"{__name__}.{DummyCacheAccess.__name__}"
+    @pytest.mark.parametrize("kwargs", ["", "ttl = 3600"])
+    def test_type_key(self, tmp_path, kwargs):
         cache = f"""
         [fetching.cache]
-        type = "{clazz}"
-        ttl = 3600
+        type = '{__name__}.{DummyCacheAccess.__name__}'
+        {kwargs}
         """
 
-        with pytest.warns(FutureWarning, match=re.escape(f"Use a [fetching.cache.'{clazz}']-section instead.")):
-            translator = self.create(tmp_path, cache)
-
-        assert isinstance(translator.fetcher, MultiFetcher)
-        fetcher_people, _ = translator.fetcher.children
-        assert isinstance(fetcher_people, AbstractFetcher)
-        assert isinstance(fetcher_people.cache_access, DummyCacheAccess)
-        assert fetcher_people.cache_access.ttl == 3600
-
-    def test_type_key_and_section_raises(self, tmp_path):
-        """Half-migrated: the section was added, but `type` was not removed."""
-        clazz = f"{__name__}.{DummyCacheAccess.__name__}"
-        cache = f"""
-        [fetching.cache]
-        type = "{clazz}"
-
-        [fetching.cache.'{clazz}']
-        ttl = 3600
-        """
-
-        with pytest.raises(ConfigurationError, match=re.escape(f"keep only the [fetching.cache.'{clazz}']-section")):
+        match = r"Expected only \[fetching.cache.'<type>'\]-sections in \[fetching.cache\]; got keys \[.*'type'\]"
+        with pytest.raises(ConfigurationError, match=match) as exc_info:
             self.create(tmp_path, cache)
+        assert not _suppress_hints(exc_info.value)
 
     @staticmethod
     def create(tmp_path, cache):
@@ -328,7 +413,35 @@ class TestOptionalFetchers:
         exc_repr = repr(exc_info.value)
         assert type(expected_error).__name__ in exc_repr
         assert str(expected_error) in exc_repr
-        assert "bad-fetcher.toml" in exc_repr
+        assert any("bad-fetcher.toml" in note for note in exc_info.value.__notes__)
+        assert _suppress_hints(exc_info.value), "optional=true; the variable would discard it"
+
+    def test_not_optional(self, clazz, expected_error, caplog, tmp_path, monkeypatch):
+        monkeypatch.setenv(SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS, "true")
+        toml = f"""
+        [fetching."{clazz}"]
+        data = {{}}
+        """
+
+        with pytest.raises(ConfigurationError) as exc_info:
+            self.run(caplog, tmp_path, toml, "not-used")
+
+        assert str(expected_error) in repr(exc_info.value)
+        assert not _suppress_hints(exc_info.value), "the variable cannot discard a fetcher that isn't optional"
+
+
+def _suppress_hints(exc: BaseException) -> list[str]:
+    notes = [*getattr(exc, "__notes__", []), *getattr(exc.__cause__, "__notes__", [])]
+    return [note for note in notes if SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS in note]
+
+
+def test_every_fetcher_discarded(tmp_path, monkeypatch):
+    monkeypatch.setenv(SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS, "true")
+    main = tmp_path / "main.toml"
+    main.write_text(f"[fetching.'{__name__}.CrashesOnInitFetcher']\noptional = true\n", encoding="utf-8")
+
+    with pytest.raises(ConfigurationError, match=r"All \[fetching\]-sections were discarded as optional"):
+        Translator.from_config(main)
 
 
 class CrashesOnInitFetcher(MemoryFetcher[Any, Any]):
@@ -338,95 +451,149 @@ class CrashesOnInitFetcher(MemoryFetcher[Any, Any]):
         raise ValueError("I always crash!")
 
 
-@pytest.mark.parametrize("extra", ["~/aux.toml", ["~/aux.toml"]], ids=["bare", "list"])
-@pytest.mark.parametrize("persistent", [False, True])
-def test_home_relative_paths_and_a_single_extra_path(tmp_path, monkeypatch, extra, persistent):
+class ConfigurationErrorOnInitFetcher(MemoryFetcher[Any, Any]):
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+
+        raise ConfigurationError("Bad option.", hints="Use another option.")
+
+
+def test_optional_fetcher_configuration_error_is_not_rewrapped(tmp_path):
+    main = tmp_path / "main.toml"
+    main.write_text("[translator]\n", encoding="utf-8")
+    aux = tmp_path / "fetcher.toml"
+    aux.write_text(
+        f"[fetching.'{__name__}.ConfigurationErrorOnInitFetcher']\noptional = true\ndata = {{}}\n", encoding="utf-8"
+    )
+
+    with pytest.raises(ConfigurationError) as exc_info:
+        Translator.from_config(main, extra_fetchers=[aux])
+    assert str(exc_info.value) == "Bad option."
+    assert exc_info.value.__notes__ == [
+        "Hint: Use another option.",
+        f"Hint: Setting {SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS}=true may help temporarily.",
+        f"Hint: In file: {aux.resolve()}",
+    ]
+
+
+class TestMultiFetcherSection:
+    FETCHER = "[fetching.MemoryFetcher.data.s]\nid = [1]\nname = ['a']\n"
+
+    def test_bad_key_with_one_fetcher(self, tmp_path):
+        main = tmp_path / "main.toml"
+        main.write_text(self.FETCHER + "[fetching.MultiFetcher]\nmax_wokers = 2\n", encoding="utf-8")
+
+        with pytest.raises(ConfigurationError, match=r"Forbidden keys \['max_wokers'\] in \[fetching.MultiFetcher\]"):
+            Translator.from_config(main)
+
+    def test_bad_value_with_one_fetcher(self, tmp_path):
+        main = tmp_path / "main.toml"
+        main.write_text(self.FETCHER + "[fetching.MultiFetcher]\non_source_conflict = 'bad'\n", encoding="utf-8")
+
+        with pytest.raises(ConfigurationError, match=r"Bad on_source_conflict='bad'") as exc_info:
+            Translator.from_config(main)
+        assert f"Hint: In file: {main.resolve()}" in exc_info.value.__notes__
+
+    def test_bad_value_names_file(self, tmp_path):
+        main = tmp_path / "main.toml"
+        main.write_text(self.FETCHER + "[fetching.MultiFetcher]\non_source_conflict = 'bad'\n", encoding="utf-8")
+        aux = tmp_path / "aux.toml"
+        aux.write_text(self.FETCHER, encoding="utf-8")
+
+        with pytest.raises(ConfigurationError) as exc_info:
+            Translator.from_config(main, extra_fetchers=[aux])
+        assert f"Hint: In file: {main.resolve()}" in exc_info.value.__notes__
+
+    def test_in_auxiliary_file(self, tmp_path):
+        main = tmp_path / "main.toml"
+        main.write_text(self.FETCHER, encoding="utf-8")
+        aux = tmp_path / "aux.toml"
+        aux.write_text(self.FETCHER + "[fetching.MultiFetcher]\nmax_workers = 2\n", encoding="utf-8")
+
+        with pytest.raises(ConfigurationError, match=r"allowed in the main file only") as exc_info:
+            Translator.from_config(main, extra_fetchers=[aux])
+        assert any(str(aux) in note for note in exc_info.value.__notes__)
+
+
+@pytest.mark.parametrize(
+    "content",
+    ["fetching = [\n", "[translator]\nfmt = '${ID_TRANSLATION_SURELY_UNSET}'\n", b"[translator]\nfmt = '\xff'\n"],
+)
+@pytest.mark.parametrize("broken", ["main.toml", "fetcher.toml"])
+def test_file_content_errors_are_configuration_errors(tmp_path, broken, content):
+    """One exception type for any problem with a file's content, naming the file once; the original is the cause."""
+    main, fetcher = tmp_path / "main.toml", tmp_path / "fetcher.toml"
+    main.write_text("[translator]\n", encoding="utf-8")
+    fetcher.write_text("[fetching.MemoryFetcher]\ndata = {}\n", encoding="utf-8")
+    if isinstance(content, bytes):
+        (tmp_path / broken).write_bytes(content)  # Not UTF-8.
+    else:
+        (tmp_path / broken).write_text(content, encoding="utf-8")
+
+    with pytest.raises(ConfigurationError) as exc_info:
+        Translator.from_config(main, extra_fetchers=[fetcher])
+
+    assert exc_info.value.__cause__ is not None
+    assert [n for n in exc_info.value.__notes__ if n.startswith("Hint: In file:")] == [
+        f"Hint: In file: {(tmp_path / broken).resolve()}"
+    ]
+
+
+def test_missing_file_is_an_os_error(tmp_path):
+    with pytest.raises(FileNotFoundError):
+        Translator.from_config(tmp_path / "missing.toml")
+
+
+@pytest.mark.parametrize("key", ["mapper", "cache_access"])
+def test_fetcher_keys_that_have_their_own_section(tmp_path, key):
+    path = tmp_path / "main.toml"
+    path.write_text(f"[fetching.MemoryFetcher]\ndata = {{}}\n{key} = 'x'\n", encoding="utf-8")
+
+    with pytest.raises(ConfigurationError, match=rf"Keys \['{key}'\] are not allowed in \[fetching.MemoryFetcher\]"):
+        Translator.from_config(path)
+
+
+@pytest.mark.parametrize("section", ["translator", "fetching"])
+def test_score_function_kwargs_key_is_rejected(tmp_path, section):
+    """One spelling: the [*.mapping.score_function.<name>] table."""
+    path = tmp_path / "main.toml"
+    path.write_text(
+        f"[{section}.mapping]\nscore_function = 'modified_hamming'\nscore_function_kwargs = {{ add_length_ratio_term = true }}\n"
+        "\n[fetching.MemoryFetcher]\ndata = {}\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ConfigurationError, match=rf"not allowed in \[{section}.mapping\]") as exc_info:
+        Translator.from_config(path)
+    assert [n for n in exc_info.value.__notes__ if f"[{section}.mapping.score_function.<name>]" in n]
+
+
+@pytest.mark.parametrize("as_type", [str, Path])
+def test_single_extra_fetcher_path(tmp_path, as_type):
+    main, fetcher = tmp_path / "main.toml", tmp_path / "fetcher.toml"
+    main.write_text("[translator]\n", encoding="utf-8")
+    fetcher.write_text("[fetching.MemoryFetcher]\ndata.s = { id = [1], name = ['one'] }\n", encoding="utf-8")
+
+    assert TranslatorFactory(main, as_type(fetcher)).extra_fetchers == [str(fetcher)]
+    translator = Translator[str, str, int].from_config(main, extra_fetchers=as_type(fetcher))
+    assert translator.translate(1, names="s") == "1:one"
+
+
+def test_tilde_paths_are_expanded(tmp_path, monkeypatch):
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.setenv("USERPROFILE", str(tmp_path))  # What expanduser() reads on Windows.
-    (tmp_path / "main.toml").write_text('[fetching.MemoryFetcher.data]\npeople = { id = [1], name = ["Ada"] }\n')
-    (tmp_path / "aux.toml").write_text('[fetching.MemoryFetcher.data]\npets = { id = [2], name = ["Rex"] }\n')
+    (tmp_path / "main.toml").write_text("[translator]\nfmt = '{id}!'\n", encoding="utf-8")
+    (tmp_path / "metaconf.toml").write_text("[env]\nallow_interpolation = false\n", encoding="utf-8")
+    fetcher = tmp_path / "fetcher.toml"
+    fetcher.write_text("[fetching.MemoryFetcher]\ndata.s = { id = [1] }\n", encoding="utf-8")
 
-    if persistent:
-        translator = Translator[str, str, int].load_persistent_instance(tmp_path / "cache", "~/main.toml", extra)
-    else:
-        translator = Translator[str, str, int].from_config("~/main.toml", extra)
-    assert translator.sources == ["people", "pets"]
+    factory: TranslatorFactory[str, str, int] = TranslatorFactory("~/main.toml", "~/fetcher.toml")
+    assert not factory.metaconf.env.allow_interpolation, "metaconf.toml beside the main file must be read"
 
+    translator = Translator[str, str, int].from_config("~/main.toml", extra_fetchers="~/fetcher.toml")
+    assert translator.translate(1, names="s") == "1!"
 
-def _plain_factory(clazz: str, config: dict[str, Any]) -> AbstractFetcher[Any, Any]:
-    fetcher: AbstractFetcher[Any, Any] = default_fetcher_factory(clazz, config)
-    fetcher.made_by_plain = True  # type: ignore[attr-defined]
-    return fetcher
-
-
-class _PlainFunctionFactory(TranslatorFactory[str, str, int]):
-    FETCHER_FACTORY = _plain_factory  # type: ignore[assignment]  # mypy binds it like a method, as 1.4.2 did.
-
-
-class _MethodFactory(TranslatorFactory[str, str, int]):
-    def FETCHER_FACTORY(self, clazz, config):  # noqa: N802
-        assert isinstance(self, TranslatorFactory)
-        return _plain_factory(clazz, config)
-
-
-class _PartialMethodFactory(TranslatorFactory[str, str, int]):
-    FETCHER_FACTORY = partialmethod(_MethodFactory.FETCHER_FACTORY)
-
-
-class _PartialStaticMethodFactory(TranslatorFactory[str, str, int]):
-    FETCHER_FACTORY = partialmethod(staticmethod(_plain_factory))
-
-
-class _ClassMethodFactory(TranslatorFactory[str, str, int]):
-    @classmethod
-    def FETCHER_FACTORY(cls, clazz, config):  # noqa: N802
-        return _plain_factory(clazz, config)
-
-
-@pytest.mark.parametrize(
-    "factory_class",
-    [_PlainFunctionFactory, _MethodFactory, _PartialMethodFactory, _PartialStaticMethodFactory, _ClassMethodFactory],
-)
-def test_fetcher_factory_on_a_subclass(tmp_path, factory_class):
-    path = tmp_path / "main.toml"
-    path.write_text('[fetching.MemoryFetcher.data]\npeople = { id = [1], name = ["Ada"] }\n')
-    if factory_class in (_MethodFactory, _PartialMethodFactory):  # Bound to the instance; 2.0 calls them unbound.
-        with pytest.warns(FutureWarning, match=r"called as FETCHER_FACTORY\(<TranslatorFactory>"):
-            translator = factory_class(path, []).create()
-    else:
-        translator = factory_class(path, []).create()  # Warnings are errors.
-    assert translator.fetcher.made_by_plain
-
-
-def test_fetcher_factory_on_an_instance_warns(tmp_path):
-    path = tmp_path / "main.toml"
-    path.write_text('[fetching.MemoryFetcher.data]\npeople = { id = [1], name = ["Ada"] }\n')
-    factory: TranslatorFactory[str, str, int] = TranslatorFactory(path, [])
-    factory.FETCHER_FACTORY = _plain_factory
-
-    with pytest.warns(FutureWarning, match="will be ignored"):
-        translator = factory.create()
-    assert translator.fetcher.made_by_plain  # type: ignore[attr-defined]
-
-
-_PEOPLE = '[fetching.MemoryFetcher.data]\npeople = { id = [1], name = ["Ada"] }\n'
-
-
-@pytest.mark.parametrize(
-    "toml, match",
-    [
-        ('[translator]\ndefault_fmt = "{id}"\n' + _PEOPLE, r"\['default_fmt'\] under \[translator\]"),
-        (
-            "[translator.default_fmt_placeholders.default]\nname = 'x'\n" + _PEOPLE,
-            r"\['default_fmt_placeholders'\] under",
-        ),
-        ("[translator.transformers]\nx = 1\n" + _PEOPLE, r"\['transformers'\] under \[translator\]"),
-        ("[fetching.MemoryFetcher]\nreturn_all = true\nmapper = { x = 1 }\n" + _PEOPLE, r"\['mapper'\] are replaced"),
-        ("[translator.mapping]\nscore_function_kwargs = {}\n" + _PEOPLE, "score_function_kwargs mapping key"),
-    ],
-)
-def test_keys_that_2_0_rejects_warn(tmp_path, toml, match):
-    path = tmp_path / "main.toml"
-    path.write_text(toml)
-    with pytest.warns(FutureWarning, match=match):
-        Translator.from_config(path)
+    cached = Translator[str, str, int].load_persistent_instance(
+        "~/cache", "~/main.toml", extra_fetchers="~/fetcher.toml"
+    )
+    assert cached.translate(1, names="s") == "1!"

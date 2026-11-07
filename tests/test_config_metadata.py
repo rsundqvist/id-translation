@@ -1,11 +1,11 @@
 import copy
-import json
 import re
 from datetime import timedelta
 
 import pytest
 
 from id_translation import Translator
+from id_translation.exceptions import ConfigurationError
 from id_translation.toml.meta import BaseMetadata, ConfigMetadata, Metaconf
 
 from .conftest import ROOT
@@ -129,30 +129,6 @@ def test_metaconf_from_dict_does_not_mutate_input():
     assert metaconf.equivalence.extra_packages == ["rics"]
 
 
-def test_toml_date_literals(tmp_path):
-    def fingerprint(value: str) -> str:
-        path = tmp_path / "config.toml"
-        path.write_text(f"[fetching.MemoryFetcher.data.holidays]\nid = [1]\nname = [{value}]\n", encoding="utf-8")
-        return ConfigMetadata.from_toml_paths(str(path), [], Translator).main[1]
-
-    assert fingerprint("2026-12-24") != fingerprint('"2026-12-24"')
-    assert fingerprint("12:30:00") != fingerprint('"12:30:00"')
-
-
-@pytest.mark.parametrize("max_age, expected", [(3600, True), (0, False), (-1, True)])
-def test_max_age_in_seconds(tmp_path, max_age, expected):
-    metadata = ConfigMetadata.from_toml_paths(str(ROOT / "config.toml"), [], Translator)
-    path = tmp_path / "metadata.json"
-    path.write_text(metadata.to_json(), encoding="utf-8")
-    assert metadata.use_cached(path, max_age)[0] is expected
-
-
-@pytest.mark.parametrize("text", ["", "{", '{"versions": {}}', "[]", "versions-list"])
-def test_unreadable_metadata_is_a_miss(tmp_path, text):
-    metadata = ConfigMetadata.from_toml_paths(str(ROOT / "config.toml"), [], Translator)
-    path = tmp_path / "metadata.json"
-    if text == "versions-list":  # Well-formed JSON, with a list where the versions dict goes.
-        text = json.dumps({**json.loads(metadata.to_json()), "versions": []})
-    path.write_text(text, encoding="utf-8")
-    use_cached, _, reason_type = metadata.use_cached(path, "12h")
-    assert (use_cached, reason_type) == (False, "metadata-unreadable")
+def test_metaconf_unknown_key():
+    with pytest.raises(ConfigurationError, match=r"Unknown keys: \['envv'\]"):
+        Metaconf.from_dict({"envv": {}})

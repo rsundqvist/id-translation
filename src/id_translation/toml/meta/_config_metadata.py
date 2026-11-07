@@ -116,7 +116,7 @@ class ConfigMetadata(BaseMetadata):
         clazz: type["Translator[Any, Any, Any]"],
     ) -> "ConfigMetadata":
         """Convenience function for creating ``ConfigMetadata`` instances."""
-        metaconf_path = str(Path(path).with_name("metaconf.toml"))
+        metaconf_path = str(Path(path).expanduser().with_name("metaconf.toml"))
         metaconf = Metaconf.from_path_or_default(metaconf_path)
 
         def _create_path_tuple(str_path: str) -> tuple[Path, str]:
