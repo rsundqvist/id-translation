@@ -238,3 +238,32 @@ class BlockingFetcher(AbstractFetcher[str, int]):
 
     def fetch_translations(self, instr):
         raise NotImplementedError
+
+
+class _NoInitCache(CacheAccess[str, int]):
+    def __init__(self) -> None:  # No super().__init__(), as in a dataclass.
+        pass
+
+    def store(self, instr: FetchInstruction[str, int], translations: PlaceholderTranslations[str]) -> None:
+        pass
+
+    def load(self, instr: FetchInstruction[str, int]) -> None:  # noqa: ARG002
+        return None
+
+
+class TestCacheAccessParent:
+    def test_without_super_init(self):
+        cache = _NoInitCache()
+        with pytest.raises(RuntimeError, match="has no parent fetcher yet"):
+            _ = cache.parent
+
+        fetcher = MemoryFetcher({"s": {"id": [1]}}, cache_access=cache)
+        assert cache.parent is fetcher
+
+    def test_shared_instance_raises(self):
+        cache = _NoInitCache()
+        MemoryFetcher({"s": {"id": [1]}}, cache_access=cache)
+
+        with pytest.raises(RuntimeError, match="already belongs to") as exc_info:
+            MemoryFetcher({"s": {"id": [1]}}, cache_access=cache)
+        assert exc_info.value.__notes__ == ["Hint: Give each fetcher its own CacheAccess instance."]

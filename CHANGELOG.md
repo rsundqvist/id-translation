@@ -19,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * In-place translation of an object `Series` failed every ID under pandas 2, and in-place `pandas` and `polars`
     translation changed the process-wide warnings filters.
   * Verification log records with numpy `bool` sample IDs were not JSON serializable.
+- Fetching:
+  * A `CacheAccess` that skipped `super().__init__()` raised `AttributeError`, and one shared by two fetchers
+    a bare `RuntimeError`.
 
 ## [1.4.2] - 2026-10-10
 

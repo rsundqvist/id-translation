@@ -1,6 +1,9 @@
 from abc import ABC, abstractmethod
 from typing import Generic
 
+from rics.misc import tname
+
+from id_translation._utils import add_hints
 from id_translation.fetching.types import FetchInstruction, PartialCacheHit
 from id_translation.offline.types import PlaceholderTranslations
 from id_translation.types import IdType, SourceType
@@ -17,8 +20,10 @@ class CacheAccess(ABC, Generic[SourceType, IdType]):
     Concurrent translations may call these methods from several threads at once.
     """
 
+    _parent: "Fetcher[SourceType, IdType] | None" = None  # Class-level, so a subclass need not call `__init__`.
+
     def __init__(self) -> None:
-        self._parent: Fetcher[SourceType, IdType] | None = None
+        self._parent = None
 
     @property
     def enabled(self) -> bool:
@@ -98,7 +103,9 @@ class CacheAccess(ABC, Generic[SourceType, IdType]):
             RuntimeError: If called before the parent is set.
         """
         if self._parent is None:
-            raise RuntimeError("parent not set")
+            exc = RuntimeError(f"{tname(self)} has no parent fetcher yet.")
+            add_hints(exc, "The fetcher it is passed to sets the parent when it is constructed.")
+            raise exc
         return self._parent
 
     def set_parent(self, parent: Fetcher[SourceType, IdType]) -> None:
@@ -108,8 +115,10 @@ class CacheAccess(ABC, Generic[SourceType, IdType]):
             parent: A :class:`~id_translation.fetching.Fetcher`.
 
         Raises:
-            RuntimeError: If a parent is already set.
+            RuntimeError: If another parent is already set.
         """
-        if self._parent is not None:
-            raise RuntimeError("parent already set")
+        if self._parent is not None and self._parent is not parent:
+            exc = RuntimeError(f"{tname(self)} already belongs to {self._parent}; a CacheAccess serves one fetcher.")
+            add_hints(exc, "Give each fetcher its own CacheAccess instance.")
+            raise exc
         self._parent = parent
