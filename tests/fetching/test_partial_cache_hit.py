@@ -7,7 +7,7 @@ import pytest
 from id_translation import Translator
 from id_translation.fetching import AbstractFetcher, CacheAccess
 from id_translation.fetching.exceptions import ImplementationError, UnknownIdPlaceholderError
-from id_translation.fetching.types import PartialCacheHit
+from id_translation.fetching.types import IdsToFetch, PartialCacheHit
 from id_translation.mapping import Mapper
 from id_translation.offline.types import PlaceholderTranslations
 from id_translation.types import ID
@@ -192,3 +192,122 @@ def test_loaded_translations_are_not_mutated():
     assert translator.translate([1], names="people") == ["1:Alice"]
     assert shared.placeholders == (ID, "name")
     assert shared.placeholder_aliases == {}
+
+
+class DictCache(CacheAccess[str, int]):
+    """Keeps the last stored translations; a complete hit when they hold every requested placeholder and ID."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.translations: PlaceholderTranslations[str] | None = None
+        self.loaded: list[tuple[str, ...]] = []
+
+    def load(self, instr):
+        self.loaded.append(tuple(instr.placeholders))
+        t = self.translations
+        if t is None or not set(instr.placeholders).issubset(t.placeholders):
+            return None
+        id_pos = t.placeholders.index(ID)
+        return t if instr.ids is not None and instr.ids <= {r[id_pos] for r in t.records} else None
+
+    def store(self, instr, translations):
+        assert set(instr.placeholders) == set(translations.placeholders)
+        self.translations = translations
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {ID: "code"},
+        {"name": "title", "title": "name"},
+    ],
+)
+def test_cache_io_uses_wanted_names(overrides):
+    class SwapFetcher(RecordingFetcher):
+        def _initialize_sources(self, task_id):  # noqa: ARG002
+            return {"people": ["code" if ID in overrides else ID, "name", "title"]}
+
+        def fetch_translations(self, instr):
+            self.calls.append((tuple(instr.placeholders), set(instr.ids)))
+            row = {"code": 1, ID: 1, "name": "Dr", "title": "Alice"}
+            records = [tuple(row[p] for p in instr.placeholders)]
+            return PlaceholderTranslations("people", tuple(instr.placeholders), records)
+
+    cache = DictCache()
+    fetcher = SwapFetcher(cache_access=cache, mapper=Mapper("equality", overrides=overrides))
+    translator: Translator[str, str, int] = Translator(fetcher, fmt="{id}:{name}[ ({title})]")
+
+    first = translator.fetch([1], names="people").to_dicts()
+    second = translator.fetch([1], names="people").to_dicts()
+
+    assert first == second
+    assert len(fetcher.calls) == 1, "second fetch should hit the cache"
+    assert all(ID in loaded and "code" not in loaded for loaded in cache.loaded)
+
+
+@pytest.mark.parametrize("as_partial", [False, True])
+def test_cache_hit_answers_to_source_names(as_partial):
+    class CodeFetcher(RecordingFetcher):
+        def _initialize_sources(self, task_id):  # noqa: ARG002
+            return {"people": ["code", "name"]}
+
+        def fetch_translations(self, instr):
+            self.calls.append((tuple(instr.placeholders), set(instr.ids)))
+            row = {"code": 1, "name": "Alice"}
+            return PlaceholderTranslations(
+                "people", tuple(instr.placeholders), [tuple(row[p] for p in instr.placeholders)]
+            )
+
+    class SerializingCache(DictCache):
+        """Persists rows only, like a cache on disk; aliases are lost."""
+
+        def load(self, instr):
+            hit = super().load(instr)
+            return PartialCacheHit(hit) if as_partial and hit is not None else hit
+
+        def store(self, instr, translations):
+            super().store(instr, PlaceholderTranslations.make("people", translations.to_dict()))
+
+    fetcher = CodeFetcher(cache_access=SerializingCache(), mapper=Mapper("equality", overrides={ID: "code"}))
+
+    def fetch():
+        return fetcher.fetch([IdsToFetch("people", {1})], ("name",))["people"]
+
+    miss = fetch()
+    hit = fetch()
+    assert len(fetcher.calls) == 1, "second fetch should hit the cache"
+    assert hit.placeholder_aliases == miss.placeholder_aliases == {"code": ID}
+
+
+def test_partial_hit_in_requested_layout_with_absent_optional_placeholder():
+    # The cache was asked for (id, name): 'nickname' is optional and the source does not have it.
+    translator, fetcher, cache = make(partial((ID, "name"), 1), fmt="{name}[ ({nickname})]")
+
+    assert translator.translate([1, 2], names="people") == ["Alice", "Bob"]
+    assert fetcher.calls == [((ID, "name"), {2})]
+    assert cache.stored == [{2}]
+
+
+def test_swapped_names_are_not_aliases():
+    class SwapFetcher(RecordingFetcher):
+        def _initialize_sources(self, task_id):  # noqa: ARG002
+            return {"people": [ID, "name", "title"]}
+
+        def fetch_translations(self, instr):
+            self.calls.append((tuple(instr.placeholders), set(instr.ids)))
+            row = {ID: 1, "name": "Alice", "title": "Dr"}
+            return PlaceholderTranslations(
+                "people", tuple(instr.placeholders), [tuple(row[p] for p in instr.placeholders)]
+            )
+
+    swap = {"name": "title", "title": "name"}
+    fetcher = SwapFetcher(cache_access=DictCache(), mapper=Mapper("equality", overrides=swap))
+
+    def fetch():
+        return fetcher.fetch([IdsToFetch("people", {1})], ("name", "title"))["people"]
+
+    miss = fetch()
+    hit = fetch()
+    assert len(fetcher.calls) == 1, "second fetch should hit the cache"
+    assert miss.to_dict() == hit.to_dict() == {ID: [1], "name": ["Dr"], "title": ["Alice"]}
+    assert hit.placeholder_aliases == miss.placeholder_aliases == {}

@@ -43,7 +43,7 @@ and runtime overrides take precedence over static overrides.
    candidate, and ``score=-∞`` for others. These come from the ``override_function`` argument, e.g. of ``translate()``.
 
 2. Static overrides (type: ``dict`` or :class:`~rics.collections.dicts.InheritedKeysDict`); set ``score=∞`` for the
-   chosen candidate, and ``score=-∞`` for others.
+   chosen candidate, and ``score=-∞`` for others. An override to ``"_"`` sets ``score=-∞`` for all, blocking the value.
 
 3. Filtering (type: :attr:`~id_translation.mapping.types.FilterFunction`); set ``score=-∞`` for undesirable matches only.
 
@@ -137,7 +137,7 @@ unnecessary element of uncertainty. To ensure that mapping is done "manually", y
 .. note::
 
    Exact value-candidate matches are made without calling the score function; ``id = "id"`` overrides are not needed. To
-   block these matches, you may create a dummy override such as ``id = "_"`` for affected sources.
+   block a match, override the value to ``"_"``, e.g. ``title = "_"``. See :ref:`Preventing unwanted mappings`.
 
 .. literalinclude:: override-only-fetching.toml
    :language: toml

@@ -41,6 +41,21 @@ def test_message(fetcher):
     )
 
 
+def test_message_for_known_placeholders(fetcher):
+    exc = UnknownPlaceholderError.for_placeholders("id", placeholders=["id", "name"], source="source", caller=fetcher)
+    assert str(exc) == f"Placeholders ['id'] of source='source' exist, but cannot be used by {fetcher}."
+
+
+def test_message_for_known_and_unknown_placeholders(fetcher):
+    exc = UnknownPlaceholderError.for_placeholders(
+        ["title", "name"], placeholders=["id", "title"], source="source", caller=fetcher
+    )
+    assert str(exc) == (
+        f"Placeholders ['name'] not recognized by {fetcher}. For source='source', known placeholders are: ['id', 'title']."
+        f" Placeholders ['title'] of source='source' exist, but cannot be used by {fetcher}."
+    )
+
+
 def test_caller_named_by_config_file():
     fetcher: MemoryFetcher[str, int] = MemoryFetcher({"source": {"key": [1]}}, identifiers=["fetchers.toml"])
     exc = UnknownPlaceholderError.for_placeholders("id", placeholders=["key"], source="source", caller=fetcher)

@@ -11,6 +11,7 @@ from id_translation import Translator
 from id_translation.logging import enable_verbose_debug_messages
 from id_translation.mapping import HeuristicScore, Mapper
 from orm_fetcher import MyOrmFetcher
+from rics.collections.dicts import InheritedKeysDict
 from sqlalchemy import create_engine
 
 enable_verbose_debug_messages(style="rainbow")
@@ -21,7 +22,7 @@ orm_fetcher = MyOrmFetcher(
     preload_attributes=True,
     mapper=Mapper(
         score_function=HeuristicScore("equality", heuristics=["smurf_columns"]),
-        overrides={"stuff": "inventory"},
+        overrides=InheritedKeysDict(specific={"Rental": {"stuff": "inventory"}}),
     ),
 )
 translator = Translator(orm_fetcher)

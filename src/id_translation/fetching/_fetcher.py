@@ -136,9 +136,6 @@ class Fetcher(Generic[SourceType, IdType], HasSources[SourceType]):
         Returns:
             A mapping ``{source: PlaceholderTranslations}`` of translation elements.
 
-        Notes:
-            🧵 This method is not thread safe. See :ref:`thread-safety` for details.
-
         See Also:
             🔑 This is a key event method. See :ref:`key-events` for details.
 

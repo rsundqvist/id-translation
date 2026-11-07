@@ -22,7 +22,6 @@ from sqlalchemy.orm.strategy_options import joinedload
 from sqlalchemy.sql.selectable import Select
 
 from id_translation.fetching import AbstractFetcher, AbstractFetcherParams
-from id_translation.fetching.exceptions import UnknownPlaceholderError
 from id_translation.fetching.types import FetchInstruction
 from id_translation.offline.types import (
     PlaceholderAttributes,
@@ -103,15 +102,6 @@ class MyOrmFetcher(AbstractFetcher[str, IdType]):
         self, instr: FetchInstruction[str, IdType]
     ) -> tuple[Select[tuple[Any, ...]], PlaceholdersTuple]:
         info = self._infos[instr.source]
-
-        if missing := instr.required.difference(info.placeholders):
-            raise UnknownPlaceholderError.for_placeholders(
-                missing,
-                placeholders=info.placeholders,
-                source=instr.source,
-                caller=self,
-            )
-
         stmt = select(info.model)
 
         joins = set(info.relationships).intersection(instr.placeholders)

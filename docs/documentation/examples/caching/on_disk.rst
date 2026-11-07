@@ -37,8 +37,7 @@ We can now start implementing the abstract methods in :class:`.CacheAccess`. We'
 
 Otherwise, we use source as the file name and we convert the translations to a :class:`~.pandas.DataFrame` using
 :meth:`.PlaceholderTranslations.to_pandas`. **Requirement 2**: The frame is witten to disk using
-:meth:`pandas.DataFrame.to_feather`. The placeholders of the instruction go in a ``.json`` file beside it, so that
-``load()`` can tell what the data was fetched for.
+:meth:`pandas.DataFrame.to_feather`.
 
 We're now ready to implement :meth:`.CacheAccess.load`, which will read, verify, and convert the stored data.
 
@@ -63,7 +62,6 @@ If the data is stale, we return ``None``.
    :meth:`.AbstractFetcher.fetch_translations` instead.
 
 The data is read using :func:`pandas.read_feather`, then converted using :meth:`.PlaceholderTranslations.from_dataframe`.
-
 Data stored for one format may lack placeholders that another asks for, e.g. an optional ``email``. Such data is
 rejected too: a hit is used as-is, so returning it would silently drop those placeholders.
 

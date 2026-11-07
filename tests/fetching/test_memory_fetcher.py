@@ -4,7 +4,7 @@ import pytest
 
 from id_translation import Translator
 from id_translation.fetching import MemoryFetcher
-from id_translation.fetching.exceptions import UnknownIdPlaceholderError
+from id_translation.fetching.exceptions import UnknownIdPlaceholderError, UnknownPlaceholderError
 from id_translation.fetching.types import FetchInstruction, IdsToFetch
 from id_translation.mapping import Mapper
 from id_translation.offline.types import PlaceholderTranslations
@@ -72,6 +72,61 @@ def test_unmapped_id_column_raises_at_initialize_sources():
     assert exc_info.value.__notes__ == [hint]
 
 
+PEOPLE = {"people": {"id": [1], "title": ["Mr"], "name": ["Fred"]}}
+
+
+class TestBlockingOverride:
+    @pytest.mark.parametrize("return_all", [False, True])
+    def test_optional_placeholder(self, return_all):
+        mapper: Mapper[str, str, str] = Mapper(overrides={"title": "_"})
+        fetcher: MemoryFetcher[str, int] = MemoryFetcher(PEOPLE, return_all=return_all, mapper=mapper)
+        translator: Translator[str, str, int] = Translator(fetcher, fmt="[{title}. ]{name}")
+        assert translator.translate(1, "people") == "Fred"
+
+    @pytest.mark.parametrize("return_all", [False, True])
+    def test_required_placeholder(self, return_all):
+        mapper: Mapper[str, str, str] = Mapper(overrides={"name": "_"})
+        fetcher: MemoryFetcher[str, int] = MemoryFetcher(PEOPLE, return_all=return_all, mapper=mapper)
+        translator: Translator[str, str, int] = Translator(fetcher, fmt="{id}:{name}")
+        with pytest.raises(UnknownPlaceholderError) as exc_info:
+            translator.translate(1, "people")
+        assert exc_info.value.__notes__ == ["Hint: Overrides to '_' block the required placeholders ['name']."]
+
+    @pytest.mark.parametrize("fmt", ["{id}[:{title}]", "{id}:{title}"])
+    def test_go_offline_fetch_all(self, fmt):
+        mapper: Mapper[str, str, str] = Mapper(overrides={"title": "_"})
+        fetcher: MemoryFetcher[str, int] = MemoryFetcher(
+            PEOPLE, return_all=True, selective_fetch_all=False, mapper=mapper
+        )
+        translator: Translator[str, str, int] = Translator(fetcher, fmt=fmt)
+        if "[" in fmt:
+            assert translator.go_offline().translate(1, "people") == "1"
+        else:
+            with pytest.raises(UnknownPlaceholderError, match=r"\['title'\] of source='people' exist"):
+                translator.go_offline()
+
+    def test_id_alias(self):
+        # The 'title' column is fetched as the ID; a block on 'title' must not let {title} render it.
+        mapper: Mapper[str, str, str] = Mapper(overrides={"id": "title", "title": "_"})
+        fetcher: MemoryFetcher[str, int] = MemoryFetcher({"people": {"title": [1]}}, mapper=mapper)
+        translator: Translator[str, str, int] = Translator(fetcher, fmt="{id}:{title}")
+        with pytest.raises(UnknownPlaceholderError, match=r"\['title'\] of source='people' exist"):
+            translator.translate(1, "people")
+
+    def test_id(self):
+        fetcher: MemoryFetcher[str, int] = MemoryFetcher(PEOPLE, mapper=Mapper(overrides={"id": "_"}))
+        with pytest.raises(UnknownIdPlaceholderError) as exc_info:
+            fetcher.initialize_sources()
+        hint = "Hint: An override to '_' blocks the ID column of 'people', but every source needs one."
+        assert exc_info.value.__notes__ == [hint]
+
+    def test_name_to_source(self):
+        translator: Translator[str, str, int] = Translator(
+            PEOPLE, mapper=Mapper(overrides={"bitten_by": "_"}, on_unmapped="raise")
+        )
+        assert translator.translate({"people": 1, "bitten_by": 1}) == {"people": "1:Fred", "bitten_by": 1}
+
+
 def test_bad_id_override_raises_at_initialize_sources():
     fetcher: MemoryFetcher[str, str] = MemoryFetcher(
         {"lookup": {"key": ["a"], "name": ["A"]}}, mapper=Mapper(overrides={"id": "nope"})
@@ -89,7 +144,7 @@ def test_filtered_source_raises_at_initialize_sources():
     mapper: Mapper[str, str, str] = Mapper(filter_functions=[("filter_sources", {"regex": "meta", "remove": True})])
     fetcher: MemoryFetcher[str, int] = MemoryFetcher({"meta": {"id": [1]}, "people": {"id": [1]}}, mapper=mapper)
 
-    with pytest.raises(UnknownIdPlaceholderError, match=r"\['id'\] not recognized") as exc_info:
+    with pytest.raises(UnknownIdPlaceholderError, match=r"\['id'\] of source='meta' exist") as exc_info:
         fetcher.initialize_sources()
     assert exc_info.value.source == "meta"
     assert exc_info.value.__notes__ == ["Hint: A filter rejects the ID column of 'meta', but every source needs one."]

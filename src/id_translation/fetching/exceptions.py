@@ -116,7 +116,8 @@ class UnknownPlaceholderError(FetcherError, _MissingPlaceholderError):
 
     Args:
         msg: The error message.
-        missing_placeholders: Placeholder names that `source` does not have. A single name may be given as a string.
+        missing_placeholders: Placeholder names that could not be mapped for `source`. A single name may be
+            given as a string.
         placeholders: Placeholder names that `source` does have. A single name may be given as a string.
         source: The source that was searched.
         hints: Additional context, attached as notes.
@@ -154,7 +155,8 @@ class UnknownPlaceholderError(FetcherError, _MissingPlaceholderError):
         `missing_placeholders`. Subclasses always construct themselves.
 
         Args:
-            missing_placeholders: Placeholder names that `source` does not have. A single name may be given as a string.
+            missing_placeholders: Placeholder names that could not be mapped for `source`. A single name may be
+                given as a string.
             placeholders: Placeholder names that `source` does have. A single name may be given as a string.
             source: The source that was searched.
             caller: The fetcher raising the error. Rendered with its
@@ -169,10 +171,19 @@ class UnknownPlaceholderError(FetcherError, _MissingPlaceholderError):
         error_type = cls
         if cls is UnknownPlaceholderError and _ID in missing_placeholders:
             error_type = _t.cast("type[_Self]", UnknownIdPlaceholderError)
-        msg = (
-            f"Placeholders {sorted(missing_placeholders)} not recognized by {_render_caller(caller)}."
-            f" For source={source!r}, known placeholders are: {sorted(placeholders)}."
-        )
+        unknown = sorted(set(missing_placeholders) - set(placeholders))
+        unusable = sorted(set(missing_placeholders) & set(placeholders))  # E.g. blocked by an override or a filter.
+        parts = []
+        if unknown or not unusable:
+            parts.append(
+                f"Placeholders {unknown} not recognized by {_render_caller(caller)}."
+                f" For source={source!r}, known placeholders are: {sorted(placeholders)}."
+            )
+        if unusable:
+            parts.append(
+                f"Placeholders {unusable} of source={source!r} exist, but cannot be used by {_render_caller(caller)}."
+            )
+        msg = " ".join(parts)
         return error_type(
             msg, missing_placeholders=missing_placeholders, placeholders=placeholders, source=source, hints=hints
         )
@@ -189,7 +200,8 @@ class UnknownIdPlaceholderError(UnknownPlaceholderError, _MissingIdPlaceholderEr
 
     Args:
         msg: The error message.
-        missing_placeholders: Placeholder names that `source` does not have. A single name may be given as a string.
+        missing_placeholders: Placeholder names that could not be mapped for `source`. A single name may be
+            given as a string.
         placeholders: Placeholder names that `source` does have. A single name may be given as a string.
         source: The source that was searched.
         hints: Additional context, attached as notes.

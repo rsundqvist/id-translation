@@ -20,7 +20,12 @@ class IdsToFetch(_t.Generic[_tt.SourceType, _tt.IdType]):
 
 @_dataclass(frozen=True)
 class FetchInstruction(_t.Generic[_tt.SourceType, _tt.IdType]):
-    """Instructions passed from an ``AbstractFetcher`` to an implementation."""
+    """Instructions passed from an ``AbstractFetcher`` to an implementation.
+
+    :meth:`~id_translation.fetching.AbstractFetcher.fetch_translations` gets the placeholder names of the `source`, and
+    a :class:`~id_translation.fetching.CacheAccess` gets the wanted names they were mapped from. Either way, every name
+    in `placeholders` and `required` is one the source provides.
+    """
 
     source: _tt.SourceType
     """Where to fetch from."""
@@ -82,11 +87,6 @@ class PartialCacheHit(_t.Generic[_tt.SourceType, _tt.IdType]):
     @property
     def placeholders(self) -> _ot.PlaceholdersTuple:
         """Layout to fetch the missing IDs with; a thin alias of ``translations.placeholders``.
-
-        .. hint::
-
-           Use the :attr:`CacheAccess.parent <id_translation.fetching.CacheAccess.parent>` to access e.g. available
-           placeholders.
 
         The fetcher fetches the complement using at least these placeholders, so a cache keeps its stored layout
         cohesive (avoiding a per-request layout split) simply by returning that layout here -- even when `translations`

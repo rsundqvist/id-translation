@@ -144,7 +144,9 @@ def test_unmappable_whitelist_table(use_override, connection_string):
     fetcher = SqlFetcher(connection_string, mapper=mapper, whitelist_tables=["animals", "big_table", "huge_table"])
 
     missing = "bad-column" if use_override else "id"
-    with pytest.raises(exceptions.UnknownIdPlaceholderError, match=rf"\['{missing}'\] not recognized") as e:
+    # The filter rejects an 'id' column that exists; the override names a column that does not.
+    match = r"\['bad-column'\] not recognized" if use_override else r"\['id'\] of source='animals' exist"
+    with pytest.raises(exceptions.UnknownIdPlaceholderError, match=match) as e:
         fetcher._get_summaries(-1)
     fetcher.close()
     assert e.value.missing_placeholders == (missing,)
