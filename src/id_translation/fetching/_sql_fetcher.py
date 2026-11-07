@@ -114,7 +114,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         else:
             if blacklist_tables:
                 raise ValueError("At most one of whitelist and blacklist may be given.")  # pragma: no cover
-            self._whitelist = list(set(whitelist_tables))
+            self._whitelist = list(dict.fromkeys(whitelist_tables))  # Deduplicated, in the given order.
 
             if len(self._whitelist) == 0:
                 msg = f"Got empty 'whitelist_tables' argument. No tables will be available to {self}."
@@ -453,7 +453,8 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         if self._whitelist:
             tables = self._whitelist
         else:
-            tables = table_names.difference(self._blacklist) if self._blacklist else table_names
+            # Sorted: source order breaks ties when mapping names, so it must not depend on set order.
+            tables = sorted(table_names.difference(self._blacklist) if self._blacklist else table_names)
 
         if not tables:  # pragma: no cover
             extra = ""

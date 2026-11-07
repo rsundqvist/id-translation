@@ -1,4 +1,8 @@
+import json
+import os
 import pickle
+import subprocess
+import sys
 from copy import deepcopy
 from uuid import UUID
 
@@ -279,3 +283,20 @@ def test_sqlite_uuid_heuristics(tmp_path, column_type, stored):
 
     # Unclosed SQLite connections emit a ResourceWarning whenever the GC gets to them, failing an unrelated test.
     fetcher.close()
+
+
+def test_source_order_does_not_depend_on_the_hash_seed(connection_string):
+    """Source order breaks ties when mapping names, so it must be the same in every process."""
+    script = (
+        "import json, sys; from id_translation.fetching import SqlFetcher; cs = sys.argv[1]; "
+        "print(json.dumps([SqlFetcher(cs).sources, SqlFetcher(cs, whitelist_tables=sys.argv[2:]).sources]))"
+    )
+    whitelist = ["humans", "huge_table", "animals", "big_table", "humans"]
+
+    for seed in ["1", "2", "3"]:
+        env = {**os.environ, "PYTHONHASHSEED": seed}
+        args = [sys.executable, "-c", script, connection_string, *whitelist]
+        out = subprocess.run(args, env=env, capture_output=True, text=True, check=True).stdout  # noqa: S603
+        reflected, whitelisted = json.loads(out)
+        assert reflected == sorted(ALL_TABLES), f"{seed=}"
+        assert whitelisted == ["humans", "huge_table", "animals", "big_table"], f"{seed=}"
