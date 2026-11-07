@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The `AbstractFetcher.config_file`.
 - `logging.enable_verbose_debug_messages()` returns an `UndoLogging`, which also undoes a call made without `with`.
 - `types.ExplicitNames`, the type of a `names` argument that may also be a `{name: source}` mapping; any `Mapping` is accepted.
+- `load_persistent_instance(max_age=<int>)`, a number of seconds.
 - `dio.exceptions.RegistryReentryError`, raised when an entrypoint module uses the IO registry at import.
 
 ### Deprecated
@@ -71,6 +72,7 @@ Each emits a `FutureWarning`.
   * A single `extra_fetchers` path was read one character per path, and `~` in a config path was expanded only
     for the fingerprint.
   * A plain function set as `FETCHER_FACTORY` on a subclass raised `TypeError`.
+  * An unparsable `metadata.json` made `load_persistent_instance()` raise on every call.
 - Documentation: the name-to-source mapping diagram.
 
 ## [1.4.2] - 2026-10-10

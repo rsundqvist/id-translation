@@ -183,5 +183,5 @@ class GoOfflineParams(FetchParams[_tt.NameType, _tt.SourceType, _tt.IdType], tot
     path: _AnyPath | None
 
 
-CacheMissReasonType = _t.Literal["metadata-missing", "metadata-changed", "too-old"]
+CacheMissReasonType = _t.Literal["metadata-missing", "metadata-unreadable", "metadata-changed", "too-old"]
 """High-level reason why a cached ``Translator`` was rejected."""

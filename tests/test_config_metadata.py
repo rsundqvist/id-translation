@@ -1,4 +1,5 @@
 import copy
+import json
 import re
 from datetime import timedelta
 
@@ -136,3 +137,22 @@ def test_toml_date_literals(tmp_path):
 
     assert fingerprint("2026-12-24") != fingerprint('"2026-12-24"')
     assert fingerprint("12:30:00") != fingerprint('"12:30:00"')
+
+
+@pytest.mark.parametrize("max_age, expected", [(3600, True), (0, False), (-1, True)])
+def test_max_age_in_seconds(tmp_path, max_age, expected):
+    metadata = ConfigMetadata.from_toml_paths(str(ROOT / "config.toml"), [], Translator)
+    path = tmp_path / "metadata.json"
+    path.write_text(metadata.to_json(), encoding="utf-8")
+    assert metadata.use_cached(path, max_age)[0] is expected
+
+
+@pytest.mark.parametrize("text", ["", "{", '{"versions": {}}', "[]", "versions-list"])
+def test_unreadable_metadata_is_a_miss(tmp_path, text):
+    metadata = ConfigMetadata.from_toml_paths(str(ROOT / "config.toml"), [], Translator)
+    path = tmp_path / "metadata.json"
+    if text == "versions-list":  # Well-formed JSON, with a list where the versions dict goes.
+        text = json.dumps({**json.loads(metadata.to_json()), "versions": []})
+    path.write_text(text, encoding="utf-8")
+    use_cached, _, reason_type = metadata.use_cached(path, "12h")
+    assert (use_cached, reason_type) == (False, "metadata-unreadable")

@@ -103,13 +103,14 @@ class BaseMetadata(ABC):
     def use_cached(
         self,
         metadata_path: Path,
-        max_age: str | timedelta | None,
+        max_age: str | int | timedelta | None,
     ) -> tuple[Literal[True], str, None] | tuple[Literal[False], str, CacheMissReasonType]:
         """Check status of stored metadata config based a desired configuration ``self``.
 
         Args:
             metadata_path: Path of stored metadata.
-            max_age: Maximum age of stored metadata. Pass zero to force recreation. Smaller than zero = never expire.
+            max_age: Maximum age of stored metadata; an ``int`` is a number of seconds. Pass zero to force recreation.
+                Smaller than zero = never expire.
 
         Returns:
             A tuple ``(True, expires_at, None)`` or ``(False, reason, reason_type)``.
@@ -117,20 +118,25 @@ class BaseMetadata(ABC):
         if not metadata_path.exists():
             return False, "no cache metadata found", "metadata-missing"
 
-        stored_config = self.from_json(metadata_path.read_text(encoding="utf-8"))
+        try:
+            stored_config = self.from_json(metadata_path.read_text(encoding="utf-8"))
+            # Comparing reads the stored values, which may have the wrong types.
+            reason_not_equivalent = self.is_equivalent(stored_config)
+        except (ValueError, LookupError, TypeError, AttributeError) as e:  # E.g. a file torn by a crash mid-write.
+            return False, f"cache metadata is unreadable: {e!r}", "metadata-unreadable"
 
-        reason_not_equivalent = self.is_equivalent(stored_config)
         if reason_not_equivalent:
             return False, f"cached instance is not equivalent: {reason_not_equivalent}", "metadata-changed"
 
-        if max_age is None:
-            return True, "does not expire", None
-        elif isinstance(max_age, str):
+        delta: timedelta | None
+        if isinstance(max_age, str):
             delta = self._delta_from_string(max_age)
+        elif isinstance(max_age, int):
+            delta = timedelta(seconds=max_age)
         else:
             delta = max_age
 
-        if delta < timedelta(0):
+        if delta is None or delta < timedelta(0):
             return True, "does not expire", None
 
         expires_at = (stored_config.created + abs(delta)).replace(microsecond=0)
