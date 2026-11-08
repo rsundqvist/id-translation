@@ -39,8 +39,7 @@ def test_main_top_level_matches_factory() -> None:
 def test_fetcher_top_level_matches_aux_allow_list() -> None:
     # Auxiliary fetcher files allow only these at the root; see TranslatorFactory._handle_fetching.
     fetcher = schemas()[FETCHER_FILENAME]
-    assert set(fetcher["properties"]) == {"fetching", "transform"}
-    # A transform-only fetcher file is a ConfigurationError at load time; the schema must reject it too.
+    assert set(fetcher["properties"]) == {"fetching"}, "transformers go in [fetching.transform]"
     assert fetcher["required"] == ["fetching"]
     # MultiFetcher is permitted in the main configuration file only; fetcher files reject it (schema `false`).
     assert fetcher["definitions"]["fetching"]["properties"]["MultiFetcher"] is False
@@ -66,7 +65,7 @@ def test_metaconf_top_level_matches_dataclass() -> None:
 def test_enumerated_builtin_fetchers_exist() -> None:
     # Every enumerated built-in fetcher must be a real id_translation.fetching class.
     main = schemas()[MAIN_FILENAME]
-    reserved = {"mapping", "cache", "MultiFetcher"}
+    reserved = {"mapping", "cache", "transform", "MultiFetcher"}
     builtins = set(main["definitions"]["fetching"]["properties"]) - reserved
     assert builtins, "expected built-in fetchers to be enumerated"
     for name in builtins:
@@ -102,11 +101,28 @@ def test_required_fetcher_keys_have_no_default() -> None:
         assert set(definitions[name].get("required", [])) == without_default, name
 
 
+def test_transform_scopes() -> None:
+    section = {"guests": {"my.lib.Suffix": {"suffix": "!"}}}
+    fetching = {"MemoryFetcher": {"data": {}}, "transform": section}
+    main = jsonschema.Draft7Validator(schemas()[MAIN_FILENAME])
+    fetcher = jsonschema.Draft7Validator(schemas()[FETCHER_FILENAME])
+
+    assert main.is_valid({"fetching": fetching, "transform": section})
+    assert fetcher.is_valid({"fetching": fetching})
+    assert not fetcher.is_valid({"fetching": fetching, "transform": section}), "main file only"
+    assert not main.is_valid({"fetching": {**fetching, "transform": 1}}), "not taken for a custom fetcher type"
+
+
 def test_runtime_rejected_keys() -> None:
     main = jsonschema.Draft7Validator(schemas()[MAIN_FILENAME])
+    fetcher = jsonschema.Draft7Validator(schemas()[FETCHER_FILENAME])
     memory: dict[str, Any] = {"data": {}}
 
     assert main.is_valid({"fetching": {"MemoryFetcher": memory, "mapping": {"cardinality": "OneToOne"}}})
     assert not main.is_valid({"translator": {"mapping": {"score_function_kwargs": {}}}}), "use a score_function table"
     assert not main.is_valid({"fetching": {"MemoryFetcher": {**memory, "mapper": {}}}}), "use [fetching.mapping]"
     assert not main.is_valid({"fetching": {"my.lib.Fetcher": {"cache_access": {}}}}), "use [fetching.cache.'<type>']"
+
+    optional = {"fetching": {"MemoryFetcher": {**memory, "optional": True}}}
+    assert not main.is_valid(optional), "the main file's fetcher cannot be optional"
+    assert fetcher.is_valid(optional)

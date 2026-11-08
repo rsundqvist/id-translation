@@ -167,10 +167,10 @@ def test_concurrent_io_resolution(offline_translator: Translator[str, str, int])
 @pytest.mark.xfail(
     strict=True,
     raises=BaseExceptionGroup,
-    reason="Shared Translator._translated_names race (_translator.py:790); xfail flips to a failure once fixed.",
+    reason="Shared Translator._translated_names race; xfail flips to a failure once fixed.",
 )
 def test_concurrent_translated_names_is_consistent(offline_translator: Translator[str, str, int]) -> None:
-    """Expose the shared ``Translator._translated_names`` race (``_translator.py:790``).
+    """Expose the shared ``Translator._translated_names`` race.
 
     Each thread translates a single, fixed source and then reads :meth:`Translator.translated_names`,
     asserting it reflects *its own* most recent call. ``translate()`` writes ``self._translated_names``
@@ -201,12 +201,6 @@ def test_concurrent_translated_names_is_consistent(offline_translator: Translato
 def test_concurrent_lazy_initialization(
     online_translator: Translator[str, str, int], offline_translator: Translator[str, str, int]
 ) -> None:
-    """Race lazy source initialization on a fresh *online* Translator.
-
-    Concurrent ``translate()`` calls trigger concurrent ``initialize_sources()`` /
-    ``_placeholders`` setup (and the non-atomic ``HexFetcher.num_fetches += 1``). This targets the
-    documented not-thread-safe online path; outputs must still be correct.
-    """
     expected = offline_translator.translate(copy.deepcopy(DICT_INPUT), copy=True)
 
     def worker(_idx: int, _i: int) -> None:

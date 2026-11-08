@@ -24,7 +24,8 @@ class Fetcher(Generic[SourceType, IdType], HasSources[SourceType]):
         Notes:
             🧵 This method is not thread safe. See :ref:`thread-safety` for details.
 
-            This function is called implicitly before every translation task. Result should be cached.
+            Called implicitly and possibly repeatedly, such as after a failed discovery or by a ``Translator`` that
+            shares the fetcher but has not discovered its sources yet. Implementations should cache a successful result.
         """
 
     @property
@@ -54,6 +55,10 @@ class Fetcher(Generic[SourceType, IdType], HasSources[SourceType]):
             This method is called by :meth:`Translator.initialize_sources() <id_translation.Translator.initialize_sources>`.
         """
         return None
+
+    def _configured_transformers(self, source: SourceType) -> Sequence[Transformer[IdType]]:  # noqa: ARG002
+        """Transformers configured for `source` in this fetcher's ``[fetching.transform]``-section, if any."""
+        return ()
 
     @property
     def optional(self) -> bool:

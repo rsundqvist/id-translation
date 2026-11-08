@@ -109,15 +109,21 @@ def test_translator_section_rejects_other_keys(tmp_path, key):
         assert "Hint: Use [unknown_ids] fmt." in exc_info.value.__notes__
 
 
-@pytest.mark.parametrize("broken", ["main.toml", "fetcher.toml"])
-def test_section_given_a_value(tmp_path, broken):
+@pytest.mark.parametrize(
+    ("broken", "content", "key"),
+    [
+        ("main.toml", "transform = 1\n[fetching.MemoryFetcher]\ndata = {}\n", "transform"),
+        ("fetcher.toml", "fetching = 1\n", "fetching"),
+    ],
+)
+def test_section_given_a_value(tmp_path, broken, content, key):
     main = tmp_path / "main.toml"
     main.write_text("[translator]\n", encoding="utf-8")
     fetcher = tmp_path / "fetcher.toml"
     fetcher.write_text("[fetching.MemoryFetcher]\ndata = {}\n", encoding="utf-8")
-    (tmp_path / broken).write_text("transform = 1\n[fetching.MemoryFetcher]\ndata = {}\n", encoding="utf-8")
+    (tmp_path / broken).write_text(content, encoding="utf-8")
 
-    with pytest.raises(ConfigurationError, match=r"Top-level keys \['transform'\] must be sections"):
+    with pytest.raises(ConfigurationError, match=rf"Top-level keys \['{key}'\] must be sections"):
         Translator.from_config(main, extra_fetchers=[fetcher])
 
 
@@ -438,10 +444,12 @@ def _suppress_hints(exc: BaseException) -> list[str]:
 def test_every_fetcher_discarded(tmp_path, monkeypatch):
     monkeypatch.setenv(SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS, "true")
     main = tmp_path / "main.toml"
-    main.write_text(f"[fetching.'{__name__}.CrashesOnInitFetcher']\noptional = true\n", encoding="utf-8")
+    main.write_text("[translator]\n", encoding="utf-8")
+    aux = tmp_path / "fetcher.toml"
+    aux.write_text(f"[fetching.'{__name__}.CrashesOnInitFetcher']\noptional = true\n", encoding="utf-8")
 
     with pytest.raises(ConfigurationError, match=r"All \[fetching\]-sections were discarded as optional"):
-        Translator.from_config(main)
+        Translator.from_config(main, extra_fetchers=[aux])
 
 
 class CrashesOnInitFetcher(MemoryFetcher[Any, Any]):

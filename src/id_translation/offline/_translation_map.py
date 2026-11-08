@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, Generic, Self
 from rics.collections.dicts import InheritedKeysDict, reverse_dict
 from rics.misc import tname
 
-from ..transform.types import Transformer, Transformers
+from ..transform.types import Transformer
 from ..types import HasSources, IdType, NameToSource, NameType, SourceType
 from ._format import Format
 from ._format_applier import FormatApplier
@@ -45,7 +45,7 @@ class TranslationMap(
         name_to_source: NameToSource[NameType, SourceType] | None = None,
         default_fmt_placeholders: InheritedKeysDict[SourceType, str, Any] | None = None,
         enable_uuid_heuristics: bool | None = None,
-        transformers: Transformers[SourceType, IdType] | None = None,
+        transformers: Mapping[SourceType, Transformer[IdType]] | None = None,
     ) -> None:
         self.fmt = Format.parse(fmt)
         self.default_fmt = Format.parse(default_fmt)
@@ -77,6 +77,10 @@ class TranslationMap(
 
     def _extract_translations(self) -> SourcePlaceholderTranslations[SourceType]:
         return {source: applier._translations for source, applier in self._format_appliers.items()}
+
+    def _set_transformers(self, transformers: Mapping[SourceType, Transformer[IdType]]) -> None:
+        for source, applier in self._format_appliers.items():
+            applier._transformer = transformers.get(source)
 
     def to_pandas(self) -> dict[SourceType, "pandas.DataFrame"]:
         """Get the underlying data used for translations as :class:`pandas.DataFrame`.
@@ -291,14 +295,6 @@ class TranslationMap(
             for source, applier in self._format_appliers.items()
             if applier.transformer is not None
         }
-
-    def _set_transformer(self, source: SourceType, transformer: Transformer[IdType]) -> None:
-        # `Translator.register_transformer` keeps an offline instance's cache in sync. Unknown sources are that
-        # caller's concern to report, not ours. Private on purpose: only the owning Translator may reconfigure
-        # the map after construction.
-        applier = self._format_appliers.get(source)
-        if applier is not None:
-            applier._transformer = transformer
 
     def copy(self) -> Self:
         """Make a copy of this ``TranslationMap``."""

@@ -89,7 +89,7 @@ Section: Unknown IDs
 Section: Fetching
 -----------------
 The type of the fetcher is determined by the second-level key (:ref:`mapping <translator-config-mapping>`, :ref:`cache
-<Caching>` and :ref:`MultiFetcher <Multiple fetchers>` reserved). For example, a
+<Caching>`, :ref:`transform <translator-config-transform>` and :ref:`MultiFetcher <Multiple fetchers>` reserved). For example, a
 :class:`~id_translation.fetching.MemoryFetcher` would be created by adding a ``[fetching.MemoryFetcher]``-section. A
 single file may only declare **one** fetcher this way; a single fetcher commonly serves many sources (e.g. one
 ``SqlFetcher`` across several tables); see :ref:`Multiple fetchers` below if you need to *combine* fetchers, e.g. a
@@ -130,7 +130,7 @@ for integer IDs: TOML keys are always strings, so ``101 = "Widget"`` would key t
    * - optional
      - :py:class:`bool`
      - If ``True``, discard on :attr:`~id_translation.types.HasSources.sources`-resolution crash.
-     - Multi-fetcher mode only. See :ref:`Optional fetchers` for details.
+     - Auxiliary files only. See :ref:`Optional fetchers` for details.
 
 The keys listed above are for the :class:`~id_translation.fetching.AbstractFetcher` class, which all fetchers created by
 TOML configuration must inherit. Additional parameters vary based on the chosen implementation. See the
@@ -156,7 +156,8 @@ See: :ref:`Subsection: Mapping` for details. For all mapping operations performe
 Multiple fetchers
 ~~~~~~~~~~~~~~~~~
 Complex applications may require multiple fetchers. These may be specified in auxiliary config files, one fetcher per
-file. These files may only contain ``fetching`` and ``transform`` sections. If multiple fetchers are defined, a
+file. These files may only contain a ``fetching`` section, including its
+:ref:`[fetching.transform] <translator-config-transform>` subsections. If multiple fetchers are defined, a
 :class:`~id_translation.fetching.MultiFetcher` is created. Fetchers defined this way are **hierarchical**. The input
 order determines rank: when several fetchers claim a :attr:`source <id_translation.types.HasSources.sources>`, the
 highest-ranked one serves it if ``on_source_conflict`` is ``'warn'`` or ``'ignore'``. The default, ``'raise'``, rejects
@@ -193,6 +194,7 @@ Optional fetchers
 :meth:`Optional <.Fetcher.optional>` fetchers are allowed to raise when :meth:`.Fetcher.initialize_sources` is called,
 for example because a database is down. Configuration errors (a :class:`~id_translation.exceptions.ConfigurationError`,
 or a source missing a required placeholder, such as an ID column) still raise.
+Only fetchers in auxiliary files may be optional; a fetcher in the main file with ``optional = true`` raises.
 Fetchers should **not** raise when imported or initialized. To suppress init errors (e.g. :class:`ModuleNotFoundError`),
 the config file must specify ``optional = true`` in the class init args:
 
@@ -210,18 +212,14 @@ way.
    Using ``ID_TRANSLATION_SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS=true`` can and often will hide configuration errors
    (e.g. misspelled argument names) or broken packages.
 
-A fetcher discarded because it failed to *initialize* takes its file's
-:ref:`[transform]-section <translator-config-transform>` with it, in the main configuration as well as in an auxiliary
-one. A fetcher discarded later, when :meth:`.Fetcher.initialize_sources` raises, does not: the section was built when
-the configuration was read. Its transformers stay registered, and apply to nothing unless a surviving fetcher serves
-the same source.
+A fetcher takes its :ref:`[fetching.transform]-sections <translator-config-transform>` with it whenever it is
+discarded.
 
 .. note::
 
    ``optional = true`` covers an unavailable *data source*, not an unreadable file: the file must parse, and its
-   top-level sections are still checked. The ``[transform]``-section itself is built after the discard check, so a
-   malformed one is a :class:`~id_translation.exceptions.ConfigurationError` only when its fetcher survives: a discarded
-   fetcher takes even a broken section with it.
+   sections are still checked, including the shape of its ``[fetching.transform]``-section. Its transformers are only
+   built if the fetcher constructs, so a discarded fetcher takes them with it even if they could not be imported.
 
 Caching
 ~~~~~~~
@@ -487,11 +485,20 @@ and :meth:`~.Fetcher.fetch_all` skips the source when ``selective_fetch_all=True
 
 Section: Transformations
 ------------------------
-Transformers are declared using ``[transform.'<source>'.'<transformer-type>']`` sections. Subsection keys are passed
-directly to the ``__init__``-method of the chosen transformer type.
+For more information about transformer behavior, chaining, and programmatic registration, please refer to the
+:ref:`transformation-primer` page.
+
+Transformers are declared in one of two scopes. Subsection keys are passed directly to the ``__init__``-method of the
+chosen transformer type.
+
+* ``[fetching.transform.'<source>'.'<transformer-type>']`` belongs to the fetcher declared in the same file, main or
+  auxiliary. It applies only to sources that fetcher serves, so it goes with the fetcher when that fetcher is discarded
+  or loses a source conflict. A section for a source the fetcher never discovers is dropped with a warning.
+* ``[transform.'<source>'.'<transformer-type>']`` is allowed in the main file only. It belongs to the ``Translator``
+  and may transform any source. In an auxiliary file, it raises.
 
 For example, to configure a :class:`.BitmaskTransformer` for a ``permissions`` source, add a section on the form
-``[transform.'<source>'.BitmaskTransformer]`` to an appropriate configuration file. The ``overrides`` are a list of
+``[transform.'<source>'.BitmaskTransformer]`` to the main configuration file. The ``overrides`` are a list of
 tables because TOML keys must be strings:
 
 .. code-block:: toml
@@ -503,62 +510,17 @@ tables because TOML keys must be strings:
        { id = 0b1000, override = "OVERFLOW" },
    ]
 
-This will create a transform that formats bitmasks such as ``0b101`` in the following way:
-
-.. code-block:: python
-
-   translator.translate((0b000, 0b101, 8), names="permissions")
-   ("NOT_SET", "1:name-of-1 AND 4:name-of-4", "OVERFLOW")
-
 .. hint::
 
    Custom transformers may be initialized by using sections with fully qualified type names. For example, a
    ``[transform.'<source>'.'my.library.SuperTransformer']``-section would import and initialize a ``SuperTransformer``
    from the ``my.library`` module.
 
-Chaining transformers
-~~~~~~~~~~~~~~~~~~~~~
-You may specify any number of :class:`.Transformer`\ s per source.  Both the main and auxiliary files may contain
-``[transform.'<source>'.'<transformer-type>']`` sections for the same `source`. This creates a :class:`.TransformerStack`.
-The :class:`.Translator` owns all transformers, regardless of where they're defined.
+For one `source`, transformers are :ref:`chained <transformation-primer-chaining>` in this order: those the fetcher
+provides, then its ``[fetching.transform]`` section, then the main file's ``[transform]`` section.
 
-**Priority**:
-
-* Transformers declared in the same file run in declaration order.
-* Auxiliary fetcher files run before the main file.
-* Fetcher-provided transformers run before any declared for the same source.
-* Equal transformers -- by identity, or by ``__eq__`` -- are the same transformer, so a provided one that is
-  already in the chain is not added again.
-* Each transformer sees -- and may overwrite -- the effects of those before it.
-
-Sections are keyed by type, so a transformer type may appear at most once per source and file. To chain two
-identically-typed transformers, declare them in different files or
-:ref:`register them in code <Programmatic transformer registration>`.
-
-Programmatic transformer registration
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-There are two ways to perform post-initialization transformer registration:
-
-1. The :meth:`.Translator.register_transformer` method, and
-2. The :meth:`.Fetcher.get_transformer` method.
-
-Extending the ``create_translator()`` factory function (see https://github.com/rsundqvist/id-translation-project/) to
-take advantage of :meth:`~.Translator.register_transformer` to register bitmask sources is simple:
-
-.. code-block:: python
-
-   t = Translator(...)
-   t.initialize_sources()
-   for source in t.sources:
-       if source.endswith("_bitmask"):
-           t.register_transformer(source, BitmaskTransformer())
-           t.register_transformer(source, CustomTransformer(), on_existing="append")
-
-This assumes that naming is consistent. Custom fetchers may instead prefer to override :meth:`.Fetcher.get_transformer`,
-e.g. to register :py:class:`~enum.IntFlag` enums.
-
-The :meth:`.Translator.initialize_sources` method calls :meth:`~.Fetcher.get_transformer` for all sources, so
-**fetcher-provided** transformers are **used automatically**.
+Sections are keyed by type, so a transformer type may appear at most once per section. To chain two of the same type,
+use both scopes, or :ref:`register them in code <transformation-primer>`.
 
 Meta configuration
 ------------------

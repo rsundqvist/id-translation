@@ -153,6 +153,21 @@ class MissingIdPlaceholderError(MissingPlaceholderError):
         super().__init__(msg, missing_placeholders="id", placeholders=placeholders, source=source, hints=hints)
 
 
+class TransformerStateError(ValueError):
+    """Raised when transformers are read before they settle, or registered after they have.
+
+    Args:
+        msg: The error message.
+        source: The source a registration was attempted for, if any.
+        hints: Additional context, attached as notes.
+    """
+
+    def __init__(self, msg: str, *, source: _Any = None, hints: str | _Iterable[str] = ()) -> None:
+        super().__init__(msg)
+        self.source = source
+        _add_hints(self, hints)
+
+
 class TransformerConflictError(ValueError):
     """A source already has a transformer, and ``on_existing='raise'``.
 

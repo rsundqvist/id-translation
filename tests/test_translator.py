@@ -247,19 +247,17 @@ def test_store_and_restore(hex_fetcher, tmp_path):
     assert translated_by_restored == translated_data
 
 
-def test_restore_snapshot_without_a_fetcher_key(hex_fetcher):
-    """Offline snapshots used to record their state by omitting `_fetcher`; those must still restore as offline."""
+def test_restore_rejects_a_foreign_snapshot(hex_fetcher):
+    """restore() is handed a path it cannot version-check, so the shape has to be recognised on the way in."""
     translator: UnitTestTranslator = UnitTestTranslator(hex_fetcher, fmt="{id}:{hex}")
-    data = {"positive_numbers": list(range(0, 5))}
-    expected = translator.go_offline(data).translate(data)
+    translator.go_offline({"positive_numbers": [1]})
 
     state: dict[str, Any] = translator.__getstate__()
-    del state["_fetcher"]  # The state an older snapshot unpickles into.
+    del state["_tx"]  # The shape a snapshot from before TransformerRegistry unpickles into.
     revived: UnitTestTranslator = UnitTestTranslator.__new__(UnitTestTranslator)
-    revived.__setstate__(state)
 
-    assert revived.online is False
-    assert revived.translate(data) == expected
+    with pytest.raises(ValueError, match="incompatible version"):
+        revived.__setstate__(state)
 
 
 def test_store_with_explicit_values(hex_fetcher):
@@ -460,14 +458,14 @@ def test_copy_with_override(imdb_translator):
 
 
 def test_copy_with_transformers(imdb_translator):
-    assert imdb_translator.transformers == {}
+    assert imdb_translator._tx._transformers == {}
 
     copy0 = imdb_translator.copy(transformers={"source": BitmaskTransformer()})
 
     copy1 = copy0.copy()
-    assert copy0.transformers == copy1.transformers
-    assert id(copy0.transformers) != id(copy1.transformers)
-    assert id(copy0.transformers["source"]) != id(copy1.transformers["source"])
+    assert copy0._tx._transformers == copy1._tx._transformers
+    assert id(copy0._tx._transformers) != id(copy1._tx._transformers)
+    assert id(copy0._tx._transformers["source"]) != id(copy1._tx._transformers["source"])
 
 
 def test_no_names(translator):
@@ -1075,3 +1073,12 @@ def test_online_placeholders_are_read_only(multi):
     with pytest.raises(TypeError):
         del translator.placeholders["people"]  # type: ignore[attr-defined]
     assert translator.translate(1, names="people") == "1:Ada", "discovery results must be intact"
+
+
+def test_extract_names_does_not_discover():
+    class DownFetcher(MemoryFetcher[str, int]):
+        def _initialize_sources(self, task_id: int) -> dict[str, list[str]]:  # noqa: ARG002
+            raise ConnectionError("down")
+
+    translator: RealTranslator[str, str, int] = RealTranslator(DownFetcher({}))
+    assert translator.extract_names({"a": [1]}) == ["a"]  # Names need only the IO: no discovery, so no raise.

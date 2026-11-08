@@ -78,6 +78,24 @@ Ruff enforces the mechanical rules (Google docstrings, PEP 604 unions, import or
 
 - **Heavy generics:** `Generic[NameType, SourceType, IdType]` and `@overload` throughout; match the existing
   parameterization when extending public API.
+- **Public docstrings** are written as the maintainer writes them by hand, which is shorter than agent output. The extra
+  length comes from extra sentences (qualifiers, "e.g." subtypes, edge cases), not longer ones:
+  - One line per Args or Raises entry where it fits: what the argument is and its default, or the condition in general
+    terms. A Raises entry names no subclasses ("e.g. `ScoringDisabledError`") and no caveats for one fetcher or
+    dialect.
+  - Keep every condition a caller needs to use the method correctly ("Requires `translatable`.", "Offline mode
+    only."). Cut explanations instead: how the method works inside, and how other options interact with this one,
+    which go stale first.
+  - Each fact has one home: a narrative page, the class, or the method that owns it. Elsewhere, at most a one-line
+    pointer ("🔑 This is a key event method. See :ref:`key-events` for details.").
+  - The exception: the Args and Raises entries shared by the `Translator` entry points are copied word for word, since
+    each method has a docs page of its own. A method's own difference goes after the shared text, as a sentence of its
+    own; edit a shared entry in every method that has it.
+  - Write for the Sphinx docs, the primary consumer; a useful `help()` is a bonus. Use roles freely.
+  - Type annotations are not rendered (`autodoc_typehints = "none"`), so a property's summary and a Returns section
+    name the type.
+  - Section order: summary, Args, Returns, Raises, Notes, See Also, Examples. Notes take at most two lines; the thread
+    note is one (`🧵 Thread safe.` or `🧵 Not thread safe.`, plus the link).
 - **Wrapped signatures:** a `def` that doesn't fit one line gets one parameter per line plus a trailing comma, never
   several parameters on one indented line. Ruff can't enforce it. Explode wrapped signatures in code you write, and in
   existing code a commit already edits; no sweeps.

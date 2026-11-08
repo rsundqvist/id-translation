@@ -1,6 +1,5 @@
 """Tests for fetcher-provided transformers; see ``Fetcher.get_transformer``."""
 
-import pickle
 import threading
 import warnings
 from collections import Counter
@@ -52,21 +51,21 @@ class LockedProvider(MemoryFetcher[str, int]):
 
 
 def test_default_is_none():
-    """The base implementation provides nothing, for any source."""
     fetcher = MemoryFetcher[str, int](DATA)
     assert fetcher.get_transformer("bitmasks") is None
 
     translator = Translator[str, str, int](fetcher).initialize_sources()
-    assert translator.transformers == {}
+    assert translator._tx._transformers == {}
 
 
 def test_provided_transformer_is_applied():
-    """The headline use case: the fetcher ships the wiring; the user writes no registration code."""
     fetcher = ProvidingFetcher(TWO_SOURCES, {"bitmasks": Marker("fetcher")})
     translator = Translator[str, str, int](fetcher)
 
     assert translate(translator) == "1:one|fetcher"
-    assert translator.transformers.keys() == {"bitmasks"}, "sources without a provided transformer must be untouched"
+    assert translator._tx._transformers.keys() == {"bitmasks"}, (
+        "sources without a provided transformer must be untouched"
+    )
     assert translator.translate((1,), names="plain") == ("1:just-one",)
 
 
@@ -75,34 +74,23 @@ def test_chain_becomes_a_stack():
     fetcher = ProvidingFetcher(DATA, {"bitmasks": [first, second]})
     translator = Translator[str, str, int](fetcher).initialize_sources()
 
-    stack = translator.transformers["bitmasks"]
+    stack = translator._tx._transformers["bitmasks"]
     assert isinstance(stack, TransformerStack)
     assert stack.transformers == (first, second), "members must keep the given order"
     assert translate(translator) == "1:one|first|second"
 
 
 def test_offline_translator_is_not_queried():
-    """Offline instances have no fetcher to query."""
     translator = Translator[str, str, int]({"bitmasks": {1: "one"}}).initialize_sources()
-    assert translator.transformers == {}
+    assert translator._tx._transformers == {}
 
 
-def test_snapshot_without_query_state():
-    """Snapshots written before `Fetcher.get_transformer` existed must still load, and copy."""
-    translator = Translator[str, str, int]({"bitmasks": {1: "one"}})
-    del translator._transformers_queried  # The state an older `Translator.restore` snapshot unpickles into.
-
-    restored = pickle.loads(pickle.dumps(translator))  # noqa: S301
-    assert restored.copy().translate((1,), names="bitmasks") == ("1:one",)
-
-
-def test_live_dict_mutation_is_seen_by_the_query_pass():
-    """The deprecated live dict bypasses `register_transformer`, but the query pass must still see what it wrote."""
+def test_transformers_view_is_read_only():
     translator = Translator[str, str, int](ProvidingFetcher(DATA, {"bitmasks": Marker("fetcher")}))
-    translator.transformers["bitmasks"] = Marker("sneaky")
-    translator.initialize_sources()
+    translator.initialize_sources(settle_transformers=True)
 
-    assert translate(translator) == "1:one|fetcher|sneaky", "chained onto, not replaced"
+    with pytest.raises(TypeError):
+        translator.transformers["bitmasks"] = Marker("sneaky")  # type: ignore[index]
 
 
 class TestQueriedOnce:
@@ -136,40 +124,103 @@ class TestOverlap:
 
         assert translate(translator) == "1:one|fetcher|declared", "the fetcher's runs first, as aux files do"
 
-    def test_partially_overlapping_chain_adds_only_the_new_members(self):
-        """`get_transformer` may answer with a sequence; only the part that is not already registered is new."""
+    def test_partially_overlapping_chain_repeats_the_shared_member(self):
         shared = Marker("shared")
         fetcher = ProvidingFetcher(TWO_SOURCES, {"bitmasks": [shared, Marker("extra")]})
         translator = Translator[str, str, int](fetcher, transformers={"bitmasks": shared})
 
-        assert translate(translator) == "1:one|extra|shared", "'shared' is not chained onto itself"
+        with pytest.warns(TranslationWarning, match="Duplicate transformer"):
+            assert translate(translator) == "1:one|shared|extra|shared"
 
-    def test_provided_is_not_applied_twice(self):
-        """Declaring exactly what the fetcher provides must not stack it onto itself."""
+    def test_provided_is_applied_twice_when_also_declared(self):
         provided = Marker("fetcher")
         fetcher = ProvidingFetcher(TWO_SOURCES, {"bitmasks": provided})
         translator = Translator[str, str, int](fetcher, transformers={"bitmasks": provided})
 
-        assert translate(translator) == "1:one|fetcher", "applied exactly once"
+        with pytest.warns(TranslationWarning, match="Duplicate transformer") as record:
+            assert translate(translator) == "1:one|fetcher|fetcher"
+
+        message = str(record[0].message)
+        assert "source='bitmasks'" in message, "a member's default repr does not say which source to fix"
+        assert "provided by fetcher=ProvidingFetcher" in message
+        assert "registered on the Translator" in message
+
+    def test_duplicate_from_a_multi_fetcher_names_the_child(self):
+        provided = Marker("fetcher")
+        fetcher = MultiFetcher(
+            ProvidingFetcher(TWO_SOURCES, {"bitmasks": provided}), MemoryFetcher({"other": DATA["bitmasks"]})
+        )
+        translator = Translator[str, str, int](fetcher, transformers={"bitmasks": provided})
+
+        with pytest.warns(TranslationWarning, match="Duplicate transformer") as record:
+            translate(translator)
+
+        message = str(record[0].message)
+        assert "provided by rank-0 fetcher ProvidingFetcher" in message, "the child that serves the source"
+        assert "MemoryFetcher" not in message, "not a dump of every child"
+
+    def test_duplicate_from_a_nested_multi_fetcher_names_the_leaf(self):
+        provided = Marker("fetcher")
+        inner = MultiFetcher(
+            ProvidingFetcher(TWO_SOURCES, {"bitmasks": provided}), MemoryFetcher({"a": DATA["bitmasks"]})
+        )
+        fetcher = MultiFetcher(MemoryFetcher({"b": DATA["bitmasks"]}), inner)  # The leaf is rank 0 in rank-1 `inner`.
+        translator = Translator[str, str, int](fetcher, transformers={"bitmasks": provided})
+
+        with pytest.warns(TranslationWarning, match="Duplicate transformer") as record:
+            translate(translator)
+
+        message = str(record[0].message)
+        assert "fetcher=ProvidingFetcher" in message
+        assert "rank-" not in message, "a rank within `inner` would read as one within `fetcher`"
+        assert "MemoryFetcher" not in message, "not a dump of every grandchild"
+
+    def test_duplicate_names_the_file_of_a_lone_fetcher(self):
+        provided = Marker("fetcher")
+        fetcher = ProvidingFetcher(TWO_SOURCES, {"bitmasks": provided}, identifiers=["fetcher.toml"])
+        translator = Translator[str, str, int](fetcher, transformers={"bitmasks": provided})
+
+        with pytest.warns(TranslationWarning, match="Duplicate transformer") as record:
+            translate(translator)
+
+        assert "(file='fetcher.toml')" in str(record[0].message)
+
+    def test_configured_non_transformer_raises(self):
+        fetcher = ProvidingFetcher(TWO_SOURCES, {"bitmasks": Marker("fetcher")})
+        fetcher._transform_config = {"bitmasks": [42]}  # type: ignore[list-item]
+
+        with pytest.raises(TypeError, match="Element 1 of the transformer chain"):
+            Translator[str, str, int](fetcher).initialize_sources()
+
+    def test_provided_and_configured_names_source_and_fetcher(self):
+        """The `[fetching.transform]` section of the fetcher's own file repeats what `get_transformer()` provides."""
+        provided = Marker("fetcher")
+        fetcher = ProvidingFetcher(TWO_SOURCES, {"bitmasks": provided})
+        fetcher._transform_config = {"bitmasks": [provided]}
+
+        with pytest.warns(TranslationWarning, match="Duplicate transformer") as record:
+            assert translate(Translator[str, str, int](fetcher)) == "1:one|fetcher|fetcher"
+
+        assert "for source='bitmasks' from fetcher=ProvidingFetcher" in str(record[0].message)
 
     @pytest.fixture
     def fetcher(self) -> ProvidingFetcher:
         return ProvidingFetcher(TWO_SOURCES, {"bitmasks": Marker("fetcher")})
 
     def test_query_then_explicit_raises(self, fetcher):
-        translator = Translator[str, str, int](fetcher).initialize_sources()
+        translator = Translator[str, str, int](fetcher).initialize_sources(settle_transformers=False)
 
         with pytest.raises(ValueError, match="already registered"):
             translator.register_transformer("bitmasks", Marker("explicit"))
 
     def test_append_chains_onto_provided(self, fetcher):
-        translator = Translator[str, str, int](fetcher).initialize_sources()
+        translator = Translator[str, str, int](fetcher).initialize_sources(settle_transformers=False)
         translator.register_transformer("bitmasks", Marker("explicit"), on_existing="append")
 
         assert translate(translator) == "1:one|fetcher|explicit", "the provided transformer runs first"
 
     def test_overwrite_replaces_provided(self, fetcher):
-        translator = Translator[str, str, int](fetcher).initialize_sources()
+        translator = Translator[str, str, int](fetcher).initialize_sources(settle_transformers=False)
         translator.register_transformer("bitmasks", Marker("explicit"), on_existing="overwrite")
 
         assert translate(translator) == "1:one|explicit"
@@ -196,7 +247,7 @@ class TestOverlap:
             warnings.simplefilter("error", TranslationWarning)
             translator.initialize_sources()
 
-        assert translator.transformers == {}, "'bitmasks' must not survive the failed pass"
+        assert translator._tx._transformers == {}, "'bitmasks' must not survive the failed pass"
 
 
 class TestRetention:
@@ -230,7 +281,6 @@ class TestRetention:
 
     @pytest.mark.parametrize("queried_first", [False, True])
     def test_copy_transformers_override_does_not_depend_on_timing(self, queried_first):
-        """The same call must not query or not depending on whether the caller happened to translate first."""
         fetcher = ProvidingFetcher(TWO_SOURCES, {"bitmasks": Marker("fetcher"), "plain": Marker("fetcher")})
         translator = Translator[str, str, int](fetcher)
         if queried_first:
@@ -239,7 +289,7 @@ class TestRetention:
         explicit = Marker("explicit")
         copy = translator.copy(transformers={"bitmasks": explicit})
 
-        assert copy.transformers == {"bitmasks": explicit}, "the override is the complete set"
+        assert copy._tx._transformers == {"bitmasks": explicit}, "the override is the complete set"
         assert translate(copy) == "1:one|explicit"
         assert copy.translate((1,), names="plain") == ("1:just-one",), "not re-derived for unnamed sources either"
 
@@ -255,11 +305,10 @@ class TestRetention:
             translator.copy(fetcher=ProvidingFetcher(TWO_SOURCES, {"plain": Marker("B")}))
 
     def test_copy_with_none_transformers_starts_over(self, translator):
-        """`None` means "derive on first use", exactly as it does in the constructor."""
         translate(translator)
 
         copy = translator.copy(transformers=None)
-        assert copy.transformers == {}
+        assert copy._tx._transformers == {}
         assert translate(copy) == "1:one|fetcher", "re-derived from the (copied) fetcher"
 
     def test_go_offline(self, translator):
@@ -272,7 +321,7 @@ class TestRetention:
         translator.go_offline()
         copy = translator.copy()
 
-        assert copy.transformers.keys() == {"bitmasks"}
+        assert copy._tx._transformers.keys() == {"bitmasks"}
         assert translate(copy) == "1:one|fetcher"
 
     def test_restore_roundtrip(self, translator, tmp_path):
@@ -280,7 +329,7 @@ class TestRetention:
         translator.go_offline(path=path)
 
         restored: Translator[str, str, int] = Translator.restore(path)
-        assert restored.transformers.keys() == {"bitmasks"}
+        assert restored._tx._transformers.keys() == {"bitmasks"}
         assert translate(restored) == "1:one|fetcher"
 
 
@@ -315,6 +364,28 @@ class TestMultiFetcher:
         multi = MultiFetcher[str, int](healthy, failing)
         translator = Translator[str, str, int](multi).initialize_sources()
 
-        assert translator.transformers.keys() == {"bitmasks"}
+        assert translator._tx._transformers.keys() == {"bitmasks"}
         assert failing.queries == []
         assert translate(translator) == "1:one|ok"
+
+
+def test_interrupted_fetcher_pass_rolls_back():
+    """A KeyboardInterrupt halfway through the fetcher pass must not leave half a set, which the retry would chain onto."""
+
+    class NewEachTime(MemoryFetcher[str, int]):
+        def get_transformer(self, source: str) -> Transformer[int]:
+            return Marker(source)
+
+    class InterruptOnSecond(Translator[str, str, int]):
+        calls = 0
+
+        def register_transformer(self, *args: Any, **kwargs: Any) -> None:
+            super().register_transformer(*args, **kwargs)
+            InterruptOnSecond.calls += 1
+            if InterruptOnSecond.calls == 2:
+                raise KeyboardInterrupt
+
+    translator = InterruptOnSecond(NewEachTime(TWO_SOURCES), fmt="{name}")
+    with pytest.raises(KeyboardInterrupt):
+        translator.initialize_sources()
+    assert translate(translator) == "one|bitmasks"

@@ -50,6 +50,11 @@ not necessarily called in pairs.
    ``try_add_missing_key`` and ``update_translations`` are called offline as well, and should produce a correct
    result from :attr:`cached <.Translator.cache>` components.
 
+For example, the ``BitmaskTransformer`` relies on the ``update_ids()`` step to
+:meth:`decompose <.BitmaskTransformer.decompose_bitmask>` IDs into the base-2 components it needs. To translate bitmasks
+offline, call :meth:`.Translator.go_offline` with the IDs that will be translated, or nothing to fetch everything. A
+transformer added after ``go_offline()``, e.g. through ``copy(transformers=...)``, misses that fetch.
+
 .. _transformation-primer-chaining:
 
 Chaining transformers
@@ -61,10 +66,10 @@ Run order
 ~~~~~~~~~
 Members come from three places, first to last:
 
-1. The fetcher, via :meth:`.Fetcher.get_transformer`. These run first, collected once by the first
+1. The fetcher that serves the `source`: :meth:`.Fetcher.get_transformer`, then its
+   :ref:`[fetching.transform] section <translator-config-transform>`. These run first, collected once by the first
    :meth:`~.Translator.initialize_sources` call.
-2. Configuration, via :ref:`[transform] sections <translator-config-transform>`. Sections run in declaration order
-   within a file; auxiliary fetcher files run before the main file.
+2. The main file's :ref:`[transform] section <translator-config-transform>`, in declaration order.
 3. Code, via the ``transformers`` constructor argument or :meth:`~.Translator.register_transformer`, in the order the
    calls are made. Use ``on_existing='append'`` to build a stack.
 
@@ -74,8 +79,7 @@ Each lifecycle method delegates to every member in turn: *all* members' ``update
 .. note::
 
    The same transformer may run twice: duplicates (matched by identity, then ``__eq__``) aren't collapsed when
-   chaining, and a warning is emitted. A fetcher-provided transformer is the exception; one that is already in the
-   chain is not added a second time.
+   chaining, and a warning is emitted.
 
 Continuing the ``BitmaskTransformer`` example above, chain on a second transformer that redacts one translation:
 
@@ -95,7 +99,8 @@ Give both to a new ``Translator``, in order:
 .. code-block:: python
 
    translator = Translator(
-       fetcher, transformers={"<source>": [transformer, RedactOverflow()]}
+       fetcher,
+       transformers={"<source>": [transformer, RedactOverflow()]},
    )
 
 ``RedactOverflow`` runs second and overwrites the result:
@@ -105,33 +110,54 @@ Give both to a new ``Translator``, in order:
    translator.translate((0, 5, 8), names="<source>")
    ("NOT_SET", "1:name-of-1 AND 4:name-of-4", "REDACTED")
 
-:meth:`~.Translator.register_transformer` with ``on_existing='append'`` builds the same stack on an existing instance.
+:meth:`~.Translator.register_transformer` with ``on_existing='append'`` builds the same stack on an instance that has
+not :ref:`settled <transformation-primer-settling>` yet. It cannot be used on the ``translator`` above: translating it
+closed registration.
 
-.. _transformation-primer-window:
+.. _transformation-primer-settling:
 
-Registration window
--------------------
-Transformers stay open for registration for the lifetime of the ``Translator``.
-:meth:`~.Translator.register_transformer` works before the first translation and after it, and on an instance that has
-gone :meth:`offline <.Translator.go_offline>`. A registration naming a `source` that nothing serves is kept, and warns.
+Settling: when registration closes
+----------------------------------
+Transformers are open for registration until the ``Translator`` initializes its sources, and fixed afterwards.
+Settling does two things: it drops transformers for sources nothing serves, naming them in a warning, and it closes
+the set. :meth:`~.Translator.register_transformer` raises from then on, and :attr:`~.Translator.transformers` raises
+until then, since an unsettled set can name sources that will be dropped and lack the ones the fetcher has yet to
+provide.
 
-That freedom is not thread safe. :meth:`~.Translator.register_transformer` mutates state the instance shares with every
-caller, including the :attr:`~.Translator.cache` that :meth:`~.Translator.go_offline` leaves behind, so finish
-registering before the instance is shared. See :ref:`thread-safety` for the wider picture.
+It happens at the first :meth:`~.Translator.initialize_sources` call, including the implicit one in methods that need
+the sources, such as :meth:`~.Translator.translate` and :meth:`~.Translator.map`. It also happens at
+:meth:`~.Translator.go_offline`, and at construction for a ``Translator`` built from inline data or a
+:class:`.TranslationMap`. Call ``initialize_sources()`` before sharing an instance between threads: it leaves nothing
+for a concurrent first call to do.
+
+To register after the fetcher's transformers are in place, for example to replace one, initialize without settling:
+
+.. code-block:: python
+
+   translator.initialize_sources(settle_transformers=False)
+   translator.register_transformer("<source>", RedactOverflow(), on_existing="overwrite")
+
+The next ``initialize_sources()`` call settles them, whether explicit or implicit.
+
+:meth:`~.Translator.go_offline` also drops transformers for sources outside its snapshot, without a warning, since
+the caller chose that subset.
+
+A copy of a settled ``Translator`` keeps its transformers; ``translator.copy(transformers=...)`` replaces the set on the
+copy, which is how to adjust one. The copy of an *offline* instance is settled again on construction.
 
 .. _transformation-primer-choosing:
 
-Choosing a route
-----------------
+Fetcher, configuration, or code?
+--------------------------------
 The three routes are not interchangeable. Pick by what the transformer needs to know, by which fetcher it belongs
 to, and by what must remain true once that fetcher is discarded.
 
 The fetcher
 ~~~~~~~~~~~
 Prefer :meth:`.Fetcher.get_transformer` when the transformer is a property of the data itself: a bitmask column stays
-a bitmask no matter who reads it. This is the only route that follows source conflict resolution, since a
-:class:`.MultiFetcher` asks the child that actually serves the `source`. An outranked child's transformer therefore
-never touches the winner's data. Overrides need no `source` name, and travel with the fetcher into any composition.
+a bitmask no matter who reads it. This route and a ``[fetching.transform]`` section follow source conflict resolution,
+since a :class:`.MultiFetcher` asks the child that actually serves the `source`. An outranked child's transformer
+therefore never touches the winner's data. Overrides need no `source` name, and travel with the fetcher into any composition.
 
 Configuration
 ~~~~~~~~~~~~~
@@ -139,17 +165,15 @@ Prefer a :ref:`[transform] section <translator-config-transform>` for policy tha
 than to the code, such as an override table that differs per environment. The declaration then travels with the
 configuration, and changes without touching the code that builds the ``Translator``.
 
-A section belongs to the ``Translator``, not to the file it was read from: it applies to the named `source`
-whichever fetcher serves it, so the file decides when it runs, not whether it applies. The exception is the
-:ref:`initialization discard <optional-fetchers>`, where a fetcher that fails to build takes its sections with it.
+There are two scopes. A ``[fetching.transform]`` section belongs to the fetcher declared next to it, and applies only
+to sources that fetcher serves: it goes wherever the fetcher goes, so a fetcher that is discarded or loses a source
+conflict takes its sections with it. The main file's top-level ``[transform]`` section belongs to the ``Translator``
+and applies to the named `source` whichever fetcher serves it.
 
-Three consequences:
+Two consequences:
 
-* **Two auxiliary files may both claim one `source`.** Their sections chain, in the order the files are read.
-  Auxiliary files run before the main file.
-* **A lost source conflict does not drop the section.** When the declaring file's own fetcher claimed the `source`
-  and was outranked, the section still applies, to the winner's data. Declare it beside the fetcher you mean to
-  describe, or in the main file.
+* **An auxiliary file cannot transform another fetcher's sources.** Several auxiliary files may each declare a section
+  for one `source`; only the fetcher that serves it applies its own. Use the main file for policy that spans fetchers.
 * **Interpolation cannot add or remove a section.** ``${VAR}`` reaches section keys and init arguments alike, but a
   policy that is enabled in one environment and disabled in another is not expressible this way.
 
@@ -161,37 +185,40 @@ Prefer the ``transformers`` argument or :meth:`~.Translator.register_transformer
   authorization check, resolved after the configuration is read.
 * **The sources cannot be named in advance.** A ``[transform.'<source>']`` section needs the name up front, whereas
   a loop over :attr:`~.Translator.sources` does not.
-* **It must not be tied to one fetcher.** A fetcher-provided transformer is scoped to the fetcher that serves the
-  `source`, and goes when that fetcher does. A registration made in code outlives any single fetcher.
+* **It must survive a lost source conflict.** Fetcher-provided transformers and ``[fetching.transform]`` sections are
+  scoped to the fetcher that serves the `source`. A registration made in code, like the main file's ``[transform]``,
+  is never dropped this way.
 
 A ``create_translator()`` factory in the style of the :ref:`migration-guide` can mask certain values in production only,
 reusing ``RedactOverflow`` from above:
 
 .. code-block:: python
 
+   import os
+
+   from id_translation import Translator
+
    def create_translator(env: str = "dev") -> Translator:
        os.environ["APP_ENV"] = env
-       t = Translator.from_config(...)
+       t = Translator.from_config("config/main.toml")
        if env == "production":
            for source in t.sources:
                t.register_transformer(source, RedactOverflow(), on_existing="append")
-       return t
-
-Two details are load-bearing:
-
-* ``on_existing`` must be given, since it defaults to ``'raise'``. A `source` already covered by configuration would
-  otherwise raise :class:`.TransformerConflictError`. What the fetcher provides is not registered yet at this point,
-  so it cannot conflict here, and arrives ahead of this registration when it does.
-* ``RedactOverflow()`` is constructed once per `source`. Hoisting it out of the loop shares a single instance, and
-  with it a single piece of state, across every `source`.
+       return t.initialize_sources()
 
 Reading :attr:`~.Translator.sources` performs source discovery, which is why the loop sees them without a separate
 call. The fetcher's own transformers are collected later, by ``initialize_sources()``, and always chain ahead of
 code registrations, so registering early does not put a transformer first.
 
-.. warning::
+Three details are load-bearing:
 
-   Register before the ``Translator`` is shared (see :ref:`thread-safety`), and before it goes offline. Since
-   ``update_ids`` never runs offline, a transformer that widens the fetch, as :class:`.BitmaskTransformer` does,
-   silently finds nothing to work with unless every component is already cached. A ``go_offline()`` call with no
-   `translatable` fetches everything and so qualifies; one given a `translatable` fetches only what it needs.
+* ``initialize_sources()`` settles the transformers, so the returned instance is safe to share and registering on it
+  raises. They settle at first use anyway; doing it here means nothing is left for a concurrent first call. It must
+  come after the registrations, and it runs the :meth:`.Fetcher.get_transformer` pass before settling, so the fetcher's
+  own answer is never locked out.
+* ``on_existing`` must be given, since it defaults to ``'raise'``. A `source` already covered by the main file's
+  ``[transform]`` would otherwise raise :class:`.TransformerConflictError`. What the fetcher provides, including its
+  ``[fetching.transform]`` section, is not registered yet at this point, so it cannot conflict here, and arrives
+  ahead of this registration when it does.
+* ``RedactOverflow()`` is constructed once per `source`. Hoisting it out of the loop shares a single instance, and
+  with it a single piece of state, across every `source`.

@@ -264,6 +264,7 @@ Questions that tend to come up mid-migration.
     strings in another (or strings in a different case) will then match anyway.
 
 **A column packs several flags into one ID.**
-    Translate composite IDs such as bitmasks with a :class:`~id_translation.transform.BitmaskTransformer`, declared
-    in :ref:`config <translator-config-transform>` or passed in code through the ``transformers`` argument of
-    :class:`~id_translation.Translator`.
+    Use a :class:`~id_translation.transform.BitmaskTransformer`. If you subclassed ``SqlFetcher`` in step 2, the
+    most direct fit is overriding :meth:`~id_translation.fetching.Fetcher.get_transformer` there; no wiring
+    elsewhere needed. A ``[transform]`` TOML section or :meth:`~id_translation.Translator.register_transformer` work
+    too; see the :ref:`transformation-primer` for all three routes.

@@ -10,8 +10,8 @@ normal operation.
 
 .. note::
 
-   Advanced topics such as :class:`transformations <id_translation.transform.types.Transformer>` and
-   :class:`caching <id_translation.fetching.CacheAccess>` are not covered.
+   Advanced topics such as :class:`transformations <id_translation.transform.types.Transformer>` (see the
+   :ref:`transformation-primer`) and :ref:`caching <Caching>` are not covered.
 
 To keep things simple, we will keep everything in a single folder (the current working directory) for this example.
 The file structure is as follows:

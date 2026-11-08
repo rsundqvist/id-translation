@@ -1,21 +1,30 @@
 """Tests for transformers owned by the ``Translator``; see ``Translator.register_transformer``."""
 
+import gc
 import logging
 import pickle
 import threading
 import warnings
+import weakref
 from collections.abc import MutableMapping
+from copy import copy as shallow_copy
 from copy import deepcopy
 
 import pytest
 
 from id_translation import Translator
-from id_translation.exceptions import TransformerConflictError, TranslationWarning
+from id_translation.exceptions import TransformerConflictError, TransformerStateError, TranslationWarning
 from id_translation.fetching import MemoryFetcher, MultiFetcher
+from id_translation.testing import TestFetcher as _TestFetcher  # Aliased: pytest collects Test* classes
 from id_translation.transform import BitmaskTransformer, TransformerStack
 from id_translation.transform.types import Transformer
 
 from .conftest import DATA, Marker, make_translator, translate
+
+HINT = (
+    "Hint: Register before the transformers settle, or copy with the full set: "
+    "translator.copy(transformers={{**translator.transformers, {source}: ...}})."
+)
 
 
 class _RaisingFetcher(MemoryFetcher[str, int]):
@@ -52,37 +61,30 @@ def _unpickle(translator: Translator[str, str, int]) -> Translator[str, str, int
     return revived
 
 
-def test_default_is_empty():
-    assert Translator[str, str, int](MemoryFetcher(DATA)).transformers == {}
-
-
 @pytest.mark.parametrize("how", ["init", "method"])
 def test_registration(how):
-    """Both registration paths must produce the same result."""
     transformer = Marker("x")
     translator = make_translator(how, {"bitmasks": transformer})
 
-    assert translator.transformers == {"bitmasks": transformer}
-    assert translator.transformers["bitmasks"] is transformer
+    assert translator._tx._transformers == {"bitmasks": transformer}
+    assert translator._tx._transformers["bitmasks"] is transformer
     assert translate(translator) == "1:one|x"
 
 
-class TestLiveDict:
-    """``transformers`` hands out the live dict until 2.0.0 makes it read-only."""
-
+class TestReadOnlyView:
     @pytest.fixture
     def translator(self) -> Translator[str, str, int]:
         return Translator(MemoryFetcher(DATA), transformers={"bitmasks": Marker("x")})
 
     def test_is_live(self, translator):
-        view = translator.transformers
+        view = translator._tx._transformers
         translator.register_transformer("other", Marker("y"))
         assert view.keys() == {"bitmasks", "other"}, "should reflect later registrations"
 
-    def test_mutation_is_visible(self, translator):
-        """Documents actual behavior; register_transformer() is the supported path."""
-        translator.transformers["other"] = Marker("y")
-        assert translator.transformers.keys() == {"bitmasks", "other"}
+    def test_mutation_raises(self, translator):
+        translator.initialize_sources(settle_transformers=True)
+        with pytest.raises(TypeError):
+            translator.transformers["other"] = Marker("y")
 
 
 class TestSequenceNormalization:
@@ -91,7 +93,7 @@ class TestSequenceNormalization:
         first, second = Marker("first"), Marker("second")
         translator = make_translator(how, {"bitmasks": [first, second]})
 
-        stack = translator.transformers["bitmasks"]
+        stack = translator._tx._transformers["bitmasks"]
         assert isinstance(stack, TransformerStack)
         assert stack.transformers == (first, second), "members must keep the given order"
         assert translate(translator) == "1:one|first|second"
@@ -100,7 +102,7 @@ class TestSequenceNormalization:
         transformer = Marker("x")
         translator = make_translator("method", {"bitmasks": [transformer]})
 
-        assert translator.transformers["bitmasks"] is transformer
+        assert translator._tx._transformers["bitmasks"] is transformer
 
     @pytest.mark.parametrize("how", ["init", "method"])
     def test_empty_raises(self, how):
@@ -114,8 +116,6 @@ class TestSequenceNormalization:
             make_translator("method", {"bitmasks": bad})
 
     def test_sequence_transformer_is_not_read_as_a_chain(self):
-        """A Transformer implementation may itself be a Sequence."""
-
         class SequenceMarker(tuple[int, ...], Transformer[int]):
             __slots__ = ()
 
@@ -130,7 +130,7 @@ class TestSequenceNormalization:
         transformer = SequenceMarker([1, 2, 3])
         translator = make_translator("method", {"bitmasks": transformer})
 
-        assert translator.transformers["bitmasks"] is transformer
+        assert translator._tx._transformers["bitmasks"] is transformer
         assert translate(translator) == "1:one|seq"
 
     def test_falsy_transformer_is_fully_applied(self):
@@ -148,7 +148,7 @@ class TestSequenceNormalization:
 
         translator = make_translator("method", {"bitmasks": FalsyMarker("x")})
 
-        assert not translator.transformers["bitmasks"], "precondition: the transformer is falsy"
+        assert not translator._tx._transformers["bitmasks"], "precondition: the transformer is falsy"
         assert translate(translator) == "1:one|x", "update_translations() must run"
         assert translate(translator, idx=99) == "made-up-99", "try_add_missing_key() must run too"
 
@@ -178,41 +178,40 @@ class TestOnExisting:
             translator.register_transformer("bitmasks", Marker("new"))
 
     def test_raise_keeps_the_old_one(self, translator):
-        old = translator.transformers["bitmasks"]
+        old = translator._tx._transformers["bitmasks"]
         with pytest.raises(ValueError, match="already registered"):
             translator.register_transformer("bitmasks", Marker("new"))
-        assert translator.transformers["bitmasks"] is old
+        assert translator._tx._transformers["bitmasks"] is old
 
     def test_append(self, translator):
-        old = translator.transformers["bitmasks"]
+        old = translator._tx._transformers["bitmasks"]
         new = Marker("new")
         translator.register_transformer("bitmasks", new, on_existing="append")
 
-        stack = translator.transformers["bitmasks"]
+        stack = translator._tx._transformers["bitmasks"]
         assert isinstance(stack, TransformerStack)
         assert stack.transformers == (old, new), "the existing transformer runs first"
         assert translate(translator) == "1:one|old|new"
 
     def test_append_flattens(self, translator):
-        """Appending a chain to a stack must not nest."""
-        old = translator.transformers["bitmasks"]
+        old = translator._tx._transformers["bitmasks"]
         first, second = Marker("first"), Marker("second")
         translator.register_transformer("bitmasks", [first, second], on_existing="append")
 
-        stack = translator.transformers["bitmasks"]
+        stack = translator._tx._transformers["bitmasks"]
         assert isinstance(stack, TransformerStack)
         assert stack.transformers == (old, first, second)
 
     def test_append_to_unregistered_source(self, translator):
         transformer = Marker("x")
         translator.register_transformer("other", transformer, on_existing="append")
-        assert translator.transformers["other"] is transformer
+        assert translator._tx._transformers["other"] is transformer
 
     def test_overwrite(self, translator):
         new = Marker("new")
         translator.register_transformer("bitmasks", new, on_existing="overwrite")
 
-        assert translator.transformers["bitmasks"] is new
+        assert translator._tx._transformers["bitmasks"] is new
         assert translate(translator) == "1:one|new"
 
     def test_bad_value_raises(self, translator):
@@ -221,66 +220,51 @@ class TestOnExisting:
 
 
 def test_register_from_discovered_sources():
-    """The headline use case: sources are known only after ``initialize_sources()``."""
     data = {
         "flags_bitmask": {"id": [1, 2], "name": ["one", "two"]},
         "plain": {"id": [1], "name": ["just-one"]},
     }
-    translator: Translator[str, str, int] = Translator(MemoryFetcher(data)).initialize_sources()
+    translator: Translator[str, str, int] = Translator(MemoryFetcher(data)).initialize_sources(
+        settle_transformers=False
+    )
 
     for source in translator.sources:
         if source.endswith("_bitmask"):
             translator.register_transformer(source, BitmaskTransformer())
 
-    assert translator.transformers.keys() == {"flags_bitmask"}
+    assert translator._tx._transformers.keys() == {"flags_bitmask"}
     assert translator.translate((3,), names="flags_bitmask") == ("1:one & 2:two",)
     assert translator.translate((1,), names="plain") == ("1:just-one",)
 
 
-class TestUnknownSources:
-    def test_warns(self):
-        translator: Translator[str, str, int] = Translator(MemoryFetcher(DATA))
-        translator.register_transformer("typo", Marker("x"))
+class TestTrimming:
+    """Settling drops transformers for sources that are not served, and says which."""
 
-        with pytest.warns(TranslationWarning, match="unknown sources"):
-            translator.initialize_sources()
+    def test_unserved_source_is_dropped(self):
+        translator: Translator[str, str, int] = Translator(MemoryFetcher(DATA), transformers={"typo": Marker("x")})
 
-    def test_known_source_does_not_warn(self):
+        with pytest.warns(TranslationWarning, match="not served"):
+            translator.initialize_sources(settle_transformers=True)
+
+        assert "typo" not in translator.transformers
+
+    def test_served_source_survives(self):
         translator: Translator[str, str, int] = Translator(MemoryFetcher(DATA), transformers={"bitmasks": Marker("x")})
 
         with warnings.catch_warnings():
             warnings.simplefilter("error")
-            translator.initialize_sources()
+            translator.initialize_sources(settle_transformers=True)
 
-    def test_warns_once(self):
-        """The check runs per translate; in a request loop, warning each time is noise."""
-        translator: Translator[str, str, int] = Translator(MemoryFetcher(DATA), transformers={"typo": Marker("x")})
+        assert translate(translator) == "1:one|x"
 
-        with pytest.warns(TranslationWarning, match="unknown sources"):
-            translate(translator)
-
-        with warnings.catch_warnings():
-            warnings.simplefilter("error")
-            translate(translator)
-            translate(translator)
-
-    def test_new_registration_is_checked(self):
-        """Warning once must not mean checking once: a later registration may name a source of its own."""
-        translator: Translator[str, str, int] = Translator(MemoryFetcher(DATA), transformers={"typo": Marker("x")})
-        with pytest.warns(TranslationWarning, match="unknown sources"):
-            translate(translator)
-
-        translator.register_transformer("another-typo", Marker("y"))
-
-        with pytest.warns(TranslationWarning, match="another-typo"):
-            translate(translator)
-
-    def test_fetcher_serving_nothing_still_warns(self):
-        """Every registration is unreachable -- the case the auto-installed TestFetcher exemption must not cover."""
+    def test_fetcher_serving_nothing_drops_everything(self):
+        """Every registration is unreachable; the auto-installed TestFetcher exemption must not cover this."""
         translator: Translator[str, str, int] = Translator(_EmptyFetcher({}), transformers={"gone": Marker("x")})
 
-        with pytest.warns(TranslationWarning, match="unknown sources"):
-            translator.initialize_sources()
+        with pytest.warns(TranslationWarning, match="not served"):
+            translator.initialize_sources(settle_transformers=True)
+
+        assert not translator.transformers
 
     def test_discarded_optional_child_is_named(self):
         """A `[transform]`-section outlives a child discarded during discovery; say so instead of crying typo."""
@@ -290,201 +274,121 @@ class TestUnknownSources:
         )
 
         with pytest.warns(TranslationWarning, match="source discovery raised for 1 optional fetcher") as record:
-            translator.initialize_sources()
+            translator.initialize_sources(settle_transformers=True)
 
         assert "_RaisingFetcher" in str(record[0].message), "the discarded child must be identifiable"
 
     def test_child_without_sources_is_not_named(self):
-        """It reported zero sources, so it would have served none -- a registration naming one is a real typo."""
+        """It reported zero sources, so it would have served none: a registration naming one is a real typo."""
         translator: Translator[str, str, int] = Translator(
             MultiFetcher(MemoryFetcher(DATA), _EmptyFetcher({}, optional=True)),
             transformers={"typo": Marker("x")},
         )
 
-        with pytest.warns(TranslationWarning, match="unknown sources") as record:
-            translator.initialize_sources()
+        with pytest.warns(TranslationWarning, match="not served") as record:
+            translator.initialize_sources(settle_transformers=True)
 
         assert "source discovery raised" not in str(record[0].message)
 
-    def test_failed_discovery_does_not_disable_the_check(self):
-        """The flag must be set after the sources are read, or one transient failure silences every later check."""
-        fetcher = _RaisingFetcher(DATA, optional=False)
-        translator: Translator[str, str, int] = Translator(fetcher, transformers={"typo": Marker("x")})
-
-        with pytest.raises(ValueError, match="no connection"):
-            translator.initialize_sources()
-
-        fetcher.recovered = True
-        with pytest.warns(TranslationWarning, match="unknown sources"):
-            translator.initialize_sources()
-
-    def test_promoted_warning_does_not_disable_the_check(self):
-        """Under `-W error` the warning raises; the misconfiguration must reproduce instead of vanishing on retry."""
-        translator: Translator[str, str, int] = Translator(MemoryFetcher(DATA), transformers={"typo": Marker("x")})
-
-        with warnings.catch_warnings():
-            warnings.simplefilter("error")
-            for _ in range(3):
-                with pytest.raises(TranslationWarning, match="unknown sources"):
-                    translate(translator)
-
-    def test_auto_installed_test_fetcher_is_exempt(self):
-        """It reports no sources but serves every source, so nothing registered is unreachable."""
+    def test_auto_installed_test_fetcher_keeps_everything(self):
+        """It reports no sources but serves every one, so an empty list means unknown, not none."""
         with pytest.warns(TranslationWarning, match="No fetcher given"):
             translator: Translator[str, str, int] = Translator(transformers={"anything": Marker("x")})
 
         with warnings.catch_warnings():
-            warnings.simplefilter("error")
-            translator.initialize_sources()
+            warnings.simplefilter("error", TranslationWarning)
+            translator.initialize_sources(settle_transformers=True)
 
-    def test_no_fetcher_does_not_warn(self):
-        """`Translator()` installs a TestFetcher, which reports no sources but serves every source."""
-        translator: Translator[str, str, int] = Translator()
-        translator.register_transformer("bitmasks", Marker("x"))
+        assert "anything" in translator.transformers
+
+    def test_inline_data_settles_at_construction(self):
+        """Sources are fixed from birth, so there is nothing a later pass could learn."""
+        with pytest.warns(TranslationWarning, match="not served"):
+            translator: Translator[str, str, int] = Translator({"a": {1: "one"}}, transformers={"typo": Marker("x")})
+
+        assert not translator.transformers
+
+    def test_translation_map_settles_at_construction(self):
+        cache = Translator[str, str, int]({"a": {1: "one"}}).cache
+        with pytest.warns(TranslationWarning, match="not served"):
+            translator: Translator[str, str, int] = Translator(cache, transformers={"typo": Marker("x")})
+
+        assert not translator.transformers
+
+    def test_registering_after_settling_raises(self):
+        translator: Translator[str, str, int] = Translator(MemoryFetcher(DATA))
+        translator.initialize_sources(settle_transformers=True)
+
+        with pytest.raises(TransformerStateError, match="settled") as exc_info:
+            translator.register_transformer("bitmasks", Marker("x"))
+        assert exc_info.value.__notes__ == [HINT.format(source="'bitmasks'")]
+
+    def test_registering_on_inline_data_raises(self):
+        translator: Translator[str, str, int] = Translator({"a": {1: "one"}})
+
+        with pytest.raises(TransformerStateError, match="settled") as exc_info:
+            translator.register_transformer("a", Marker("x"))
+        assert exc_info.value.__notes__ == [HINT.format(source="'a'")]
+
+    def test_reading_before_settling_raises(self):
+        translator: Translator[str, str, int] = Translator(MemoryFetcher(DATA))
+
+        with pytest.raises(TransformerStateError, match="not settled"):
+            _ = translator.transformers
+
+
+class TestSettlingIsRecoverable:
+    """A promoted warning must leave the misconfiguration in place, or it vanishes from the retry."""
+
+    def test_promoted_trim_warning_reproduces(self):
+        translator: Translator[str, str, int] = Translator(MemoryFetcher(DATA), transformers={"typo": Marker("x")})
+
+        for _ in range(3):
+            with warnings.catch_warnings():
+                warnings.simplefilter("error")
+                with pytest.raises(TranslationWarning, match="not served"):
+                    translate(translator)
+            assert not translator._tx.frozen, "a raised settle must not pass as done"
+            assert "typo" in translator._tx._transformers, "nor drop what it failed to report"
+
+    def test_wrapped_test_fetcher_drops_everything(self):
+        """A MultiFetcher routes only reported sources, so a wrapped TestFetcher serves none."""
+        translator: Translator[str, str, int] = Translator(
+            MultiFetcher(_TestFetcher([])), transformers={"anything": Marker("x")}
+        )
+
+        with pytest.warns(TranslationWarning, match="not served"):
+            translator.initialize_sources(settle_transformers=True)
+
+        assert "anything" not in translator.transformers
+
+    def test_subset_snapshot_does_not_warn(self):
+        """`go_offline` chose the subset, so being told what it excludes is noise."""
+        data = {name: {"id": [1], "name": [name]} for name in ("a", "b")}
+        translator: Translator[str, str, int] = Translator(
+            MemoryFetcher(data), transformers={"a": Marker("x"), "b": Marker("y")}
+        )
 
         with warnings.catch_warnings():
             warnings.simplefilter("error", TranslationWarning)
-            translator.initialize_sources()
+            translator.go_offline({"a": [1]}, names="a")
 
-    def test_offline_registration_warns_immediately(self):
-        """Offline sources are fixed and known, e.g. after ``restore()``; a typo would otherwise never surface."""
-        translator: Translator[str, str, int] = Translator(MemoryFetcher(DATA)).go_offline()
+        assert "b" not in translator.transformers, "still trimmed, just not announced"
 
-        with pytest.warns(TranslationWarning, match="unknown sources"):
-            translator.register_transformer("typo", Marker("x"))
-
-        with warnings.catch_warnings():
-            warnings.simplefilter("error")
-            translator.initialize_sources()  # Still a silent no-op offline; the registration already warned.
-
-    def test_offline_registration_for_known_source_does_not_warn(self):
-        translator: Translator[str, str, int] = Translator(MemoryFetcher(DATA)).go_offline()
-
-        with warnings.catch_warnings():
-            warnings.simplefilter("error")
-            translator.register_transformer("bitmasks", Marker("x"))
-
-    def test_promoted_offline_warning_rolls_back_the_registration(self):
-        """Under `-W error` the caller sees a raise, so the registration must not stick behind it."""
-        translator: Translator[str, str, int] = Translator(MemoryFetcher(DATA)).go_offline()
-
-        for _ in range(2):  # A retry must report the same problem, not a conflict with the failed attempt.
-            with warnings.catch_warnings(), pytest.raises(TranslationWarning, match="unknown sources"):
-                warnings.simplefilter("error")
-                translator.register_transformer("typo", Marker("x"))
-
-        assert "typo" not in translator.transformers
-
-    @pytest.mark.parametrize("on_existing", ["append", "overwrite"])
-    def test_promoted_offline_warning_restores_the_previous_registration(self, on_existing):
-        """Rolling back means undoing the call, not just dropping what it added: `source` may already have had one."""
+    def test_subset_snapshot_leaves_views_alone(self):
         data = {name: {"id": [1], "name": [name]} for name in ("a", "b")}
         translator: Translator[str, str, int] = Translator(
             MemoryFetcher(data), transformers={"a": Marker("x"), "b": Marker("y")}
         )
-        translator.go_offline({"a": [1]}, names="a")  # The cache can serve only 'a', so 'b' is now unknown.
-        old = translator.transformers["b"]
+        view = translator.initialize_sources(settle_transformers=True).transformers
 
-        with warnings.catch_warnings(), pytest.raises(TranslationWarning, match="unknown sources"):
-            warnings.simplefilter("error")
-            translator.register_transformer("b", Marker("z"), on_existing=on_existing)
+        translator.go_offline({"a": [1]}, names="a")
 
-        assert translator.transformers["b"] is old, "neither replaced nor chained onto"
-
-        # As if the failed call never happened: the conflict is with the original, not with what it tried to register.
-        with pytest.raises(TransformerConflictError, match=r"Marker\('y'\) is already registered"):
-            translator.register_transformer("b", Marker("z"))
-
-    def test_rolled_back_registration_is_not_left_queued(self):
-        """The rewind must cover the queue too, or the next check reports a registration that was undone."""
-        data = {name: {"id": [1], "name": [name]} for name in ("a", "b")}
-        translator: Translator[str, str, int] = Translator(
-            MemoryFetcher(data), transformers={"a": Marker("x"), "b": Marker("y")}
-        )
-        translator.go_offline({"a": [1]}, names="a")  # The cache can serve only 'a', so 'b' is now unknown.
-
-        with warnings.catch_warnings(), pytest.raises(TranslationWarning, match="unknown sources"):
-            warnings.simplefilter("error")
-            translator.register_transformer("b", Marker("z"), on_existing="append")
-
-        with warnings.catch_warnings():
-            warnings.simplefilter("error")
-            translator.register_transformer("a", Marker("late"), on_existing="append")  # 'a' is known: must not warn.
-
-        assert translator.translate((1,), names="a") == ("1:a|x|late",), "and the instance still works"
-
-    def test_inline_data_registration_warns(self):
-        """Offline from birth: `initialize_sources` is a no-op, so the constructor is the only chance to warn."""
-        with pytest.warns(TranslationWarning, match="unknown sources"):
-            Translator[str, str, int]({"bitmasks": {1: "one"}}, transformers={"typo": Marker("x")})
-
-    def test_inline_data_registration_for_known_source_does_not_warn(self):
-        with warnings.catch_warnings():
-            warnings.simplefilter("error")
-            Translator[str, str, int]({"bitmasks": {1: "one"}}, transformers={"bitmasks": Marker("x")})
-
-    def test_subset_snapshot_copy_does_not_warn(self):
-        """Only explicit registration is checked; a snapshot that simply excludes a source is not a typo."""
-        data = {name: {"id": [1], "name": [name]} for name in ("a", "b")}
-        translator: Translator[str, str, int] = Translator(
-            MemoryFetcher(data), transformers={"a": Marker("x"), "b": Marker("y")}
-        )
-        translator.go_offline({"a": [1]}, names="a")  # The cache can now serve only 'a'.
-
-        with warnings.catch_warnings():
-            warnings.simplefilter("error")
-            translator.copy()
-
-    def test_snapshot_exemption_survives_a_later_registration(self):
-        """The exemption is permanent; a later registration re-runs the check, which must not revisit it."""
-        data = {name: {"id": [1], "name": [name]} for name in ("a", "b")}
-        translator: Translator[str, str, int] = Translator(
-            MemoryFetcher(data), transformers={"a": Marker("x"), "b": Marker("y")}
-        )
-        translator.go_offline({"a": [1]}, names="a")  # The cache can now serve only 'a'.
-        copy = translator.copy()
-
-        with pytest.warns(TranslationWarning, match="unknown sources") as record:
-            copy.register_transformer("typo", Marker("z"))
-
-        assert "'typo'" in str(record[0].message), "the new registration is still checked"
-        assert "'b'" not in str(record[0].message), "the exempt snapshot registration must stay exempt"
-
-    def test_go_offline_grants_the_same_exemption_as_a_copy(self):
-        """`go_offline()` turns the instance itself into a snapshot; it must not warn where its own copy wouldn't."""
-        data = {name: {"id": [1], "name": [name]} for name in ("a", "b")}
-        translator: Translator[str, str, int] = Translator(
-            MemoryFetcher(data), transformers={"a": Marker("x"), "b": Marker("y")}
-        )
-        translator.go_offline({"a": [1]}, names="a")  # The cache can now serve only 'a'.
-
-        with pytest.warns(TranslationWarning, match="unknown sources") as record:
-            translator.register_transformer("typo", Marker("z"))
-
-        assert "'typo'" in str(record[0].message), "the new registration is still checked"
-        assert "'b'" not in str(record[0].message), "'b' predates going offline, exactly like the copy's case"
-
-    def test_old_subset_snapshot_is_exempt(self):
-        """Snapshots predating the exemption were written the same way; `__setstate__` must grant it retroactively."""
-        data = {name: {"id": [1], "name": [name]} for name in ("a", "b")}
-        translator: Translator[str, str, int] = Translator(
-            MemoryFetcher(data), transformers={"a": Marker("x"), "b": Marker("y")}
-        )
-        translator.go_offline({"a": [1]}, names="a")  # The cache can now serve only 'a'.
-
-        state = translator.__getstate__()
-        del state["_unverified_sources"]  # The state an older snapshot unpickles into.
-        revived: Translator[str, str, int] = Translator.__new__(Translator)
-        revived.__setstate__(state)
-
-        with warnings.catch_warnings():
-            warnings.simplefilter("error")
-            revived.register_transformer("a", Marker("z"), on_existing="append")
+        assert view.keys() == {"a", "b"}
+        assert translator.transformers.keys() == {"a"}
 
 
 class TestProviderRaises:
-    """``Fetcher.get_transformer`` is user code; a raise from it propagates, annotated with where it came from."""
-
     DATA = {
         "bitmasks": {"id": [1], "name": ["one"]},
         "boom": {"id": [1], "name": ["kaboom"]},
@@ -503,18 +407,17 @@ class TestProviderRaises:
         assert f"fetcher={fetcher}" in notes, "and so must the fetcher it was made against"
 
     def test_instance_is_untouched(self):
-        """The pass applies nothing, so a source answered before the failing one leaves no registration behind."""
         fetcher = _RaisingProvider(self.DATA)
         translator: Translator[str, str, int] = Translator(fetcher)
 
         with pytest.raises(ValueError, match="provider is down"):
             translator.initialize_sources()
 
-        assert translator.transformers == {}, "'bitmasks' answered before 'boom' raised"
+        assert translator._tx._transformers == {}, "'bitmasks' answered before 'boom' raised"
 
         fetcher.recovered = True
         translator.initialize_sources()
-        assert translator.transformers.keys() == {"bitmasks", "boom"}, "a failed pass must be retried in full"
+        assert translator._tx._transformers.keys() == {"bitmasks", "boom"}, "a failed pass must be retried in full"
 
 
 @pytest.mark.parametrize("how", ["init", "method"])
@@ -525,10 +428,23 @@ def test_update_ids_expands_fetched_ids(how):
     assert translator.translate((3,), names="bitmasks") == ("1:one & 2:two",)
 
 
-class TestRetention:
-    """Transformers must survive ``go_offline()``/``copy()``/``restore()`` and be applied exactly once.
+@pytest.mark.parametrize("added", ["before", "after"])
+def test_go_offline_widens_the_fetch_only_for_transformers_in_place(added):
+    """Backs the transformation primer: a transformer added after ``go_offline()`` misses that fetch."""
+    data = {"bitmasks": {"id": [1, 2, 3], "name": ["one", "two", "both"]}}
+    fetcher = MemoryFetcher[str, int](data, return_all=False)
+    transformers = {"bitmasks": BitmaskTransformer()}
 
-    The marker makes a doubled application visible: the offline path re-applies transformers to the raw translations
+    translator = Translator[str, str, int](fetcher, transformers=transformers if added == "before" else None)
+    translator.go_offline({"bitmasks": [3]})
+    if added == "after":
+        translator = translator.copy(transformers=transformers)
+
+    assert sorted(translator.cache.to_dicts()["bitmasks"]["id"]) == ([1, 2, 3] if added == "before" else [3])
+
+
+class TestRetention:
+    """The marker makes a doubled application visible: the offline path re-applies transformers to the raw translations
     extracted from the cache, so baking them into the cached values would stack them twice.
     """
 
@@ -541,7 +457,7 @@ class TestRetention:
 
     def test_offline(self, translator):
         translator.go_offline()
-        assert translator.transformers.keys() == {"bitmasks"}
+        assert translator._tx._transformers.keys() == {"bitmasks"}
         assert translate(translator) == "1:one|x"
 
     def test_offline_twice(self, translator):
@@ -552,14 +468,27 @@ class TestRetention:
     def test_copy_while_online(self, translator):
         assert translate(translator.copy()) == "1:one|x"
 
+    def test_offline_copy_keeps_its_cache_transformed(self, translator):
+        """A TranslationMap bakes transformers in at construction, so the copy's cache must be rebound to them."""
+        translator.go_offline()
+        copy = translator.copy()
+
+        assert copy.cache["bitmasks"][1] == translator.cache["bitmasks"][1] == "1:one|x"
+
     def test_copy_while_offline(self, translator):
         translator.go_offline()
         assert translate(translator.copy()) == "1:one|x"
 
     def test_copy_clones_transformers(self, translator):
-        """User types are deep-copied, so the copy must not share transformer state with the original."""
         copy = translator.copy()
-        assert copy.transformers["bitmasks"] is not translator.transformers["bitmasks"]
+        assert copy._tx._transformers["bitmasks"] is not translator._tx._transformers["bitmasks"]
+
+    def test_shallow_copy_is_independent(self, translator):
+        copy = shallow_copy(translator)
+        copy.register_transformer("bitmasks", Marker("y"), on_existing="overwrite")
+
+        assert translate(translator) == "1:one|x"
+        assert translate(copy) == "1:one|y"
 
     def test_copy_override(self, translator):
         copy = translator.copy(transformers={"bitmasks": Marker("y")})
@@ -593,16 +522,8 @@ class TestRetention:
         translator.go_offline(path=path)
 
         restored: Translator[str, str, int] = Translator.restore(path)
-        assert restored.transformers.keys() == {"bitmasks"}
+        assert restored._tx._transformers.keys() == {"bitmasks"}
         assert translate(restored) == "1:one|x"
-
-    def test_offline_registration_reaches_the_cache(self):
-        """`translate()` rebuilds from the live registrations; `Translator.cache` must agree with it."""
-        translator: Translator[str, str, int] = Translator(MemoryFetcher(DATA)).go_offline()
-        translator.register_transformer("bitmasks", Marker("late"))
-
-        assert translate(translator) == "1:one|late"
-        assert translator.cache["bitmasks"][1] == "1:one|late", "both documented access paths must transform"
 
 
 @pytest.mark.parametrize("clone", [deepcopy, _unpickle, Translator.copy])
@@ -612,6 +533,23 @@ def test_clone_still_translates(clone):
 
     copied = clone(translator)
     assert translate(copied) == "1:one"
+
+
+@pytest.mark.parametrize("offline", [False, True])
+def test_freed_without_the_cyclic_gc(offline):
+    """A dropped instance must not wait for the cyclic GC, holding on to its fetcher and the connections it owns."""
+    translator: Translator[str, str, int] = Translator(MemoryFetcher(DATA), transformers={"bitmasks": Marker("x")})
+    assert translate(translator) == "1:one|x"
+    if offline:
+        translator.go_offline()
+
+    ref = weakref.ref(translator)
+    gc.disable()
+    try:
+        del translator
+        assert ref() is None
+    finally:
+        gc.enable()
 
 
 class Counting(Transformer[int]):
@@ -660,15 +598,13 @@ def test_override_is_not_called_during_construction():
 
     translator = Strict(MemoryFetcher(DATA), transformers={"bitmasks": Marker("x")})
     assert seen == [], "the constructor must use the private path"
-    assert translate(translator) == "1:one|x", "but the transformer is registered all the same"
 
-    translator.register_transformer("other", Marker("y"))
-    assert seen == ["other"], "the override still applies once construction is done"
+    translator.register_transformer("bitmasks", Marker("y"), on_existing="append")
+    assert seen == ["bitmasks"], "the override still applies once construction is done"
+    assert translate(translator) == "1:one|x|y", "and both are registered all the same"
 
 
 class TestSharedInstance:
-    """One instance registered for two sources stays one object; nothing isolates per-source state."""
-
     @staticmethod
     @pytest.fixture
     def translator_with_lock() -> tuple[Translator[str, str, int], Transformer[int]]:
@@ -692,11 +628,14 @@ class TestSharedInstance:
 
     @pytest.fixture
     def translator(self, transformer: Counting) -> Translator[str, str, int]:
-        return Translator(MemoryFetcher(self.DATA), transformers={"a": transformer, "b": transformer})
+        return Translator(
+            MemoryFetcher(self.DATA),
+            transformers={"a": transformer, "b": transformer},
+        )
 
     def test_same_object_for_both_sources(self, translator, transformer):
-        assert translator.transformers["a"] is transformer
-        assert translator.transformers["b"] is transformer
+        assert translator._tx._transformers["a"] is transformer
+        assert translator._tx._transformers["b"] is transformer
 
     def test_state_is_shared_between_sources(self, translator, transformer):
         """Documents actual behavior: a per-source instance is *not* made, so state accumulates across sources."""
@@ -712,13 +651,13 @@ class TestSharedInstance:
         with pytest.warns(TranslationWarning, match="Failed to clone the transformer"):
             copy = translator.copy()
 
-        assert copy.transformers["a"] is shared, "both sources fall back to the original"
-        assert copy.transformers["b"] is shared
+        assert copy._tx._transformers["a"] is shared, "both sources fall back to the original"
+        assert copy._tx._transformers["b"] is shared
         assert copy.translate((1,), names="a") == ("1:a1|locked",), "the copy must still work"
         assert copy.translate((1,), names="b") == ("1:b1|locked",)
 
     def test_clone_failure_hint_warns_about_its_side_effect(self):
-        """Following the hint literally also disables fetcher-provided discovery, not just this one warning."""
+        """The hint names the escape, and following it also stops the copy asking the fetcher for more."""
 
         class Unclonable(Marker):
             def __deepcopy__(self, memo: dict[int, object]) -> "Unclonable":
@@ -731,24 +670,24 @@ class TestSharedInstance:
         data = {"a": {"id": [1], "name": ["a1"]}, "plain": {"id": [1], "name": ["p1"]}}
 
         translator = Translator[str, str, int](Providing(data), transformers={"a": Unclonable("A")})
-        with pytest.warns(TranslationWarning, match="also disables fetcher-provided discovery") as caught:
+        with pytest.warns(TranslationWarning, match="stops the copy asking the fetcher") as caught:
             plain_copy = translator.copy()
         assert "Failed to clone the transformer for 'a'" in str(caught[0].message)
         plain_copy.initialize_sources()
-        assert "plain" in plain_copy.transformers, "unaffected: the plain copy still queries the fetcher"
+        assert "plain" in plain_copy._tx._transformers, "unaffected: the plain copy still queries the fetcher"
 
         translator = Translator[str, str, int](Providing(data), transformers={"a": Unclonable("A")})
         with warnings.catch_warnings():
             warnings.simplefilter("error")
-            hinted_copy = translator.copy(transformers=translator.transformers)  # the hint's suggested remedy
+            hinted_copy = translator.copy(transformers={"a": Unclonable("A")})  # the hint's suggested remedy
         hinted_copy.initialize_sources()
-        assert "plain" not in hinted_copy.transformers, "the hint documents this trade-off, but still makes it"
+        assert "plain" not in hinted_copy._tx._transformers, "the hint documents this trade-off, but still makes it"
 
     def test_copy_isolates_a_failed_clone(self):
         """Two transformers sharing an un-copyable helper: neither copy may see a half-built one.
 
-        ``deepcopy`` registers an object before copying its state, so a memo carried across transformers would hand
-        the second one the shell left behind by the first -- silently, and with no second warning.
+        ``deepcopy`` registers an object before copying its state, so a memo carried across transformers must drop a
+        failed attempt's entries. Otherwise the second one gets the shell left behind by the first, with no warning.
         """
 
         class Vocabulary:
@@ -782,6 +721,33 @@ class TestSharedInstance:
         assert copy.translate((1,), names="a") == ("1:a1|A!",)
         assert copy.translate((1,), names="b") == ("1:b1|B!",), "must not get a half-built helper"
 
+    def test_copy_keeps_sharing_after_an_unrelated_failure(self):
+        class Holder:
+            pass
+
+        class Tagged(Marker):
+            def __init__(self, tag: str, holder: Holder) -> None:
+                super().__init__(tag)
+                self.holder = holder
+
+        class Locked(Marker):
+            def __init__(self) -> None:
+                super().__init__("locked")
+                self.lock = threading.Lock()  # Not deep-copyable.
+
+        holder = Holder()
+        data = {**self.DATA, "c": {"id": [1], "name": ["c1"]}}
+        entries = {"c": Locked(), "a": Tagged("A", holder), "b": Tagged("B", holder)}
+        translator = Translator[str, str, int](MemoryFetcher(data), transformers=entries)
+
+        with pytest.warns(TranslationWarning, match="Failed to clone the transformer for 'c'"):
+            copy = translator.copy()
+
+        a, b = copy._tx._transformers["a"], copy._tx._transformers["b"]
+        assert isinstance(a, Tagged) and isinstance(b, Tagged)
+        assert a.holder is b.holder, "shared before the copy, so shared after it"
+        assert a.holder is not holder
+
     @pytest.mark.parametrize("failure_first", [True, False])
     def test_copy_never_splices_a_failed_clone_into_a_composite(self, failure_first):
         """A composite embedding an un-copyable member must fall back (and warn) -- in either registration order.
@@ -811,32 +777,28 @@ class TestSharedInstance:
             copy = translator.copy()
 
         assert len(caught) == 2, "each source must be reported"
-        assert copy.transformers["a"] is shared
-        assert copy.transformers["b"] is translator.transformers["b"], "reused wholesale, never half-spliced"
+        assert copy._tx._transformers["a"] is shared
+        assert copy._tx._transformers["b"] is translator._tx._transformers["b"], "reused wholesale, never half-spliced"
 
     def test_copy_preserves_sharing_with_a_stack(self):
-        """An instance registered bare under one source and inside a chain under another stays one object."""
         shared, other = Marker("S"), Marker("O")
         fetcher = MemoryFetcher[str, int](self.DATA)
         translator = Translator[str, str, int](fetcher, transformers={"a": shared, "b": [shared, other]})
 
         copy = translator.copy()
-        stack = copy.transformers["b"]
+        stack = copy._tx._transformers["b"]
         assert isinstance(stack, TransformerStack)
 
-        assert copy.transformers["a"] is stack.transformers[0], "the sharing must survive the copy"
-        assert copy.transformers["a"] is not shared, "but it is a copy"
+        assert copy._tx._transformers["a"] is stack.transformers[0], "the sharing must survive the copy"
+        assert copy._tx._transformers["a"] is not shared, "but it is a copy"
 
     def test_copy_preserves_the_sharing(self, translator):
-        """``copy()`` clones through a shared memo, so a deliberately shared instance stays shared."""
         copy = translator.copy()
 
-        assert copy.transformers["a"] is copy.transformers["b"]
-        assert copy.transformers["a"] is not translator.transformers["a"], "but it is a copy"
+        assert copy._tx._transformers["a"] is copy._tx._transformers["b"]
+        assert copy._tx._transformers["a"] is not translator._tx._transformers["a"], "but it is a copy"
 
     def test_copy_preserves_sharing_through_any_composite(self):
-        """Sharing is preserved by the memo, so it is not limited to bare entries and ``TransformerStack`` members."""
-
         class Composite(Transformer[int]):
             """A user-defined chain; the ``Translator`` knows nothing about its internals."""
 
@@ -858,8 +820,8 @@ class TestSharedInstance:
         )
 
         copy = translator.copy()
-        composite = copy.transformers["a"]
+        composite = copy._tx._transformers["a"]
         assert isinstance(composite, Composite)
 
-        assert composite.inner is copy.transformers["b"], "the sharing must survive the copy"
-        assert copy.transformers["b"] is not shared, "but it is a copy"
+        assert composite.inner is copy._tx._transformers["b"], "the sharing must survive the copy"
+        assert copy._tx._transformers["b"] is not shared, "but it is a copy"

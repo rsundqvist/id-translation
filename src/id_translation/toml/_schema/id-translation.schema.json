@@ -54,7 +54,7 @@
     },
     "transform": {
       "type": "object",
-      "description": "`Transformer`s per source: `[transform.<source>.<TransformerType>]`. The innermost keys are passed to the transformer's `__init__`. `<TransformerType>` may be a built-in name or a fully-qualified type name. Multiple transformers per source are chained in declaration order. Sections are read from the main file and from auxiliary fetcher files; all of them belong to the `Translator`. Auxiliary files run first. See [the docs](https://id-translation.readthedocs.io/en/stable/documentation/translator-config.html#section-transformations).",
+      "description": "`Transformer`s per source: `[transform.<source>.<TransformerType>]`. The innermost keys are passed to the transformer's `__init__`. `<TransformerType>` may be a built-in name or a fully qualified type name. Multiple transformers per source are chained in declaration order. At the top level (main file only), they belong to the `Translator` and may transform any source. Under `[fetching.transform]`, they belong to that file's fetcher and apply only to sources it serves. See [the docs](https://id-translation.readthedocs.io/en/stable/documentation/translator-config.html#section-transformations).",
       "additionalProperties": {
         "type": "object",
         "minProperties": 1,
@@ -65,13 +65,21 @@
     },
     "fetching": {
       "type": "object",
-      "description": "Fetcher configuration. Exactly one implementation block is expected (`[fetching.<FetcherType>]`: a built-in name or a fully-qualified type), alongside the optional reserved `mapping`, `cache` and `MultiFetcher` sections. See [the docs](https://id-translation.readthedocs.io/en/stable/documentation/translator-config.html#section-fetching).",
+      "description": "Fetcher configuration. Exactly one implementation block is expected (`[fetching.<FetcherType>]`: a built-in name or a fully qualified type), alongside the optional reserved `mapping`, `cache`, `transform` and `MultiFetcher` sections. See [the docs](https://id-translation.readthedocs.io/en/stable/documentation/translator-config.html#section-fetching).",
       "properties": {
         "mapping": {
           "$ref": "#/definitions/mapping"
         },
         "cache": {
           "$ref": "#/definitions/cache"
+        },
+        "transform": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/transform"
+            }
+          ],
+          "description": "`[fetching.transform.<source>.<TransformerType>]`: transformers that belong to this fetcher. They apply only to sources it serves, after those the fetcher provides and before the main file's `[transform]`."
         },
         "MultiFetcher": {
           "$ref": "#/definitions/multiFetcher"
@@ -110,8 +118,8 @@
           "description": "Hierarchical identifiers for the fetcher. Based on the source file if not given."
         },
         "optional": {
-          "type": "boolean",
-          "description": "If true, discard the fetcher when source discovery raises, e.g. because a database is down. Configuration errors still raise, unless ID_TRANSLATION_SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS is set and the fetcher fails to construct."
+          "const": false,
+          "description": "Auxiliary fetcher files only; the main file's fetcher cannot be optional."
         }
       },
       "not": {

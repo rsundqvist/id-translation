@@ -18,7 +18,7 @@ import pytest
 
 import id_translation
 from id_translation.dio.exceptions import NotInplaceTranslatableError, UntranslatableTypeError
-from id_translation.exceptions import TooManyFailedTranslationsError
+from id_translation.exceptions import TooManyFailedTranslationsError, TransformerStateError
 from id_translation.fetching import MemoryFetcher
 from id_translation.fetching.exceptions import (
     ConcurrentOperationWarning,
@@ -115,6 +115,7 @@ DATA_SAMPLES: dict[str, Callable[[], BaseException]] = {
     "TooManyFailedTranslationsError": lambda: TooManyFailedTranslationsError(
         "msg", name="n", source="s", n_untranslated=1, n_total=2, max_fails=0.5, sample_ids=[7]
     ),
+    "TransformerStateError": lambda: TransformerStateError("msg", source="s", hints="Check it."),
     "DuplicateSourceError": lambda: DuplicateSourceError("msg", source="s", hints="Check it."),
     "UnmappedValuesError": lambda: UnmappedValuesError("msg", unmapped=["a"]),
 }

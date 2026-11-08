@@ -24,6 +24,7 @@ from ..offline.types import (
     PlaceholderTranslations,
     SourcePlaceholderTranslations,
 )
+from ..transform.types import Transformer
 from ..types import ID, IdType, SourceType
 from . import exceptions
 from ._cache_access import CacheAccess
@@ -111,6 +112,8 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
 
         self._placeholders: dict[SourceType, list[str]] | None = None
         self._discovered_id_columns: dict[SourceType, str | None] | None = None
+        # From the [fetching.transform]-section of the file that declared this fetcher; set by `TranslatorFactory`.
+        self._transform_config: dict[SourceType, list[Transformer[IdType]]] = {}
 
         self._active_operations: dict[str, int] = {}
 
@@ -434,6 +437,9 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         if not self.mapper._apply_filters(ID, [ID], source, {}, task_id=None):  # E.g. filter_sources(), on purpose.
             hint = f"A filter rejects the ID column of {source!r}, but every source needs one."
         return hint
+
+    def _configured_transformers(self, source: SourceType) -> Sequence[Transformer[IdType]]:
+        return self._transform_config.get(source, ())
 
     @property
     def mapper(self) -> Mapper[str, str, SourceType]:
@@ -999,9 +1005,32 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         memo[id(self)] = result
 
         for k, v in self.__dict__.items():
-            setattr(result, k, deepcopy(v, memo))
+            setattr(result, k, self._copy_transform_config(memo) if k == "_transform_config" else deepcopy(v, memo))
 
         return result
+
+    def _copy_transform_config(self, memo: dict[int, Any]) -> dict[SourceType, list[Transformer[IdType]]]:
+        """Clone the [fetching.transform] transformers one by one, sharing any that cannot be cloned.
+
+        As the ``Translator`` does for its own transformers: one uncloneable member must not make the fetcher
+        uncloneable as a whole.
+        """
+        rv: dict[SourceType, list[Transformer[IdType]]] = {}
+        for source, chain in self._transform_config.items():
+            rv[source] = []
+            for transformer in chain:
+                mark = len(memo)  # `deepcopy` only ever inserts into the memo, and dicts preserve insertion order.
+                try:
+                    rv[source].append(deepcopy(transformer, memo))
+                except TypeError as e:
+                    for key in list(memo)[mark:]:
+                        del memo[key]
+                    emit_warning(
+                        f"Failed to clone the [fetching.transform] transformer {transformer!r} for {source!r}"
+                        f" (TypeError: {e}). The copy shares it with the original."
+                    )
+                    rv[source].append(transformer)
+        return rv
 
     @staticmethod
     def _find_config_file(identifiers: tuple[str, ...]) -> str | None:

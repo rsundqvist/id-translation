@@ -68,3 +68,9 @@ def test_from_toml_records_duplicate_id():
     ]
     with pytest.raises(ValueError, match=r"Duplicate ID in record 3/3: record="):
         BitmaskTransformer(overrides=records)
+
+
+def test_force_decomposition_missing_bit():
+    translations = {1: "read", 3: "read+write"}  # 3 = 1 | 2, but 2 has no translation.
+    with pytest.raises(ValueError, match=r"Cannot decompose bitmask=3 into \[1, 2\]: bit 2 has no translation\."):
+        BitmaskTransformer(force_decomposition=True).update_translations(translations)

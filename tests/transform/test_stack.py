@@ -87,6 +87,14 @@ def test_empty_stack_raises():
 
 
 class TestDuplicateMembers:
+    def test_chain_formats_where_only_for_a_duplicate(self, calls):
+        from id_translation.transform._impl.stack import _chain
+
+        def where() -> str:
+            raise AssertionError("formatted without a duplicate")
+
+        _chain([Recorder("first", calls), Recorder("second", calls)], where=where)
+
     def test_same_instance(self, calls):
         recorder = Recorder("duplicate", calls)
         with pytest.warns(TranslationWarning, match="Duplicate transformer"):

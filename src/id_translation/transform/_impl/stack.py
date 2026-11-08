@@ -66,7 +66,14 @@ class TransformerStack(_Transformer[_IdType]):
         return hash((TransformerStack, self._transformers))
 
 
-def _flatten_members(transformers: TransformersTuple[_IdType]) -> TransformersTuple[_IdType]:
+def _in_stack() -> str:
+    return "in stack"
+
+
+def _flatten_members(
+    transformers: TransformersTuple[_IdType],
+    where: _abc.Callable[[], str] = _in_stack,
+) -> TransformersTuple[_IdType]:
     flattened: list[_Transformer[_IdType]] = []
 
     for transformer in transformers:
@@ -76,7 +83,7 @@ def _flatten_members(transformers: TransformersTuple[_IdType]) -> TransformersTu
 
         for member in members:
             if any(_is_duplicate(member, other) for other in flattened):
-                _emit_warning(f"Duplicate transformer {member!r} in stack; will run multiple times.")
+                _emit_warning(f"Duplicate transformer {member!r} {where()}; will run multiple times.")
 
         flattened.extend(members)
 
@@ -86,16 +93,19 @@ def _flatten_members(transformers: TransformersTuple[_IdType]) -> TransformersTu
     return (*flattened,)
 
 
-def has_member(transformer: _Transformer[_IdType], member: _Transformer[_IdType]) -> bool:
-    """Does `transformer` already include `member` -- as itself, or as one of its chained members?
-
-    Lets a caller tell "this is already here, do nothing" apart from "something else is here".
-    """
-    if _is_duplicate(member, transformer):
-        return True
-    if isinstance(transformer, TransformerStack):
-        return any(_is_duplicate(member, other) for other in transformer.transformers)
-    return False
+def _chain(
+    transformers: _abc.Sequence[_Transformer[_IdType]],
+    *,
+    where: _abc.Callable[[], str],
+) -> _Transformer[_IdType]:
+    """Chain `transformers` like :func:`as_transformer`; the duplicate warning names ``where()``, called only then."""
+    _check_elements(transformers)
+    if len(transformers) == 1:
+        return transformers[0]
+    # `__init__` cannot take `where` without a public parameter; `_transformers` is the stack's only state.
+    stack: TransformerStack[_IdType] = TransformerStack.__new__(TransformerStack)
+    stack._transformers = _flatten_members(tuple(transformers), where)
+    return stack
 
 
 def _is_duplicate(transformer: _Transformer[_IdType], other: _Transformer[_IdType]) -> bool:
@@ -125,8 +135,8 @@ def as_transformer(value: _Transformer[_IdType] | _abc.Sequence[_Transformer[_Id
 
     Raises:
         ValueError: If `value` is an empty sequence.
-        TypeError: If `value` is neither a transformer nor a sequence of them, or is a `Transformer` subclass rather
-            than an instance of one.
+        TypeError: If `value` is neither a transformer nor a sequence of them.
+        TypeError: If `value` is a `Transformer` subclass rather than an instance of one.
     """
     # Transformer first: an implementation is allowed to be a Sequence too, and must not be read as a chain.
     if _is_transformer(value):
@@ -134,14 +144,17 @@ def as_transformer(value: _Transformer[_IdType] | _abc.Sequence[_Transformer[_Id
 
     # `str` and `bytes` are Sequences, so an accidental string would otherwise chain its elements.
     if isinstance(value, _abc.Sequence) and not isinstance(value, str | bytes | bytearray):
-        for i, element in enumerate(value):
-            if not _is_transformer(element):
-                raise _not_a_transformer(f"Element {i} of the transformer chain", element)
-
+        _check_elements(value)
         # An empty sequence falls through to the stack, which owns the emptiness rule.
         return value[0] if len(value) == 1 else TransformerStack(*value)
 
     raise _not_a_transformer("Transformer", value)
+
+
+def _check_elements(chain: _abc.Sequence[object]) -> None:
+    for i, element in enumerate(chain):
+        if not _is_transformer(element):
+            raise _not_a_transformer(f"Element {i} of the transformer chain", element)
 
 
 def _is_transformer(value: object) -> _t.TypeGuard[_Transformer[_t.Any]]:

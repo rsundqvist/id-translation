@@ -133,6 +133,13 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
             return None
         return self.get_child(source).get_transformer(source)
 
+    def _configured_transformers(self, source: SourceType) -> Sequence[Transformer[IdType]]:
+        # Only the winning child's: transformers that a discarded or outranked child brings along go with it.
+        self.initialize_sources()
+        if source not in self._source_to_id:
+            return ()
+        return self.get_child(source)._configured_transformers(source)
+
     @property
     def placeholders(self) -> Mapping[SourceType, Sequence[str]]:
         if self._placeholders is None:

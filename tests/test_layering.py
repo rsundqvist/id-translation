@@ -15,7 +15,7 @@ ROOT = "id_translation"  # The package itself, e.g. `from id_translation import 
 
 BASE = {"_utils", "_uuid_utils", "exceptions", "logging", "types"}
 # Unchecked. `_tasks` is part of the Translator implementation.
-TOP = {"_tasks", "_translator", "testing", "toml", "translator_typing", "utils", ROOT}
+TOP = {"_tasks", "_transformer_registry", "_translator", "testing", "toml", "translator_typing", "utils", ROOT}
 
 # Units other than BASE that each unit may import. BASE units may import each other.
 ALLOWED: dict[str, set[str]] = {

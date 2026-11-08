@@ -551,6 +551,8 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
                 k,
                 self._copy_engine(memo, v, self._engine_kwargs)
                 if isinstance(v, sqlalchemy.Engine)
+                else self._copy_transform_config(memo)
+                if k == "_transform_config"
                 else deepcopy(v, memo),
             )
 

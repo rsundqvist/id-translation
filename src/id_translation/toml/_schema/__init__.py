@@ -28,28 +28,26 @@ def _load(filename: str) -> dict[str, Any]:
 
 
 def derive_fetcher_schema(main: dict[str, Any]) -> dict[str, Any]:
-    """Derive the auxiliary fetcher-file schema from the ``main`` schema.
-
-    Fetcher files may only contain the top-level ``fetching`` and ``transform`` sections, and ``fetching`` is required.
-    The ``fetching`` block keeps its full grammar (including the ``cache`` and ``mapping`` subsections); only
-    ``MultiFetcher`` is forbidden, since it is permitted in the main configuration file only.
-    """
     schema = deepcopy(main)
     schema["$id"] = _BASE_URL + FETCHER_FILENAME
     schema["title"] = "id-translation fetcher configuration"
     schema["description"] = (
-        "Schema for id-translation auxiliary fetcher files, which may only contain the top-level `fetching` and "
-        "`transform` sections. See https://id-translation.readthedocs.io/en/stable/documentation/translator-config.html"
+        "Schema for id-translation auxiliary fetcher files, which may only contain the top-level `fetching` section; "
+        "transformers go in `[fetching.transform]`. "
+        "See https://id-translation.readthedocs.io/en/stable/documentation/translator-config.html"
     )
-    schema["properties"] = {
-        "fetching": {"$ref": "#/definitions/fetching"},
-        "transform": {"$ref": "#/definitions/transform"},
-    }
-    # Fetcher files first: a `transform`-only file is a ConfigurationError at load time.
+    schema["properties"] = {"fetching": {"$ref": "#/definitions/fetching"}}
     schema["required"] = ["fetching"]
     # Forbid MultiFetcher in fetcher files. The key is kept in `properties` set to `false` (rejecting any value);
     # popping it would instead let the permissive `additionalProperties` accept it as a generic custom fetcher.
     schema["definitions"]["fetching"]["properties"]["MultiFetcher"] = False
+    # Only an auxiliary file's fetcher may be optional.
+    schema["definitions"]["fetcherCommon"]["properties"]["optional"] = {
+        "type": "boolean",
+        "description": "If true, discard the fetcher when source discovery raises, e.g. because a database is down. "
+        "Configuration errors still raise, unless ID_TRANSLATION_SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS is set and the "
+        "fetcher fails to construct.",
+    }
     return schema
 
 

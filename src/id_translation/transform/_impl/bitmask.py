@@ -113,15 +113,20 @@ class BitmaskTransformer(_Transformer[IdType]):
 
     def update_translations(self, translations: dict[IdType, str], /) -> None:
         """Join decomposed bitmask values using the `joiner` string."""
-        ids_to_update = [idx for idx in translations if self.is_decomposable(idx)]
-        if not self._force:
-            ids_to_update = [idx for idx in ids_to_update if idx not in translations]
+        # Without force, existing translations win; missing composites are added lazily by `try_add_missing_key()`.
+        ids_to_update = [idx for idx in translations if self.is_decomposable(idx)] if self._force else []
 
         translations.update(self._overrides)
-        new_translations = {
-            bitmask: self._create_composite_translation(self.decompose_bitmask(bitmask), translations=translations)
-            for bitmask in ids_to_update
-        }
+        new_translations = {}
+        for bitmask in ids_to_update:
+            bits = self.decompose_bitmask(bitmask)
+            try:
+                new_translations[bitmask] = self._create_composite_translation(bits, translations=translations)
+            except KeyError as e:
+                msg = f"Cannot decompose {bitmask=} into {bits}: bit {e.args[0]} has no translation."
+                exc = ValueError(msg)
+                exc.add_note("Hint: Add a translation for it to the overrides, or set force_decomposition=False.")
+                raise exc from e
 
         translations.update(new_translations)
         translations.update(self._overrides)
