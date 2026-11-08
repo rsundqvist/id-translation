@@ -97,9 +97,10 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         return children
 
     def _unresolved_children(self) -> list[str]:
-        # Diagnostic prose for the Translator's unknown-source warning: one formatted entry per discarded
-        # `optional` child, in discard order. These raised from `initialize_sources`, unlike a child discarded for
-        # reporting *no* sources, which is known to serve none. Children of nested MultiFetchers are included.
+        # Diagnostic prose for the Translator's unknown-source warning and its NoSourcesError hint: one formatted
+        # entry per discarded `optional` child, in discard order. These raised from `initialize_sources`, unlike a
+        # child discarded for reporting *no* sources, which is known to serve none. Children of nested MultiFetchers
+        # are included.
         self.initialize_sources()
         unresolved = [*self._unresolved]
         for child in self._id_to_fetcher.values():

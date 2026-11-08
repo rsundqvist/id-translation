@@ -20,6 +20,7 @@ from id_translation.exceptions import (
     ConfigurationChangedError,
     ConnectionStatusError,
     MissingNamesError,
+    NoSourcesError,
     TooManyFailedTranslationsError,
     TranslationAbortedWarning,
     TranslationDisabledWarning,
@@ -307,11 +308,12 @@ def test_go_fetch_without_mapped_names_returns_empty_translations():
         tmap = translator.fetch({"not-source": 1})
     assert tmap.sources == []
 
-    with pytest.warns(TranslationAbortedWarning, match="Translation aborted; none of the derived names"):
+    with (
+        pytest.warns(TranslationAbortedWarning, match="Translation aborted; none of the derived names"),
+        pytest.raises(NoSourcesError, match="Nothing to take offline"),
+    ):
         translator.go_offline({"not-source": 1})
-    assert translator.cache.sources == []
-
-    assert id(tmap) != id(translator.cache)
+    assert translator.online, "raised before the fetcher was closed"
 
 
 def test_mapping_nothing_to_translate(translator):

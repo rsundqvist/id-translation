@@ -62,6 +62,14 @@ class MissingNamesError(TranslationError):
     """Raised if names could not be derived based on the data type, and aren't explicitly given."""
 
 
+class NoSourcesError(TranslationError):
+    """Raised when a ``Translator``'s fetcher finds no sources, or a snapshot would hold none.
+
+    See :meth:`Translator.initialize_sources() <id_translation.Translator.initialize_sources>` and
+    :meth:`Translator.go_offline() <id_translation.Translator.go_offline>`.
+    """
+
+
 class TooManyFailedTranslationsError(TranslationError):
     """Raised if too many IDs fail to translate.
 

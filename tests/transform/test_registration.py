@@ -262,7 +262,7 @@ class TestTrimming:
         translator: Translator[str, str, int] = Translator(_EmptyFetcher({}), transformers={"gone": Marker("x")})
 
         with pytest.warns(TranslationWarning, match="not served"):
-            translator.initialize_sources(settle_transformers=True)
+            translator.initialize_sources(settle_transformers=True, require_sources=False)
 
         assert not translator.transformers
 
@@ -351,7 +351,7 @@ class TestSettlingIsRecoverable:
         )
 
         with pytest.warns(TranslationWarning, match="not served"):
-            translator.initialize_sources(settle_transformers=True)
+            translator.initialize_sources(settle_transformers=True, require_sources=False)
 
         assert "anything" not in translator.transformers
 

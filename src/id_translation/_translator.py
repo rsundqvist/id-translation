@@ -33,9 +33,10 @@ from .exceptions import (
     ConfigurationChangedError,
     ConnectionStatusError,
     MissingNamesError,
+    NoSourcesError,
     TranslationDisabledWarning,
 )
-from .fetching import Fetcher
+from .fetching import Fetcher, MultiFetcher
 from .fetching.types import IdsToFetch
 from .mapping import Mapper
 from .mapping.matrix import ScoreMatrix
@@ -269,6 +270,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         self,
         *,
         settle_transformers: bool = True,
+        require_sources: bool = True,
         task_id: int | None = None,
     ) -> Self:
         """Perform source discovery (fetcher initialization).
@@ -276,17 +278,22 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         This method does nothing if the ``Translator`` isn't :attr:`~id_translation.Translator.online`.
 
         Args:
-            settle_transformers: If ``True``, settle the :attr:`~id_translation.Translator.transformers` as well,
-                dropping any whose source is not served. Pass ``False`` to register transformers based on the
-                discovered :attr:`~id_translation.Translator.sources` first; the next call without it settles them,
-                including the implicit one in methods such as :meth:`~id_translation.Translator.map`.
+            settle_transformers: If ``True``, :ref:`settle <transformation-primer-settling>` the
+                :attr:`~id_translation.Translator.transformers` as well. Pass ``False`` to register transformers based
+                on the discovered :attr:`~id_translation.Translator.sources` first; the next call without it settles
+                them, implicit calls included.
+            require_sources: If ``False``, accept a fetcher that finds no sources. Passing this to the first call also
+                covers implicit calls, and lets :meth:`~id_translation.Translator.go_offline` take an empty snapshot.
             task_id: Used for logging.
 
         Returns:
             Self, for chained assignment.
 
+        Raises:
+            ~id_translation.exceptions.NoSourcesError: If the fetcher finds no sources and `require_sources` is set.
+
         See Also:
-            🧵 Call this before sharing a ``Translator`` between threads; see :ref:`thread-safety`.
+            🧵 Thread safe, unless the fetcher is shared with another instance; see :ref:`thread-safety-fetchers`.
         """
         tx = self._tx
         if self.online and not (tx.discovered and tx.queried):
@@ -294,6 +301,8 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             with tx.lock:
                 if not tx.discovered:
                     self.fetcher.initialize_sources(_logging.generate_task_id() if task_id is None else task_id)
+                    if require_sources:
+                        self._check_has_sources()  # Before `discovered`, so that every call checks until one passes.
                     tx.discovered = True
                 tx.apply_from_fetcher(self)  # Does nothing once a racing call has queried.
 
@@ -302,6 +311,19 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                 tx.freeze(self)
 
         return self
+
+    def _serves_sources(self) -> bool:
+        return bool(self.sources) or isinstance(self.fetcher, TestFetcher)  # Reports no sources but serves all.
+
+    def _check_has_sources(self) -> None:
+        if self._serves_sources():
+            return
+
+        fetcher = self.fetcher
+        hints = ["Call initialize_sources(require_sources=False) first if a Translator without sources is expected."]
+        if isinstance(fetcher, MultiFetcher) and (unresolved := fetcher._unresolved_children()):
+            hints.insert(0, f"Optional fetchers discarded because source discovery raised: {unresolved}.")
+        raise NoSourcesError(f"No sources found by {fetcher}.", hints=hints)
 
     def copy(self, **overrides: Unpack[CopyParams[NameType, SourceType, IdType]]) -> Self:
         """Make a copy of this :class:`~id_translation.Translator`.
@@ -859,6 +881,8 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             🔑 This is a key event method. See :ref:`key-events` for details.
 
             The :envvar:`ID_TRANSLATION_DISABLED` variable.
+
+            The first call runs :meth:`~id_translation.Translator.initialize_sources`; see it for what it raises.
         """
         if read_bool(ID_TRANSLATION_DISABLED):
             message = f"Translation aborted; {ID_TRANSLATION_DISABLED} is set."
@@ -1033,6 +1057,8 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             🔑 This is a key event method. See :ref:`key-events` for details.
 
             The :meth:`~id_translation.Translator.extract_names` method.
+
+            The first call runs :meth:`~id_translation.Translator.initialize_sources`; see it for what it raises.
         """
         task_id = _logging.generate_task_id()
         self.initialize_sources(task_id=task_id)
@@ -1307,6 +1333,8 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             ValueError: If `io_kwargs` or `max_fails` is given without `translatable`.
             ~id_translation.mapping.exceptions.MappingError: If :meth:`~id_translation.Translator.map` fails (only when
                 `translatable` is given).
+            ~id_translation.exceptions.NoSourcesError: If the snapshot would hold no sources, unless the ``Translator``
+                was accepted without any (`require_sources=False`). The ``Translator`` stays online.
 
         Notes:
             The transformers :ref:`settle <transformation-primer-settling>` against the snapshot, dropping those for
@@ -1352,6 +1380,20 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             func=self.go_offline.__qualname__,
             task_id=task_id,
         )
+        if not translation_map.sources and self._serves_sources():
+            # A Translator without sources gets here only through initialize_sources(require_sources=False); such a
+            # Translator goes offline with an empty snapshot. Raise before closing the fetcher: raising afterwards
+            # would leave a Translator that is neither online nor offline.
+            if translatable is not None:
+                hint = "No name in the translatable mapped to a source with IDs to fetch."
+            elif any(arg is not None for arg in (names, ignore_names, override_function)):
+                hint = (
+                    "No source was selected, or every selected source was skipped; check `names`, `ignore_names` and"
+                    " `override_function`, and see the log for required placeholders that could not be mapped."
+                )
+            else:
+                hint = "Every source was skipped; see the log for required placeholders that could not be mapped."
+            raise NoSourcesError("Nothing to take offline: the snapshot would hold no sources.", hints=hint)
         self.fetcher.close()
         self._fetcher = None
         self._cached_tmap = translation_map
@@ -1450,6 +1492,9 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                 :attr:`source <id_translation.Translator.sources>` and ``mapper.on_unknown_user_override='raise'``.
             ~id_translation.mapping.exceptions.BadOverrideError: If an override of the mapper maps a name to an
                 unknown :attr:`source <id_translation.Translator.sources>`.
+
+        See Also:
+            The first call runs :meth:`~id_translation.Translator.initialize_sources`; see it for what it raises.
 
         Examples:
             Basic usage.
