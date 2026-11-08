@@ -23,6 +23,10 @@ class TranslationMap(
 ):
     """Storage class for fetched translations.
 
+    .. hint::
+
+       Use :meth:`~id_translation.offline.TranslationMap.to_dicts` to convert to native types.
+
     Args:
         source_translations: Fetched translations ``{source: PlaceholderTranslations}``.
         name_to_source: Mappings ``{name: source}``, but may be overridden by the user.
@@ -34,6 +38,51 @@ class TranslationMap(
         transformers: A dict ``{source: transformer}`` of initialized
             :class:`~id_translation.transform.types.Transformer` instances.
 
+    Examples:
+        Usually created by :meth:`Translator.fetch() <id_translation.Translator.fetch>`.
+
+        ..
+           # Hidden setup code
+           >>> from id_translation import Translator
+           >>> from id_translation.fetching import MemoryFetcher
+           >>> translation_data = {
+           ...     "animals": {"id": [0, 1, 2], "name": ["Tarzan", "Morris", "Simba"]},
+           ...     "people": {"id": [1999, 1991], "name": ["Sofia", "Richard"]},
+           ... }
+           >>> translator = Translator(MemoryFetcher(translation_data))
+
+        >>> translation_map = translator.fetch()
+        >>> translation_map
+        TranslationMap('animals': 3 IDs, 'people': 2 IDs)
+
+        **Convert to finished translations.**
+
+        * :meth:`~id_translation.offline.TranslationMap.to_translations` → ``{source: MagicDict}``, where a
+          :class:`~id_translation.offline.MagicDict` is similar to a regular ``dict[IdType, str]``-type dict.
+
+        >>> people = translation_map.to_translations()["people"]
+        >>> people
+        {1999: '1999:Sofia', 1991: '1991:Richard'}
+
+        .. warning::
+
+           The :class:`~id_translation.offline.MagicDict` class is used internally and has a few important
+           differences from the built-in type. Please refer to the :class:`~id_translation.offline.MagicDict` class
+           documentation for details.
+
+        To convert a :class:`~id_translation.offline.MagicDict` to a regular ``dict``, simply use the dict
+        constructor:
+
+        >>> dict(people)
+        {1999: '1999:Sofia', 1991: '1991:Richard'}
+
+        **Convert to raw translation data.**
+
+        * :meth:`~id_translation.offline.TranslationMap.to_pandas` → ``{source: DataFrame}``
+        * :meth:`~id_translation.offline.TranslationMap.to_dicts` → ``{source: {placeholder: [values...]}}``
+
+        >>> translation_map.to_dicts()["people"]
+        {'id': [1999, 1991], 'name': ['Sofia', 'Richard']}
     """
 
     def __init__(

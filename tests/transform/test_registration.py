@@ -308,13 +308,6 @@ class TestTrimming:
 
         assert not translator.transformers
 
-    def test_translation_map_settles_at_construction(self):
-        cache = Translator[str, str, int]({"a": {1: "one"}}).cache
-        with pytest.warns(TranslationWarning, match="not served"):
-            translator: Translator[str, str, int] = Translator(cache, transformers={"typo": Marker("x")})
-
-        assert not translator.transformers
-
     def test_registering_after_settling_raises(self):
         translator: Translator[str, str, int] = Translator(MemoryFetcher(DATA))
         translator.initialize_sources(settle_transformers=True)

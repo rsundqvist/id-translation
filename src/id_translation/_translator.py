@@ -13,7 +13,6 @@ from typing import (
     NoReturn,
     Self,
     Unpack,
-    cast,
     overload,
 )
 
@@ -103,8 +102,8 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
     translations in memory.
 
     Args:
-        fetcher: A :class:`~id_translation.fetching.Fetcher` or ready-to-use translations.
-        fmt: A :class:`~id_translation.offline.Format` specification for translations.
+        fetcher: A :class:`~id_translation.fetching.Fetcher`, or translations as inline data.
+        fmt: String :class:`~id_translation.offline.Format` specification for translations.
         mapper: A :class:`~id_translation.mapping.Mapper` instance for binding names to sources.
         default_fmt: Alternative :class:`~id_translation.offline.Format` to use for fallback translation of unknown IDs.
         default_fmt_placeholders: Shared and/or source-specific default placeholder values for unknown IDs. See
@@ -160,7 +159,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
     def __init__(
         self,
-        fetcher: FetcherTypes[NameType, SourceType, IdType] | None = None,
+        fetcher: FetcherTypes[SourceType, IdType] | None = None,
         *,
         fmt: FormatType = Format.DEFAULT,
         mapper: Mapper[NameType, SourceType, None] | None = None,
@@ -193,18 +192,17 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             emit_warning("No fetcher given. Translation data will be automatically generated.")
         elif isinstance(fetcher, Fetcher):
             self._fetcher = fetcher
-        elif isinstance(fetcher, dict):
+        elif isinstance(fetcher, TranslationMap):
+            # The map carries its own format, defaults and transformers. So does this constructor. Either side winning
+            # silently loses the other's, and a lost transformer can break translation in confusing ways.
+            exc = TypeError(f"Cannot create a {tname(self)} from a TranslationMap.")
+            exc.add_note(f"Hint: Use {tname(self)}(translation_map.to_dicts(), ...) instead.")
+            if sources := list(fetcher.transformers):
+                exc.add_note(f"Hint: The map has transformers for sources {sources}; pass `transformers` too.")
+            raise exc
+        elif isinstance(fetcher, Mapping):
             source_translations = {source: PlaceholderTranslations.make(source, pht) for source, pht in fetcher.items()}
             self._tx.freeze(self, source_translations)
-            self._cached_tmap = self._to_translation_map(source_translations)
-        elif isinstance(fetcher, TranslationMap):
-            # Extract raw translations and "overwrite" inherited properties, such as format specs and transformers.
-            source_translations = fetcher._extract_translations()
-            self._tx.freeze(self, source_translations)
-            self._cached_tmap = self._to_translation_map(source_translations)
-        elif isinstance(fetcher, Mapping):  # After TranslationMap, which is a Mapping too.
-            data = cast("Mapping[SourceType, Any]", fetcher)
-            source_translations = {source: PlaceholderTranslations.make(source, pht) for source, pht in data.items()}
             self._cached_tmap = self._to_translation_map(source_translations)
         else:
             raise TypeError(type(fetcher))  # pragma: no cover
@@ -214,24 +212,13 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
         self._translated_names: tuple[int, NameToSource[NameType, SourceType]] | None = None
 
-    def __getstate__(self) -> Any:
-        # Snapshots are same-version artifacts by definition: `ConfigMetadata` records the `id-translation` version and
-        # `use_cached()` refuses any mismatch, so reading one written by another version is out of scope here.
-        # `go_offline()` guarantees a serializable instance. Delegates, since a subclass may declare `__slots__`;
-        # `object.__getstate__` then returns a tuple, while the plain-`__dict__` case does not.
-        state = super().__getstate__()
-        instance_dict, slots = state if isinstance(state, tuple) else (state, None)
-
-        instance_dict = dict(instance_dict or {})
-
-        return (instance_dict, slots) if slots else instance_dict
-
     def __setstate__(self, state: Any) -> None:
-        # No cross-version repair: see `__getstate__`. `load_persistent_instance` rejects a foreign snapshot before
-        # reading it, but `restore` is handed a path and cannot, so recognise the shape here rather than unpickle into
-        # an instance that fails later with an unrelated AttributeError.
+        # Snapshots are same-version artifacts by definition: `ConfigMetadata` records the `id-translation` version and
+        # `use_cached()` refuses any mismatch, so there is no cross-version repair. `load_persistent_instance` rejects a
+        # foreign snapshot before reading it, but `restore` is handed a path and cannot, so recognise the shape here
+        # rather than unpickle into an instance that fails later with an unrelated AttributeError.
         slots: dict[str, Any] = {}
-        if isinstance(state, tuple):  # A subclass with `__slots__`; see `__getstate__`.
+        if isinstance(state, tuple):  # A subclass with `__slots__`; `object.__getstate__` returns `(dict, slots)`.
             state, slots = state[0] or {}, state[1] or {}
 
         if "_tx" not in state:
@@ -369,6 +356,12 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
         new = cls(**kwargs)
         new._config_metadata = self._config_metadata
+        if not self.online:
+            # The constructor rebuilt the cache from records alone; keep what the snapshot knew, as pickling does.
+            cache = new.cache
+            cache.name_to_source = self.cache.name_to_source
+            if "fmt" not in overrides:
+                cache.fmt = self.cache.fmt
         if registry is not None:
             # An offline copy is settled by the constructor, which carrying must not reopen.
             cached = new._cached_tmap
@@ -387,10 +380,11 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         return self.copy(fetcher="keep")
 
     def _copy_fetcher(
-        self, mode: FetcherCopyMode
-    ) -> Fetcher[SourceType, IdType] | TranslationMap[NameType, SourceType, IdType]:
+        self,
+        mode: FetcherCopyMode,
+    ) -> Fetcher[SourceType, IdType] | SourcePlaceholderTranslations[SourceType]:
         if not self.online:
-            return self.cache  # Never mutated in place, so every mode shares it.
+            return self.cache._extract_translations()  # Records are never mutated in place, so all modes share them.
         if mode == "keep":
             return self.fetcher
 
@@ -1290,15 +1284,14 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             names: Explicit names to translate. Derive from `translatable` if ``None``.
             ignore_names: Names **not** to translate, or a predicate ``(NameType) -> bool``.
             override_function: A callable ``(name, sources, context) -> Source | None``, where `context` is always
-                ``None``. See :meth:`Mapper.apply <id_translation.mapping.Mapper.apply>` for details. Ignored when
-                `translatable` is given.
-            max_fails: The maximum fraction of IDs for which translation may fail. 1=disabled. Missing values (``NaN``,
-                null) in ``pandas``, ``dask``, ``polars`` and ``pyarrow`` data are pass-throughs and never count; in a
-                builtin collection or array, ``None`` and ``NaN`` are ordinary (unknown) IDs, and do.
+                ``None``. See :meth:`Mapper.apply <id_translation.mapping.Mapper.apply>` for details.
+            max_fails: The maximum fraction of IDs for which translation may fail. 1=disabled. Requires `translatable`.
+                Missing IDs (e.g. ``NaN``) in ``pandas`` types are pass-throughs and never count; a ``None`` in a
+                builtin collection is an ordinary (unknown) ID, and does.
             fmt: A :class:`format string <id_translation.offline.Format>` such as **'{id}:{name}'** to use. Default is
                 :attr:`Translator.fmt <id_translation.Translator.fmt>`. The snapshot is only guaranteed to hold the
-                placeholders of `fmt` when `translatable` is given, and those of `Translator.fmt` otherwise; list any
-                others that a later `translate()` needs there as optional blocks, e.g. ``'{id}:{name}[ {team}]'``.
+                placeholders of `fmt`; list any others that a later `translate()` needs as optional blocks, e.g.
+                ``'{id}:{name}[ {team}]'``.
             io_kwargs: Keyword arguments for the IO class (e.g.
                 :class:`~id_translation.dio.integration.pandas.PandasIO`).
             path: If given, serialize the :class:`~id_translation.Translator` to disk after retrieving data.
@@ -1309,10 +1302,9 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         Raises:
             ~id_translation.exceptions.ConnectionStatusError: If already disconnected from the fetcher, i.e. not
                 :attr:`~id_translation.Translator.online`.
-            ~id_translation.fetching.exceptions.ForbiddenOperationError: If
-                :meth:`Fetcher.fetch_all <id_translation.fetching.Fetcher.fetch_all>` is disabled and
-                ``translatable=None``.
-            ValueError: If `io_kwargs` is given without `translatable`.
+            ~id_translation.fetching.exceptions.ForbiddenOperationError: If ``translatable=None`` and
+                :meth:`Fetcher.fetch_all <id_translation.fetching.Fetcher.fetch_all>` is disabled.
+            ValueError: If `io_kwargs` or `max_fails` is given without `translatable`.
             ~id_translation.mapping.exceptions.MappingError: If :meth:`~id_translation.Translator.map` fails (only when
                 `translatable` is given).
 
@@ -1331,7 +1323,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             The :meth:`~id_translation.Translator.restore` method (when `path` is set).
         """
         if not self.online:
-            raise ConnectionStatusError("Cannot fetch new translations.")
+            raise ConnectionStatusError("Translator is already offline.")
 
         start = perf_counter()
         task_id = _logging.generate_task_id(start)
@@ -1415,20 +1407,21 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         Calling ``fetch`` without arguments will perform a
         :meth:`Fetcher.fetch_all <id_translation.fetching.Fetcher.fetch_all>` -operation, without going offline.
 
-        The returned :class:`~id_translation.offline.TranslationMap` may be converted to native types with
-        :meth:`TranslationMap.to_dicts <id_translation.offline.TranslationMap.to_dicts>`.
+        .. hint::
+
+           Use :meth:`TranslationMap.to_dicts() <id_translation.offline.TranslationMap.to_dicts>` to convert the
+           result to native types.
 
         Args:
-            translatable: A data structure to translate.
+            translatable: Data from which IDs to fetch will be extracted. Fetch all IDs if ``None``.
             names: Explicit names to translate. Derive from `translatable` if ``None``. Alternatively, you may pass a
                 ``dict`` on the form ``{name_in_translatable: source_to_use}``.
             ignore_names: Names **not** to translate, or a predicate ``(NameType) -> bool``.
             override_function: A callable ``(name, sources, context) -> Source | None``, where `context` is always
-                ``None``. See :meth:`Mapper.apply <id_translation.mapping.Mapper.apply>` for details. Ignored when
-                `translatable` is given.
-            max_fails: The maximum fraction of IDs for which translation may fail. 1=disabled. Missing values (``NaN``,
-                null) in ``pandas``, ``dask``, ``polars`` and ``pyarrow`` data are pass-throughs and never count; in a
-                builtin collection or array, ``None`` and ``NaN`` are ordinary (unknown) IDs, and do.
+                ``None``. See :meth:`Mapper.apply <id_translation.mapping.Mapper.apply>` for details.
+            max_fails: The maximum fraction of IDs for which translation may fail. 1=disabled. Requires `translatable`.
+                Missing IDs (e.g. ``NaN``) in ``pandas`` types are pass-throughs and never count; a ``None`` in a
+                builtin collection is an ordinary (unknown) ID, and does.
             fmt: A :class:`format string <id_translation.offline.Format>` such as **'{id}:{name}'** to use. Default is
                 :attr:`Translator.fmt <id_translation.Translator.fmt>`.
             io_kwargs: Keyword arguments for the IO class (e.g.
@@ -1440,10 +1433,26 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         Raises:
             ~id_translation.exceptions.ConnectionStatusError: If disconnected from the fetcher, i.e. not
                 :attr:`~id_translation.Translator.online`.
-            ValueError: If `io_kwargs` is given without `translatable`.
+            ~id_translation.fetching.exceptions.ForbiddenOperationError: If ``translatable=None`` and
+                :meth:`Fetcher.fetch_all <id_translation.fetching.Fetcher.fetch_all>` is disabled.
+            ValueError: If `io_kwargs` or `max_fails` is given without `translatable`.
+            ~id_translation.dio.exceptions.UntranslatableTypeError: If ``type(translatable)`` cannot be translated.
+            ~id_translation.exceptions.MissingNamesError: If `names` are not given and cannot be derived.
+            ~id_translation.exceptions.MissingNamesError: If `names` are given but missing from key-based data such as
+                a ``dict`` or ``DataFrame``.
+            ~id_translation.mapping.exceptions.UnmappedExplicitNamesError: If a required name fails to map to a source.
+            ~id_translation.mapping.exceptions.MappingError: If name-to-source mapping fails.
+            ~id_translation.exceptions.MissingPlaceholderError: If a source lacks a placeholder that `fmt` requires.
+            ~id_translation.exceptions.TooManyFailedTranslationsError: If translation fails for over `max_fails` of IDs.
+            ~id_translation.mapping.exceptions.UserMappingError: If `names` maps a name to an
+                unknown :attr:`source <id_translation.Translator.sources>`.
+            ~id_translation.mapping.exceptions.UserMappingError: If `override_function` returns an unknown
+                :attr:`source <id_translation.Translator.sources>` and ``mapper.on_unknown_user_override='raise'``.
+            ~id_translation.mapping.exceptions.BadOverrideError: If an override of the mapper maps a name to an
+                unknown :attr:`source <id_translation.Translator.sources>`.
 
         Examples:
-            Using the returned :class:`~id_translation.offline.TranslationMap` class.
+            Basic usage.
 
             ..
                # Hidden setup code
@@ -1458,34 +1467,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             >>> translation_map
             TranslationMap('animals': 3 IDs, 'people': 2 IDs)
 
-            **Convert to finished translations.**
-
-            * :meth:`TranslationMap.to_translations <id_translation.offline.TranslationMap.to_translations>` → ``{source: MagicDict}``, where a
-              :class:`~id_translation.offline.MagicDict` is similar to a regular ``dict[IdType, str]``-type dict.
-
-            >>> people = translation_map.to_translations()["people"]
-            >>> people
-            {1999: '1999:Sofia', 1991: '1991:Richard'}
-
-            .. warning::
-
-               The :class:`~id_translation.offline.MagicDict` class is used internally and has a few important
-               differences from the built-in type. Please refer to the :class:`~id_translation.offline.MagicDict` class
-               documentation for details.
-
-            To convert a :class:`~id_translation.offline.MagicDict` to a regular ``dict``, simply use the dict
-            constructor:
-
-            >>> dict(people)
-            {1999: '1999:Sofia', 1991: '1991:Richard'}
-
-            **Convert to raw translation data.**
-
-            * :meth:`TranslationMap.to_pandas <id_translation.offline.TranslationMap.to_pandas>` → ``{source: DataFrame}``
-            * :meth:`TranslationMap.to_dicts <id_translation.offline.TranslationMap.to_dicts>` → ``{source: {placeholder: [values...]}}``
-
-            >>> translation_map.to_dicts()["people"]
-            {'id': [1999, 1991], 'name': ['Sofia', 'Richard']}
+            See :class:`~id_translation.offline.TranslationMap` for details.
         """
         task_id = _logging.generate_task_id()
         self.initialize_sources(task_id=task_id)
@@ -1517,16 +1499,18 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
     ) -> TranslationMap[NameType, SourceType, IdType]:
         if io_kwargs and translatable is None:
             raise ValueError(f"Got {io_kwargs=}, but {translatable=}; io_kwargs requires a translatable.")
+        if max_fails != 1.0 and translatable is None:
+            raise ValueError(f"Got {max_fails=}, but {translatable=}; max_fails requires a translatable.")
 
         fmt = self._fmt if fmt is None else Format.parse(fmt)
 
         if translatable is None:
             if all(p is None for p in (names, ignore_names, override_function)):
-                source_translations = self._fetch(None, task_id=task_id)
+                source_translations = self._fetch(None, fmt, task_id=task_id)
             else:
                 dummy = {source: None for source in self.sources}
                 sources = self.map(dummy, names, ignore_names=ignore_names, override_function=override_function)
-                source_translations = self._fetch(set(sources.values()), task_id=task_id)
+                source_translations = self._fetch(set(sources.values()), fmt, task_id=task_id)
             translation_map = self._to_translation_map(source_translations, fmt=fmt)
 
             if names is None:
@@ -1547,6 +1531,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                 fmt,
                 names,
                 ignore_names=ignore_names,
+                override_function=override_function,
                 max_fails=max_fails,
                 enable_uuid_heuristics=self._enable_uuid_heuristics,
                 io_kwargs=io_kwargs,
@@ -1639,10 +1624,9 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
     def _fetch(
         self,
         ids_or_sources: list[IdsToFetch[SourceType, IdType]] | set[SourceType] | None,
-        fmt: Format | None = None,
-        task_id: int | None = None,
+        fmt: Format,
+        task_id: int | None,
     ) -> SourcePlaceholderTranslations[SourceType]:
-        fmt = fmt or self._fmt
         placeholders = fmt.placeholders
         placeholder_attributes = fmt.placeholder_attributes
         required = fmt.required_placeholders

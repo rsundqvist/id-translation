@@ -148,7 +148,7 @@ class TestMultipleNames:
         """Does not test extraction; tmap is preloaded with the required IDs."""
 
         translator = Translator[str, str, IdTypes](
-            tmap,
+            tmap.to_dicts(),
             fmt=tmap.fmt,
             enable_uuid_heuristics=tmap.enable_uuid_heuristics,
         )
@@ -201,7 +201,7 @@ def test_multiindex_columns(tmap, level, reorder):
     }
 
     translator = Translator[str, str, IdTypes](
-        tmap,
+        tmap.to_dicts(),
         fmt=tmap.fmt,
         default_fmt=tmap.default_fmt,
         enable_uuid_heuristics=tmap.enable_uuid_heuristics,
@@ -248,7 +248,7 @@ def test_series_from_multiindex_columns_frame(tmap, level, reorder):
     assert actual_ids == {"int_source": [1]}
 
     translator = Translator[str, str, IdTypes](
-        tmap,
+        tmap.to_dicts(),
         fmt=tmap.fmt,
         default_fmt=tmap.default_fmt,
         enable_uuid_heuristics=tmap.enable_uuid_heuristics,

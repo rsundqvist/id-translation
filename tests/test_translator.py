@@ -7,6 +7,7 @@ from contextlib import contextmanager
 from itertools import product
 from types import MappingProxyType
 from typing import Any, assert_type
+from unittest.mock import Mock
 from uuid import UUID
 
 import numpy as np
@@ -115,7 +116,6 @@ def test_can_pickle(translator, copy):
 
 
 def test_pickle_keeps_subclass_slots():
-    """`__getstate__` drops the lock, not the slot half of the state that a subclass may rely on."""
     import pickle
 
     translator = SlottedTranslator({"guests": {"id": [1], "name": ["a"]}})
@@ -247,12 +247,20 @@ def test_store_and_restore(hex_fetcher, tmp_path):
     assert translated_by_restored == translated_data
 
 
+def test_restore_a_subtype(hex_fetcher, tmp_path):
+    path = tmp_path.joinpath("translator.pkl")
+    UnitTestTranslator(hex_fetcher, fmt="{id}:{hex}").go_offline({"positive_numbers": [1]}, path=path)
+
+    restored: RealTranslator[str, str, int] = RealTranslator.restore(path)
+    assert isinstance(restored, UnitTestTranslator)
+
+
 def test_restore_rejects_a_foreign_snapshot(hex_fetcher):
     """restore() is handed a path it cannot version-check, so the shape has to be recognised on the way in."""
     translator: UnitTestTranslator = UnitTestTranslator(hex_fetcher, fmt="{id}:{hex}")
     translator.go_offline({"positive_numbers": [1]})
 
-    state: dict[str, Any] = translator.__getstate__()
+    state: dict[str, Any] = dict(vars(translator))
     del state["_tx"]  # The shape a snapshot from before TransformerRegistry unpickles into.
     revived: UnitTestTranslator = UnitTestTranslator.__new__(UnitTestTranslator)
 
@@ -593,6 +601,18 @@ def test_copy_rejects_fetcher_override(translator):
         translator.copy(fetcher={"positive_numbers": {"id": [1], "hex": ["0x1"], "positive": [True]}})
 
 
+def test_offline_copy_keeps_snapshot_cache():
+    original: RealTranslator[str, str, int]
+    original = RealTranslator(MemoryFetcher({"people": {"id": [1, 2], "name": ["Richard", "Sofia"]}}))
+    original.go_offline({"person_id": [1]}, names={"person_id": "people"}, fmt="{name}")
+
+    copy = original.copy()
+    assert copy.cache.name_to_source == {"person_id": "people"}
+    assert copy.cache["person_id"][1] == "Richard"
+
+    assert original.copy(fmt="{id}-{name}").cache["people"][1] == "1-Richard"
+
+
 def test_float_ids(translator):
     from id_translation._tasks import TranslationTask
     from id_translation.offline import Format
@@ -866,6 +886,19 @@ def test_go_offline_args(translator):
     assert translator.cache.to_dicts() == {"positive_numbers": {"hex": ["0x1"], "id": [1], "positive": [True]}}
 
 
+@pytest.mark.parametrize("names", [None, "staff"])
+@pytest.mark.parametrize("method", ["fetch", "go_offline"])
+def test_fmt_without_translatable(method, names):
+    data = {"staff": {"id": [1], "name": ["Ada"], "team": ["sales"]}}
+    translator: RealTranslator[str, str, int] = RealTranslator(MemoryFetcher(data, return_all=False), fmt="{id}:{name}")
+
+    tmap = getattr(translator, method)(names=names, fmt="{name} ({team})")
+
+    if method == "go_offline":
+        tmap = translator.cache
+    assert tmap.to_dicts()["staff"]["team"] == ["sales"]
+
+
 def test_fetcher_property_raises_when_offline(translator):
     offline = translator.copy().go_offline()
 
@@ -888,7 +921,7 @@ def test_go_offline_when_already_offline_raises(translator):
     offline = translator.copy().go_offline()
     assert not offline.online
 
-    with pytest.raises(ConnectionStatusError, match=r"Cannot fetch new translations\."):
+    with pytest.raises(ConnectionStatusError, match=r"already offline"):
         offline.go_offline()
 
 
@@ -982,6 +1015,30 @@ def test_fetcher_not_cloneable_keep_mode_does_not_warn():
     assert copy.fetcher is translator.fetcher
 
 
+def test_translation_map_raises():
+    translator: RealTranslator[str, str, int] = RealTranslator(
+        {"bits": {"id": [1, 2], "name": ["one", "two"]}}, transformers={"bits": BitmaskTransformer()}
+    )
+
+    with pytest.raises(TypeError, match="from a TranslationMap") as exc_info:
+        RealTranslator(translator.cache)
+
+    assert exc_info.value.__notes__ == [
+        "Hint: Use Translator(translation_map.to_dicts(), ...) instead.",
+        "Hint: The map has transformers for sources ['bits']; pass `transformers` too.",
+    ]
+
+    with pytest.raises(TypeError, match="from a TranslationMap") as exc_info:
+        RealTranslator(RealTranslator[str, str, int]({"a": {1: "one"}}).cache)
+
+    assert len(exc_info.value.__notes__) == 1
+
+
+def test_inline_data_from_any_mapping():
+    translator: RealTranslator[str, str, int] = RealTranslator(MappingProxyType({"a": MappingProxyType({1: "one"})}))
+    assert translator.translate({"a": 1}) == {"a": "1:one"}
+
+
 def test_bad_fetcher_copy_mode(translator):
     with pytest.raises(TypeError, match=r"FetcherCopyMode\['keep', 'copy', 'auto'\]"):
         translator.copy(fetcher="clone")
@@ -1061,6 +1118,23 @@ class TestIoKwargs:
     def test_without_translatable(self, translator):
         with pytest.raises(ValueError, match="io_kwargs requires a translatable"):
             translator.fetch(io_kwargs={"missing_as_nan": True})
+
+
+@pytest.mark.parametrize("method", ["fetch", "go_offline"])
+def test_max_fails_without_translatable(translator, method):
+    with pytest.raises(ValueError, match="max_fails requires a translatable"):
+        getattr(translator.copy(), method)(max_fails=0.5)
+
+
+@pytest.mark.parametrize("method", ["fetch", "go_offline"])
+def test_override_function_with_translatable(translator, method):
+    translator = translator.copy()
+    override_function = Mock(return_value="positive_numbers")
+
+    func = getattr(translator, method)
+    func({"whatever": [1]}, override_function=override_function)
+
+    override_function.assert_called()
 
 
 @pytest.mark.parametrize("multi", [False, True])

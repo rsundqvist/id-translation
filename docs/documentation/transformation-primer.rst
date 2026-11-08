@@ -126,9 +126,8 @@ provide.
 
 It happens at the first :meth:`~.Translator.initialize_sources` call, including the implicit one in methods that need
 the sources, such as :meth:`~.Translator.translate` and :meth:`~.Translator.map`. It also happens at
-:meth:`~.Translator.go_offline`, and at construction for a ``Translator`` built from inline data or a
-:class:`.TranslationMap`. Call ``initialize_sources()`` before sharing an instance between threads: it leaves nothing
-for a concurrent first call to do.
+:meth:`~.Translator.go_offline`, and at construction for a ``Translator`` built from inline data. Concurrent
+first calls settle the transformers once, under the instance's lock; see :ref:`thread-safety`.
 
 To register after the fetcher's transformers are in place, for example to replace one, initialize without settling:
 

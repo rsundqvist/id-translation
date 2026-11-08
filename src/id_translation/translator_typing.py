@@ -10,7 +10,6 @@ from . import types as _tt
 from .fetching import Fetcher as _Fetcher
 from .mapping import Mapper as _Mapper
 from .mapping.types import UserOverrideFunction as _UserOverrideFunction
-from .offline import TranslationMap as _TranslationMap
 from .offline import types as _ot
 from .transform.types import TransformersArg as _TransformersArg
 
@@ -25,14 +24,12 @@ SourceToPlaceholderTranslationsMakeTypes = _abc.Mapping[_tt.SourceType, _ot.Make
 :meth:`PlaceholderTranslations.make <id_translation.offline.types.PlaceholderTranslations.make>`"""
 
 NativeFetcherTypes: _t.TypeAlias = (
-    _TranslationMap[_tt.NameType, _tt.SourceType, _tt.IdType]
-    | _Fetcher[_tt.SourceType, _tt.IdType]
-    | _ot.SourcePlaceholderTranslations[_tt.SourceType]
+    _Fetcher[_tt.SourceType, _tt.IdType] | _ot.SourcePlaceholderTranslations[_tt.SourceType]
 )
 """Internal types related to fetching."""
 
 FetcherTypes: _t.TypeAlias = (
-    NativeFetcherTypes[_tt.NameType, _tt.SourceType, _tt.IdType]
+    NativeFetcherTypes[_tt.SourceType, _tt.IdType]
     | SimpleDictFetcherTypes[_tt.SourceType, _tt.IdType]
     | SourceToPlaceholderTranslationsMakeTypes[_tt.SourceType, _tt.IdType]
 )

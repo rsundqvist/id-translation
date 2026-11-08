@@ -46,19 +46,26 @@ class PlaceholderTranslations(_t.Generic[_tt.SourceType]):
 
     @classmethod
     def make(cls, source: _tt.SourceType, data: "MakeTypes[_tt.SourceType, _tt.IdTypes]") -> _t.Self:
-        """Try to make in instance from arbitrary input data.
+        """Try to make an instance from arbitrary input data.
 
         Args:
             source: Source label for the translations.
             data: Some data to convert to a ``PlaceholderTranslations`` instance.
 
         Returns:
-            A new :class:`~id_translation.offline.types.PlaceholderTranslations` instance.
+            A :class:`~id_translation.offline.types.PlaceholderTranslations` instance.
 
         Raises:
             TypeError: If `data` cannot be converted.
             ValueError: If `data` is a dict of columns that differ in length.
         """
+        if isinstance(data, PlaceholderTranslations):
+            if isinstance(data, cls):
+                return data  # Frozen and never mutated in place, so an offline Translator.copy() shares the records.
+            return cls(data.source, data.placeholders, data.records, placeholder_aliases=data.placeholder_aliases)
+        if isinstance(data, _Mapping):
+            return cls.from_dict(source, data)
+
         try:
             from pandas import DataFrame  # noqa: PLC0415
 
@@ -66,11 +73,6 @@ class PlaceholderTranslations(_t.Generic[_tt.SourceType]):
                 return cls.from_dataframe(source, data)
         except ImportError:
             pass
-
-        if isinstance(data, _Mapping):
-            return cls.from_dict(source, data)
-        if isinstance(data, PlaceholderTranslations):
-            return cls(**_dataclasses.asdict(data))
 
         raise TypeError(data)  # pragma: no cover
 

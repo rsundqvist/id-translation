@@ -51,12 +51,7 @@ class MemoryFetcher(AbstractFetcher[SourceType, IdType]):
         **kwargs: Unpack[AbstractFetcherParams[SourceType, IdType]],
     ) -> None:
         super().__init__(**kwargs)
-        self._data = {
-            source: _with_source(pht, source)
-            if isinstance(pht, PlaceholderTranslations)
-            else PlaceholderTranslations[SourceType].make(source, pht)
-            for source, pht in data.items()
-        }
+        self._data = {source: PlaceholderTranslations[SourceType].make(source, pht) for source, pht in data.items()}
         # ID columns are resolved through the mapper in _initialize_sources() and kept here: the objects in `data` may
         # be the caller's, and another fetcher may map the same object differently.
         self._id_pos: dict[SourceType, int] = {}
