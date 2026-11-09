@@ -119,4 +119,4 @@ def test_dataframe_fast(translator):
 
 def test_all_missing_ids(translator):
     actual = translator.translate(pl.Series("ints", [None], dtype=pl.Int64), max_fails=0.0)
-    assert actual.to_list() == [None]  # Missing values are pass-throughs.
+    assert actual.to_list() == ["<Failed: id=None>"]

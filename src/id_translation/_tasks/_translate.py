@@ -1,7 +1,6 @@
 import logging
 from collections import defaultdict
 from collections.abc import Callable, Iterable, Mapping, Sequence
-from copy import deepcopy
 from time import perf_counter
 from typing import TYPE_CHECKING, Any, get_args
 from uuid import UUID
@@ -66,10 +65,6 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
 
         self.enable_uuid_heuristics = enable_uuid_heuristics
 
-        # Set by the first ID extraction. Offline at the default max_fails without DEBUG logging, nothing extracts IDs,
-        # so an all-missing name gets failed labels there while online leaves it as it is. Deliberate: finding such
-        # names means extracting IDs on every offline call, a second pass over the data that also computes a dask frame.
-        self._names_without_ids: set[NameType] = set()
         self._event_key = event_key
 
         self._num_ids: dict[SourceType, int] | None = None
@@ -84,7 +79,7 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
         else:
             names = self.names_from_user
 
-        return [n for n in names if n not in self._names_without_ids]
+        return list(names)
 
     def extract_ids(self) -> dict[SourceType, set[IdType]]:
         """Extract IDs to fetch from the translatable."""
@@ -252,11 +247,6 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
         start = perf_counter()
         copy = self.copy
 
-        # Offline, known only if verify() extracted IDs; see `_names_without_ids`.
-        if not self.io_names:  # No mapped name had IDs (e.g. an all-null column), so there is nothing to insert.
-            self.add_timing("insert", perf_counter() - start)
-            return deepcopy(self.translatable) if copy else None
-
         translation_map.reverse_mode = self.reverse
         try:
             result = self.io.insert(
@@ -346,15 +336,10 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
         return {name: _uuid_utils.try_cast_many(ids) for name, ids in name_to_ids.items()}
 
     def _extract_ids(self) -> dict[NameType, Sequence[IdType]]:
-        io_names = self.io_names
-        if not io_names:
-            return {}  # Every mapped name was found to have no IDs; an IO may not take names=[].
-        name_to_ids: dict[NameType, Sequence[IdType]] = self.io.extract(self.translatable, io_names)
+        name_to_ids: dict[NameType, Sequence[IdType]] = self.io.extract(self.translatable, self.io_names)
 
         name_to_ids = {name: ids for name, ids in name_to_ids.items() if len(ids) > 0}
 
-        if not self._names_without_ids:
-            self._names_without_ids = set(self.io_names).difference(name_to_ids)
         return name_to_ids
 
     @staticmethod

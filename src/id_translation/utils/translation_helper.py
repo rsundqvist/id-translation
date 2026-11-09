@@ -234,11 +234,19 @@ class TranslationHelper(_t.Generic[_tt.NameType, _tt.SourceType, _tt.IdType]):
                 user passes any reserved or fixed keys, a :class:`TypeError` is raised.
 
         Returns:
-            The original `translatable` if `user_params` is ``False``. Otherwise, return a translated copy or ``None``
-            based on the `copy`-setting (see :meth:`Translator.translate <id_translation.Translator.translate>`).
+            ``None`` if ``copy=False`` (see :meth:`Translator.translate <id_translation.Translator.translate>`).
+            Otherwise a translated copy, or the original `translatable` if nothing is translated; see Notes.
 
         Raises:
             TypeError: If reserved or fixed keys are passed in the `user_params`.
+
+        Notes:
+            Nothing is translated when `user_params` is ``False``, or when ``Translator.translate`` aborts: no name maps
+            to a source, or :envvar:`ID_TRANSLATION_DISABLED` is set. With ``copy=True``, the original `translatable` is
+            then returned instead of a copy. When ``Translator.translate`` aborts,
+            :meth:`~id_translation.utils.translation_helper.TranslationHelper.name_to_source` is still updated from the
+            ``Translator`` (see its Notes), unless that ``Translator`` has never translated. With `user_params`
+            ``False``, the ``Translator`` is not called and it is left unchanged.
         """
         return self._apply(translatable, copy=copy, user_params=user_params, default_params=default_params)
 
@@ -260,7 +268,7 @@ class TranslationHelper(_t.Generic[_tt.NameType, _tt.SourceType, _tt.IdType]):
         result = translator.translate(translatable, copy=copy, **params)  # type: ignore[call-overload]
 
         with _contextlib.suppress(ValueError):  # Aborted before this translator ever translated; nothing to record.
-            self._translated_names = translator.translated_names(with_source=True)
+            self._translated_names = translator.translated_names()
         return result
 
     def name_to_source(self) -> _tt.NameToSource[_tt.NameType, _tt.SourceType]:

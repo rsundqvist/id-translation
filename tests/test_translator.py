@@ -810,41 +810,26 @@ class TestDictNames:
             assert self.translate({"nconst": [1, 15]}, names={}) == {"nconst": [1, 15]}
 
 
-@pytest.mark.parametrize("with_source", [False, True])
 class TestTranslatedNames:
     translator = UnitTestTranslator()
 
-    def test_unused(self, with_source):
+    def test_unused(self):
         with pytest.raises(ValueError, match=r"No names have been translated using this Translator."):
-            self.translator.translated_names(with_source)
+            self.translator.translated_names()
 
-    def test_multiple(self, with_source):
+    def test_multiple(self):
         self.translator.translate([1, 2, 3], names=list("abc"))
+        assert self.translator.translated_names() == {char: char for char in "abc"}
 
-        actual = self.translator.translated_names(with_source)
-        if with_source:
-            assert isinstance(actual, dict)
-            assert actual == {char: char for char in "abc"}
-        else:
-            assert isinstance(actual, list)
-            assert sorted(actual) == list("abc")
-
-    def test_single(self, with_source):
+    def test_single(self):
         self.translator.translate([1, 2, 3], names="a")
-        expected = {char: char for char in "a"}
-        assert self.translator.translated_names(with_source) == expected if with_source else list(expected)
+        assert self.translator.translated_names() == {"a": "a"}
 
     @staticmethod
     def type_check():
         from typing import assert_type
 
-        without_source = UnitTestTranslator().translated_names()
-        assert_type(without_source, list[str])
-        without_source = UnitTestTranslator().translated_names(False)
-        assert_type(without_source, list[str])
-
-        with_source = UnitTestTranslator().translated_names(True)
-        assert_type(with_source, dict[str, str])
+        assert_type(UnitTestTranslator().translated_names(), dict[str, str])
 
 
 def test_fetch(translator):
@@ -1049,7 +1034,7 @@ def test_bad_fetcher_copy_mode(translator):
 def test_empty(translator):
     actual = translator.translate({"p": [], "n": [-1]}, max_fails=1.0)
     assert actual == {"p": [], "n": ["-1:-0x1, positive=False"]}
-    assert translator.translated_names(with_source=True) == {"n": "negative_numbers", "p": "positive_numbers"}
+    assert translator.translated_names() == {"n": "negative_numbers", "p": "positive_numbers"}
 
 
 def test_simple_fetcher_dict():
@@ -1158,3 +1143,35 @@ def test_extract_names_does_not_discover():
 
     translator: RealTranslator[str, str, int] = RealTranslator(DownFetcher({}))
     assert translator.extract_names({"a": [1]}) == ["a"]  # Names need only the IO: no discovery, so no raise.
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        {"people": []},
+        pd.DataFrame({"people": [np.nan]}),
+        pd.Series([], dtype=float, name="people"),
+        pd.Series([np.nan], name="people"),
+    ],
+    ids=["empty", "all-null", "empty-series", "all-null-series"],
+)
+def test_mapped_names_without_ids_return_a_copy(data):
+    translator: RealTranslator[str, str, int] = RealTranslator(MemoryFetcher({"people": {"id": [1], "name": ["Ada"]}}))
+
+    actual = translator.translate(data, copy=True)
+    assert actual is not data, "a translated copy, as offline; only an abort returns the input itself"
+    assert translator.translated_names() == {"people": "people"}
+
+
+@pytest.mark.parametrize("dropped", [{"people"}, {"people", "pets"}])
+def test_fetcher_dropping_a_requested_source_raises(dropped):
+    from id_translation.fetching.exceptions import ImplementationError
+
+    class Dropping(MemoryFetcher[str, int]):
+        def fetch(self, ids_to_fetch, *args, **kwargs):
+            return {k: v for k, v in super().fetch(ids_to_fetch, *args, **kwargs).items() if k not in dropped}
+
+    data = {"people": {"id": [1], "name": ["Ada"]}, "pets": {"id": [1], "name": ["Rex"]}}
+    translator: RealTranslator[str, str, int] = RealTranslator(Dropping(data))
+    with pytest.raises(ImplementationError, match=r"Dropping\.fetch\(\) returned no translations"):
+        translator.translate({"people": [1], "pets": [1]})

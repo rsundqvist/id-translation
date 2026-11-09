@@ -7,9 +7,10 @@ Environment variables
 .. envvar:: ID_TRANSLATION_DISABLED
 
    Global switch. When ``true``, the :meth:`Translator.translate <id_translation.Translator.translate>`-method returns
-   immediately.
+   immediately. This means that:
 
-   .. warning:: When set, IDs are not converted to :py:class:`str`. Type hints may be wrong.
+   * IDs are not converted to :py:class:`str`.
+   * With ``copy=True``, the input itself is returned, not a copy.
 
 .. envvar:: ID_TRANSLATION_SUPPRESS_IO_KWARGS_ERRORS
 

@@ -24,11 +24,8 @@ Finish configuring it before sharing it.
        See :ref:`thread-safety-fetchers`.
    * - :meth:`.Translator.translated_names`
      - Reflects the last :meth:`~.Translator.translate` call on the instance that translated at least one name. The call
-       itself is thread safe (when ``copy=True``), but the recorded names are not. Use :meth:`.Translator.map` in
+       itself is thread safe when ``copy=True``, but the recorded names are not. Use :meth:`.Translator.map` in
        multi-threaded contexts.
-   * - :meth:`.TranslationHelper.name_to_source`
-     - Read from :meth:`.Translator.translated_names` after each :meth:`~.TranslationHelper.apply` call, so the same
-       applies when the ``Translator`` is shared.
    * - :meth:`.Translator.initialize_sources`
      - Thread safe for a ``Translator`` with its own fetcher. Not when the fetcher is shared with another instance;
        see :ref:`thread-safety-fetchers`.

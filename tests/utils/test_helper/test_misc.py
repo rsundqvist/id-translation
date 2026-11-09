@@ -16,12 +16,12 @@ def test_translated_names():
     helper.apply(1, copy=True, user_params=True)
     name_to_source = helper.name_to_source()
     assert name_to_source == {"h": "h"}
-    assert translator.translated_names(True) == {"h": "h"}
+    assert translator.translated_names() == {"h": "h"}
 
     translator.translate(1, names="t")
     name_to_source = helper.name_to_source()
     assert name_to_source == {"h": "h"}
-    assert translator.translated_names(True) == {"t": "t"}
+    assert translator.translated_names() == {"t": "t"}
 
 
 def test_translation_disabled_passes_through(monkeypatch):

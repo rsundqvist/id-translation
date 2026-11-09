@@ -37,6 +37,7 @@ from .exceptions import (
     TranslationDisabledWarning,
 )
 from .fetching import Fetcher, MultiFetcher
+from .fetching.exceptions import ImplementationError
 from .fetching.types import IdsToFetch
 from .mapping import Mapper
 from .mapping.matrix import ScoreMatrix
@@ -843,7 +844,9 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                 :class:`~id_translation.dio.integration.pandas.PandasIO`).
 
         Returns:
-            A translated copy of `translatable` if ``copy=True``, otherwise ``None``.
+            A translated copy of `translatable` if ``copy=True``, otherwise ``None``. When translation aborts (no
+            name maps to a source, or :envvar:`ID_TRANSLATION_DISABLED` is set), `translatable` itself is returned
+            instead of a copy.
 
         Examples:
             Manual :ref:`name-to-source <name-to-source-mapping>` mapping with a temporary name-only
@@ -913,15 +916,15 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         )
         task.log_key_event_enter()
 
-        translation_map = self._get_updated_tmap(task)
         if not task.name_to_source:
             # Return unchanged; this is technically against the API spec. If the user has required translation to
             # success through configuration, exceptions will be raised elsewhere. I don't know how to express this using
             # the Python type system.
             return translatable if copy else None
 
-        if translation_map:  # Empty when no mapped name had IDs: nothing was fetched, and nothing can fail.
-            task.verify(translation_map)
+        translation_map = self._get_updated_tmap(task, include_unfetched=True)
+
+        task.verify(translation_map)
 
         ans = task.insert(translation_map)
 
@@ -930,35 +933,25 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         task.log_key_event_exit()
         return ans
 
-    @overload
-    def translated_names(self, with_source: Literal[True]) -> NameToSource[NameType, SourceType]: ...
-
-    @overload
-    def translated_names(self, with_source: Literal[False] = False) -> list[NameType]: ...
-
-    def translated_names(self, with_source: bool = True) -> NameToSource[NameType, SourceType] | list[NameType]:
+    def translated_names(self) -> NameToSource[NameType, SourceType]:
         """Return the names translated by the last successful :meth:`~id_translation.Translator.translate`-call.
 
-        A call is successful if it translates at least one name. Calls that raise or abort leave the result unchanged:
-        when no name maps to a source, or when ``ID_TRANSLATION_DISABLED`` is set.
-
-        Args:
-            with_source: If ``True``, return a dict ``{name: source}`` instead of a list.
+        Calls that raise or abort (no name maps to a source, or :envvar:`ID_TRANSLATION_DISABLED` is set) are ignored.
 
         Returns:
-            Recent names translated by this :class:`~id_translation.Translator`, in **arbitrary** order.
+            A dict ``{name: source}``, in **arbitrary** order.
 
         Raises:
             ValueError: If no names have been translated using this :class:`~id_translation.Translator`.
 
         Notes:
-            🧵 This method is not thread safe. See :ref:`thread-safety` for details.
+            🧵 Not thread safe. See :ref:`thread-safety` for details.
         """
         if self._translated_names is None:
             raise ValueError("No names have been translated using this Translator.")
         task_id, name_to_source = self._translated_names
         LOGGER.debug(f"Returning names translated by task with {task_id=}.", extra=dict(task_id=task_id))
-        return dict(name_to_source) if with_source else list(name_to_source)
+        return dict(name_to_source)
 
     @overload
     def extract_names(
@@ -1592,13 +1585,23 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
     def _get_updated_tmap(
         self,
         task: TranslationTask[NameType, SourceType, IdType],
+        *,
         force_fetch: bool = False,
+        include_unfetched: bool = False,
     ) -> TranslationMap[NameType, SourceType, IdType]:
-        """Get an updated translation map."""
+        """Get an updated translation map.
+
+        With `include_unfetched`, a mapped source whose names had no IDs (e.g. an empty or all-null column) is included
+        without translations, so the data is still returned as a translated copy.
+        """
         if not task.name_to_source:
             source_translations = {}  # Nothing to translate.
         elif force_fetch or self._cached_tmap is None:
             source_translations = self._execute_fetch(task)
+            if include_unfetched:
+                placeholders = tuple(dict.fromkeys((*task.fmt.placeholders, ID)))
+                for source in set(task.name_to_source.values()).difference(source_translations):
+                    source_translations[source] = PlaceholderTranslations(source, placeholders, [])
         else:
             source_translations = self._cached_tmap._extract_translations()
 
@@ -1662,8 +1665,12 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             if transformer is not None:
                 transformer.update_ids(itf.ids)
 
-        source_translations = self._fetch(ids_to_fetch, fmt=task.fmt, task_id=task.task_id)
+        source_translations = dict(self._fetch(ids_to_fetch, fmt=task.fmt, task_id=task.task_id))
         task.add_timing("fetch", perf_counter() - start)
+
+        if missing := [itf.source for itf in ids_to_fetch if itf.source not in source_translations]:
+            msg = f"{tname(self.fetcher)}.fetch() returned no translations for requested sources {missing}."
+            raise ImplementationError(msg, hints="Return a PlaceholderTranslations for every requested source.")
         return source_translations
 
     def _fetch(
