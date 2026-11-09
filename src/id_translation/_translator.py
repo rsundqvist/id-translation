@@ -12,6 +12,7 @@ from typing import (
     Literal,
     NoReturn,
     Self,
+    SupportsIndex,
     Unpack,
     overload,
 )
@@ -24,6 +25,7 @@ from rics.paths import AnyPath, any_path_to_path
 from rics.strings import format_seconds as fmt_sec
 from rics.types import LiteralHelper
 
+from . import _pickle
 from . import logging as _logging
 from ._tasks import MappingTask, NamesTask, TranslationTask
 from ._transformer_registry import TransformerRegistry
@@ -213,24 +215,6 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         self._mapper.logger = LOGGER.getChild("map")
 
         self._translated_names: tuple[int, NameToSource[NameType, SourceType]] | None = None
-
-    def __setstate__(self, state: Any) -> None:
-        # Snapshots are same-version artifacts by definition: `ConfigMetadata` records the `id-translation` version and
-        # `use_cached()` refuses any mismatch, so there is no cross-version repair. `load_persistent_instance` rejects a
-        # foreign snapshot before reading it, but `restore` is handed a path and cannot, so recognise the shape here
-        # rather than unpickle into an instance that fails later with an unrelated AttributeError.
-        slots: dict[str, Any] = {}
-        if isinstance(state, tuple):  # A subclass with `__slots__`; `object.__getstate__` returns `(dict, slots)`.
-            state, slots = state[0] or {}, state[1] or {}
-
-        if "_tx" not in state:
-            exc = ValueError("Snapshot was written by an incompatible version of id-translation.")
-            exc.add_note(f"Hint: Recreate it with {type(self).__name__}.go_offline(path=...).")
-            raise exc
-
-        self.__dict__.update(state)
-        for key, value in slots.items():
-            setattr(self, key, value)
 
     @classmethod
     def from_config(
@@ -1269,6 +1253,8 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
     def restore(cls, path: AnyPath) -> Self:
         """Restore a serialized :class:`~id_translation.Translator`.
 
+        Restoring a snapshot written by another version of ``id-translation`` is not supported.
+
         Args:
             path: Path to a serialized :class:`~id_translation.Translator`.
 
@@ -1277,8 +1263,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
         Raises:
             TypeError: If the object at `path` is not a :class:`~id_translation.Translator` or a subtype thereof.
-            ValueError: If the snapshot was written by an incompatible version. Snapshots are same-version
-                artifacts; recreate it with :meth:`~id_translation.Translator.go_offline`.
+            pickle.UnpicklingError: On detected version mismatch.
 
         See Also:
             The :meth:`~id_translation.Translator.go_offline` method.
@@ -1295,6 +1280,19 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             LOGGER.debug(f"Deserialized {ans}{extra}.")
 
         return ans
+
+    # Version-stamped snapshots; see `_pickle`.
+    def __getstate__(self) -> Any:
+        return _pickle.stamp(super().__getstate__())
+
+    def __reduce_ex__(self, protocol: SupportsIndex, /) -> tuple[Any, ...]:
+        return _pickle.unpickle_translator, (type(self), _pickle.current_version()), self.__getstate__()
+
+    def __setstate__(self, state: Any) -> None:
+        state, slots = _pickle.unstamp(state, type(self))
+        self.__dict__.update(state)
+        for key, value in slots.items():
+            setattr(self, key, value)
 
     def go_offline(
         self,

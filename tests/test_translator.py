@@ -1,5 +1,6 @@
 import inspect
 import logging
+import pickle
 import subprocess
 import sys
 import warnings
@@ -14,7 +15,9 @@ import numpy as np
 import pandas as pd
 import pytest
 
+import id_translation
 from id_translation import Translator as RealTranslator
+from id_translation import __version__
 from id_translation.dio.exceptions import NotInplaceTranslatableError, UntranslatableTypeError
 from id_translation.exceptions import (
     ConfigurationChangedError,
@@ -60,6 +63,16 @@ class UnitTestTranslator(RealTranslator[str, str, int]):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.now = pd.Timestamp.now()
+
+
+class FailsToUnpickle:
+    """Stands in for a nested object whose state another version cannot restore. Module-level to be picklable."""
+
+    def __init__(self) -> None:
+        self.state = "from another version"
+
+    def __setstate__(self, state: Any) -> None:
+        raise AttributeError("nested state from another version")
 
 
 class SlottedTranslator(RealTranslator[str, str, int]):
@@ -286,17 +299,45 @@ def test_restore_a_subtype(hex_fetcher, tmp_path):
     assert isinstance(restored, UnitTestTranslator)
 
 
-def test_restore_rejects_a_foreign_snapshot(hex_fetcher):
-    """restore() is handed a path it cannot version-check, so the shape has to be recognised on the way in."""
+@pytest.mark.parametrize(
+    "version, match",
+    [
+        (None, "an unknown version \\(before 2.0.0\\)"),  # A snapshot without the version stamp.
+        ("0.0.1", "version 0.0.1"),
+    ],
+)
+def test_restore_rejects_a_foreign_snapshot(hex_fetcher, version, match):
+    """restore() is handed a path it cannot version-check, so the pickled state carries the version."""
     translator: UnitTestTranslator = UnitTestTranslator(hex_fetcher, fmt="{id}:{hex}")
     translator.go_offline({"positive_numbers": [1]})
 
-    state: dict[str, Any] = dict(vars(translator))
-    del state["_tx"]  # The shape a snapshot from before TransformerRegistry unpickles into.
+    state: dict[str, Any] = translator.__getstate__()
+    assert state.pop("_id_translation_version") == __version__
+    if version is not None:
+        state["_id_translation_version"] = version
     revived: UnitTestTranslator = UnitTestTranslator.__new__(UnitTestTranslator)
 
-    with pytest.raises(ValueError, match="incompatible version"):
+    with pytest.raises(pickle.UnpicklingError, match=match):
         revived.__setstate__(state)
+
+
+def test_restore_checks_the_version_before_the_state(hex_fetcher, monkeypatch):
+    translator: UnitTestTranslator = UnitTestTranslator(hex_fetcher, fmt="{id}:{hex}")
+    translator.nested = FailsToUnpickle()  # type: ignore[attr-defined]
+    data = pickle.dumps(translator)
+    with pytest.raises(AttributeError, match="nested state"):
+        pickle.loads(data)  # noqa: S301
+
+    monkeypatch.setattr(id_translation, "__version__", "0.0.1")
+    with pytest.raises(pickle.UnpicklingError, match=f"version {__version__} of id-translation, not 0.0.1"):
+        pickle.loads(data)  # noqa: S301
+
+
+def test_version_stamp_is_not_an_attribute(hex_fetcher):
+    translator: UnitTestTranslator = UnitTestTranslator(hex_fetcher, fmt="{id}:{hex}")
+    restored = pickle.loads(pickle.dumps(translator))  # noqa: S301
+    assert "_id_translation_version" not in vars(restored)
+    assert "_id_translation_version" not in vars(translator.copy())
 
 
 def test_store_with_explicit_values(hex_fetcher):

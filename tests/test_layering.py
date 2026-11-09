@@ -14,8 +14,18 @@ PACKAGE_ROOT = Path(id_translation.__file__).parent
 ROOT = "id_translation"  # The package itself, e.g. `from id_translation import __version__`.
 
 BASE = {"_utils", "_uuid_utils", "exceptions", "logging", "types"}
-# Unchecked. `_tasks` is part of the Translator implementation.
-TOP = {"_tasks", "_transformer_registry", "_translator", "testing", "toml", "translator_typing", "utils", ROOT}
+# Unchecked. `_tasks` and `_pickle` are part of the Translator implementation.
+TOP = {
+    "_pickle",
+    "_tasks",
+    "_transformer_registry",
+    "_translator",
+    "testing",
+    "toml",
+    "translator_typing",
+    "utils",
+    ROOT,
+}
 
 # Units other than BASE that each unit may import. BASE units may import each other.
 ALLOWED: dict[str, set[str]] = {
