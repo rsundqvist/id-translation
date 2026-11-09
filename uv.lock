@@ -1304,7 +1304,7 @@ test = [
 [package.metadata]
 requires-dist = [
     { name = "pandas", marker = "extra == 'fetching'", specifier = ">=2.0.3" },
-    { name = "rics", specifier = ">=5.1.0" },
+    { name = "rics", specifier = ">=6.2.2" },
     { name = "sqlalchemy", marker = "extra == 'fetching'", specifier = ">=2.0.5" },
 ]
 provides-extras = ["fetching"]
@@ -3359,11 +3359,11 @@ wheels = [
 
 [[package]]
 name = "rics"
-version = "6.2.1"
+version = "6.2.2"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/7e/2d/34351d4e9a86a276a1aca91625ec2767b8c17d116f7af324bde170e6431d/rics-6.2.1.tar.gz", hash = "sha256:05f11685d8d59087ebeab238e96b5a876bc86eff6a96933d9238f7c41624b778", size = 84283, upload-time = "2026-08-15T09:22:04.161Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/2a/6c/25466ea08b3a4143e998c159d3ae82000938084a2cc2a8b9efe8e03109f6/rics-6.2.2.tar.gz", hash = "sha256:115835c16d4fb7385a2d085c49ac5cfbfb776226b614ffc2f41bce4bd907cbd5", size = 92722, upload-time = "2026-10-21T19:59:26.095Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/79/bc/8e7f9427737d8dfb80f7a291c0fe245b549129202c625aded101cd9b5b30/rics-6.2.1-py3-none-any.whl", hash = "sha256:1308271374255bac27e63ad547896b3f4f504aeb7f3d80c6c66269b803df930c", size = 109779, upload-time = "2026-08-15T09:22:02.836Z" },
+    { url = "https://files.pythonhosted.org/packages/5d/3c/a729a04e1133efc1b1ec185c0f09fad1a9384643561aa64c2951c30eccd2/rics-6.2.2-py3-none-any.whl", hash = "sha256:caf671484aa77098b4bf520f19e9f7384184e725ceb63743c5e552caf0c46f8f", size = 114495, upload-time = "2026-10-21T19:59:24.591Z" },
 ]
 
 [[package]]

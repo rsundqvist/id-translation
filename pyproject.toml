@@ -30,7 +30,7 @@ classifiers = [
 requires-python = ">=3.11"
 
 dependencies = [
-    "rics >= 5.1.0",
+    "rics >= 6.2.2",
 ]
 
 [project.optional-dependencies]

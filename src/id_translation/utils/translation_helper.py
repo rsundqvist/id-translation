@@ -30,7 +30,10 @@ Examples:
     ...     names="name",  # fixed translation argument
     ... )
     >>> helper
-    TranslationHelper(id_translation.Translator, names='name')
+    TranslationHelper(
+        id_translation.Translator,
+        names='name',
+    )
 
     The `user_params_name='translate'` argument is not printed because it's the default.
 
@@ -118,12 +121,15 @@ Examples:
 """
 
 import contextlib as _contextlib
+import functools as _functools
 import os as _os
 import typing as _t
 from collections import abc as _abc
 
 from rics.misc import format_kwargs as _format_kwargs
-from rics.misc import get_public_module as _get_public_module
+from rics.misc import tname as _tname
+from rics.strings import ReprFormatter as _ReprFormatter
+from rics.strings import format_kwargs as _format_partial_kwargs
 
 from id_translation import Translator as _Translator
 from id_translation import translator_typing as _trt
@@ -174,6 +180,7 @@ class TranslationHelper(_t.Generic[_tt.NameType, _tt.SourceType, _tt.IdType]):
         **fixed_params: _t.Unpack[_trt.TranslateParams[_tt.NameType, _tt.SourceType, _tt.IdType]],
     ) -> None:
         self._user_params_name = user_params_name
+        self._translator_or_factory = translator_or_factory
         self._get: FactoryFn[_tt.NameType, _tt.SourceType, _tt.IdType]
 
         if isinstance(translator_or_factory, _Translator):
@@ -349,15 +356,18 @@ class TranslationHelper(_t.Generic[_tt.NameType, _tt.SourceType, _tt.IdType]):
         return self._get()
 
     def __repr__(self) -> str:
-        parts = [_get_public_module(self._get, include_name=True, resolve_reexport=True)]
+        parts = [_name_translator_or_factory(self._translator_or_factory)]
 
-        if self._fixed:
-            parts.append(_format_kwargs(self._fixed))
+        if (user_params_name := self._user_params_name) != "translate":
+            parts.append(f"{user_params_name=}")
 
-        if (user_param_name := self._user_params_name) != "translate":
-            parts.append(f"{user_param_name=}")
+        parts.extend(_format_kwargs({key: value}) for key, value in self._fixed.items())
 
-        return f"{type(self).__name__}({', '.join(parts)})"
+        if len(parts) == 1:
+            return f"{type(self).__name__}({parts[0]})"
+
+        args = "".join(f"\n    {part}," for part in parts)
+        return f"{type(self).__name__}({args}\n)"
 
     def _validate(
         self,
@@ -450,6 +460,19 @@ class TranslationHelper(_t.Generic[_tt.NameType, _tt.SourceType, _tt.IdType]):
             self._user_params_name if user_params_key is None else user_params_key: self.make_user_params_docstring(),
             type_error_key: self.make_type_error_docstring(),
         }
+
+
+def _name_translator_or_factory(arg: _t.Any) -> str:
+    if isinstance(arg, _Translator):
+        return f"{_tname(arg, include_module=True)}()"
+
+    if isinstance(arg, _functools.partial):
+        parts = [_name_translator_or_factory(arg.func), *map(_ReprFormatter().format_value, arg.args)]
+        if arg.keywords:
+            parts.append(_format_partial_kwargs(arg.keywords))
+        return f"partial({', '.join(parts)})"
+
+    return _tname(arg, include_module=True, prefix_classname=True)
 
 
 class _AbortTranslation(Exception):  # noqa: N818
