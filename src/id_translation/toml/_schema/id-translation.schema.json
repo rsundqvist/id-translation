@@ -305,7 +305,7 @@
             "warn",
             "keep"
           ],
-          "description": "Action to take if a user override function returns an unknown candidate; `keep` uses it anyway."
+          "description": "Action to take if a user override function returns an unknown candidate."
         },
         "on_unmapped": {
           "enum": [

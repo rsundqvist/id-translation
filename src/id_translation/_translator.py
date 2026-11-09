@@ -314,7 +314,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         return self
 
     def _serves_sources(self) -> bool:
-        return bool(self.sources) or isinstance(self.fetcher, TestFetcher)  # Reports no sources but serves all.
+        return bool(self.sources) or self._serves_unlisted_sources()
 
     def _check_has_sources(self) -> None:
         if self._serves_sources():
@@ -325,6 +325,13 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         if isinstance(fetcher, MultiFetcher) and (unresolved := fetcher._unresolved_children()):
             hints.insert(0, f"Optional fetchers discarded because source discovery raised: {unresolved}.")
         raise NoSourcesError(f"No sources found by {fetcher}.", hints=hints)
+
+    def _serves_unlisted_sources(self) -> bool:
+        """Whether the fetcher serves sources it does not list, as ``TestFetcher`` does.
+
+        Not through composition: a ``MultiFetcher`` routes only the sources its children report.
+        """
+        return isinstance(self._fetcher, TestFetcher)
 
     def copy(self, **overrides: Unpack[CopyParams[NameType, SourceType, IdType]]) -> Self:
         """Make a copy of this :class:`~id_translation.Translator`.
@@ -877,8 +884,12 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                 IDs.
             ~id_translation.exceptions.ConnectionStatusError: If ``reverse=True`` while the
                 :class:`~id_translation.Translator` is online.
-            ~id_translation.mapping.exceptions.UserMappingError: If `override_function` returns a source which is not
-                known, and ``mapper.on_unknown_user_override='raise'``.
+            ~id_translation.mapping.exceptions.UserMappingError: If `names` maps a name to an
+                unknown :attr:`source <id_translation.Translator.sources>`.
+            ~id_translation.mapping.exceptions.UserMappingError: If `override_function` returns an unknown
+                :attr:`source <id_translation.Translator.sources>` and ``mapper.on_unknown_user_override='raise'``.
+            ~id_translation.mapping.exceptions.BadOverrideError: If an override of the mapper maps a name to an
+                unknown :attr:`source <id_translation.Translator.sources>`.
 
         See Also:
             🔑 This is a key event method. See :ref:`key-events` for details.
@@ -1036,15 +1047,17 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             A mapping of names to translation sources.
 
         Raises:
+            ~id_translation.dio.exceptions.UntranslatableTypeError: If ``type(translatable)`` cannot be translated.
             ~id_translation.exceptions.MissingNamesError: If `names` are not given and cannot be derived from
                 `translatable`.
-            ~id_translation.mapping.exceptions.UnmappedExplicitNamesError: If any required (explicitly given) names fail
-                to map to a source.
-            ~id_translation.mapping.exceptions.MappingError: If name-to-source mapping fails, e.g.
-                :class:`~id_translation.mapping.exceptions.ScoringDisabledError` for a name that is neither a source
-                nor overridden, when using the default :class:`~id_translation.mapping.Mapper`.
-            ~id_translation.mapping.exceptions.UserMappingError: If `override_function` returns a source which is not
-                known, and ``mapper.on_unknown_user_override='raise'``.
+            ~id_translation.mapping.exceptions.UnmappedExplicitNamesError: If a required name fails to map to a source.
+            ~id_translation.mapping.exceptions.MappingError: If name-to-source mapping fails.
+            ~id_translation.mapping.exceptions.UserMappingError: If `names` maps a name to an
+                unknown :attr:`source <id_translation.Translator.sources>`.
+            ~id_translation.mapping.exceptions.UserMappingError: If `override_function` returns an unknown
+                :attr:`source <id_translation.Translator.sources>` and ``mapper.on_unknown_user_override='raise'``.
+            ~id_translation.mapping.exceptions.BadOverrideError: If an override of the mapper maps a name to an
+                unknown :attr:`source <id_translation.Translator.sources>`.
 
         See Also:
             🔑 This is a key event method. See :ref:`key-events` for details.
@@ -1075,7 +1088,10 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         override_function: UserOverrideFunction[NameType, SourceType, None] | None = None,
         io_kwargs: Mapping[str, Any] | None = None,
     ) -> ScoreMatrix[NameType, SourceType]:
-        """Returns raw match scores for name-to-source mapping. See :meth:`~id_translation.Translator.map` for details."""
+        """Returns raw match scores for name-to-source mapping. See :meth:`~id_translation.Translator.map` for details.
+
+        For debugging: does not raise :class:`~id_translation.mapping.exceptions.UnmappedExplicitNamesError`.
+        """
         return MappingTask(
             self,
             translatable,
@@ -1324,8 +1340,20 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             ~id_translation.fetching.exceptions.ForbiddenOperationError: If ``translatable=None`` and
                 :meth:`Fetcher.fetch_all <id_translation.fetching.Fetcher.fetch_all>` is disabled.
             ValueError: If `io_kwargs` or `max_fails` is given without `translatable`.
-            ~id_translation.mapping.exceptions.MappingError: If :meth:`~id_translation.Translator.map` fails (only when
-                `translatable` is given).
+            ~id_translation.dio.exceptions.UntranslatableTypeError: If ``type(translatable)`` cannot be translated.
+            ~id_translation.exceptions.MissingNamesError: If `names` are not given and cannot be derived.
+            ~id_translation.exceptions.MissingNamesError: If `names` are given but missing from key-based data such as
+                a ``dict`` or ``DataFrame``.
+            ~id_translation.mapping.exceptions.UnmappedExplicitNamesError: If a required name fails to map to a source.
+            ~id_translation.mapping.exceptions.MappingError: If name-to-source mapping fails.
+            ~id_translation.exceptions.MissingPlaceholderError: If a source lacks a placeholder that `fmt` requires.
+            ~id_translation.exceptions.TooManyFailedTranslationsError: If translation fails for over `max_fails` of IDs.
+            ~id_translation.mapping.exceptions.UserMappingError: If `names` maps a name to an
+                unknown :attr:`source <id_translation.Translator.sources>`.
+            ~id_translation.mapping.exceptions.UserMappingError: If `override_function` returns an unknown
+                :attr:`source <id_translation.Translator.sources>` and ``mapper.on_unknown_user_override='raise'``.
+            ~id_translation.mapping.exceptions.BadOverrideError: If an override of the mapper maps a name to an
+                unknown :attr:`source <id_translation.Translator.sources>`.
             ~id_translation.exceptions.NoSourcesError: If the snapshot would hold no sources, unless the ``Translator``
                 was accepted without any (`require_sources=False`). The ``Translator`` stays online.
 

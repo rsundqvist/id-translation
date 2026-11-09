@@ -437,15 +437,12 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
 
             if user_override not in candidates and self.on_unknown_user_override != "keep":
                 msg = f"The user-defined override function {func} returned an unknown candidate={user_override!r} for {value=}."
-                hint = "Set on_unknown_user_override='keep' to use this value anyway."
                 if self.on_unknown_user_override == "raise":
                     logger.error(msg, extra={"task_id": task_id})
-                    raise UserMappingError(msg, value=value, candidates=candidates, hints=hint)
+                    raise UserMappingError(msg, value=value, candidates=candidates)
 
                 assert self.on_unknown_user_override == "warn", f"bad {self.on_unknown_user_override=}"  # noqa: S101
                 logger.warning(msg, extra={"task_id": task_id})
-
-                msg += f"\nHint: {hint}"
                 emit_warning(msg, UserMappingWarning, logged=True)
 
                 continue

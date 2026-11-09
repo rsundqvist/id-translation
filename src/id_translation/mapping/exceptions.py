@@ -148,3 +148,29 @@ class UserMappingWarning(MappingWarning):
 
 class BadFilterError(MappingError):
     """Invalid filter."""
+
+
+class BadOverrideError(MappingError):
+    """An override maps a value to a candidate that is not among the candidates.
+
+    Args:
+        msg: The error message.
+        value: The overridden value.
+        candidate: The unknown candidate that `value` is overridden to.
+        candidates: The known candidates. A single candidate may be given as a string.
+        hints: Additional context, attached as notes.
+    """
+
+    def __init__(
+        self,
+        msg: str,
+        *,
+        value: _Any = None,
+        candidate: _Any = None,
+        candidates: _Iterable[_Any] | str = (),
+        hints: str | _Iterable[str] = (),
+    ) -> None:
+        super().__init__(msg, hints=hints)
+        self.value = value
+        self.candidate = candidate
+        self.candidates = _as_tuple(candidates)

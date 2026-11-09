@@ -11,7 +11,6 @@ from rics.types import LiteralHelper
 from ._utils.emit_warning import emit_warning
 from .exceptions import TransformerConflictError, TransformerStateError
 from .fetching import AbstractFetcher, Fetcher, MultiFetcher
-from .testing import TestFetcher
 from .transform import TransformerStack, as_transformer
 from .transform._impl.stack import _chain
 from .transform.types import OnExistingTransformer, Transformer, Transformers
@@ -111,7 +110,7 @@ class TransformerRegistry(Generic[NameType, SourceType, IdType]):
         """
         keep = list(owner.sources if sources is None else sources)
 
-        if keep or not self._serves_every_source(owner):
+        if keep or not owner._serves_unlisted_sources():
             known = set(keep)
             if dropped := [s for s in self._transformers if s not in known]:
                 # Report before dropping: promoted to an error, this must leave the misconfiguration in place, or it
@@ -129,14 +128,6 @@ class TransformerRegistry(Generic[NameType, SourceType, IdType]):
                 self._transformers = {s: t for s, t in self._transformers.items() if s in known}
 
         self._frozen = True
-
-    @staticmethod
-    def _serves_every_source(owner: "Translator[NameType, SourceType, IdType]") -> bool:
-        """Does the fetcher report no sources while serving all of them, as ``TestFetcher`` does?
-
-        Not through composition: a ``MultiFetcher`` routes only the sources its children report.
-        """
-        return isinstance(owner._fetcher, TestFetcher)
 
     def register(
         self,

@@ -143,10 +143,10 @@ class _UserDefinedNameToSourceMapping(Generic[NameType, SourceType]):
                 exc = ValueError(f"Bad name-to-source mapping: {name!r} -> {source!r}.")
                 exc.add_note(f"Hint: Remove None-values from names={name_to_source}.")
                 raise exc
-        self._name_to_source = name_to_source
+        self.name_to_source = name_to_source
 
     def __call__(self, name: NameType, _sources: set[SourceType], _context: None) -> SourceType | None:
-        return self._name_to_source.get(name)
+        return self.name_to_source.get(name)
 
     def __repr__(self) -> str:
-        return f"UserArgument(names={self._name_to_source})"
+        return f"UserArgument(names={self.name_to_source})"

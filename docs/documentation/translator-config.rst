@@ -328,6 +328,8 @@ Filter functions
 ~~~~~~~~~~~~~~~~
 Filters are given in ``[[*.mapping.filter_functions]]`` **list**-subsections. These may be used to remove undesirable
 matches, for example SQL tables which should not be used or a ``DataFrame`` column that should not be translated.
+Filters also apply to names given as a string or list (``names=["a", "b"]``): one that is filtered out raises
+:class:`~id_translation.mapping.exceptions.UnmappedExplicitNamesError`. A dict, ``names={name: source}``, bypasses them.
 
 .. list-table:: Section keys: ``[[*.mapping.filter_functions]]``
    :header-rows: 1

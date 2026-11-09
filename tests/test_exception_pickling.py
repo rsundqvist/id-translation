@@ -30,6 +30,7 @@ from id_translation.fetching.exceptions import (
 )
 from id_translation.mapping.exceptions import (
     AmbiguousScoreError,
+    BadOverrideError,
     ScoringDisabledError,
     UnmappedExplicitNamesError,
     UnmappedValuesError,
@@ -106,6 +107,7 @@ FACTORY_SAMPLES: dict[str, Callable[[], BaseException]] = {
 DATA_SAMPLES: dict[str, Callable[[], BaseException]] = {
     "UnmappedExplicitNamesError": lambda: UnmappedExplicitNamesError("msg", names=["a", "b"], unmapped=["b"]),
     "UserMappingError": lambda: UserMappingError("msg", value="a", candidates=["b"]),
+    "BadOverrideError": lambda: BadOverrideError("msg", value="a", candidate="c", candidates=["b"], hints="Check it."),
     "ScoringDisabledError": lambda: _raised(
         ScoringDisabledError, lambda: disabled("name", ["id", "name"], "source", strict=True)
     ),

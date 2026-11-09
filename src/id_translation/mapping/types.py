@@ -104,5 +104,5 @@ OnUnmapped = _t.Literal["raise", "warn", "ignore"]
 """Action types for unmapped values."""
 OnUnknownUserOverride = _t.Literal["raise", "warn", "keep"]
 """Action types for unknown candidates returned by a
-:attr:`~id_translation.mapping.types.UserOverrideFunction`. Dict overrides are not checked.
+:attr:`~id_translation.mapping.types.UserOverrideFunction`. Does not apply to ``Mapper(overrides=...)``.
 """

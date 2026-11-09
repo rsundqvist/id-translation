@@ -27,10 +27,14 @@ from id_translation.exceptions import (
     TranslationWarning,
 )
 from id_translation.fetching import MemoryFetcher, MultiFetcher
-from id_translation.fetching.exceptions import UnknownSourceError
 from id_translation.logging import enable_verbose_debug_messages
 from id_translation.mapping import Mapper
-from id_translation.mapping.exceptions import MappingWarning, UnmappedExplicitNamesError, UserMappingError
+from id_translation.mapping.exceptions import (
+    BadOverrideError,
+    MappingWarning,
+    UnmappedExplicitNamesError,
+    UserMappingError,
+)
 from id_translation.toml.meta import _config_metadata
 from id_translation.transform import BitmaskTransformer
 
@@ -141,6 +145,32 @@ def test_online(translator, copy):
 def test_unmapped_explicit_names_error(translator):
     with pytest.raises(UnmappedExplicitNamesError):
         translator.map(0, names="unknown")
+
+
+def test_unmapped_explicit_names_error_when_others_map(translator):
+    with pytest.raises(UnmappedExplicitNamesError) as exc_info:
+        translator.map(0, names=["positive_numbers", "unknown"])
+    assert exc_info.value.unmapped == ("unknown",)
+
+
+def test_map_scores_shows_unmapped_explicit_names(translator):
+    scores = translator.map_scores(0, names=["positive_numbers", "unknown"]).to_pandas()
+    assert scores.index.tolist() == ["positive_numbers", "unknown"]
+
+
+def test_unmapped_explicit_names_error_when_filtered(hex_fetcher):
+    mapper: Mapper[str, str, None] = Mapper(
+        "equality", filter_functions=[("filter_names", {"regex": "^positive_numbers$"})]
+    )
+    translator = UnitTestTranslator(hex_fetcher, mapper=mapper)
+    data = {"positive_numbers": [1], "negative_numbers": [-1]}
+
+    with pytest.raises(UnmappedExplicitNamesError) as exc_info:
+        translator.map(data, names=["positive_numbers", "negative_numbers"])
+    assert exc_info.value.unmapped == ("negative_numbers",)
+
+    as_dict = {"positive_numbers": "positive_numbers", "negative_numbers": "negative_numbers"}
+    assert translator.map(data, names=as_dict) == as_dict
 
 
 class TestExtractNames:
@@ -587,6 +617,43 @@ def test_reverse_uuid_like_translations_verify():
     assert t.translate(forward, reverse=True, max_fails=0.0) == {"s": [u]}
 
 
+@pytest.mark.parametrize("online", [True, False])
+def test_unknown_source_from_names_or_overrides(online):
+    data = {"a": {1: "A"}}
+    mapper: Mapper[str, str, None] = Mapper(overrides={"y": "nope"})
+    translator = RealTranslator[str, str, int](MemoryFetcher(data) if online else data, mapper=mapper)
+
+    with pytest.raises(UserMappingError, match=r"names=\{'x': 'nope'\} maps 'x' to unknown source='nope'") as exc_info:
+        translator.translate({"x": 1}, names={"x": "nope"})
+    assert exc_info.value.value == "x"
+
+    with pytest.raises(BadOverrideError, match="Mapper overrides map 'y' to unknown source='nope'") as override_info:
+        translator.translate({"y": 1}, names="y")
+    assert (override_info.value.value, override_info.value.candidate) == ("y", "nope")
+
+
+class _DownFetcher(MemoryFetcher[str, int]):
+    def _initialize_sources(self, task_id: int) -> dict[str, list[str]]:  # noqa: ARG002
+        raise ConnectionError("down")
+
+
+def test_override_to_discarded_optional_source():
+    # Checked at use, not at discovery: one bad override must not break every translation.
+    fetcher = MultiFetcher(MemoryFetcher({"a": {1: "A"}}), _DownFetcher({"b": {1: "B"}}, optional=True))
+    mapper: Mapper[str, str, None] = Mapper("equality", overrides={"y": "b"})
+    translator = RealTranslator[str, str, int](fetcher, mapper=mapper).initialize_sources()
+
+    assert translator.translate({"a": 1}) == {"a": "1:A"}
+    with pytest.raises(BadOverrideError):
+        translator.translate({"y": 1})
+
+
+def test_test_fetcher_serves_unlisted_names_sources():
+    translator = RealTranslator[str, str, int]()
+    assert translator.translate({"x": 1}, names={"x": "anything"}) == {"x": "1:name-of-1"}
+    assert translator.go_offline({"x": 1}, names={"x": "anything"}).sources == ["anything"]
+
+
 def test_simple_function_overrides(translator):
     actual = translator.translate(1, names="whatever", override_function=lambda *_: "positive_numbers")
     assert actual == "1:0x1, positive=True"
@@ -795,11 +862,9 @@ class TestDictNames:
         with pytest.raises(ValueError, match="Mapping names="):
             assert self.translate("", names={}, override_function=crash)
 
-    def test_mapping_to_unknown_source(self, caplog):
-        with enable_verbose_debug_messages(), pytest.raises(UnknownSourceError, match="'unknown-source"):
+    def test_mapping_to_unknown_source(self):
+        with pytest.raises(UserMappingError, match="maps 'nconst' to unknown source='unknown-source'"):
             self.translate({"nconst": [1, 15]}, names={"nconst": "unknown-source"})
-        record = next(record for record in caplog.messages if "names={'nconst': 'unknown-source'}" in record)
-        assert "override_function=UserArgument" in record
 
     def test_forbidden_value(self):
         with pytest.raises(ValueError, match="Bad name-to-source mapping: 'nconst' -> None"):
