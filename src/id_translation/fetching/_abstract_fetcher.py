@@ -15,7 +15,6 @@ from .. import logging as _logging
 from .._utils.emit_warning import emit_warning
 from .._utils.locks import DiscoveryGuard
 from ..mapping import HeuristicScore, Mapper
-from ..mapping.exceptions import MappingWarning
 from ..mapping.score_functions import modified_hamming
 from ..offline.types import (
     PlaceholderAttributes,
@@ -96,9 +95,9 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         )
         if self._mapper.on_unmapped == "raise":
             emit_warning(
-                "Using on_unmapped='raise' will treat optional placeholders as "
-                "required placeholders during normal operation.",
-                category=MappingWarning,
+                "Mapper(on_unmapped='raise') makes optional placeholders required when translating IDs from the sources"
+                f" of this {type(self).__name__}: translating from one that lacks a placeholder raises.",
+                category=exceptions.OptionalPlaceholdersRequiredWarning,
             )
 
         self._allow_fetch_all: bool = allow_fetch_all
@@ -643,7 +642,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
 
         rv = self._fetch_all(
             tuple(placeholders),
-            required_placeholders=set(required),
+            required_placeholders=required_placeholders,
             placeholder_attributes=placeholder_attributes,
             wanted_sources=sources,
             task_id=task_id,
@@ -924,6 +923,8 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         required_placeholders.add(ID)
         if ID not in placeholders:
             placeholders = (ID, *placeholders)
+        # A direct Fetcher.fetch() caller may require names it left out of `placeholders`.
+        placeholders = (*placeholders, *sorted(required_placeholders.difference(placeholders)))
 
         wanted_to_actual, absent = self._wanted_to_actual(source, placeholders, task_id, mapper=mapper)
         # Like id_column(), raise for an override that names a column the source does not have. Other names are
@@ -966,14 +967,13 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         if attributes is None:
             return {}
 
-        # Remap keys in the placeholder attributes dict. The user may mix-and-match real and remapped placeholders, so
-        # the target attributes have to be merged.
-
+        # Wanted names that share a column merge their attributes, and so does the column's own name. Unless that name is
+        # wanted too: under swapped overrides, it reads another column and its attributes belong there.
         rv: PlaceholderAttributes = {}
         for wanted in placeholders:
             if (actual := wanted_to_actual.get(wanted)) is None:
                 continue
-            merged = [*attributes.get(actual, ()), *attributes.get(wanted, ())]
+            merged = [*attributes.get(wanted, ()), *(() if actual in placeholders else attributes.get(actual, ()))]
             if merged:
                 rv.setdefault(actual, set()).update(merged)
 

@@ -1,6 +1,7 @@
 import pickle
 import re
 import threading
+import warnings
 from copy import deepcopy
 from pathlib import Path
 from typing import Any
@@ -67,6 +68,18 @@ def test_selective_fetch_all(data, selective_fetch_all, required, expected):
             mapper=Mapper("equality", on_unmapped="raise"),
         )
     assert set(fetcher.fetch_all(required=required)) == expected
+
+
+def test_optional_placeholders_required_warning(data):
+    mapper: Mapper[str, str, str] = Mapper("equality", on_unmapped="raise")
+    with pytest.warns(exceptions.OptionalPlaceholdersRequiredWarning, match="sources of this MemoryFetcher") as record:
+        MemoryFetcher(data, mapper=mapper)
+    assert isinstance(record[0].message, exceptions.FetcherWarning)
+    assert isinstance(record[0].message, MappingWarning)
+
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=exceptions.OptionalPlaceholdersRequiredWarning)
+        MemoryFetcher(data, mapper=mapper)
 
 
 def test_test_crashes_with_selective_fetch_all_disabled(data):

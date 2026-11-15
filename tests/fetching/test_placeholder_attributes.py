@@ -12,6 +12,7 @@ import pytest
 
 from id_translation import Translator
 from id_translation.fetching import MemoryFetcher
+from id_translation.fetching.types import IdsToFetch
 from id_translation.mapping import Mapper
 from id_translation.offline.types import PlaceholderAttributes
 
@@ -93,6 +94,25 @@ def test_alias_before_actual_merges_attributes(df, translator):
         translator,
         expected={"Country": {"obj": {"capital.code", "language.code"}}},
     )
+
+
+def test_swapped_overrides_keep_attributes_apart():
+    fetcher = InterceptFetcher(
+        data={"people": {"id": [1], "name": ["Alice"], "title": ["Dr"]}},
+        mapper=Mapper(overrides={"name": "title", "title": "name"}),
+    )
+    translator = Translator[str, str, Id](fetcher, fmt="{id}:{name.upper} {title.lower}")
+    translator.fetch([1], names="people")
+
+    validate_instructions(translator, expected={"people": {"title": {"upper"}, "name": {"lower"}}})
+
+
+def test_attributes_keyed_by_column_of_an_alias(translator):
+    fetcher = translator.fetcher
+    assert isinstance(fetcher, InterceptFetcher)
+    fetcher.fetch([IdsToFetch("Country", {49})], ("alias",), placeholder_attributes={"obj": {"capital.code"}})
+
+    validate_instructions(translator, expected={"Country": {"obj": {"capital.code"}}})
 
 
 def test_indexing(df, translator):

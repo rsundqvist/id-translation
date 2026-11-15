@@ -79,13 +79,14 @@ class TestFetcher(_Fetcher[SourceType, IdType]):
         ids_to_fetch: _Iterable[_IdsToFetch[SourceType, IdType]],
         placeholders: _Iterable[str] = (),
         *,
-        required: _Iterable[str] = (),  # noqa: ARG002
+        required: _Iterable[str] = (),
         placeholder_attributes: _PlaceholderAttributes | None = None,  # noqa: ARG002
         task_id: int | None = None,  # noqa: ARG002
         enable_uuid_heuristics: bool = False,  # noqa: ARG002
     ) -> _SourcePlaceholderTranslations[SourceType]:
         """Return generated translations for all IDs and placeholders."""
-        return {itf.source: self._generate_data(itf, list(placeholders)) for itf in ids_to_fetch}
+        wanted = list(dict.fromkeys([*placeholders, *required]))
+        return {itf.source: self._generate_data(itf, wanted) for itf in ids_to_fetch}
 
     @staticmethod
     def _generate_data(

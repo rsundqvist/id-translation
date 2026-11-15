@@ -11,6 +11,7 @@ from .._utils import as_tuple as _as_tuple
 from ..exceptions import IdTranslationWarning as _IdTranslationWarning
 from ..exceptions import MissingIdPlaceholderError as _MissingIdPlaceholderError
 from ..exceptions import MissingPlaceholderError as _MissingPlaceholderError
+from ..mapping.exceptions import MappingWarning as _MappingWarning
 from ..types import ID as _ID
 
 if TYPE_CHECKING:
@@ -19,6 +20,13 @@ if TYPE_CHECKING:
 
 class FetcherWarning(_IdTranslationWarning):
     """Base class for ``Fetcher`` warnings."""
+
+
+class OptionalPlaceholdersRequiredWarning(FetcherWarning, _MappingWarning):
+    """A fetcher's ``Mapper(on_unmapped='raise')`` makes optional placeholders required for its sources.
+
+    This does not apply to :meth:`~id_translation.fetching.Fetcher.fetch_all` with ``selective_fetch_all=True``.
+    """
 
 
 class FetcherError(RuntimeError):

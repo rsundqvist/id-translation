@@ -150,6 +150,22 @@ def test_filtered_source_raises_at_initialize_sources():
     assert exc_info.value.__notes__ == ["Hint: A filter rejects the ID column of 'meta', but every source needs one."]
 
 
+def test_required_placeholder_missing_from_placeholders_is_requested():
+    fetcher: MemoryFetcher[str, int] = MemoryFetcher({"people": {"id": [1], "name": ["Alice"], "title": ["Dr"]}})
+
+    actual = fetcher.fetch([IdsToFetch("people", {1})], ("name",), required=("title",))["people"]
+
+    assert actual.placeholders == ("id", "name", "title")
+
+
+def test_fetch_all_reads_required_once():
+    fetcher: MemoryFetcher[str, int] = MemoryFetcher({"people": {"id": [1], "name": ["Alice"], "title": ["Dr"]}})
+
+    actual = fetcher.fetch_all(("name",), required=iter(["title"]))["people"]
+
+    assert actual.placeholders == ("id", "name", "title")
+
+
 @pytest.mark.parametrize("return_all", [False, True])
 def test_shared_data_is_not_mutated(return_all):
     # A PlaceholderTranslations passed in is stored as-is, so the mapper's answer is kept per fetcher: two fetchers
