@@ -30,7 +30,7 @@ from . import _pickle
 from . import logging as _logging
 from ._tasks import MappingTask, NamesTask, TranslationTask
 from ._transformer_registry import TransformerRegistry
-from ._utils import add_hints, replace_atomically
+from ._utils import add_hints, replace_atomically, type_name
 from ._utils.emit_warning import emit_warning
 from .exceptions import (
     ConfigurationChangedError,
@@ -829,9 +829,9 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             copy: If ``False``, translate in-place and return ``None``.
             override_function: A callable ``(name, sources, context) -> Source | None``, where `context` is always
                 ``None``. See :meth:`Mapper.apply <id_translation.mapping.Mapper.apply>` for details.
-            max_fails: The maximum fraction of IDs for which translation may fail. 1=disabled. Missing values (``NaN``,
-                null) in ``pandas``, ``dask``, ``polars`` and ``pyarrow`` data are pass-throughs and never count; in a
-                builtin collection or array, ``None`` and ``NaN`` are ordinary (unknown) IDs, and do.
+            max_fails: The maximum fraction of the unique IDs of each name for which translation may fail. 1=disabled.
+                Missing values (``NaN``, null) never count in ``pandas``, ``dask``, ``polars`` and ``pyarrow`` data;
+                in builtin collections and arrays, ``None`` and ``NaN`` count as ordinary IDs.
             reverse: If ``True``, perform translations back to IDs. Offline mode only.
             fmt: A :class:`format string <id_translation.offline.Format>` such as **'{id}:{name}'** to use. Default is
                 :attr:`Translator.fmt <id_translation.Translator.fmt>`.
@@ -859,18 +859,15 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
         Raises:
             ~id_translation.dio.exceptions.UntranslatableTypeError: If ``type(translatable)`` cannot be translated.
-            ~id_translation.exceptions.MissingNamesError: If `names` are not given and cannot be derived from
-                `translatable`.
-            ~id_translation.mapping.exceptions.UnmappedExplicitNamesError: If any required (explicitly given) names fail
-                to map to a source.
-            ~id_translation.mapping.exceptions.MappingError: If name-to-source mapping fails, e.g.
-                :class:`~id_translation.mapping.exceptions.ScoringDisabledError` for a name that is neither a source
-                nor overridden, when using the default :class:`~id_translation.mapping.Mapper`.
+            ~id_translation.exceptions.MissingNamesError: If `names` are not given and cannot be derived.
+            ~id_translation.exceptions.MissingNamesError: If `names` are given but missing from key-based data such as
+                a ``dict`` or ``DataFrame``.
+            ~id_translation.mapping.exceptions.UnmappedExplicitNamesError: If a required name fails to map to a source.
+            ~id_translation.mapping.exceptions.MappingError: If name-to-source mapping fails.
             ~id_translation.exceptions.MissingPlaceholderError: If a source lacks a placeholder that `fmt` requires.
             ValueError: If `max_fails` is not a valid fraction.
             ValueError: If ``reverse=True`` and several IDs of a source share a translation.
-            ~id_translation.exceptions.TooManyFailedTranslationsError: If translation fails for more than `max_fails` of
-                IDs.
+            ~id_translation.exceptions.TooManyFailedTranslationsError: If translation fails for over `max_fails` of IDs.
             ~id_translation.exceptions.ConnectionStatusError: If ``reverse=True`` while the
                 :class:`~id_translation.Translator` is online.
             ~id_translation.mapping.exceptions.UserMappingError: If `names` maps a name to an
@@ -1037,8 +1034,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
         Raises:
             ~id_translation.dio.exceptions.UntranslatableTypeError: If ``type(translatable)`` cannot be translated.
-            ~id_translation.exceptions.MissingNamesError: If `names` are not given and cannot be derived from
-                `translatable`.
+            ~id_translation.exceptions.MissingNamesError: If `names` are not given and cannot be derived.
             ~id_translation.mapping.exceptions.UnmappedExplicitNamesError: If a required name fails to map to a source.
             ~id_translation.mapping.exceptions.MappingError: If name-to-source mapping fails.
             ~id_translation.mapping.exceptions.UserMappingError: If `names` maps a name to an
@@ -1323,12 +1319,12 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             ignore_names: Names **not** to translate, or a predicate ``(NameType) -> bool``.
             override_function: A callable ``(name, sources, context) -> Source | None``, where `context` is always
                 ``None``. See :meth:`Mapper.apply <id_translation.mapping.Mapper.apply>` for details.
-            max_fails: The maximum fraction of IDs for which translation may fail. 1=disabled. Requires `translatable`.
-                Missing IDs (e.g. ``NaN``) in ``pandas`` types are pass-throughs and never count; a ``None`` in a
-                builtin collection is an ordinary (unknown) ID, and does.
-            fmt: A :class:`format string <id_translation.offline.Format>` such as **'{id}:{name}'** to use. Default is
-                :attr:`Translator.fmt <id_translation.Translator.fmt>`. The snapshot is only guaranteed to hold the
-                placeholders of `fmt`; list any others that a later `translate()` needs as optional blocks, e.g.
+            max_fails: The maximum fraction of the unique IDs of each name for which translation may fail. 1=disabled.
+                Missing values (``NaN``, null) never count in ``pandas``, ``dask``, ``polars`` and ``pyarrow`` data;
+                in builtin collections and arrays, ``None`` and ``NaN`` count as ordinary IDs. Requires `translatable`.
+            fmt: A :class:`format string <id_translation.offline.Format>` such as **'{id}:{name}'** to use.
+                Default is :attr:`Translator.fmt <id_translation.Translator.fmt>`. The snapshot is only guaranteed to
+                hold the placeholders of `fmt`; add any that a later `translate()` needs as optional blocks, e.g.
                 ``'{id}:{name}[ {team}]'``.
             io_kwargs: Keyword arguments for the IO class (e.g.
                 :class:`~id_translation.dio.integration.pandas.PandasIO`).
@@ -1389,7 +1385,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                     event_key=_logging.get_event_key(self.go_offline, "enter"),
                     # Task-specific
                     path=None if path is None else str(path),
-                    translatable_type=None if translatable is None else tname(translatable, include_module=True),
+                    translatable_type=None if translatable is None else type_name(translatable),
                 ),
             )
 
@@ -1437,7 +1433,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                     event_key=_logging.get_event_key(self.go_offline, "serialize"),
                     # Task-specific
                     path=str(path),
-                    translatable_type=None if translatable is None else tname(translatable, include_module=True),
+                    translatable_type=None if translatable is None else type_name(translatable),
                 ),
             )
 
@@ -1451,7 +1447,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                     seconds=seconds,
                     # Task-specific
                     path=None if path is None else str(path),
-                    translatable_type=None if translatable is None else tname(translatable, include_module=True),
+                    translatable_type=None if translatable is None else type_name(translatable),
                 ),
             )
 
@@ -1485,13 +1481,12 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             ignore_names: Names **not** to translate, or a predicate ``(NameType) -> bool``.
             override_function: A callable ``(name, sources, context) -> Source | None``, where `context` is always
                 ``None``. See :meth:`Mapper.apply <id_translation.mapping.Mapper.apply>` for details.
-            max_fails: The maximum fraction of IDs for which translation may fail. 1=disabled. Requires `translatable`.
-                Missing IDs (e.g. ``NaN``) in ``pandas`` types are pass-throughs and never count; a ``None`` in a
-                builtin collection is an ordinary (unknown) ID, and does.
-            fmt: A :class:`format string <id_translation.offline.Format>` such as **'{id}:{name}'** to use. Default is
-                :attr:`Translator.fmt <id_translation.Translator.fmt>`.
-            io_kwargs: Keyword arguments for the IO class (e.g.
-                :class:`~id_translation.dio.integration.pandas.PandasIO`).
+            max_fails: The maximum fraction of the unique IDs of each name for which translation may fail. 1=disabled.
+                Missing values (``NaN``, null) never count in ``pandas``, ``dask``, ``polars`` and ``pyarrow`` data;
+                in builtin collections and arrays, ``None`` and ``NaN`` count as ordinary IDs. Requires `translatable`.
+            fmt: A :class:`format string <id_translation.offline.Format>` such as **'{id}:{name}'** to use.
+                Default is :attr:`Translator.fmt <id_translation.Translator.fmt>`.
+            io_kwargs: Arguments for the IO class, e.g. :class:`~id_translation.dio.integration.pandas.PandasIO`.
 
         Returns:
             A :class:`~id_translation.offline.TranslationMap`.

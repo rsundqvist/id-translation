@@ -17,6 +17,7 @@ from id_translation.dio import (
     resolve_io,
     unregister_io,
 )
+from id_translation.dio.default import DictIO
 from id_translation.dio.exceptions import DataStructureIOError, UntranslatableTypeError
 from id_translation.dio.integration.pandas import PandasIO
 
@@ -54,6 +55,24 @@ def test_register_io():
     assert_type(actual, object)  # type: ignore[assert-type]
 
     assert actual == Data.expected
+
+
+def test_a_bare_str_from_names_is_one_name():
+    class Wrapped(dict[str, list[int]]):
+        pass
+
+    class WrappedIO(DictIO[str, str, int]):
+        @classmethod
+        def handles_type(cls, arg: Any) -> bool:
+            return isinstance(arg, Wrapped)
+
+        @classmethod
+        def names(cls, translatable: Any) -> str:  # type: ignore[override]  # noqa: ARG003
+            return "people"
+
+    WrappedIO.register()
+    translator: Translator[str, str, int] = Translator({"people": {"id": [1], "name": ["Ada"]}}, fmt="{name}")
+    assert translator.translate(Wrapped(people=[1])) == {"people": ["Ada"]}
 
 
 def _discover(*ios: type[DataStructureIO[Any, Any, Any, Any]]) -> _repository.Repository:
@@ -435,3 +454,25 @@ class DummyIO(DataStructureIO[Any, str, str, int]):
         assert translatable is Data.test_object
         assert names == ["source"]
         return tmap[names[0]][Data.test_object_id]
+
+
+def test_task_id_is_passed_to_an_io_that_takes_it():
+    """Documented in translation-io.rst: injected unless io_kwargs sets it."""
+    from id_translation.dio.default import SequenceIO
+
+    class TaskIO(SequenceIO[Any, Any, Any, Any]):
+        priority = 99_999
+
+        def __init__(self, task_id: int | None = None) -> None:
+            self.task_id = task_id
+
+        @classmethod
+        def handles_type(cls, arg: Any) -> bool:
+            return isinstance(arg, tuple)
+
+    register_io(TaskIO)
+    try:
+        assert resolve_io((1,), task_id=7).task_id == 7  # type: ignore[attr-defined]
+        assert resolve_io((1,), task_id=7, io_kwargs={"task_id": 3}).task_id == 3  # type: ignore[attr-defined]
+    finally:
+        unregister_io(TaskIO)

@@ -559,11 +559,45 @@ def test_untranslated_fraction_single_name():
 
     translator.translate([0, 1], names="source", max_fails=0.5)
 
-    with pytest.raises(TooManyFailedTranslationsError, match="translate 1/3"):
+    with pytest.raises(TooManyFailedTranslationsError, match="translate 1/2"):  # Unique IDs: a repeat counts once.
         translator.translate([0, 0, 1], names="source", max_fails=0.0)
 
     with pytest.raises(TooManyFailedTranslationsError, match="translate 1/1"):
         translator.translate(1, names="source", max_fails=0.0)
+
+
+@pytest.mark.parametrize("cls", [list, tuple, pd.Series, np.array])
+def test_untranslated_fraction_counts_unique_ids(cls):
+    translator = UnitTestTranslator({"source": {"id": [0], "name": ["zero"]}}, default_fmt="{id} not translated")
+
+    with pytest.raises(TooManyFailedTranslationsError, match="translate 1/2"):  # Not 1/4 (rows), which would pass.
+        translator.translate(cls([0, 0, 0, 1]), names="source", max_fails=0.3)
+
+
+@pytest.mark.parametrize("cls", [list, np.array])
+@pytest.mark.parametrize("dtype", [np.float64, np.float32])
+def test_untranslated_fraction_counts_nan_once(cls, dtype):
+    translator = UnitTestTranslator({"source": {"id": [0], "name": ["zero"]}}, default_fmt="{id} not translated")
+    ids = cls(np.array([0, np.nan, np.nan, np.nan], dtype=dtype))  # A distinct NaN object per row, and nan != nan.
+
+    with pytest.raises(TooManyFailedTranslationsError, match="translate 1/2") as exc_info:
+        translator.translate(ids, names="source", max_fails=0.3)
+    assert len(exc_info.value.sample_ids) == 1
+
+
+def test_log_records_name_the_translatable_type(caplog):
+    class Ids(list[int]):
+        pass
+
+    translator = UnitTestTranslator(MemoryFetcher({"source": {"id": [1], "name": ["one"]}}))
+
+    with caplog.at_level(logging.DEBUG, logger="id_translation"):
+        translator.translate(Ids([1]), names="source")
+        translator.go_offline(Ids([1]), names="source")
+
+    records = [r for r in caplog.records if getattr(r, "translatable_type", None)]
+    assert {r.translatable_type for r in records} == {f"{__name__}.Ids"}
+    assert any(r.funcName == "go_offline" for r in records)
 
 
 def test_untranslated_fraction_when_a_source_shares_a_name():
@@ -600,7 +634,7 @@ def test_untranslated_fraction_multiple_names(translator, hex_fetcher):
     translator = UnitTestTranslator(hex_fetcher, enable_uuid_heuristics=True, fmt="{id}:{hex}")
     translatable = {"negative_numbers": [1, 1], "positive_numbers": [0, 1, 2]}
 
-    with pytest.raises(TooManyFailedTranslationsError, match="translate 2/2"):
+    with pytest.raises(TooManyFailedTranslationsError, match="translate 1/1"):  # Unique IDs: [1, 1] is one.
         translator.translate(translatable, max_fails=0.0)
 
 

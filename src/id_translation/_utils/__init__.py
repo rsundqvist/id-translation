@@ -6,6 +6,8 @@ from pathlib import Path as _Path
 from typing import IO as _IO
 from typing import Any as _Any
 
+from rics.misc import tname as _tname
+
 DOC_LINK: str
 
 __all__ = [
@@ -13,8 +15,7 @@ __all__ = [
     "add_hints",
     "as_tuple",
     "replace_atomically",
-    "resolve_changing_default",
-    "warn_changing_default",
+    "type_name",
 ]
 
 
@@ -66,6 +67,11 @@ def replace_atomically(path: _Path, write: _Callable[[_IO[bytes]], _Any]) -> Non
 def as_tuple(values: _Iterable[_Any] | str) -> tuple[_Any, ...]:
     """Convert `values` to a tuple, treating a bare string as a single value rather than a sequence of characters."""
     return (values,) if isinstance(values, str) else tuple(values)
+
+
+def type_name(obj: _Any) -> str:
+    """Return the public name of the type of `obj`, e.g. ``'polars.DataFrame'``, without inspecting `obj` itself."""
+    return _tname(type(obj), include_module=True)
 
 
 def __getattr__(name: str) -> _Any:

@@ -72,8 +72,9 @@ To get started, inherit from :class:`DataStructureIO` or copy an
 :meth:`register <.DataStructureIO.register>` the implementation, or the :class:`.Translator` won't be able to find it.
 
 Integrations may take initialization arguments, which callers pass as `io_kwargs` (see :ref:`Runtime arguments`), but
-should not require them. New implementations default to ``priority=10_000``, and are therefore considered before the
-bundled ones.
+should not require them. An integration whose constructor has a `task_id` parameter receives the ID of the translation
+task, e.g. for logging, unless `io_kwargs` sets it. New implementations default to ``priority=10_000``, and are
+therefore considered before the bundled ones.
 
 Automatic integration discovery
 -------------------------------

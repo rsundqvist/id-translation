@@ -1,3 +1,4 @@
+from typing import Any
 from uuid import UUID
 
 import numpy as np
@@ -70,7 +71,15 @@ def test_missing_ids_are_not_counted(translator, ids):
     assert actual.to_list() == ["0:int-zero", "0:int-zero", *(f"<Failed: id={idx}>" for idx in ids[2:])]
 
 
-@pytest.mark.parametrize("missing", [None, float("nan"), np.float32("nan"), pd.NA])
+@pytest.mark.parametrize(
+    "missing",
+    [
+        None,
+        float("nan"),
+        np.float32("nan"),
+        pd.NA,
+    ],
+)
 def test_object_missing_values_are_not_extracted(missing):
     series = pl.Series("x", [0, 0, missing], dtype=pl.Object)
     assert PolarsIO.extract(series, ["x"]) == {"x": ["0"]}
@@ -89,6 +98,90 @@ def test_object_nan_does_not_take_the_nan_string_ids_translation(fast):
     assert isinstance(actual, pl.Series)
     missing = "" if fast else "<Failed: id=None>"
     assert actual.to_list() == ["zero", missing, missing, "nan-row"]
+
+
+@pytest.mark.parametrize("uuid_keys", [False, True])
+@pytest.mark.parametrize("dtype", [pl.String, pl.Object])
+def test_fast_with_uuid_heuristics(uuid_keys, dtype):
+    ids = [to_uuid(1), to_uuid(2)]
+    data = {"x": {(idx if uuid_keys else str(idx)): f"n{i}" for i, idx in enumerate(ids)}}
+    translator = Translator[str, str, IdTypes](data, fmt="{name}", enable_uuid_heuristics=True)
+    series = pl.Series("x", ids if dtype == pl.Object else list(map(str, ids)), dtype=dtype)
+    actual = translator.translate(series, io_kwargs={"fast": True})
+    assert isinstance(actual, pl.Series)
+    assert actual.to_list() == ["n0", "n1"]
+
+
+@pytest.mark.parametrize("dtype", [pl.String, pl.Object])
+def test_fast_with_uuid_keys_without_heuristics(dtype):
+    ids = [to_uuid(1), to_uuid(2)]
+    translator = Translator[str, str, IdTypes]({"x": {idx: f"n{i}" for i, idx in enumerate(ids)}}, fmt="{name}")
+    series = pl.Series("x", ids if dtype == pl.Object else list(map(str, ids)), dtype=dtype)
+    # Unknown as in non-fast mode, where a str ID does not match a UUID key without heuristics; replace_strict() raised.
+    actual = translator.translate(series, io_kwargs={"fast": True})
+    assert isinstance(actual, pl.Series)
+    assert actual.to_list() == ["", ""]
+
+
+@pytest.mark.parametrize(
+    "data, ids, expected",
+    [
+        ({to_uuid(1): "u", "a": "A"}, ["a", str(to_uuid(1))], ["A", ""]),  # UUID first: dropped up front.
+        ({"a": "A", to_uuid(1): "u"}, ["a", str(to_uuid(1))], ["A", ""]),  # Dropped on retry.
+        ({1: "one", to_uuid(1): "u"}, [1, 2], ["one", ""]),  # Retry after a different polars error.
+    ],
+    ids=["uuid-first", "str-first", "int-first"],
+)
+@pytest.mark.parametrize("kind", [pl.Series, pl.DataFrame])
+def test_fast_drops_uuid_keys_and_keeps_the_rest(data, ids, expected, kind):
+    translator = Translator[str, str, IdTypes]({"x": data}, fmt="{name}")
+    series = pl.Series("x", ids)
+    actual = translator.translate(series if kind is pl.Series else series.to_frame(), io_kwargs={"fast": True})
+    assert isinstance(actual, kind)
+    assert (actual if isinstance(actual, pl.Series) else actual["x"]).to_list() == expected
+
+
+@pytest.mark.parametrize("keys", [{"a": "A"}, {1: "one"}])
+def test_fast_all_null(keys):
+    translator = Translator[str, str, IdTypes]({"x": keys}, fmt="{name}")
+    actual = translator.translate(pl.Series("x", [None, None]), io_kwargs={"fast": True})
+    assert isinstance(actual, pl.Series)
+    assert actual.to_list() == ["", ""]
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        {to_uuid(0): "other", str(to_uuid(1)): "exact", to_uuid(1): "cast"},  # The old code returned 'cast'.
+        {to_uuid(1): "cast", str(to_uuid(1)): "exact"},
+        {str(to_uuid(1)): "exact", to_uuid(1): "cast"},
+    ],
+    ids=["uuid-exact-cast", "cast-exact", "exact-cast"],
+)
+def test_fast_exact_key_wins_over_cast_uuid(data):
+    translator = Translator[str, str, IdTypes]({"x": data}, fmt="{name}", enable_uuid_heuristics=True)
+    uuid = str(to_uuid(1))
+    assert translator.translate(uuid, names="x") == "exact"
+    for fast in (False, True):
+        actual = translator.translate(pl.Series("x", [uuid]), io_kwargs={"fast": fast})
+        assert isinstance(actual, pl.Series)
+        assert actual.to_list() == ["exact"], f"{fast=}"
+
+
+def test_fast_reraises_a_type_error_without_uuid_keys(monkeypatch):
+    calls = []
+    replace_strict = pl.Series.replace_strict
+
+    def counting(*args: Any, **kwargs: Any) -> Any:
+        calls.append(args)
+        return replace_strict(*args, **kwargs)
+
+    monkeypatch.setattr(pl.Series, "replace_strict", counting)
+
+    translator = Translator[str, str, IdTypes]({"x": {1: "one", "a": "A"}}, fmt="{name}")
+    with pytest.raises(TypeError):
+        translator.translate(pl.Series("x", [1]), io_kwargs={"fast": True})
+    assert len(calls) == 1, "retried without UUID keys to drop"
 
 
 def test_dataframe_fast(translator):
@@ -117,6 +210,21 @@ def test_dataframe_fast(translator):
     }
 
 
+@pytest.mark.parametrize("online", [False, True])
+def test_explicit_name_missing_from_the_data_raises(data, online):
+    from id_translation.exceptions import MissingNamesError
+    from id_translation.fetching import MemoryFetcher
+
+    fetcher: MemoryFetcher[str, IdTypes] = MemoryFetcher({"ints": {"id": [0, 1], "name": ["int-zero", "int-one"]}})
+    translator = Translator[str, str, IdTypes](fetcher if online else data, fmt="{id!s:.8}:{name}")
+    with pytest.raises(MissingNamesError, match="nope") as exc_info:
+        translator.translate(
+            pl.DataFrame({"ints": [0, 1]}), names=["ints", "nope"], override_function=lambda *_: "ints"
+        )
+    assert exc_info.value.missing == ("nope",)
+
+
 def test_all_missing_ids(translator):
-    actual = translator.translate(pl.Series("ints", [None], dtype=pl.Int64), max_fails=0.0)
-    assert actual.to_list() == ["<Failed: id=None>"]
+    assert translator.translate(pl.Series("ints", [None], dtype=pl.Int64), max_fails=0.0).to_list() == [
+        "<Failed: id=None>"
+    ]

@@ -1,7 +1,7 @@
 """Insertion and extraction of IDs and translations."""
 
 from abc import abstractmethod
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from typing import Any, ClassVar, Generic
 
 from ..offline import TranslationMap
@@ -84,18 +84,18 @@ class DataStructureIO(Generic[TranslatableT, NameType, SourceType, IdType]):
         """Return ``True`` if the implementation handles data for the type of `arg`."""
 
     @abstractmethod
-    def names(self, translatable: TranslatableT) -> list[NameType] | None:
+    def names(self, translatable: TranslatableT) -> Sequence[NameType] | None:
         """Extract names from `translatable`.
 
         Args:
             translatable: Data to extract names from.
 
         Returns:
-            A list of names to translate. Returns ``None`` if names cannot be extracted.
+            Names to translate. Returns ``None`` if names cannot be extracted.
         """
 
     @abstractmethod
-    def extract(self, translatable: TranslatableT, names: list[NameType]) -> dict[NameType, Sequence[IdType]]:
+    def extract(self, translatable: TranslatableT, names: list[NameType]) -> Mapping[NameType, Sequence[IdType]]:
         """Extract IDs from `translatable`.
 
         Args:
@@ -103,7 +103,7 @@ class DataStructureIO(Generic[TranslatableT, NameType, SourceType, IdType]):
             names: List of names in `translatable` to extract IDs for.
 
         Returns:
-            A dict ``{name: ids}``.
+            A mapping ``{name: ids}``.
         """
 
     @abstractmethod

@@ -2,8 +2,7 @@ from collections.abc import Mapping
 from time import perf_counter
 from typing import TYPE_CHECKING, Any, Generic
 
-from rics.misc import get_public_module
-
+from .._utils import type_name
 from ..logging import generate_task_id
 
 if TYPE_CHECKING:
@@ -14,8 +13,6 @@ from ..types import IdType, NameType, SourceType, Translatable
 
 
 class BaseTask(Generic[NameType, SourceType, IdType]):
-    """Internal type; not part of the public API."""
-
     def __init__(
         self,
         caller: "Translator[NameType, SourceType, IdType]",
@@ -60,9 +57,8 @@ class BaseTask(Generic[NameType, SourceType, IdType]):
 
     @property
     def full_type_name(self) -> str:
-        """Canonical type name, e.g. `pandas.DataFrame`."""
         if self._full_type_name is None:
-            self._full_type_name = get_public_module(type(self.translatable), resolve_reexport=True, include_name=True)
+            self._full_type_name = type_name(self.translatable)
         return self._full_type_name
 
     @property

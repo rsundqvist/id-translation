@@ -45,7 +45,8 @@ def resolve_io(
     Args:
         arg: An argument to get IO for.
         io_kwargs: Keyword arguments for the IO class (e.g. :class:`~id_translation.dio.integration.pandas.PandasIO`).
-        task_id: Used for logging.
+        task_id: Used for logging. Passed to the IO class if its constructor has a `task_id` parameter, unless
+            `io_kwargs` sets it.
 
     Returns:
         A data structure IO instance for `arg`.

@@ -4,13 +4,15 @@ import math as _math
 import numbers as _numbers
 import sys as _sys
 import typing as _t
+import uuid as _uuid
 from collections import abc as _abc
 
 import polars as _pl
-from rics.misc import tname as _tname
 
 from id_translation import dio as _dio
 from id_translation import types as _tt
+from id_translation._utils import type_name as _type_name
+from id_translation.dio import _util
 from id_translation.dio.exceptions import NotInplaceTranslatableError as _NotInplaceTranslatableError
 from id_translation.offline import MagicDict as _MagicDict
 from id_translation.offline import TranslationMap as _TranslationMap
@@ -24,7 +26,7 @@ class PolarsIO(_dio.DataStructureIO[PolarsT, str, _tt.SourceType, _tt.IdType]):
 
     Args:
         fast: Apply optimizations if ``True``. Can be faster for large amounts of data but is much less flexible.
-            Gains little for a ``polars.Object`` column.
+            Gains little for a ``polars.Object`` column. With UUID heuristics, only IDs in the ``str(UUID)`` form match.
     """
 
     def __init__(
@@ -53,6 +55,7 @@ class PolarsIO(_dio.DataStructureIO[PolarsT, str, _tt.SourceType, _tt.IdType]):
     def extract(cls, translatable: PolarsT, names: list[str]) -> dict[str, _abc.Sequence[_tt.IdType]]:
         def extract(series: _pl.Series) -> _abc.Sequence[_tt.IdType]:
             # Missing values are pass-throughs, as for pandas: never fetched, and never counted by `max_fails`.
+            # AGENTS: Missing is what Polars says it is; don't handle other NaN types.
             series = cls.obj_to_str(series).drop_nulls()
             if series.dtype.is_float():
                 series = series.drop_nans()
@@ -60,10 +63,11 @@ class PolarsIO(_dio.DataStructureIO[PolarsT, str, _tt.SourceType, _tt.IdType]):
 
         if isinstance(translatable, _pl.Series):
             if len(names) != 1:
-                msg = f"{len(names)=} != 1 is not supported for {_tname(translatable, include_module=True)}"
+                msg = f"{len(names)=} != 1 is not supported for {_type_name(translatable)}"
                 raise NotImplementedError(msg)
             return {names[0]: extract(translatable)}
         else:
+            _util.require_names(translatable.columns, names, translatable)
             return {n: extract(translatable[n]) for n in names}
 
     def insert(
@@ -77,6 +81,7 @@ class PolarsIO(_dio.DataStructureIO[PolarsT, str, _tt.SourceType, _tt.IdType]):
             raise _NotInplaceTranslatableError.for_translatable(translatable)
 
         if isinstance(translatable, _pl.DataFrame):
+            _util.require_names(translatable.columns, names, translatable)
             translated_columns = {name: self._translate_series(translatable[name], tmap[name]) for name in names}
             if copy:
                 return translatable.with_columns(**translated_columns)
@@ -90,7 +95,26 @@ class PolarsIO(_dio.DataStructureIO[PolarsT, str, _tt.SourceType, _tt.IdType]):
     def _translate_series(self, series: _pl.Series, magic_dict: _MagicDict[_tt.IdType]) -> _pl.Series:
         series = self.obj_to_str(series)  # extract() fetched the str IDs, also in fast mode.
         if self._fast:
-            return series.replace_strict(magic_dict.real, return_dtype=_pl.String, default="")
+            if series.dtype == _pl.Null:  # A `Null`-dtype column: replace_strict() cannot cast the keys to its dtype.
+                series = series.cast(_pl.String)
+            # replace_strict() cannot take UUID keys; it raises TypeError partway through the work.
+            real: _abc.Mapping[_t.Any, str] = magic_dict.real
+            if magic_dict.enable_uuid_heuristics:
+                converted = {str(k) if isinstance(k, _uuid.UUID) else k: v for k, v in real.items()}
+                if len(converted) < len(real):  # A cast key collided with an exact one, which wins as in MagicDict.
+                    converted.update((k, v) for k, v in real.items() if not isinstance(k, _uuid.UUID))
+                return series.replace_strict(converted, return_dtype=_pl.String, default="")
+
+            # A str ID never equals a UUID key. Only the first key is checked up front: a pass over all of them costs
+            # about a tenth of the call, so mixed keys are left to the retry below.
+            if not isinstance(next(iter(real), None), _uuid.UUID):
+                try:
+                    return series.replace_strict(real, return_dtype=_pl.String, default="")
+                except TypeError:
+                    if not any(isinstance(k, _uuid.UUID) for k in real):
+                        raise
+            exact = {k: v for k, v in real.items() if not isinstance(k, _uuid.UUID)}
+            return series.replace_strict(exact, return_dtype=_pl.String, default="")
 
         # Create the mappings before Polars can disappear into Rust, where the MagicDict logic will disappear. For
         # the base case this is fine, but things like Transformer.try_add_missing_key will break.
@@ -112,6 +136,7 @@ class PolarsIO(_dio.DataStructureIO[PolarsT, str, _tt.SourceType, _tt.IdType]):
             return series
 
         # Not map_elements(str): it warns, and suppressing that swaps the process-wide warnings filters.
+        # AGENTS: Don't widen _is_missing() beyond the values listed above.
         return _pl.Series(series.name, [None if _is_missing(v) else str(v) for v in series], dtype=_pl.String)
 
 

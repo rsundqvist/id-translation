@@ -7,8 +7,8 @@ from time import perf_counter
 from typing import Any, NamedTuple
 
 from rics.env.read import read_bool
-from rics.misc import tname
 
+from .._utils import type_name
 from ..types import TranslatableT
 from ._data_structure_io import DataStructureIO
 from ._util import pretty_io_name
@@ -127,7 +127,6 @@ class Repository:
         io_kwargs: Mapping[str, Any] | None = None,
         task_id: int | None = None,
     ) -> AnyIo:
-        """Get an IO instance for `arg` or raise ``UntranslatableTypeError``."""
         state = self._state
         _verify_priorities(state)
         enabled, disabled = state
@@ -141,7 +140,7 @@ class Repository:
             for io_class, (reason, _) in sorted(disabled.items(), key=lambda item: abs(item[0].priority), reverse=True)
             if io_class.handles_type(arg)
         ]
-        raise UntranslatableTypeError(f"Type {type(arg)} cannot be translated.", hints=hints)
+        raise UntranslatableTypeError.for_translatable(arg, hints=hints)
 
     @staticmethod
     def _initialize(
@@ -155,7 +154,7 @@ class Repository:
         if _LOGGER.isEnabledFor(logging.DEBUG):
             _LOGGER.debug(
                 f"Using rank-{rank} (priority={io_class.priority}) implementation"
-                f" '{pretty_io_name(io_class)}' for translatable of type='{tname(arg, include_module=True)}'.",
+                f" '{pretty_io_name(io_class)}' for translatable of type='{type_name(arg)}'.",
                 extra={"task_id": task_id},
             )
 

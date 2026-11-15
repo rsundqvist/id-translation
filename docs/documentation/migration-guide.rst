@@ -235,9 +235,12 @@ Questions that tend to come up mid-migration.
 **What do untranslated IDs look like?**
     Unknown IDs are rendered with a fallback :class:`~id_translation.offline.Format`: ``'<Failed: id=1>'`` by
     default. Configure it in the :ref:`[unknown_ids] <Section: Unknown IDs>` section, e.g. ``fmt = "Unknown"``, or
-    ``fmt = "{id}"`` to leave IDs as-is. Missing IDs in a ``DataFrame`` are never fetched and do not count towards
-    ``max_fails``; see :class:`~id_translation.dio.integration.pandas.PandasIO` for how they are rendered. A ``None`` in
-    a builtin collection is an ordinary -- unknown -- ID.
+    ``fmt = "{id}"`` to leave IDs as-is.
+
+**What about missing values?**
+    Missing IDs in a ``DataFrame`` are never fetched and do not count towards ``max_fails``; see
+    :class:`~id_translation.dio.integration.pandas.PandasIO` for how they are rendered. A ``None`` in a builtin
+    collection is an ordinary (unknown) ID.
 
 **How do I know the migration is complete?**
     Pass :meth:`translate(df, max_fails=0.0) <id_translation.Translator.translate>` while validating;

@@ -39,9 +39,7 @@ _KNOBS_CANDIDATES = [
     Candidate.of("pandas.Series"),
     Candidate.of("pandas.Series", as_category=True),
     Candidate.of("polars.Series"),
-    # fast=True forwards a UUID-keyed dict to replace_strict, which cannot build a polars Series of
-    # objects -> unsupported for the uuid id type.
-    Candidate.of("polars.Series", fast=True, skip_id_types=frozenset({"uuid"})),
+    Candidate.of("polars.Series", fast=True),
 ]
 
 

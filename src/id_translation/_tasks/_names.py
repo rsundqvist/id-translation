@@ -76,13 +76,13 @@ class NamesTask(BaseTask[NameType, SourceType, IdType]):
             )
         self._need_name_extraction = False
 
-        names: list[NameType] | None = self.io.names(self.translatable)
+        names = self.io.names(self.translatable)
         if names is None:
             raise MissingNamesError(
                 f"Failed to derive names for {self.type_name}-type data.",
                 hints="Use the 'names'-argument to specify names to translate.",
             )
-        self._extracted_names = names
+        self._extracted_names = as_list(names)
         return self._extracted_names
 
     @property

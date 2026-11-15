@@ -11,6 +11,7 @@ import pandas as _pd
 from id_translation import _uuid_utils
 from id_translation import dio as _dio
 from id_translation import types as _tt
+from id_translation.dio import _util
 from id_translation.dio.default import _sequence
 from id_translation.dio.exceptions import NotInplaceTranslatableError as _NotInplaceTranslatableError
 from id_translation.offline import MagicDict as _MagicDict
@@ -192,11 +193,13 @@ class PandasIO(_dio.DataStructureIO[PandasT, _tt.NameType, _tt.SourceType, _tt.I
         self,
         translatable: PandasT,
         names: list[_tt.NameType],
-    ) -> dict[_tt.NameType, _abc.Sequence[_tt.IdType]]:
+    ) -> _abc.Mapping[_tt.NameType, _abc.Sequence[_tt.IdType]]:
+        original = translatable
         if isinstance(translatable, _pd.MultiIndex):
             translatable = translatable.to_frame(index=False, allow_duplicates=True)
 
         if isinstance(translatable, _pd.DataFrame):
+            _util.require_names(self.names(translatable) or (), names, original)
             if isinstance(translatable.columns, _pd.MultiIndex):
                 rv: dict[_tt.NameType, _abc.Sequence[_tt.IdType]] = {}
                 level_values = translatable.columns.get_level_values(self._level)
@@ -227,6 +230,7 @@ class PandasIO(_dio.DataStructureIO[PandasT, _tt.NameType, _tt.SourceType, _tt.I
             return self._translate_index(translatable, names, tmap)
 
         if isinstance(translatable, _pd.DataFrame):
+            _util.require_names(self.names(translatable) or (), names, translatable)
             return self._translate_frame(translatable, names, tmap, copy)
 
         if isinstance(translatable, _pd.Series):
@@ -349,6 +353,7 @@ class PandasIO(_dio.DataStructureIO[PandasT, _tt.NameType, _tt.SourceType, _tt.I
     ) -> PandasT | None:
         if isinstance(index, _pd.MultiIndex):
             df = index.to_frame()
+            _util.require_names(df.columns, names, index)
             self._translate_frame(df, names, tmap, copy=False)
             return _pd.MultiIndex.from_frame(df, names=index.names)
 

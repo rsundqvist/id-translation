@@ -18,7 +18,7 @@ import pytest
 
 import id_translation
 from id_translation.dio.exceptions import NotInplaceTranslatableError, UntranslatableTypeError
-from id_translation.exceptions import TooManyFailedTranslationsError, TransformerStateError
+from id_translation.exceptions import MissingNamesError, TooManyFailedTranslationsError, TransformerStateError
 from id_translation.fetching import MemoryFetcher
 from id_translation.fetching.exceptions import (
     ConcurrentOperationWarning,
@@ -102,6 +102,7 @@ FACTORY_SAMPLES: dict[str, Callable[[], BaseException]] = {
     "UnknownSourceError.for_sources": lambda: UnknownSourceError.for_sources({"x"}, sources={"source"}),
     # A type that pickle cannot find by name.
     "NotInplaceTranslatableError.for_translatable": lambda: NotInplaceTranslatableError.for_translatable({}.keys()),
+    "UntranslatableTypeError.for_translatable": lambda: UntranslatableTypeError.for_translatable(object()),
 }
 
 DATA_SAMPLES: dict[str, Callable[[], BaseException]] = {
@@ -112,7 +113,7 @@ DATA_SAMPLES: dict[str, Callable[[], BaseException]] = {
         ScoringDisabledError, lambda: disabled("name", ["id", "name"], "source", strict=True)
     ),
     "AmbiguousScoreError": lambda: AmbiguousScoreError("msg", hints="Check it."),
-    "UntranslatableTypeError": lambda: UntranslatableTypeError("msg", hints="Check it."),
+    "UntranslatableTypeError": lambda: UntranslatableTypeError("msg", translatable_type="t", hints="Check it."),
     "BadDelimiterError": lambda: _raised(BadDelimiterError, lambda: Format("{a}]")),
     "TooManyFailedTranslationsError": lambda: TooManyFailedTranslationsError(
         "msg", name="n", source="s", n_untranslated=1, n_total=2, max_fails=0.5, sample_ids=[7]
@@ -120,6 +121,7 @@ DATA_SAMPLES: dict[str, Callable[[], BaseException]] = {
     "TransformerStateError": lambda: TransformerStateError("msg", source="s", hints="Check it."),
     "DuplicateSourceError": lambda: DuplicateSourceError("msg", source="s", hints="Check it."),
     "UnmappedValuesError": lambda: UnmappedValuesError("msg", unmapped=["a"]),
+    "MissingNamesError": lambda: MissingNamesError("msg", missing=["b"], hints="Check it."),
 }
 
 CLONES: dict[str, Callable[[BaseException], BaseException]] = {
@@ -166,14 +168,11 @@ def test_bare_string_is_one_item() -> None:
     assert TooManyFailedTranslationsError("msg", sample_ids="abc").sample_ids == ("abc",)
 
 
-def test_not_inplace_type_name() -> None:
+def test_translatable_type_name() -> None:
     import pandas as pd
-
-    unimportable = type("Unimportable", (), {"__module__": "nonexistent.mod"})
 
     series = pd.Series([1], index=["func"])
     assert NotInplaceTranslatableError.for_translatable(series).translatable_type == "pandas.Series"
+    assert UntranslatableTypeError.for_translatable(series.to_frame()).translatable_type == "pandas.DataFrame"
     assert NotInplaceTranslatableError.for_translatable({}.keys()).translatable_type == "builtins.dict_keys"
-    assert NotInplaceTranslatableError.for_translatable(unimportable()).translatable_type == (
-        "nonexistent.mod.Unimportable"
-    )
+    assert UntranslatableTypeError.for_translatable(object()).translatable_type == "builtins.object"

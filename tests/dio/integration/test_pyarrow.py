@@ -84,3 +84,21 @@ def register():
     yield
 
     reload_integrations()
+
+
+@pytest.mark.parametrize("online", [False, True])
+def test_explicit_name_missing_from_the_data_raises(data, online):
+    from id_translation.exceptions import MissingNamesError
+    from id_translation.fetching import MemoryFetcher
+
+    fetcher: MemoryFetcher[str, IdTypes] = MemoryFetcher({"ints": {"id": [0, 1], "name": ["int-zero", "int-one"]}})
+    translator = Translator[str, str, IdTypes](fetcher if online else data, fmt="{id!s:.8}:{name}")
+    with pytest.raises(MissingNamesError, match="nope") as exc_info:
+        translator.translate(pa.table({"ints": [0, 1]}), names=["ints", "nope"], override_function=lambda *_: "ints")
+    assert exc_info.value.missing == ("nope",)
+
+
+def test_all_missing_ids(translator):
+    assert translator.translate(pa.array([None], pa.int64()), names="ints", max_fails=0.0).to_pylist() == [
+        "<Failed: id=None>"
+    ]

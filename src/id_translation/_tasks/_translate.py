@@ -272,7 +272,7 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
         name_to_source = tmap.name_to_source
         translations: dict[SourceType, MagicDict[IdType]] = {}
 
-        for name, ids in name_to_ids.items():
+        for name, all_ids in name_to_ids.items():
             source = name_to_source[name]
             if source not in translations:
                 # By name: apply() resolves its argument as a name first, and a source may share a name.
@@ -284,14 +284,25 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
             else:
                 is_known = {*magic_dict.real.values()}.__contains__
 
-            is_missing = [not is_known(idx) for idx in ids]
-            n_untranslated = sum(is_missing)
-            if n_untranslated == 0:
+            ids = list(dict.fromkeys(all_ids))  # Unique IDs, in order: a repeated ID counts once, whatever the data.
+            untranslated = [idx for idx in ids if not is_known(idx)]
+            if not untranslated:
                 continue
+
             n_total = len(ids)
+            if len(untranslated) / n_total <= max_fails and not LOGGER.isEnabledFor(logging.DEBUG):
+                continue  # Merging repeated NaNs below can only lower the fraction.
+
+            nans = [idx for idx in untranslated if _is_nan(idx)]
+            if len(nans) > 1:  # Each NaN object is its own key in dict.fromkeys(), since nan != nan.
+                repeats = {id(nan) for nan in nans[1:]}
+                untranslated = [idx for idx in untranslated if id(idx) not in repeats]
+                n_total -= len(repeats)
+
+            n_untranslated = len(untranslated)
             f_untranslated = n_untranslated / n_total
 
-            sample_ids = self._get_untranslated_ids(ids, is_missing_mask=is_missing)
+            sample_ids = untranslated[:NUM_SAMPLE_IDS]
 
             fail = f_untranslated > max_fails
 
@@ -336,27 +347,18 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
         return {name: _uuid_utils.try_cast_many(ids) for name, ids in name_to_ids.items()}
 
     def _extract_ids(self) -> dict[NameType, Sequence[IdType]]:
-        name_to_ids: dict[NameType, Sequence[IdType]] = self.io.extract(self.translatable, self.io_names)
-
-        name_to_ids = {name: ids for name, ids in name_to_ids.items() if len(ids) > 0}
+        extracted = self.io.extract(self.translatable, self.io_names)
+        name_to_ids = {name: ids for name, ids in extracted.items() if len(ids) > 0}
 
         return name_to_ids
 
-    @staticmethod
-    def _get_untranslated_ids(ids: Sequence[IdType], *, is_missing_mask: Sequence[bool]) -> list[IdType]:
-        seen = set()
-        retval = []
 
-        for idx, is_missing in zip(ids, is_missing_mask, strict=True):
-            if not is_missing or idx in seen:
-                continue
-
-            seen.add(idx)
-            retval.append(idx)
-            if len(retval) == NUM_SAMPLE_IDS:
-                break
-
-        return retval
+def _is_nan(value: object) -> bool:
+    """Return ``True`` for a NaN-like value of any type (``np.float32``, ``NaT``), which ``isinstance(float)`` misses."""
+    try:
+        return bool(value != value)  # noqa: PLR0124  # Only NaN-like values are unequal to themselves.
+    except (TypeError, ValueError, ArithmeticError):  # From bool(), pd.NA and arrays; Decimal('sNaN') raises.
+        return False
 
 
 def _json_safe_types(items: list[Any]) -> list[Any]:

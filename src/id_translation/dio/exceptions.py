@@ -6,6 +6,7 @@ from typing import ClassVar as _ClassVar
 from typing import Self as _Self
 
 from .._utils import add_hints as _add_hints
+from .._utils import type_name as _type_name
 
 
 class DataStructureIOError(TypeError):
@@ -30,7 +31,28 @@ class DataStructureIOError(TypeError):
 
 
 class UntranslatableTypeError(DataStructureIOError):
-    """Exception indicating that a type cannot be translated."""
+    """Exception indicating that a type cannot be translated.
+
+    Use :meth:`~id_translation.dio.exceptions.UntranslatableTypeError.for_translatable` to build the standard message.
+
+    Args:
+        msg: The error message.
+        translatable_type: Name of the type that cannot be translated.
+        hints: Hints to add as notes, after a link to the docs.
+    """
+
+    def __init__(self, msg: str, *, translatable_type: str | None = None, hints: str | _Iterable[str] = ()) -> None:
+        super().__init__(msg, hints=hints)
+        self.translatable_type = translatable_type
+
+    @classmethod
+    def for_translatable(cls, translatable: _Any, *, hints: str | _Iterable[str] = ()) -> _Self:
+        """Create an error with the standard message."""
+        return cls(
+            f"Type {type(translatable)} cannot be translated.",
+            translatable_type=_type_name(translatable),
+            hints=hints,
+        )
 
 
 class NotInplaceTranslatableError(DataStructureIOError):
@@ -52,10 +74,9 @@ class NotInplaceTranslatableError(DataStructureIOError):
     @classmethod
     def for_translatable(cls, translatable: _Any, *, hints: str | _Iterable[str] = ()) -> _Self:
         """Create an error with the standard message."""
-        translatable_type = type(translatable)
         return cls(
-            f"Inplace translation not possible or implemented for type: {translatable_type}",
-            translatable_type=f"{translatable_type.__module__}.{translatable_type.__qualname__}",
+            f"Inplace translation not possible or implemented for type: {type(translatable)}",
+            translatable_type=_type_name(translatable),
             hints=hints,
         )
 

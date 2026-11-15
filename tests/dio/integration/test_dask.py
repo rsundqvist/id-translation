@@ -138,3 +138,18 @@ def test_missing_ids_are_not_counted(translator, frame):
 
     actual = translator.translate(translatable, max_fails=0.0).compute()
     assert (actual["ints"] if frame else actual).tolist() == ["0:int-zero", "0:int-zero", "<Failed: id=nan>"]
+
+
+@pytest.mark.parametrize("online", [False, True])
+def test_explicit_name_missing_from_the_data_raises(data, online):
+    import pandas as pd
+
+    from id_translation.exceptions import MissingNamesError
+    from id_translation.fetching import MemoryFetcher
+
+    fetcher: MemoryFetcher[str, IdTypes] = MemoryFetcher({"ints": {"id": [0, 1], "name": ["int-zero", "int-one"]}})
+    translator = Translator[str, str, IdTypes](fetcher if online else data, fmt="{id!s:.8}:{name}")
+    frame = dd.from_pandas(pd.DataFrame({"ints": [0, 1]}), npartitions=1)
+    with pytest.raises(MissingNamesError, match="nope") as exc_info:
+        translator.translate(frame, names=["ints", "nope"], override_function=lambda *_: "ints")
+    assert exc_info.value.missing == ("nope",)

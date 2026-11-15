@@ -59,7 +59,17 @@ class TranslationError(Exception):
 
 
 class MissingNamesError(TranslationError):
-    """Raised if names could not be derived based on the data type, and aren't explicitly given."""
+    """Raised if names cannot be derived from the data and aren't given, or are given but missing from the data.
+
+    Args:
+        msg: The error message.
+        missing: Explicitly given names that the data does not have. A single name may be given as a string.
+        hints: Additional context, attached as notes.
+    """
+
+    def __init__(self, msg: str, *, missing: _Iterable[_Any] | str = (), hints: str | _Iterable[str] = ()) -> None:
+        super().__init__(msg, hints=hints)
+        self.missing = _as_tuple(missing)
 
 
 class NoSourcesError(TranslationError):
@@ -77,8 +87,8 @@ class TooManyFailedTranslationsError(TranslationError):
         msg: The error message.
         name: The name whose IDs failed to translate.
         source: The source that `name` was mapped to.
-        n_untranslated: Number of IDs that failed to translate.
-        n_total: Number of IDs, including those that failed.
+        n_untranslated: Number of unique IDs that failed to translate.
+        n_total: Number of unique, present IDs, including those that failed.
         max_fails: The highest fraction of failed IDs that was allowed.
         sample_ids: Some of the IDs that failed to translate.
         hints: Additional context, attached as notes.

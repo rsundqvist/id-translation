@@ -7,6 +7,7 @@ from id_translation.offline import TranslationMap
 from id_translation.types import IdType, NameType, SourceType
 
 from .._data_structure_io import DataStructureIO
+from .._util import require_names
 
 
 class DictIO(DataStructureIO[dict[NameType, IdType], NameType, SourceType, IdType]):
@@ -24,6 +25,7 @@ class DictIO(DataStructureIO[dict[NameType, IdType], NameType, SourceType, IdTyp
 
     @classmethod
     def extract(cls, translatable: dict[NameType, IdType], names: list[NameType]) -> dict[NameType, Sequence[IdType]]:
+        require_names(translatable, names, translatable)
         return {name: as_list(translatable[name]) for name in names}
 
     @classmethod
@@ -36,6 +38,7 @@ class DictIO(DataStructureIO[dict[NameType, IdType], NameType, SourceType, IdTyp
     ) -> dict[NameType, Any] | None:
         from .._resolve import resolve_io  # noqa: PLC0415
 
+        require_names(translatable, names, translatable)
         translated = {}
         for key, value in translatable.items():
             dio: DataStructureIO[IdType | Sequence[IdType], NameType, SourceType, IdType] = resolve_io(value)

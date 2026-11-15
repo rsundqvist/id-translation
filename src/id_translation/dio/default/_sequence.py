@@ -1,5 +1,5 @@
 import os
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from typing import TYPE_CHECKING, Any, TypeVar
 
 from rics.collections.misc import as_list
@@ -44,7 +44,7 @@ class SequenceIO(DataStructureIO[SequenceT, NameType, SourceType, IdType]):
         return None
 
     @classmethod
-    def extract(cls, translatable: SequenceT, names: list[NameType]) -> dict[NameType, Sequence[IdType]]:
+    def extract(cls, translatable: SequenceT, names: list[NameType]) -> Mapping[NameType, Sequence[IdType]]:
         verify_names(len(translatable), names)
         if len(names) == 1:
             return {names[0]: as_list(translatable)}
@@ -52,7 +52,7 @@ class SequenceIO(DataStructureIO[SequenceT, NameType, SourceType, IdType]):
         ids: dict[NameType, list[IdType]] = {}
         for n, r in zip(names, translatable, strict=True):
             ids.setdefault(n, []).extend(as_list(r))  # Names may be repeated.
-        return dict(ids)  # Typing only: dict is invariant in its value type.
+        return ids
 
     @classmethod
     def insert(
@@ -73,17 +73,38 @@ class SequenceIO(DataStructureIO[SequenceT, NameType, SourceType, IdType]):
                 ctor = type(translatable)
             return ctor(t)
 
+        hint = (
+            "Use copy=True, or an array with dtype=object." if isinstance(translatable, ndarray) else "Use copy=True."
+        )
+        if isinstance(translatable, ndarray) and translatable.dtype.kind not in "OUST":
+            # Numpy casts strings into other dtypes where it can, e.g. any non-empty string to True.
+            raise NotInplaceTranslatableError.for_translatable(translatable, hints=hint)
+        if isinstance(translatable, ndarray) and translatable.dtype.kind in "US":
+            # Numpy truncates strings that are wider than the dtype without raising.
+            width = translatable.dtype.itemsize // (4 if translatable.dtype.kind == "U" else 1)
+            if any(n > width for n in _widths(t)):
+                raise NotInplaceTranslatableError.for_translatable(translatable, hints=hint)
+
         try:
             translatable[:] = t[:]  # type: ignore
             return None
-        except TypeError as e:
-            raise NotInplaceTranslatableError.for_translatable(translatable) from e
+        except (TypeError, ValueError) as e:  # ValueError: e.g. non-ASCII translations for a bytes array.
+            raise NotInplaceTranslatableError.for_translatable(translatable, hints=hint) from e
+
+
+def _widths(translations: Iterable[Any]) -> Iterator[int]:
+    for translation in translations:
+        if isinstance(translation, list):
+            yield from _widths(translation)
+        else:
+            yield len(str(translation))
 
 
 def translate_sequence(
-    s: SequenceT, names: list[NameType], tmap: TranslationMap[NameType, SourceType, IdType]
+    s: SequenceT,
+    names: list[NameType],
+    tmap: TranslationMap[NameType, SourceType, IdType],
 ) -> list[str]:
-    """Return a translated copy of the sequence `s`."""
     if len(names) == 1:
         magic_dict = tmap[names[0]]
         return [magic_dict[i] for i in s]

@@ -2,13 +2,14 @@
 
 import typing as _t
 from collections import abc as _abc
-from math import isnan as _isnan
 
 import pyarrow as _pa  #  type: ignore[import-untyped]
-from rics.misc import tname as _tname
+import pyarrow.compute as _pc  #  type: ignore[import-untyped]
 
 from id_translation import dio as _dio
 from id_translation import types as _tt
+from id_translation._utils import type_name as _type_name
+from id_translation.dio import _util
 from id_translation.dio.exceptions import NotInplaceTranslatableError as _NotInplaceTranslatableError
 from id_translation.offline import MagicDict as _MagicDict
 from id_translation.offline import TranslationMap as _TranslationMap
@@ -57,11 +58,13 @@ class ArrowIO(_dio.DataStructureIO[ArrowT, str, _tt.SourceType, _tt.IdType]):
     @classmethod
     def extract(cls, translatable: ArrowT, names: list[str]) -> dict[str, _abc.Sequence[_tt.IdType]]:
         # Missing values are pass-throughs, as for pandas: never fetched, and never counted by `max_fails`.
+        # AGENTS: Missing is what Arrow says it is; don't handle other NaN types.
         if isinstance(translatable, _pa.Table):
+            _util.require_names(translatable.column_names, names, translatable)
             return {name: cls._extract_present(translatable.column(name)) for name in names}
         else:
             if len(names) != 1:
-                msg = f"{len(names)=} != 1 is not supported for {_tname(translatable, include_module=True)}"
+                msg = f"{len(names)=} != 1 is not supported for {_type_name(translatable)}"
                 raise NotImplementedError(msg)
             return {names[0]: cls._extract_present(translatable)}
 
@@ -76,12 +79,13 @@ class ArrowIO(_dio.DataStructureIO[ArrowT, str, _tt.SourceType, _tt.IdType]):
             raise _NotInplaceTranslatableError.for_translatable(translatable)
 
         if isinstance(translatable, _pa.Table):
+            _util.require_names(translatable.column_names, names, translatable)
             for name in names:
                 translated_ids = self._translate_array(translatable.column(name), tmap[name])
                 translatable = translatable.set_column(translatable.column_names.index(name), name, translated_ids)
         else:
             if len(names) != 1:
-                msg = f"{len(names)=} != 1 is not supported for {_tname(translatable, include_module=True)}"
+                msg = f"{len(names)=} != 1 is not supported for {_type_name(translatable)}"
                 raise NotImplementedError(msg)
             translatable = self._translate_array(translatable, tmap[names[0]])
 
@@ -93,10 +97,8 @@ class ArrowIO(_dio.DataStructureIO[ArrowT, str, _tt.SourceType, _tt.IdType]):
 
     @classmethod
     def _extract_present(cls, ids: _ArrayT) -> list[_tt.IdType]:
-        # Narrower than PolarsIO's: to_pylist() gives NaN only as a float, and Arrow holds no pd.NA.
-        return [
-            idx for idx in cls._extract_unique(ids) if not (idx is None or (isinstance(idx, float) and _isnan(idx)))
-        ]
+        unique = ids.unique()
+        return unique.filter(_pc.invert(_pc.is_null(unique, nan_is_null=True))).to_pylist()  # type: ignore[no-any-return]
 
     def _translate_array(self, ids: _ArrayT, magic_dict: _MagicDict[_tt.IdType]) -> _ArrayT:
         get_item = magic_dict.real_get if self._missing_as_nan else magic_dict.__getitem__

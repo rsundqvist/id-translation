@@ -6,10 +6,11 @@ from collections import abc as _abc
 import pandas as _pd
 from dask import compute as _compute
 from dask import dataframe as _dd
-from rics.misc import tname as _tname
 
 from id_translation import types as _tt
+from id_translation._utils import type_name as _type_name
 from id_translation.dio import DataStructureIO as _DataStructureIO
+from id_translation.dio import _util
 from id_translation.dio.exceptions import NotInplaceTranslatableError as _NotInplaceTranslatableError
 from id_translation.dio.integration.pandas import PandasIO as _PandasIO
 from id_translation.dio.integration.pandas import _Ordered
@@ -79,11 +80,13 @@ class DaskIO(_DataStructureIO[DaskT, str, _tt.SourceType, _tt.IdType]):
     def extract(cls, translatable: DaskT, names: list[str]) -> dict[str, _abc.Sequence[_tt.IdType]]:
         if isinstance(translatable, _dd.Series):
             if len(names) != 1:
-                msg = f"{len(names)=} != 1 is not supported for {_tname(translatable, include_module=True)}"
+                msg = f"{len(names)=} != 1 is not supported for {_type_name(translatable)}"
                 raise NotImplementedError(msg)
             return {names[0]: translatable.dropna().unique().compute().to_list()}
         else:
+            _util.require_names(translatable.columns, names, translatable)
             # Missing values are pass-throughs, as for pandas: never fetched, and never counted by `max_fails`.
+            # AGENTS: Missing is what dask says it is; don't handle other NaN types.
             delayed = {n: translatable[n].dropna().unique() for n in names}
             name_to_ids = _compute(delayed)[0]
             return {name: ids.to_list() for name, ids in name_to_ids.items()}
@@ -97,6 +100,8 @@ class DaskIO(_DataStructureIO[DaskT, str, _tt.SourceType, _tt.IdType]):
     ) -> DaskT:
         if not copy:
             raise _NotInplaceTranslatableError.for_translatable(translatable)  # Can't in-place a compute graph.
+        if isinstance(translatable, _dd.DataFrame):
+            _util.require_names(translatable.columns, names, translatable)  # Now, not when the graph is computed.
 
         return translatable.map_partitions(  # type: ignore[no-any-return]
             translate_partition,
