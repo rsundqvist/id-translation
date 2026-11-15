@@ -40,6 +40,10 @@ class SequenceIO(DataStructureIO[SequenceT, NameType, SourceType, IdType]):
         return isinstance(arg, (list, ndarray, tuple))
 
     @classmethod
+    def names(cls, translatable: SequenceT) -> None:  # noqa: ARG003
+        return None
+
+    @classmethod
     def extract(cls, translatable: SequenceT, names: list[NameType]) -> dict[NameType, Sequence[IdType]]:
         verify_names(len(translatable), names)
         if len(names) == 1:

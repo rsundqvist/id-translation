@@ -2,9 +2,59 @@
 
 Translation IO
 ==============
-The :mod:`id_translation.dio` module defines how IDs are read and written to various data structures.
+The :mod:`id_translation.dio` module defines how IDs are read and written to various data structures. Builtin
+collections and scalars are supported by default; ``pandas`` and ``polars`` are used when installed, while ``dask`` and
+``pyarrow`` are opt-in. See the :ref:`table of bundled integrations <io-implementations>`.
 
 .. currentmodule:: id_translation.dio
+
+Selection process
+-----------------
+The :class:`~id_translation.Translator` will call :func:`.resolve_io` once per task. The first implementation whose
+:meth:`DataStructureIO.handles_type`-method returns ``True`` will be used. The order in which implementations are
+considered is determined by the magnitude of the :attr:`~DataStructureIO.priority` attribute. At equal magnitude,
+implementations passed to ``register()`` come first, most recent first, followed by those never registered, sorted by
+fully qualified name.
+
+Bundled implementations have priority magnitudes in the `1000 - 1999` range (inclusive); the opt-in ones carry the
+negative of theirs. See the table below.
+
+..
+   The csv-table directive does not work properly when used in src/id_translation/dio/__init__.py with :path:.
+
+.. _io-implementations:
+
+.. csv-table:: Ranking of built-in :class:`DataStructureIO` implementations.
+   :file: io-ranks.csv
+   :header-rows: 1
+
+.. rubric:: Footnotes
+
+.. [#automatic] Registered automatically if dependencies are installed.
+.. [#explicit] Opt-in (negative ``priority``); requires an explicit :meth:`~DataStructureIO.register` call.
+
+.. _io-priority:
+
+Registration and priority
+-------------------------
+An implementation is considered only while it is enabled, and :meth:`~DataStructureIO.register` and
+:meth:`~DataStructureIO.unregister` switch it. Discovery enables the bundled defaults, and an entrypoint's
+implementation unless its :attr:`~DataStructureIO.priority` is negative; any other implementation is enabled by
+``register()``. A negative :attr:`~DataStructureIO.priority` makes an integration *opt-in* rather than unusable. The
+entrypoint is still loaded, but the implementation is not considered until :meth:`~DataStructureIO.register` is called,
+after which it is ordered by ``abs(priority)`` as any other integration is. Installing the underlying package is
+therefore not enough to change how anything translates; the application has to ask.
+
+Call :meth:`~DataStructureIO.unregister` to disable any implementation, including a bundled one. Of any sequence of
+``register()`` and ``unregister()`` calls, the last one wins. After discovery, changing `priority` never enables or
+disables an implementation.
+
+To change `priority`, assign the new value and then call :meth:`~DataStructureIO.register`. An assignment alone is read
+only by discovery, which happens on first use of the registry and in :func:`~id_translation.dio.reload_integrations`.
+Between those, changing the `priority` of a registered implementation makes every read of the registry raise
+:class:`~id_translation.dio.exceptions.DataStructureIOError` until ``register()`` or ``unregister()`` is called on that
+implementation. So does making the `priority` of a discovered, disabled implementation non-negative if it was negative
+when it was disabled; call ``register()`` to enable it.
 
 Runtime arguments
 -----------------
@@ -21,7 +71,9 @@ To get started, inherit from :class:`DataStructureIO` or copy an
 :class:`existing <.integration.polars.PolarsIO>` integration. Don't forget to
 :meth:`register <.DataStructureIO.register>` the implementation, or the :class:`.Translator` won't be able to find it.
 
-Integrations may take initialization arguments (see :ref:`Runtime arguments`), but should not require them.
+Integrations may take initialization arguments, which callers pass as `io_kwargs` (see :ref:`Runtime arguments`), but
+should not require them. New implementations default to ``priority=10_000``, and are therefore considered before the
+bundled ones.
 
 Automatic integration discovery
 -------------------------------
@@ -31,39 +83,15 @@ snippet below shows how the :mod:`bundled <.integration>` integrations are regis
 
 .. code-block:: toml
    :caption: Entrypoints in ``pyproject.toml`` in the
-        https://github.com/rsundqvist/id-translation/blob/v0.15.0/pyproject.toml#L50-L54 project.
+        https://github.com/rsundqvist/id-translation/blob/master/pyproject.toml project.
 
    [project.entry-points."id_translation.dio"]
    # The name (e.g. 'pandas_io') is not important, but should be unique.
    pandas_io = "id_translation.dio.integration.pandas:PandasIO"
    dask_io = "id_translation.dio.integration.dask:DaskIO"
    polars_io = "id_translation.dio.integration.polars:PolarsIO"
+   arrow_io = "id_translation.dio.integration.pyarrow:ArrowIO"
 
-The :func:`loader <id_translation.dio.reload_integrations>` will skip the integration if calling
-:class:`EntryPoint.load() <importlib.metadata.EntryPoint>` raises a :py:class:`ModuleNotFoundError`,
-or if the :attr:`~DataStructureIO.priority` is negative.
-
-Selection process
------------------
-The :class:`~id_translation.Translator` will call :func:`.resolve_io` once per task. The first implementation whose
-:meth:`DataStructureIO.handles_type`-method returns ``True`` will be used. The order in which implementations are
-considered is determined by the :attr:`~DataStructureIO.priority` attribute.
-
-Bundled implementations have priorities in the `1000 - 1999` range (inclusive); see the table below.
-
-..
-   The csv-table directive does not work properly when used in src/id_translation/dio/__init__.py with :path:.
-
-.. _io-implementations:
-
-.. csv-table:: Ranking of built-in :class:`DataStructureIO` implementations.
-   :file: io-ranks.csv
-   :header-rows: 1
-
-New implementations default to ``priority=10_000``, and are therefore considered first.
-
-.. rubric:: Footnotes
-
-.. [#automatic] Registered automatically if dependencies are installed. ``DaskIO`` loses this in ``2.0.0``;
-   call :meth:`~DataStructureIO.register` to opt in.
-.. [#explicit] Requires explicit :meth:`~DataStructureIO.register` call.
+Discovery enables the class an entrypoint names unless it is :ref:`opt-in <io-priority>`, in which case enabling it is
+up to the application. Neither the module nor its parent packages may use the registry at import time, e.g. by calling
+:meth:`~DataStructureIO.register`.

@@ -80,10 +80,7 @@ def test_missing_ids_are_not_counted(translator, ids):
 def register():
     assert not ArrowIO.is_registered(), f"{ArrowIO.priority=}"
 
-    with pytest.MonkeyPatch().context() as monkeypatch:
-        monkeypatch.setattr(ArrowIO, "priority", -ArrowIO.priority)
-
-        ArrowIO.register()
-        yield
+    ArrowIO.register()
+    yield
 
     reload_integrations()

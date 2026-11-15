@@ -4,24 +4,25 @@ from typing import Any
 
 from ..types import IdType, NameType, SourceType, TranslatableT
 from ._data_structure_io import DataStructureIO
-from ._repository import ENTRYPOINT_GROUP, AnyIoType, Repository
-from .exceptions import RegistryReentryError
+from ._repository import ENTRYPOINT_GROUP, AnyIoType, Repository, reentry_error
 
 _INSTANCE_LOCK = RLock()  # Re-entrant, so that a thread re-entering from entrypoint loading reaches the check below.
 _INSTANCE: Repository | None = None
-_LOADING = False  # Only read and written while holding _INSTANCE_LOCK.
+_LOADING = False  # Only written while holding _INSTANCE_LOCK.
 
 
 def _get_repository(*, reset: bool = False) -> Repository:
     global _INSTANCE, _LOADING  # noqa: PLW0603
 
+    # Lock-free once loaded: taken on every translate, an interrupt could otherwise leave the lock held and block every
+    # other thread's translations until a restart. A reload or a first load still takes it.
+    if not reset and (instance := _INSTANCE) is not None and not _LOADING:
+        return instance
+
     with _INSTANCE_LOCK:
-        if _LOADING:  # An entrypoint module used the registry at import. Deferring it would hide that from 2.0 too.
-            raise RegistryReentryError(
-                f"The IO registry was used while loading the '{ENTRYPOINT_GROUP}' entrypoint integrations.",
-                hints="Do not call register() or otherwise use the registry at import time in a module loaded as an"
-                " entrypoint, or in one of its parent packages. Discovery registers the class the entrypoint names.",
-            )
+        # Checked before `_INSTANCE`, which still holds the old registry during `reload_integrations()`.
+        if _LOADING:
+            raise reentry_error()
 
         if reset or _INSTANCE is None:
             _LOADING = True
@@ -51,6 +52,8 @@ def resolve_io(
 
     Raises:
         ~id_translation.dio.exceptions.UntranslatableTypeError: If no suitable IO implementation could be found.
+        ~id_translation.dio.exceptions.DataStructureIOError: If a `priority` change awaits a ``register()`` or
+            ``unregister()`` call (see the :ref:`priority rules <io-priority>`).
         Exception: Whatever the resolved IO class raises, if construction with `io_kwargs` fails. See the
             :envvar:`ID_TRANSLATION_SUPPRESS_IO_KWARGS_ERRORS` variable to downgrade this to a logged warning instead.
 
@@ -65,15 +68,35 @@ def get_resolution_order() -> list[AnyIoType]:
 
     Returns:
         A list of IO implementations sorted by rank.
+
+    Raises:
+        ~id_translation.dio.exceptions.DataStructureIOError: If a `priority` change awaits a ``register()`` or
+            ``unregister()`` call (see the :ref:`priority rules <io-priority>`).
     """
     return _get_repository().enabled_ios
 
 
+def unregister_io(io: AnyIoType) -> None:
+    """Disable an IO implementation.
+
+    An implementation found by discovery, bundled or named by an entrypoint, stays known, so that
+    :func:`~id_translation.dio.register_io` can enable it again. Any other is forgotten. Of any sequence of
+    ``register_io`` and ``unregister_io`` calls for the same implementation, the last one wins. Thread safe; see
+    :ref:`thread-safety`.
+
+    Args:
+        io: A :class:`~id_translation.dio.DataStructureIO` type.
+    """
+    _get_repository().unregister(io)
+
+
 def register_io(io: AnyIoType) -> None:
-    """Register a new IO implementation.
+    """Enable an IO implementation.
 
     Classes are polled through :meth:`DataStructureIO.handles_type <id_translation.dio.DataStructureIO.handles_type>` in
-    based on :attr:`DataStructureIO.priority <id_translation.dio.DataStructureIO.priority>`.
+    the order given by :attr:`DataStructureIO.priority <id_translation.dio.DataStructureIO.priority>`. Of any
+    sequence of ``register_io`` and ``unregister_io`` calls for the same implementation, the last one wins. Thread
+    safe; see :ref:`thread-safety`.
 
     Args:
         io: A :class:`~id_translation.dio.DataStructureIO` type
@@ -84,33 +107,38 @@ def register_io(io: AnyIoType) -> None:
 def is_registered(io: AnyIoType) -> bool:
     """Return IO implementation registration status.
 
-    Implementations should register themselves using
-    :meth:`DataStructureIO.register <id_translation.dio.DataStructureIO.register>`.
+    Returns ``False`` for an opt-in implementation that has not been registered, after
+    :func:`~id_translation.dio.unregister_io`, and for an implementation that is not known to the registry.
 
     Args:
         io: A :class:`~id_translation.dio.DataStructureIO` type.
+
+    Raises:
+        ~id_translation.dio.exceptions.DataStructureIOError: If a `priority` change awaits a ``register()`` or
+            ``unregister()`` call (see the :ref:`priority rules <io-priority>`).
     """
     return _get_repository().is_registered(io)
 
 
 def reload_integrations() -> None:
-    """Discard the registry, then discover, load and register entrypoint integrations afresh.
+    """Discard the registry and rebuild it, enabling all but the opt-in integrations.
 
-    Reset the registry, then load entrypoints in the
-    :const:`{_ENTRYPOINT_GROUP!r} <id_translation.dio.ENTRYPOINT_GROUP>` entrypoint group (see
-    :py:func:`importlib.metadata.entry_points` for details).
+    Loads entrypoints in the :const:`{_ENTRYPOINT_GROUP!r} <id_translation.dio.ENTRYPOINT_GROUP>` entrypoint group
+    (see :py:func:`importlib.metadata.entry_points` for details).
 
     Will skip integrations that raise :class:`ModuleNotFoundError` when loaded. Any other :class:`ImportError`
     (e.g. a circular import) propagates instead.
 
     Raises:
         TypeError: If an integration does not inherit from :class:`~id_translation.dio.DataStructureIO`.
-        ~id_translation.dio.exceptions.RegistryReentryError: If an entrypoint module uses the registry at import.
+        TypeError: If an integration does not implement all the abstract methods.
+        ~id_translation.dio.exceptions.RegistryReentryError: If the registry is used while it loads the entrypoint
+            integrations, e.g. by an entrypoint module at import time.
 
     Notes:
-        The registry loads integrations the same way on first use.
+        Integrations are loaded on first use, so calling this is only needed to pick up changes made since. Every
+        earlier :func:`~id_translation.dio.register_io` and :func:`~id_translation.dio.unregister_io` call is discarded.
     """
-    # TODO(2.0.0): Expose repo class init params, e.g. for keeping manually registered IOs.
     _get_repository(reset=True)
 
 

@@ -10,6 +10,7 @@ from ._resolve import (
     register_io,
     reload_integrations,
     resolve_io,
+    unregister_io,
 )
 from ._util import pretty_io_name
 
@@ -28,4 +29,5 @@ __all__ = [
     "register_io",
     "reload_integrations",
     "resolve_io",
+    "unregister_io",
 ]

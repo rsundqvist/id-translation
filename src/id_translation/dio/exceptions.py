@@ -2,20 +2,28 @@
 
 from collections.abc import Iterable as _Iterable
 from typing import Any as _Any
+from typing import ClassVar as _ClassVar
 from typing import Self as _Self
 
 from .._utils import add_hints as _add_hints
 
 
 class DataStructureIOError(TypeError):
-    """Base class for IO exceptions."""
+    """Base class for IO exceptions.
+
+    Args:
+        msg: The error message.
+        hints: Hints to add as notes, after a link to the docs.
+    """
+
+    _anchor: _ClassVar[str] = "user-defined-integrations"  # The translation-io section that the first hint links to.
 
     def __init__(self, msg: str, *, hints: str | _Iterable[str] = ()) -> None:
         super().__init__(msg)
 
         from id_translation._utils import DOC_LINK  # noqa: PLC0415
 
-        url = DOC_LINK + "api/id_translation.dio.html#user-defined-integrations"
+        url = DOC_LINK + f"documentation/translation-io.html#{self._anchor}"
         self.add_note(f"Hint: {url}")
 
         _add_hints(self, hints)
@@ -58,3 +66,5 @@ class RegistryReentryError(DataStructureIOError):
     Typically raised when a module loaded as an entrypoint calls :meth:`~id_translation.dio.DataStructureIO.register`
     at import time. Not an ``ImportError``, so that optional-import guards in the entrypoint module do not swallow it.
     """
+
+    _anchor = "automatic-integration-discovery"

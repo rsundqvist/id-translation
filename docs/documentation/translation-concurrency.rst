@@ -41,6 +41,13 @@ thread safe. Every :class:`.TranslationMap` the ``Translator`` creates inherits 
 :attr:`.Translator.cache` from :meth:`.Translator.go_offline`. Once :ref:`settled <transformation-primer-settling>`,
 they cannot be changed underneath a shared instance.
 
+IO registry
+-----------
+The :mod:`~id_translation.dio` registry is process-wide. :func:`.register_io` and :func:`.unregister_io` are thread
+safe, but assigning :attr:`.DataStructureIO.priority` is not: it can make translating raise in every thread until
+``register()`` or ``unregister()`` is called (see the :ref:`priority rules <io-priority>`). Assign priorities before
+other threads translate.
+
 .. _thread-safety-fetchers:
 
 Fetchers

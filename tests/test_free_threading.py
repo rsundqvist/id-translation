@@ -18,12 +18,14 @@ import sys
 import sysconfig
 import threading
 from collections.abc import Callable
+from typing import Any
 
 import pandas as pd
 import pytest
 
 from id_translation import Translator
-from id_translation.dio import _resolve
+from id_translation.dio import _resolve, is_registered, resolve_io
+from id_translation.dio.default import ScalarIO
 from id_translation.mapping import Mapper
 
 from .conftest import HexFetcher
@@ -145,17 +147,13 @@ def test_shared_translator_pandas_inplace(offline_translator: Translator[str, st
     _run_in_threads(worker)
 
 
-def test_concurrent_io_resolution(offline_translator: Translator[str, str, int]) -> None:
-    """Race the lazy DIO singleton: reset the repository, then resolve IO from many threads.
-
-    ``resolve_io()`` mutates the repository's enabled/disabled IO lists without a lock; concurrent
-    first-time resolutions can corrupt those lists. We assert every translation still produces the
-    correct frame.
-    """
+def test_concurrent_io_resolution(
+    offline_translator: Translator[str, str, int], monkeypatch: pytest.MonkeyPatch
+) -> None:
     base = pd.DataFrame({"positive_numbers": DICT_INPUT["positive_numbers"]})
     expected = offline_translator.translate(base.copy(), copy=True)
 
-    _resolve._get_repository(reset=True)  # force first-time IO resolution to happen under contention
+    monkeypatch.setattr(_resolve, "_INSTANCE", None)  # Workers race to create the registry.
 
     def worker(_idx: int, _i: int) -> None:
         out = offline_translator.translate(base.copy(), copy=True)
@@ -164,25 +162,69 @@ def test_concurrent_io_resolution(offline_translator: Translator[str, str, int])
     _run_in_threads(worker)
 
 
+def test_concurrent_register_unregister(monkeypatch: pytest.MonkeyPatch) -> None:
+    class HandRegistered(ScalarIO[int, str, str]):
+        priority = 1500  # Ties with ScalarIO, so registering it shifts ScalarIO's rank.
+
+        @classmethod
+        def handles_type(cls, arg: Any) -> bool:  # noqa: ARG003
+            return False
+
+    class OptInOnly(HandRegistered):
+        priority = -1500
+
+    monkeypatch.setattr(_resolve, "_INSTANCE", None)
+    repository = _resolve._get_repository()
+    OptInOnly.register()  # Discovered or not, all that matters is that the state keeps changing.
+
+    def worker(idx: int, _i: int) -> None:
+        match idx % 4:
+            case 0:
+                HandRegistered.register()
+                HandRegistered.unregister()
+            case 1:
+                OptInOnly.unregister()
+                OptInOnly.register()
+            case _:
+                assert type(resolve_io(1)) is ScalarIO
+                all_ios = repository.all_ios
+                assert len(all_ios) == len(set(all_ios))
+
+    _run_in_threads(worker, iterations=500)
+
+
+def test_concurrent_registration_loses_nothing(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Concurrent ``register()`` calls must all take effect; ``dio`` promises they are safe at any time.
+
+    Each thread registers its own implementations, so any that end up unregistered were lost to a racing writer. The
+    copy-on-write state keeps readers safe on its own; this is what the writers' lock is for.
+    """
+    per_thread = 20
+
+    def make(name: str) -> type[ScalarIO[int, str, str]]:
+        attrs = {"priority": 1500, "handles_type": classmethod(lambda cls, arg: False)}  # noqa: ARG005
+        return type(name, (ScalarIO,), attrs)
+
+    ios = [[make(f"IO_{t}_{i}") for i in range(per_thread)] for t in range(N_THREADS)]
+    monkeypatch.setattr(_resolve, "_INSTANCE", None)
+
+    def worker(idx: int, i: int) -> None:
+        ios[idx][i].register()
+
+    _run_in_threads(worker, iterations=per_thread)
+    lost = [io.__name__ for row in ios for io in row if not is_registered(io)]
+    assert lost == [], f"{len(lost)} of {N_THREADS * per_thread} registrations lost"
+
+
 @pytest.mark.xfail(
     strict=True,
     raises=BaseExceptionGroup,
-    reason="Shared Translator._translated_names race; xfail flips to a failure once fixed.",
+    reason="translated_names() is not thread safe, by design (documented).",
 )
 def test_concurrent_translated_names_is_consistent(offline_translator: Translator[str, str, int]) -> None:
-    """Expose the shared ``Translator._translated_names`` race.
+    """Concurrent ``translate()`` calls on a shared instance overwrite each other's ``translated_names()``.
 
-    Each thread translates a single, fixed source and then reads :meth:`Translator.translated_names`,
-    asserting it reflects *its own* most recent call. ``translate()`` writes ``self._translated_names``
-    on a shared instance with no synchronization, so a concurrent call overwrites it between a
-    thread's write and read and the assertion fails.
-
-    .. note::
-
-       Marked ``xfail(strict=True)``: the assertion encodes the desired (thread-safe) behaviour and is
-       expected to fail on a free-threaded build today. When the shared "last call" metadata is made
-       thread-safe (e.g. thread-local) or removed, the test will pass and ``strict`` turns the XPASS
-       into a failure, prompting removal of this marker. Do not weaken the assertion to make it pass.
+    ``strict``, so a change that makes it thread safe shows up here.
     """
     groups = [
         ({"positive_numbers": [1, 2, 3]}, {"positive_numbers"}),

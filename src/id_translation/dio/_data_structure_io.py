@@ -6,27 +6,43 @@ from typing import Any, ClassVar, Generic
 
 from ..offline import TranslationMap
 from ..types import IdType, NameType, SourceType, TranslatableT
+from ._util import pretty_io_name
 from .exceptions import DataStructureIOError
 
 
 class DataStructureIO(Generic[TranslatableT, NameType, SourceType, IdType]):
     """Insertion and extraction of IDs and translations."""
 
+    # Priority changes are caught only when the registry is read (see `_verify_priorities`). The error then surfaces
+    # far from the assignment, and assigning while other threads translate makes them raise. A metaclass `__setattr__`
+    # would catch the assignment itself, but every subclass inherits the metaclass, so a downstream implementation that
+    # also derives from a base with an unrelated metaclass of its own fails at class creation with a metaclass conflict.
     priority: ClassVar[int] = 10_000
-    """Determines order in which IOs are considered (higher = earlier).
+    """Determines the order in which implementations are considered, largest ``abs(priority)`` first.
 
-    Set `priority < 0` to disable.
+    A negative value makes the implementation opt-in. To change the value, assign it and then call ``register()``. See
+    the :ref:`priority rules <io-priority>` for details.
     """
 
     @classmethod
     def register(cls) -> None:
-        """Register this implementation for all :class:`~id_translation.Translator` instances.
+        """Enable this implementation for all :class:`~id_translation.Translator` instances.
 
         See :func:`dio.register_io <id_translation.dio.register_io>` for details.
         """
         from ._resolve import register_io  # noqa: PLC0415
 
         return register_io(cls)
+
+    @classmethod
+    def unregister(cls) -> None:
+        """Disable this implementation for all :class:`~id_translation.Translator` instances.
+
+        See :func:`dio.unregister_io <id_translation.dio.unregister_io>` for details.
+        """
+        from ._resolve import unregister_io  # noqa: PLC0415
+
+        return unregister_io(cls)
 
     @classmethod
     def is_registered(cls) -> bool:
@@ -50,6 +66,8 @@ class DataStructureIO(Generic[TranslatableT, NameType, SourceType, IdType]):
 
         Raises:
             ~id_translation.dio.exceptions.DataStructureIOError: If the implementation is not registered.
+            ~id_translation.dio.exceptions.DataStructureIOError: If a `priority` change awaits a ``register()`` or
+                ``unregister()`` call (see the :ref:`priority rules <io-priority>`).
         """
         from ._resolve import get_resolution_order  # noqa: PLC0415
 
@@ -57,7 +75,7 @@ class DataStructureIO(Generic[TranslatableT, NameType, SourceType, IdType]):
             return get_resolution_order().index(cls)
         except ValueError:
             exc = DataStructureIOError(f"Not registered: {cls.__name__}")
-            exc.add_note(f"Hint: Use {cls.register.__qualname__}() to register this implementation.")
+            exc.add_note(f"Hint: Use {pretty_io_name(cls)}.register() to register this implementation.")
             raise exc from None
 
     @classmethod
@@ -65,6 +83,7 @@ class DataStructureIO(Generic[TranslatableT, NameType, SourceType, IdType]):
     def handles_type(cls, arg: Any) -> bool:
         """Return ``True`` if the implementation handles data for the type of `arg`."""
 
+    @abstractmethod
     def names(self, translatable: TranslatableT) -> list[NameType] | None:
         """Extract names from `translatable`.
 
@@ -74,7 +93,6 @@ class DataStructureIO(Generic[TranslatableT, NameType, SourceType, IdType]):
         Returns:
             A list of names to translate. Returns ``None`` if names cannot be extracted.
         """
-        return translatable.name if hasattr(translatable, "name") else None
 
     @abstractmethod
     def extract(self, translatable: TranslatableT, names: list[NameType]) -> dict[NameType, Sequence[IdType]]:

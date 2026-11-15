@@ -17,6 +17,10 @@ class SetIO(DataStructureIO[set[IdType], NameType, SourceType, IdType]):
         return isinstance(arg, set)
 
     @classmethod
+    def names(cls, translatable: set[IdType]) -> None:  # noqa: ARG003
+        return None
+
+    @classmethod
     def extract(cls, translatable: set[IdType], names: list[NameType]) -> dict[NameType, Sequence[IdType]]:
         if len(names) != 1:  # pragma: no cover
             raise ValueError("Length of names must be one.")
