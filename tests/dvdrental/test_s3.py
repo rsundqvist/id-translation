@@ -36,8 +36,8 @@ def test_pandas_fetcher(imdb_translator):
     put_objects(imdb_translator.fetch().to_pandas())
     translator: Translator[str, str, int] = Translator.from_config(CONFIG_FILE)
     assert translator.placeholders == {
-        "name_basics": ["id", "to", "name", "from"],
-        "title_basics": ["from", "to", "name", "runtimeMinutes", "original_name", "id"],
+        "name_basics": ["id", "name", "from", "to"],
+        "title_basics": ["id", "name", "original_name", "from", "to"],
     }
     assert translator.translate(
         {

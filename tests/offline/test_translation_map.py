@@ -48,7 +48,8 @@ class TestToFromPandas:
         with pytest.raises(AssertionError) as e:
             pd.testing.assert_frame_equal(frames[source], from_pandas[source], obj=f"to_pandas[{source!r}]")
 
-        assert f'to_pandas[{source!r}].iloc[:, 5] (column name="id") are different' in str(e.value)
+        pos = frames[source].columns.get_loc("id")
+        assert f'to_pandas[{source!r}].iloc[:, {pos}] (column name="id") are different' in str(e.value)
 
     def test_equal_to_dicts_format(self):
         frames = self._tmap.to_pandas()

@@ -4,23 +4,25 @@ from collections.abc import Callable, Mapping
 from functools import partial
 from pathlib import Path
 from typing import Any, Unpack
-from urllib.parse import urlsplit
 
 import pandas as pd
 from rics.misc import get_by_full_name, tname
 from rics.types import AnyPath
 
 from .. import _uuid_utils
-from .._utils import resolve_changing_default
-from .._utils.emit_warning import emit_warning
+from .._utils import add_hints
 from ..logging import generate_task_id
 from ..offline.types import PlaceholderTranslations
-from ..types import IdType
+from ..types import ID, IdType
+from . import exceptions
 from ._abstract_fetcher import AbstractFetcher, AbstractFetcherParams
 from .types import FetchInstruction
 
 PandasReadFunction = Callable[[AnyPath], pd.DataFrame]
 FormatFn = Callable[[str], str]
+
+_READ_FUNCTION_HINT = "Set `read_function`, e.g. `'read_csv'`."
+_PLACEHOLDER_HINT = "Put `{}` where the source name goes, e.g. `'data/{}.csv'`."
 
 _SUFFIX_TO_READER: dict[str, tuple[str, PandasReadFunction]] = {
     ".csv": ("pandas.read_csv", pd.read_csv),
@@ -43,27 +45,25 @@ _SUFFIX_TO_READER: dict[str, tuple[str, PandasReadFunction]] = {
 }
 
 
-_LEGACY_SUFFIXES = {
-    s: _SUFFIX_TO_READER[s] for s in (".csv", ".pickle", ".pkl", ".feather", ".ftr", ".json", ".parquet", ".parq")
-}
-
-
 class PandasFetcher(AbstractFetcher[str, IdType]):
     """Fetcher implementation using :class:`pandas.DataFrame` as the data format.
 
-    Fetch data from serialized frames. How this is done is determined by the `read_function`. This is typically a Pandas
-    function such as :func:`pandas.read_csv` or :func:`pandas.read_parquet`, but any function that accepts a string
-    `source` as the first argument and returns a :class:`pandas.DataFrame` can be used.
+    Fetch data from serialized frames. A `read_function` ``(str) -> pandas.DataFrame`` reads each source from the path
+    that `read_path_format` gives it. When `read_function` is ``None``, it is derived from the file name in
+    `read_path_format`, using the table below:
 
-    When `read_function` is ``None``, it is derived from the file name in `read_path_format`, using the list below.
-
-    * ``.csv``: :func:`pandas.read_csv`.
-    * ``.json``: :func:`pandas.read_json`; ``.jsonl``, ``.ndjson``: :func:`pandas.read_json` with ``lines=True``.
-    * ``.parquet``, ``.parq``, ``.pq``: :func:`pandas.read_parquet`.
-    * ``.feather``, ``.ftr``, ``.arrow``: :func:`pandas.read_feather`.
-    * ``.orc``: :func:`pandas.read_orc`.
-    * ``.pickle``, ``.pkl``: :func:`pandas.read_pickle`.
-    * ``.xlsx``, ``.xlsm``, ``.xls``, ``.ods``: :func:`pandas.read_excel`.
+    ========================================  ============================================
+    Suffix                                    Reader
+    ========================================  ============================================
+    ``.csv``                                  :func:`pandas.read_csv`
+    ``.json``                                 :func:`pandas.read_json`
+    ``.jsonl``, ``.ndjson``                   :func:`pandas.read_json` with ``lines=True``
+    ``.parquet``, ``.parq``, ``.pq``          :func:`pandas.read_parquet`
+    ``.feather``, ``.ftr``, ``.arrow``        :func:`pandas.read_feather`
+    ``.orc``                                  :func:`pandas.read_orc`
+    ``.pickle``, ``.pkl``                     :func:`pandas.read_pickle`
+    ``.xlsx``, ``.xlsm``, ``.xls``, ``.ods``  :func:`pandas.read_excel`
+    ========================================  ============================================
 
     .. hint::
 
@@ -73,13 +73,13 @@ class PandasFetcher(AbstractFetcher[str, IdType]):
 
     Args:
         read_path_format: A string on the form ``protocol://path/to/sources/{}.<ext>``, or a callable to apply to a
-            source before passing them to `read_function`. Every matching file is a source.
+            source before passing it to `read_function`. Every matching file is a source.
         read_function: A function ``(str) -> DataFrame``. Derive from `read_path_format` if ``None``. Strings are
             resolved by :func:`~rics.misc.get_by_full_name` (with ``default_module=pandas``).
         read_function_kwargs: Additional keyword arguments for `read_function`.
         return_all: If ``True``, return every ID and placeholder of a source instead of only the requested ones.
             Translations then include IDs that were not asked for, e.g. as extra categories when translating to a
-            categorical ``dtype``. Default ``True``, with a ``FutureWarning``: the default becomes ``False`` in 2.0.
+            categorical ``dtype``.
         **kwargs: See :class:`~id_translation.fetching.AbstractFetcher`.
 
     See Also:
@@ -94,17 +94,19 @@ class PandasFetcher(AbstractFetcher[str, IdType]):
         *,
         read_function: PandasReadFunction | str | None = None,
         read_function_kwargs: Mapping[str, Any] | None = None,
-        return_all: bool | None = None,
+        return_all: bool = False,
         **kwargs: Unpack[AbstractFetcherParams[str, IdType]],
     ) -> None:
         super().__init__(**kwargs)
 
-        self._read = self._derive_read_function(read_function, read_path_format)
+        self._check_read_path_format(read_path_format, read_function)
+        self._read_name, self._read = self._derive_read_function(read_function, read_path_format)
         self._format_source: FormatFn = read_path_format if callable(read_path_format) else read_path_format.format
         self._kwargs = read_function_kwargs or {}
 
         self._source_paths: dict[str, str] = {}
-        self._return_all = resolve_changing_default(return_all, owner="PandasFetcher", argument="return_all")
+        self._id_columns: dict[str, str] = {}
+        self._return_all = return_all
 
     @property
     def return_all(self) -> bool:
@@ -147,6 +149,11 @@ class PandasFetcher(AbstractFetcher[str, IdType]):
             task_id = generate_task_id()
 
         pattern = self.format_source("*")
+        if not _globs_by_source(self.format_source):
+            msg = f"Cannot find sources: format_source('*') returned {pattern!r}, which does not glob by source name."
+            exc = ValueError(msg)
+            add_hints(exc, "Return a glob pattern from format_source('*'), or override find_sources().")
+            raise exc
 
         try:
             sources = self._find_sources_fsspec(pattern)
@@ -185,7 +192,25 @@ class PandasFetcher(AbstractFetcher[str, IdType]):
 
     def _initialize_sources(self, task_id: int) -> dict[str, list[str]]:
         self._source_paths = self.find_sources(task_id)
-        return {source: self.read(path).columns.tolist() for source, path in self._source_paths.items()}
+        placeholders = {source: self.read(path).columns.tolist() for source, path in self._source_paths.items()}
+
+        for source, columns in placeholders.items():
+            id_column = self.id_column(source, candidates=columns, task_id=task_id)
+            if id_column is None:
+                raise exceptions.UnknownPlaceholderError.for_placeholders(
+                    ID,
+                    placeholders=columns,
+                    source=source,
+                    caller=self,
+                    hints=[
+                        self._missing_id_column_hint(source),
+                        f"If {self._source_paths[source]!r} is not a source, change"
+                        f" read_path_format={self.format_source('{}')!r} so that it does not match.",
+                    ],
+                )
+            self._id_columns[source] = id_column
+
+        return placeholders
 
     def fetch_translations(self, instr: FetchInstruction[str, IdType]) -> PlaceholderTranslations[str]:
         """Fetch translations from a filesystem source."""
@@ -194,90 +219,96 @@ class PandasFetcher(AbstractFetcher[str, IdType]):
         if self.return_all:
             return PlaceholderTranslations.make(instr.source, df)
 
-        id_column = self.id_column(instr.source, candidates=list(df.columns), task_id=instr.task_id)
-        if instr.ids is not None and id_column is not None:
-            ids = df[id_column]
+        if instr.ids is not None:
+            ids = df[self._id_columns[instr.source]]
             keep = ids.isin(instr.ids).to_numpy(dtype=bool, na_value=False)
             if instr.enable_uuid_heuristics:
-                # Both forms: requested IDs are cast only when every one of them is UUID-like. As object: pandas 3.1
-                # maps a string[pyarrow] column to arrow.uuid, where isin() raises (pandas#63511).
-                cast = ids.astype(object).map(_uuid_utils.try_cast_one)
+                # Both forms: requested IDs are cast only when every one of them is UUID-like.
+                cast = ids.map(_uuid_utils.try_cast_one)
                 keep = keep | cast.isin(instr.ids).to_numpy(dtype=bool, na_value=False)
             df = df[keep]
 
         df = df[[column for column in dict.fromkeys(instr.placeholders) if column in df.columns]]
+
         return PlaceholderTranslations.make(instr.source, df)
 
     def __repr__(self) -> str:
         read_path_format = self.format_source("{}")
-        return f"{tname(self)}(read_function={tname(self._read)}, {read_path_format=})"
+        return_all = self.return_all
+        return f"{tname(self)}(read_function={self._read_name}, {read_path_format=}, {return_all=})"
+
+    def _check_read_path_format(
+        self,
+        read_path_format: str | FormatFn,
+        read_function: PandasReadFunction | str | None,
+    ) -> None:
+        """Fail at construction for a format that the default ``format_source()`` and ``find_sources()`` cannot use."""
+        if not isinstance(read_path_format, str) or type(self).format_source is not PandasFetcher.format_source:
+            return
+
+        try:
+            globs = _globs_by_source(read_path_format.format)
+        except (AttributeError, IndexError, KeyError, TypeError, ValueError) as e:  # What str.format() raises.
+            exc = ValueError(f"Bad {read_path_format=}: {e!r}; it is formatted with the source name alone.")
+            add_hints(exc, _PLACEHOLDER_HINT)
+            raise exc from e
+
+        if globs or type(self).find_sources is not PandasFetcher.find_sources:
+            return  # Own discovery may use a fixed path.
+
+        # E.g. a fixed path, or a 1.x read function name such as 'pandas.io.json.read_json'.
+        what = "derive `read_function` from" if read_function is None else "use"
+        exc = ValueError(f"Cannot {what} {read_path_format=}; it has no placeholder for the source.")
+        add_hints(exc, [_PLACEHOLDER_HINT, _READ_FUNCTION_HINT] if read_function is None else _PLACEHOLDER_HINT)
+        raise exc
 
     def _derive_read_function(
         self,
         read_function: PandasReadFunction | str | None,
         read_path_format: str | FormatFn,
-    ) -> PandasReadFunction:
+    ) -> tuple[str, PandasReadFunction]:
         if callable(read_function):
-            return read_function
+            return tname(read_function), read_function
 
         if read_function is None:
             if not isinstance(read_path_format, str):
-                msg = f"Cannot derive `read_function` from {read_path_format=} of type={type(read_function)}."
-                raise ValueError(msg)
+                msg = (
+                    f"Cannot derive `read_function` from {read_path_format=} of type={type(read_path_format).__name__}."
+                )
+                exc = ValueError(msg)
+                if callable(read_path_format):  # A `Path` cannot be helped by a read function.
+                    add_hints(exc, _READ_FUNCTION_HINT)
+                raise exc
 
-            # 2.0 derives from the file name as given, so a URL's query and fragment count; warn wherever 1.5 differs.
-            as_given = _last_known_suffix(read_path_format)
-            in_2_0 = None if as_given is None else _SUFFIX_TO_READER[as_given][0]
-            in_2_0_msg = (
-                "This will raise in `id-translation==2.0.0`."
-                if in_2_0 is None
-                else f"`id-translation==2.0.0` derives read_function={in_2_0!r} instead."
-            )
-
-            is_url = "://" in read_path_format
-            path = urlsplit(read_path_format).path if is_url else read_path_format
-            if (suffix := _last_known_suffix(path)) is not None:
-                name, func = _SUFFIX_TO_READER[suffix]
-                if name != in_2_0:  # Only for a URL: otherwise `path` is `read_path_format`.
-                    emit_warning(
-                        f"Derived read_function={name!r} from {suffix=} in the path of {read_path_format=}, ignoring"
-                        f" its query and fragment. Pass read_function explicitly.\nWARNING: {in_2_0_msg}",
-                        FutureWarning,
-                    )
-                if self.logger.isEnabledFor(logging.DEBUG):
-                    self.logger.debug(
-                        f"Derived read_function={name!r} based on {suffix=} found in {read_path_format=}.",
-                        extra={"suffix": suffix, "read_function": name},
-                    )
-                return func
-
-            # 1.4.2 matched these anywhere in the path, in this order. 2.0 raises, or for a URL may derive the same.
-            for suffix, (name, func) in _LEGACY_SUFFIXES.items():
-                if suffix in read_path_format:
-                    if name != in_2_0:
-                        emit_warning(
-                            f"Derived read_function={name!r} from {suffix=} in {read_path_format=}, outside the file"
-                            f" name suffixes. Pass read_function explicitly.\nWARNING: {in_2_0_msg}",
-                            FutureWarning,
+            # Only the file name: directories such as `.parquet-cache/` don't count. ntpath splits on both / and \.
+            file_name = ntpath.basename(read_path_format.rstrip("/\\"))
+            for part in reversed(file_name.split(".")[1:]):  # The last known suffix wins: `.parquet.csv` is a CSV.
+                if (suffix := f".{part}") in _SUFFIX_TO_READER:
+                    name, func = _SUFFIX_TO_READER[suffix]
+                    if self.logger.isEnabledFor(logging.DEBUG):
+                        self.logger.debug(
+                            f"Derived read_function={name!r} based on {suffix=} found in {read_path_format=}.",
+                            extra={"suffix": suffix, "read_function": name},
                         )
-                    return func
+                    return name, func
 
             suffixes = list(_SUFFIX_TO_READER)
-            file_name = ntpath.basename(path.rstrip("/\\"))
             msg = f"Cannot derive `read_function` from {read_path_format=}; {file_name=} has no known {suffixes=}."
-            raise ValueError(msg)
+            exc = ValueError(msg)
+            add_hints(exc, _READ_FUNCTION_HINT)
+            raise exc
 
         func = get_by_full_name(read_function, pd)
         if not callable(func):
             msg = f"Bad {read_function=}; type {type(func).__name__} is not callable."
             raise TypeError(msg)
-        return func  # type: ignore[no-any-return]
+        return read_function, func
 
 
-def _last_known_suffix(path: str) -> str | None:
-    # Only the file name: directories such as `.parquet-cache/` don't count. ntpath splits on both / and \.
-    file_name = ntpath.basename(path.rstrip("/\\"))
-    for part in reversed(file_name.split(".")[1:]):  # The last known suffix wins: `.parquet.csv` is a CSV.
-        if (suffix := f".{part}") in _SUFFIX_TO_READER:
-            return suffix
-    return None
+def _globs_by_source(format_source: FormatFn) -> bool:
+    """Return whether ``format_source('*')`` is a glob and the path depends on the source, as the default discovery needs.
+
+    A literal ``*`` alone passes the first test: ``'data/*.csv'`` globs, but gives every source the same path.
+    """
+    pattern = format_source("*")
+    return "*" in pattern and pattern != format_source("_")

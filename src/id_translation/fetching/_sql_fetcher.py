@@ -331,6 +331,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
                 # without dashes by the driver (see log output), and databases may contain dashed UUID-like strings.
                 # SQLite binds Uuid as 32 hex digits, so it only matches CHAR(32) columns unless we pick the length.
                 return id_column.cast(_String32Uuid if length == _String32Uuid.length else _String36Uuid)  # type: ignore[arg-type]
+
             return id_column.cast(sqlalchemy.types.Uuid)
 
         if length == _BinaryUuid.length and issubclass(python_type, bytes):
@@ -502,7 +503,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
                 placeholders=[c.name for c in table.columns],
                 source=table.name,
                 caller=self,
-                hints="Misconfigured whitelist table.",
+                hints=(self._missing_id_column_hint(table.name), "Misconfigured whitelist table."),
             )
 
     def make_table_summary(

@@ -168,6 +168,17 @@ def test_unmappable_whitelist_table_reports_unqualified_source(connection_string
     assert e.value.source == "animals"
 
 
+def test_blocked_id_whitelist_table_says_why(connection_string):
+    fetcher = SqlFetcher(connection_string, mapper=Mapper(overrides={"id": "_"}), whitelist_tables=["animals"])
+
+    with pytest.raises(exceptions.UnknownIdPlaceholderError) as e:
+        fetcher._get_summaries(-1)
+    fetcher.close()
+    notes = "\n".join(e.value.__notes__)
+    assert "An override to '_' blocks the ID column of 'animals'" in notes
+    assert "Misconfigured whitelist table." in notes
+
+
 @pytest.mark.parametrize("column", ["id", "name"])
 def test_bad_override(column, connection_string):
     mapper: Mapper[str, str, str] = Mapper(overrides={column: "bad_column"})
