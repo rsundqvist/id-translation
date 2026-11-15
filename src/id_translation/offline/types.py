@@ -2,10 +2,12 @@
 
 import dataclasses as _dataclasses
 import typing as _t
+from collections.abc import Iterable as _Iterable
 from collections.abc import Mapping as _Mapping
 from collections.abc import Sequence as _Sequence
 
 from .. import types as _tt
+from .._utils import add_hints as _add_hints
 from ..exceptions import MissingIdPlaceholderError as _MissingIdPlaceholderError
 
 if _t.TYPE_CHECKING:
@@ -41,7 +43,8 @@ class PlaceholderTranslations(_t.Generic[_tt.SourceType]):
     """Alternative :attr:`placeholder <id_translation.offline.types.PlaceholderTranslations.placeholders>` names.
 
     Given as ``{alias: placeholder}``. After fetching, the aliases are the source's own names for the placeholders, e.g.
-    ``{'code': 'id'}`` when ``id`` was mapped to a ``code`` column, or another wanted name for the same column.
+    ``{'code': 'id'}`` when ``id`` was mapped to a ``code`` column, or another wanted name for the same column. A
+    placeholder always wins over a same-named alias.
     """
 
     @classmethod
@@ -107,20 +110,30 @@ class PlaceholderTranslations(_t.Generic[_tt.SourceType]):
     @classmethod
     def from_dict(cls, source: _tt.SourceType, data: DictMakeTypes[_tt.IdType]) -> _t.Self:
         """Create instance from a dict."""
-        if cls._is_simple_form(data):
+        is_name = [isinstance(value, str) for value in data.values()]
+        if all(is_name):
             # Users may pass dicts on the form {source: {id: name}}, where our data={id: name}.
-            _t.assert_type(data, dict[_tt.IdType, str])
             records = tuple(tuple(item) for item in data.items())
             return cls(source, (_tt.ID, "name"), records)
 
-        placeholders: tuple[str, ...] = tuple(data)  # type: ignore[arg-type]
-        records = tuple(zip(*data.values(), strict=True))
-        return cls(source, placeholders, records)
+        is_column = [
+            isinstance(value, _Iterable) and not name for value, name in zip(data.values(), is_name, strict=True)
+        ]
+        if not all(is_column):
+            # Blame the keys that break the form most values have.
+            expected = is_column if sum(is_column) >= sum(is_name) else is_name
+            keys = [key for key, ok in zip(data, expected, strict=True) if not ok]
+            exc = TypeError(f"Cannot read data for {source=}: unexpected values for keys {keys}.")
+            _add_hints(exc, "Pass either {id: name} with str names, or {placeholder: [values...]}.")
+            raise exc
 
-    @classmethod
-    def _is_simple_form(cls, data: DictMakeTypes[_tt.IdType]) -> _t.TypeGuard[dict[_tt.IdType, str]]:
-        # By the values only: keys may be any ID type, e.g. numpy ints from dict(zip(df.id, df.name)).
-        return all(isinstance(value, str) for value in data.values())
+        placeholders: tuple[str, ...] = tuple(data)  # type: ignore[arg-type]
+        columns = [list(column) for column in data.values()]
+        lengths = {placeholder: len(column) for placeholder, column in zip(placeholders, columns, strict=True)}
+        if len(set(lengths.values())) > 1:
+            raise ValueError(f"Cannot read data for {source=}: columns differ in length: {lengths}.")
+        records = tuple(zip(*columns, strict=True))
+        return cls(source, placeholders, records)
 
 
 MakeTypes = _t.Union[PlaceholderTranslations[_tt.SourceType], "pandas.DataFrame", DictMakeTypes[_tt.IdType]]

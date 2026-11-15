@@ -868,6 +868,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                 nor overridden, when using the default :class:`~id_translation.mapping.Mapper`.
             ~id_translation.exceptions.MissingPlaceholderError: If a source lacks a placeholder that `fmt` requires.
             ValueError: If `max_fails` is not a valid fraction.
+            ValueError: If ``reverse=True`` and several IDs of a source share a translation.
             ~id_translation.exceptions.TooManyFailedTranslationsError: If translation fails for more than `max_fails` of
                 IDs.
             ~id_translation.exceptions.ConnectionStatusError: If ``reverse=True`` while the

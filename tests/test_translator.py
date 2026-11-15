@@ -658,6 +658,13 @@ def test_reverse_uuid_like_translations_verify():
     assert t.translate(forward, reverse=True, max_fails=0.0) == {"s": [u]}
 
 
+def test_reverse_duplicate_translations():
+    t = RealTranslator[str, str, int]({"s": {1: "Richard", 2: "Sofia", 3: "Richard"}}, fmt="{name}")
+    with pytest.raises(ValueError, match=r"source=.s.; some belong to several IDs: \[.Richard.\]") as exc_info:
+        t.translate(["Richard"], names="s", reverse=True)
+    assert "'{id}'" in exc_info.value.__notes__[0]
+
+
 @pytest.mark.parametrize("online", [True, False])
 def test_unknown_source_from_names_or_overrides(online):
     data = {"a": {1: "A"}}

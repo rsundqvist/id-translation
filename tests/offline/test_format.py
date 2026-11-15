@@ -36,7 +36,12 @@ def test_format(fmt, translations, expected):
 def test_missing_required(fmt):
     with pytest.raises(KeyError) as e:
         fmt(name="Foo")
-    assert str(e.value.args[0]) == "Required key(s) {'id'} missing from placeholders={'name': 'Foo'}."
+    assert str(e.value.args[0]) == "Required key(s) {'id'} missing from placeholders=('name',)."
+
+
+@pytest.mark.parametrize("placeholders", [None, [], iter([])])
+def test_fstring_defaults_to_required(placeholders):
+    assert Format("{id}[:{name}]").fstring(placeholders) == "{id}"
 
 
 @pytest.mark.parametrize(
@@ -59,6 +64,11 @@ def test_multiple_optional_placeholders():
     assert fmt.fstring(["required", "opt0"]) == "{required}"
     assert fmt.fstring(["required", "opt1"]) == "{required}"
     assert fmt.fstring(["required", "opt0", "opt1"]) == "{required} opt0={opt0}, opt1={opt1}"
+
+
+def test_fstring_from_iterator():
+    fmt = Format("{id}[:{name}]")
+    assert fmt.fstring(iter(["id", "name"])) == "{id}:{name}"
 
 
 @pytest.mark.parametrize(
@@ -140,3 +150,17 @@ class TestPartial:
         ).partial({"optional_provided": "<Provided optional>"})
 
         assert actual.fstring(kwargs).format(**kwargs) == expected.fstring(kwargs).format(**kwargs)
+
+
+def test_equality():
+    assert Format("{id}:{name}") == Format("{id}:{name}")
+    assert Format("{id}:{name}") != Format("{id}")
+    assert Format("{id}") != "{id}"
+    assert len({Format("{id}"), Format("{id}")}) == 1
+    assert hash(Format("{id}")) != hash("{id}")
+
+
+@pytest.mark.parametrize("fmt", [1, b"{id}", None])
+def test_parse_rejects_other_types(fmt):
+    with pytest.raises(TypeError, match=f"Bad fmt of type {type(fmt).__name__}; expected a str or Format"):
+        Format.parse(fmt)

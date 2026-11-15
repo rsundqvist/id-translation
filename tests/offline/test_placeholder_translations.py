@@ -1,6 +1,8 @@
 import json
+import re
 from dataclasses import replace
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -16,6 +18,36 @@ OPTIONS = ["name_basics", "title_basics"]
 def test_from_dict(source):
     with open(PATH.format(source)) as f:
         PlaceholderTranslations.from_dict(source, json.load(f))
+
+
+@pytest.mark.parametrize(
+    "data, records",
+    [
+        ({np.int64(1): "a", np.int64(2): "b"}, ((1, "a"), (2, "b"))),
+        ({"id": np.array([1, 2]), "name": ("a", "b")}, ((1, "a"), (2, "b"))),
+    ],
+)
+def test_from_dict_form(data, records):
+    assert PlaceholderTranslations.from_dict("s", data).records == records
+
+
+@pytest.mark.parametrize(
+    "data, keys",
+    [
+        ({1: "a", 2: None}, [2]),
+        ({1: "a", 2: 3}, [2]),
+        ({"id": [1, 2], "name": "a"}, ["name"]),
+        ({1: "a", 2: "b", 3: ["c"]}, [3]),
+    ],
+)
+def test_from_dict_bad_form(data, keys):
+    with pytest.raises(TypeError, match=re.escape(f"unexpected values for keys {keys}")):
+        PlaceholderTranslations.from_dict("s", data)
+
+
+def test_from_dict_ragged():
+    with pytest.raises(ValueError, match=r"source='s': columns differ in length: \{'id': 2, 'name': 1\}"):
+        PlaceholderTranslations.from_dict("s", {"id": [1, 2], "name": ["a"]})  # type: ignore[arg-type]
 
 
 @pytest.mark.parametrize("source", OPTIONS)

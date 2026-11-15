@@ -137,12 +137,13 @@ class Format:
         Raises:
             KeyError: If required placeholders are missing.
         """
-        placeholders = placeholders or self.required_placeholders
-        missing_required_placeholders = set(self.required_placeholders).difference(placeholders)
+        keys = () if placeholders is None else tuple(placeholders)  # Read once; an iterator would run dry.
+        keys = keys or tuple(self.required_placeholders)
+        missing_required_placeholders = set(self.required_placeholders).difference(keys)
         if missing_required_placeholders:
-            raise KeyError(f"Required key(s) {missing_required_placeholders} missing from {placeholders=}.")
+            raise KeyError(f"Required key(s) {missing_required_placeholders} missing from placeholders={keys}.")
 
-        return self._make_fstring(placeholders, positional=positional)
+        return self._make_fstring(keys, positional=positional)
 
     def _make_fstring(self, placeholders: Iterable[str], positional: bool) -> str:
         def predicate(e: Element) -> bool:
@@ -173,8 +174,15 @@ class Format:
 
         Returns:
             A ``Format`` instance.
+
+        Raises:
+            TypeError: If `fmt` is neither.
         """
-        return cls(fmt) if isinstance(fmt, str) else fmt
+        if isinstance(fmt, str):
+            return cls(fmt)
+        if isinstance(fmt, Format):
+            return fmt
+        raise TypeError(f"Bad fmt of type {type(fmt).__name__}; expected a str or Format.")
 
     @property
     def placeholders(self) -> PlaceholdersTuple:
@@ -241,3 +249,11 @@ class Format:
 
     def __repr__(self) -> str:
         return f"{tname(self)}({self._fmt!r})"
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Format):
+            return NotImplemented
+        return self._fmt == other._fmt
+
+    def __hash__(self) -> int:
+        return hash((Format, self._fmt))

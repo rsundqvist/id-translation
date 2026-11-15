@@ -74,7 +74,7 @@ class FormatApplier(Generic[NameType, SourceType, IdType]):
         default_fmt: Format,
         placeholders: PlaceholdersTuple | None = None,
         default_fmt_placeholders: dict[str, Any] | None = None,
-        enable_uuid_heuristics: bool | None = None,
+        enable_uuid_heuristics: bool = False,
     ) -> MagicDict[IdType]:
         """Translate IDs.
 
@@ -90,8 +90,7 @@ class FormatApplier(Generic[NameType, SourceType, IdType]):
                 :attr:`fmt.placeholders <id_translation.offline.Format.placeholders>`.
             default_fmt: Alternative format for default translation.
             default_fmt_placeholders: Default placeholders, e.g. ``{'name': 'default name'}``.
-            enable_uuid_heuristics: Improves matching when :py:class:`~uuid.UUID`-like IDs are in use. Default ``True``,
-                with a ``FutureWarning`` where the heuristics apply: the default becomes ``False`` in 2.0.
+            enable_uuid_heuristics: Improves matching when :py:class:`~uuid.UUID`-like IDs are in use.
 
         Returns:
             A dict ``{id: translation}``.
@@ -170,21 +169,13 @@ class FormatApplier(Generic[NameType, SourceType, IdType]):
         return self._translations.records
 
     def _apply(self, fstring: str, placeholders: PlaceholdersTuple) -> TranslatedIds[IdType]:
-        """Apply fstring to all IDs.
-
-        Args:
-            fstring: A format string.
-            placeholders: Keys needed for the fstring, in the order in which they appear.
-
-        Returns:
-            A dict ``{id: translation}``.
-        """
         id_pos, records = self._id_pos, self._translations.records
 
         if self._placeholders == placeholders:
             return {record[id_pos]: fstring.format(*record) for record in records}
         else:
-            placeholders = tuple(self._translations.placeholder_aliases.get(p, p) for p in placeholders)
+            aliases = self._translations.placeholder_aliases
+            placeholders = tuple(p if p in self._placeholders else aliases.get(p, p) for p in placeholders)
             pos = tuple(map(self._placeholders.index, placeholders))
             return {record[id_pos]: fstring.format(*(record[i] for i in pos)) for record in records}
 

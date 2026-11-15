@@ -2,9 +2,10 @@ from collections.abc import Iterator, Mapping, Sequence
 from copy import copy
 from typing import TYPE_CHECKING, Any, Generic, Self
 
-from rics.collections.dicts import InheritedKeysDict, reverse_dict
+from rics.collections.dicts import InheritedKeysDict
 from rics.misc import tname
 
+from .._utils import add_hints
 from ..transform.types import Transformer
 from ..types import HasSources, IdType, NameToSource, NameType, SourceType
 from ._format import Format
@@ -33,8 +34,7 @@ class TranslationMap(
         fmt: A :class:`~id_translation.offline.Format` specification for translations.
         default_fmt: Alternative format specification to use instead of `fmt` for fallback translation.
         default_fmt_placeholders: Per-source default placeholder values.
-        enable_uuid_heuristics: Improves matching when :py:class:`~uuid.UUID`-like IDs are in use. Default ``True``, with a
-            ``FutureWarning`` where the heuristics apply: the default becomes ``False`` in 2.0.
+        enable_uuid_heuristics: Improves matching when :py:class:`~uuid.UUID`-like IDs are in use.
         transformers: A dict ``{source: transformer}`` of initialized
             :class:`~id_translation.transform.types.Transformer` instances.
 
@@ -93,7 +93,7 @@ class TranslationMap(
         default_fmt: FormatType = Format.DEFAULT_FAILED,
         name_to_source: NameToSource[NameType, SourceType] | None = None,
         default_fmt_placeholders: InheritedKeysDict[SourceType, str, Any] | None = None,
-        enable_uuid_heuristics: bool | None = None,
+        enable_uuid_heuristics: bool = False,
         transformers: Mapping[SourceType, Transformer[IdType]] | None = None,
     ) -> None:
         self.fmt = Format.parse(fmt)
@@ -109,9 +109,7 @@ class TranslationMap(
         self.name_to_source = name_to_source or {}
 
         self._reverse_mode: bool = False
-        # Omitted: passed on as None, so the MagicDict warns where the 1.x default makes a difference.
-        self._uuid_default = enable_uuid_heuristics is None
-        self._enable_uuid_heuristics = True if enable_uuid_heuristics is None else enable_uuid_heuristics
+        self.enable_uuid_heuristics = enable_uuid_heuristics
 
     def to_dicts(self) -> dict[SourceType, dict[str, Sequence[Any]]]:
         """Get the underlying data used for translations as dicts.
@@ -204,7 +202,6 @@ class TranslationMap(
             Translations for `name` as a dict ``{id: translation}``.
 
         Raises:
-            ValueError: If ``fmt=None`` and initialized without `fmt`.
             KeyError: If trying to translate `name` which is not known.
 
         Notes:
@@ -221,11 +218,7 @@ class TranslationMap(
         *,
         name_or_source: NameType | SourceType,
     ) -> MagicDict[IdType]:
-        fmt = self._fmt if fmt is None else fmt
-        if fmt is None:
-            raise ValueError("No format specified and None given at initialization.")  # pragma: no cover
-
-        fmt = Format.parse(fmt)
+        fmt = self._fmt if fmt is None else Format.parse(fmt)
         default_fmt = self._default_fmt if default_fmt is None else Format.parse(default_fmt)
         applier = self._format_appliers[source]
 
@@ -234,21 +227,20 @@ class TranslationMap(
                 fmt,
                 default_fmt=default_fmt,
                 default_fmt_placeholders=self.default_fmt_placeholders.get(source),
-                enable_uuid_heuristics=None if self._uses_uuid_default else self.enable_uuid_heuristics,
+                enable_uuid_heuristics=self.enable_uuid_heuristics,
             )
         except Exception as e:
             e.add_note(f"{name_or_source=}")
             e.add_note(f"{source=}")
             raise
 
-        return (
-            MagicDict(
-                reverse_dict(translations, duplicate_key_action="raise"),  # type: ignore
-                default_value=default_fmt.fstring(positional=True),
-                enable_uuid_heuristics=False,
-            )
-            if self.reverse_mode
-            else translations
+        if not self.reverse_mode:
+            return translations
+
+        return MagicDict(
+            _reverse(translations, source),  # type: ignore[arg-type]
+            default_value=default_fmt.fstring(positional=True),
+            enable_uuid_heuristics=False,
         )
 
     @property
@@ -330,11 +322,6 @@ class TranslationMap(
     @enable_uuid_heuristics.setter
     def enable_uuid_heuristics(self, value: bool) -> None:
         self._enable_uuid_heuristics = value
-        self._uuid_default = False
-
-    @property
-    def _uses_uuid_default(self) -> bool:
-        return getattr(self, "_uuid_default", False)  # Snapshots from before 1.5.0 lack it.
 
     @property
     def transformers(self) -> dict[SourceType, Transformer[IdType]]:
@@ -366,3 +353,22 @@ class TranslationMap(
         order = sorted(len_per_source, key=len_per_source.__getitem__, reverse=True)
         sources = ", ".join(f"'{source}': {len_per_source[source]} IDs" for source in order)
         return f"{tname(self)}({sources})"
+
+
+def _reverse(translations: Mapping[IdType, str], source: Any) -> dict[str, IdType]:
+    reversed_translations: dict[str, IdType] = {}
+    duplicates = set()
+    for idx, translation in translations.items():
+        if translation in reversed_translations:
+            duplicates.add(translation)
+        reversed_translations[translation] = idx
+
+    if duplicates:
+        n_shown = 5
+        shown = f" ({n_shown} of {len(duplicates)})" if len(duplicates) > n_shown else ""
+        sample = sorted(duplicates)[:n_shown]
+        exc = ValueError(f"Cannot reverse translations of {source=}; some belong to several IDs{shown}: {sample}.")
+        add_hints(exc, "Use a fmt that makes each translation unique, such as one with '{id}'.")
+        raise exc
+
+    return reversed_translations

@@ -30,3 +30,14 @@ def test_explicit_placeholders(fmt):
     )
     assert isinstance(ans, MagicDict)
     assert ans == {1: "3 1", 2: "4 2"}
+
+
+def test_placeholder_wins_over_alias():
+    # 'name' and 'title' are both placeholders, and each is also the other's alias.
+    aliases = {"name": "title", "title": "name"}
+    records = [(1, "Alice", "Dr")]
+    translations = PlaceholderTranslations("source", ("id", "name", "title"), records, placeholder_aliases=aliases)
+    applier = FormatApplier[str, str, int](translations)
+
+    assert applier(Format("{name}"), default_fmt=Format("")) == {1: "Alice"}
+    assert applier(Format("{title}"), default_fmt=Format("")) == {1: "Dr"}
