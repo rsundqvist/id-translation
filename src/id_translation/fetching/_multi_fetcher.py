@@ -6,7 +6,6 @@ from time import perf_counter
 from types import MappingProxyType
 from typing import Any, Literal, Never, Self
 
-from rics.collections.dicts import reverse_dict
 from rics.logs import LogLevel, convert_log_level
 from rics.misc import tname
 from rics.strings import format_seconds as fmt_sec
@@ -19,9 +18,8 @@ from ..offline.types import PlaceholderAttributes, SourcePlaceholderTranslations
 from ..transform.types import Transformer
 from ..types import IdType, SourceType
 from . import AbstractFetcher, Fetcher, exceptions
-from .types import IdsToFetch, Operation
-
-LOGGER = logging.getLogger(__package__).getChild("MultiFetcher")
+from ._abstract_fetcher import _ExtraLoggerAdapter
+from .types import FetchOperation, IdsToFetch
 
 FetchResult = tuple[int, SourcePlaceholderTranslations[SourceType]]
 
@@ -55,10 +53,18 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
 
         self._id_to_rank: dict[int, int] = {id(f): rank for rank, f in enumerate(children)}
         self._id_to_fetcher: dict[int, Fetcher[SourceType, IdType]] = {id(f): f for f in children}
+        ThreadPoolExecutor(max_workers=max_workers).shutdown()  # Validate now, not at the first fetch.
         self.max_workers: int = max_workers
 
         self._on_source_conflict = OSC_HELPER.check(on_source_conflict)
         self._discard_level = convert_log_level(fetcher_discarded_log_level, name="fetcher_discarded_log_level")
+        self._logger = _ExtraLoggerAdapter(
+            logging.getLogger(__package__).getChild(type(self).__name__),
+            {
+                "fetcher_class": tname(type(self), include_module=True).removeprefix(__package__ + "."),
+                "fetcher_config_file": None,  # Like AbstractFetcher records; a MultiFetcher has no file of its own.
+            },
+        )
 
         if len(self._id_to_rank) != len(children):
             raise ValueError("Repeat fetcher instance(s)!")  # pragma: no cover
@@ -77,14 +83,15 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         Every child is closed, even if one raises; the first error is raised afterwards.
         """
         error: Exception | None = None
-        for fetcher in [*self._id_to_fetcher.values()]:  # Not self.children, which would run discovery first.
+        for fid, fetcher in [*self._id_to_fetcher.items()]:  # Not self.children, which would run discovery first.
             try:
                 fetcher.close()
             except Exception as e:
                 if error is None:
                     error = e
+                    e.add_note(self._context_note(fetcher))
                 else:
-                    LOGGER.exception(f"Failed to close {fetcher}.")
+                    self._logger.exception(f"Failed to close {self._format_child(fid)}.")
         if error is not None:
             raise error
 
@@ -92,9 +99,7 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
     def children(self) -> list[Fetcher[SourceType, IdType]]:
         """Return child fetchers sorted by rank."""
         self.initialize_sources()
-        children = [*self._id_to_fetcher.values()]
-        # children.sort(key=lambda fetcher: self._id_to_rank[id(fetcher)])
-        return children
+        return [*self._id_to_fetcher.values()]  # Insertion order is rank order.
 
     def _unresolved_children(self) -> list[str]:
         # Diagnostic prose for the Translator's unknown-source warning and its NoSourcesError hint: one formatted
@@ -109,19 +114,32 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         return unresolved
 
     def get_child(self, source: SourceType) -> Fetcher[SourceType, IdType]:
-        """Return child fetcher for the given source."""
+        """Return child fetcher for the given source.
+
+        Raises:
+            UnknownSourceError: If no child serves `source`.
+        """
         self.initialize_sources()
 
-        child_id = self._source_to_id[source]
-        fetcher = self._id_to_fetcher[child_id]
-        return fetcher
+        if (child_id := self._source_to_id.get(source)) is None:
+            raise exceptions.UnknownSourceError.for_sources([source], sources=self.sources)
+        return self._id_to_fetcher[child_id]
 
-    def get_sources(self, child: Fetcher[SourceType, IdType] | int) -> list[SourceType]:
-        """Return sources for the given child."""
-        if not isinstance(child, int):
-            child = id(child)
+    def get_sources(self, child: Fetcher[SourceType, IdType]) -> list[SourceType]:
+        """Return sources for the given child.
+
+        Raises:
+            ValueError: If `child` is not a child of this ``MultiFetcher``.
+        """
         self.initialize_sources()
-        return [source for source, child_id in self._source_to_id.items() if child_id == child]
+        fid = self._child_id(child)
+        return [source for source, child_id in self._source_to_id.items() if child_id == fid]
+
+    def _child_id(self, child: Fetcher[SourceType, IdType]) -> int:
+        # Children are keyed by `id()`, which copies and pickling rebuild, so an int is never accepted from callers.
+        if (fid := id(child)) not in self._id_to_fetcher:
+            raise ValueError(f"Not a child of this {type(self).__name__}: {child!r}.")
+        return fid
 
     def get_transformer(self, source: SourceType) -> Transformer[IdType] | Sequence[Transformer[IdType]] | None:
         """Delegate to the child that serves `source` after source conflict resolution.
@@ -165,6 +183,7 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
             🔑 This is a key event method. See :ref:`key-events` for details.
 
         Notes:
+            An optional child whose every source a higher-ranked child serves is discarded too.
             Calling this method multiple times will not recover previously discarded optional child fetchers.
         """
         if self._placeholders is not None:
@@ -174,7 +193,7 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         if task_id is None:
             task_id = generate_task_id()
 
-        LOGGER.debug(
+        self._logger.debug(
             "Begin initialization of %i children.",
             len(self._id_to_fetcher),
             extra={"task_id": task_id, "event_key": get_event_key(self.initialize_sources, "enter")},
@@ -183,7 +202,8 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         fid_to_placeholders = self._initialize_sources(task_id)
         self._source_to_id = self._make_source_to_id(fid_to_placeholders, task_id)
 
-        self._placeholders = {}
+        # Committed last: `_placeholders` marks discovery as done, so a raise below must leave it unset for the retry.
+        all_placeholders: dict[SourceType, list[str]] = {}
         for fid, source_to_placeholders in fid_to_placeholders.items():
             discarded = dict(source_to_placeholders)
             placeholders = {
@@ -193,18 +213,30 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
             }
 
             if placeholders:
-                self._placeholders.update(placeholders)
+                all_placeholders.update(placeholders)
                 continue
 
-            self._handle_all_sources_outranked(task_id, fetcher_id=fid, discarded=discarded)
+            fetcher = self._id_to_fetcher[fid]
+            _log_outranked(
+                self._logger,
+                self._format_child(fid),
+                optional=fetcher.optional,
+                discard_level=self._discard_level,
+                task_id=task_id,
+                discarded=discarded,
+            )
+            if fetcher.optional:
+                self._discard(fid)
 
         if not self._id_to_fetcher:
             emit_warning("No fetchers. See log output for more information.", exceptions.FetcherWarning)
 
-        if LOGGER.isEnabledFor(logging.DEBUG):
+        self._placeholders = all_placeholders
+
+        if self._logger.isEnabledFor(logging.DEBUG):
             seconds = perf_counter() - start
             event_key = get_event_key(self.initialize_sources, "exit")
-            LOGGER.debug(
+            self._logger.debug(
                 f"Finished initialization {len(self._id_to_fetcher)} children and "
                 f"{len(self._source_to_id)} sources in {fmt_sec(seconds)}.",
                 extra={"task_id": task_id, "seconds": seconds, "event_key": event_key},
@@ -224,31 +256,16 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
                     # `optional` covers an unavailable source, not a misconfigured one.
                     self._raise_with_notes(e, fetcher)
                 except Exception as e:
-                    pretty = self.format_child(fid)
-                    LOGGER.log(
-                        log_level,
-                        "Discarding optional %s: Raised\n    %s\nwhen getting sources.",
-                        pretty,
-                        f"{type(e).__name__}: {e}",
-                        exc_info=True,
-                    )
-                    self._unresolved.append(pretty)  # Before the deletes: `format_child` needs the rank.
-                    fetcher.close()
-                    del self._id_to_rank[fid]
-                    del self._id_to_fetcher[fid]
+                    pretty = self._format_child(fid)
+                    reason = f"Raised\n    {type(e).__name__}: {e}\nwhen getting sources."
+                    _log_discard(self._logger, log_level, pretty, reason, task_id=task_id, exc_info=True)
+                    self._unresolved.append(pretty)
+                    self._discard(fid)
                     continue
 
                 if len(placeholders) == 0:
-                    if LOGGER.isEnabledFor(log_level):
-                        LOGGER.log(
-                            log_level,
-                            f"Discarding optional {self.format_child(fetcher)}: No sources.",
-                            extra={"task_id": task_id},
-                        )
-
-                    fetcher.close()
-                    del self._id_to_rank[fid]
-                    del self._id_to_fetcher[fid]
+                    _log_discard(self._logger, log_level, self._format_child(fid), "No sources.", task_id=task_id)
+                    self._discard(fid)
                     continue
 
             else:
@@ -259,9 +276,9 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
 
                 placeholders = fetcher.placeholders
 
-                if len(placeholders) == 0 and LOGGER.isEnabledFor(logging.WARNING):
-                    LOGGER.warning(
-                        f"Required {self.format_child(fetcher)} does not provide any sources.",
+                if len(placeholders) == 0 and self._logger.isEnabledFor(logging.WARNING):
+                    self._logger.warning(
+                        f"Required {self._format_child(fid)} does not provide any sources.",
                         extra={"task_id": task_id},
                     )
 
@@ -274,20 +291,18 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         fid_to_placeholders: Mapping[int, Iterable[SourceType]],
         task_id: int,
     ) -> dict[SourceType, int]:
-        if not fid_to_placeholders:
-            return {}
-
-        source_ranks: dict[SourceType, int] = {}
+        """The winner per source: children are visited in rank order, so the first claim wins."""
         retval: dict[SourceType, int] = {}
 
         for fid, sources in fid_to_placeholders.items():
-            rank = self._id_to_rank[fid]
             for source in sources:
                 if source in retval:
-                    self._log_rejection(source, rank, source_ranks[source], "INITIALIZE_SOURCES", task_id)
+                    accepted, rejected = self._format_child(retval[source]), self._format_child(fid)
+                    _handle_conflict(
+                        self._logger, source, accepted, rejected, self._on_source_conflict, task_id=task_id
+                    )
                 else:
                     retval[source] = fid
-                    source_ranks[source] = rank
 
         return retval
 
@@ -326,8 +341,8 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         n_sources_and_fetchers = f"{len(sources)} sources using {len(tasks)} different fetchers"
 
         start = perf_counter()
-        if LOGGER.isEnabledFor(logging.DEBUG):
-            LOGGER.debug(
+        if self._logger.isEnabledFor(logging.DEBUG):
+            self._logger.debug(
                 f"Dispatch FETCH jobs for {n_sources_and_fetchers} on {self.max_workers} threads.",
                 extra=dict(
                     task_id=task_id,
@@ -343,9 +358,9 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
 
         def fetch(fid: int) -> FetchResult[SourceType]:
             fetcher = self._id_to_fetcher[fid]
-            if LOGGER.isEnabledFor(logging.DEBUG):
-                LOGGER.debug(
-                    f"Begin FETCH job for {len(tasks[fid])} sources using {self.format_child(fetcher)}.",
+            if self._logger.isEnabledFor(logging.DEBUG):
+                self._logger.debug(
+                    f"Begin FETCH job for {len(tasks[fid])} sources using {self._format_child(fid)}.",
                     extra={"task_id": task_id},
                 )
 
@@ -366,9 +381,9 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
             futures = [executor.submit(fetch, fid) for fid in tasks]
             ans = self._gather(futures, operation="FETCH", task_id=task_id)
 
-        if LOGGER.isEnabledFor(logging.DEBUG):
+        if self._logger.isEnabledFor(logging.DEBUG):
             seconds = perf_counter() - start
-            LOGGER.debug(
+            self._logger.debug(
                 f"Finished FETCH jobs for {n_sources_and_fetchers} in {fmt_sec(seconds)}.",
                 extra=dict(
                     task_id=task_id,
@@ -402,10 +417,15 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         placeholders = tuple(placeholders)
         required = tuple(required)
 
+        tasks: dict[int, set[SourceType]] = {}
+        for source, child_id in self._source_to_id.items():
+            if sources is None or source in sources:
+                tasks.setdefault(child_id, set()).add(source)
+
         start = perf_counter()
-        if LOGGER.isEnabledFor(logging.DEBUG):
-            LOGGER.debug(
-                f"Dispatch FETCH_ALL jobs for {len(self.children)} fetchers on {self.max_workers} threads.",
+        if self._logger.isEnabledFor(logging.DEBUG):
+            self._logger.debug(
+                f"Dispatch FETCH_ALL jobs for {len(tasks)} fetchers on {self.max_workers} threads.",
                 extra=dict(
                     task_id=task_id,
                     event_key=get_event_key(self.fetch_all, "enter"),
@@ -416,39 +436,41 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
                     else None,
                     sources=None if sources is None else [*sources],
                     max_workers=self.max_workers,
-                    num_fetchers=len(self.children),
+                    num_fetchers=len(tasks),
                     fetch_all=True,
                 ),
             )
 
-        def fetch_all(fetcher: Fetcher[SourceType, IdType]) -> FetchResult[SourceType]:
-            result = fetcher.fetch_all(
-                placeholders,
-                required=required,
-                placeholder_attributes=placeholder_attributes,
-                sources=None if sources is None else sources.intersection(fetcher.sources),
-                task_id=task_id,
-                enable_uuid_heuristics=enable_uuid_heuristics,
-            )
-            return id(fetcher), result
+        def fetch_all(fid: int) -> FetchResult[SourceType]:
+            fetcher = self._id_to_fetcher[fid]
+            try:
+                result = fetcher.fetch_all(
+                    placeholders,
+                    required=required,
+                    placeholder_attributes=placeholder_attributes,
+                    sources=tasks[fid],
+                    task_id=task_id,
+                    enable_uuid_heuristics=enable_uuid_heuristics,
+                )
+            except Exception as e:
+                self._raise_with_notes(e, fetcher)
+            return fid, result
 
-        children = self.children if sources is None else [c for c in self.children if sources.intersection(c.sources)]
         with ThreadPoolExecutor(max_workers=self.max_workers, thread_name_prefix=tname(self)) as executor:
-            futures = [executor.submit(fetch_all, fetcher) for fetcher in children]
+            futures = [executor.submit(fetch_all, fid) for fid in tasks]
             ans = self._gather(futures, operation="FETCH_ALL", task_id=task_id)
 
-        if LOGGER.isEnabledFor(logging.DEBUG):
+        if self._logger.isEnabledFor(logging.DEBUG):
             seconds = perf_counter() - start
-            LOGGER.debug(
-                f"Finished FETCH_ALL jobs for {len(ans)} sources using "
-                f"{len(self.children)} fetchers in {fmt_sec(seconds)}.",
+            self._logger.debug(
+                f"Finished FETCH_ALL jobs for {len(ans)} sources using {len(tasks)} fetchers in {fmt_sec(seconds)}.",
                 extra=dict(
                     task_id=task_id,
                     event_key=get_event_key(self.fetch_all, "exit"),
                     seconds=seconds,
                     sources=list(ans),
                     max_workers=self.max_workers,
-                    num_fetchers=len(self.children),
+                    num_fetchers=len(tasks),
                     fetch_all=True,
                 ),
             )
@@ -461,128 +483,101 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
 
     def _gather(
         self,
-        futures: Iterable[Future[FetchResult[SourceType]]],
-        operation: Operation,
+        futures: list[Future[FetchResult[SourceType]]],
+        operation: FetchOperation,
         task_id: int,
     ) -> SourcePlaceholderTranslations[SourceType]:
         ans: SourcePlaceholderTranslations[SourceType] = {}
-        source_ranks: dict[SourceType, int] = {}
 
-        for future in as_completed(futures):
-            fid, translations = future.result()
-            rank = self._id_to_rank[fid]
-            self._process_future_result(translations, rank, source_ranks, ans, operation=operation, task_id=task_id)
+        try:
+            for future in as_completed(futures):
+                fid, translations = future.result()
+                self._process_future_result(translations, fid, ans, operation=operation, task_id=task_id)
+        except BaseException:
+            for future in futures:
+                future.cancel()
+            raise
         return ans
 
     def _process_future_result(
         self,
         translations: SourcePlaceholderTranslations[SourceType],
-        rank: int,
-        source_ranks: dict[SourceType, int],
+        fid: int,
         ans: SourcePlaceholderTranslations[SourceType],
         *,
-        operation: Operation,
+        operation: FetchOperation,
         task_id: int,
     ) -> None:
         for source_translations in translations.values():
             source = source_translations.source
-            other_rank = source_ranks.setdefault(source, rank)
+            owner_id = self._source_to_id.get(source)
+            if owner_id == fid:
+                ans[source] = source_translations
+                continue
 
-            if other_rank != rank:
-                self._log_rejection(source, rank, other_rank, operation, task_id)
-                if rank > other_rank:
-                    continue  # Don't save -- other rank is greater (lower-is-better).
-
-            ans[source] = source_translations
-
-    def _log_rejection(self, source: SourceType, rank0: int, rank1: int, operation: Operation, task_id: int) -> None:
-        accepted_rank, rejected_rank = (rank0, rank1) if rank0 < rank1 else (rank1, rank0)
-
-        rank_to_id = reverse_dict(self._id_to_rank)
-        accepted = self.format_child(rank_to_id[accepted_rank])
-        rejected = self.format_child(rank_to_id[rejected_rank])
-
-        if operation == "INITIALIZE_SOURCES":
-            msg = f"Discarded {source=} retrieved from {rejected} since the {accepted} already claimed same source."
-            hint = "Rank is determined by input order at initialization."
-            on_source_conflict = self.on_source_conflict
-        elif operation == "FETCH_ALL":
-            msg = (
-                f"Dropping translations for {source=} returned by the {rejected} since {operation=}."
-                f" Will use {accepted} translations instead."
+            _warn_dropped_translations(
+                self._logger,
+                source,
+                returned_by=self._format_child(fid),
+                owner=None if owner_id is None else self._format_child(owner_id),
+                implementation=tname(type(self._id_to_fetcher[fid]), include_module=True),
+                operation=operation,
+                task_id=task_id,
             )
-            on_source_conflict = "ignore"
-        else:  # Bad Fetcher.fetch implementation; should be rare.
-            fetcher = self._id_to_fetcher[rank_to_id[rejected_rank]]
-            cls = tname(fetcher, include_module=True)
-            msg = f"Dropping translations for {source=} returned by the {rejected}; this source belongs to the {accepted}."
-            hint = f"The implementation of {cls} may be incorrect."
-            on_source_conflict = "warn"
-
-        extra = {"task_id": task_id, "source": source}
-        if on_source_conflict == "raise":
-            LOGGER.error(msg, extra=extra)
-            raise exceptions.DuplicateSourceError(msg, source=source, hints=hint)
-        if on_source_conflict == "warn":
-            LOGGER.warning(msg, extra=extra)
-            emit_warning(f"{msg}\nHint: {hint}", exceptions.DuplicateSourceWarning, logged=True)
-        elif on_source_conflict == "ignore" and LOGGER.isEnabledFor(logging.DEBUG):
-            LOGGER.debug(msg, extra=extra)
 
     def __repr__(self) -> str:
         max_workers = self.max_workers
-        fetchers = "\n    ".join(f"{f}," for f in self._id_to_fetcher.values())
+        fetchers = "\n    ".join(f"{self._child_str(f)}," for f in self._id_to_fetcher.values())
         return f"{tname(self)}({max_workers=}, fetchers=[\n    {fetchers}\n])"
 
-    def format_child(self, fetcher: int | Fetcher[SourceType, IdType]) -> str:
-        """Format a managed fetcher with rank and hex ID."""
-        if isinstance(fetcher, int):
-            fetcher = self._id_to_fetcher[fetcher]
-        fetcher_id = id(fetcher)
-        rank = self._id_to_rank[fetcher_id]
-        return f"rank-{rank} fetcher {fetcher} at {hex(fetcher_id)}"
+    def format_child(self, fetcher: Fetcher[SourceType, IdType]) -> str:
+        """Format a managed fetcher with rank, hex ID and, if known, its configuration file.
 
-    def _handle_all_sources_outranked(
-        self, task_id: int, *, fetcher_id: int, discarded: dict[SourceType, list[str]]
-    ) -> None:
+        Raises:
+            ValueError: If `fetcher` is not a child of this ``MultiFetcher``.
+        """
+        return self._format_child(self._child_id(fetcher))
+
+    def _format_child(self, fetcher_id: int) -> str:
         fetcher = self._id_to_fetcher[fetcher_id]
+        pretty = f"rank-{self._id_to_rank[fetcher_id]} fetcher {self._child_str(fetcher)} at {hex(fetcher_id)}"
+        if isinstance(fetcher, AbstractFetcher) and fetcher.config_file:
+            pretty += f" (file='{fetcher.config_file}')"
+        return pretty
 
-        if LOGGER.isEnabledFor(logging.WARNING) and fetcher.sources:
-            reason = "All sources found in higher-ranking fetchers"
-            pretty = self.format_child(fetcher)
-            LOGGER.warning(
-                f"Discarding optional {pretty}: {reason}."
-                if fetcher.optional
-                else f"Required {pretty} is useless, but will be kept: {reason}.",
-                extra={"task_id": task_id, "discarded": discarded, "fetcher_id": fetcher_id},
-            )
+    def _child_str(self, fetcher: Fetcher[SourceType, IdType]) -> str:
+        """Return ``str(fetcher)``, or its type name if that could run discovery: a custom ``__str__`` may read `sources`.
 
-        if fetcher.optional:
+        Bundled ``__str__`` methods never run discovery.
+        """
+        if getattr(type(fetcher).__str__, "__module__", "").startswith("id_translation."):
+            return str(fetcher)
+        if isinstance(fetcher, (AbstractFetcher, MultiFetcher)):
+            discovered = fetcher._placeholders is not None
+        else:
+            discovered = self._placeholders is not None  # Set only once every remaining child is discovered.
+
+        return str(fetcher) if discovered else tname(type(fetcher))  # No try/catch, raising __str__() is a broken impl.
+
+    def _discard(self, fetcher_id: int) -> None:
+        pretty = self._format_child(fetcher_id)
+        del self._id_to_rank[fetcher_id]
+        fetcher = self._id_to_fetcher.pop(fetcher_id)
+        try:
             fetcher.close()
-            del self._id_to_rank[fetcher_id]
-            del self._id_to_fetcher[fetcher_id]
+        except Exception:
+            self._logger.exception(f"Failed to close discarded {pretty}.")
 
     def _raise_with_notes(self, e: BaseException, fetcher: Fetcher[SourceType, IdType]) -> Never:
-        note = f"Context (added by {type(self).__name__}):"
-
-        if isinstance(fetcher, AbstractFetcher) and fetcher.config_file:
-            note += f"\n -  file= '{fetcher.config_file}'"
-
-        note += f"\n - child= {self.format_child(fetcher)}"
-        e.add_note(note)
+        e.add_note(self._context_note(fetcher))
         raise e
+
+    def _context_note(self, fetcher: Fetcher[SourceType, IdType]) -> str:
+        return f"Context (added by {type(self).__name__}):\n - child= {self.format_child(fetcher)}"
 
     def __setstate__(self, state: dict[str, Any]) -> None:
         # Unpickled children have new identities, and with them new `id()` keys.
-        children: dict[int, Fetcher[SourceType, IdType]] = state["_id_to_fetcher"]
-        new_id = {old_id: id(child) for old_id, child in children.items()}
-        state = {
-            **state,
-            "_id_to_fetcher": {new_id[old_id]: child for old_id, child in children.items()},
-            "_id_to_rank": {new_id[old_id]: rank for old_id, rank in state["_id_to_rank"].items()},
-            "_source_to_id": {source: new_id[old_id] for source, old_id in state["_source_to_id"].items()},
-        }
-        self.__dict__.update(state)
+        self.__dict__.update(state, **self._rekeyed(state, state["_id_to_fetcher"]))
 
     def __deepcopy__(self, memo: dict[int, Any] | None = None) -> Self:
         if memo is None:
@@ -605,27 +600,27 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         return result
 
     def _copy_dicts(self, memo: dict[int, Any]) -> dict[str, dict[str, Any] | dict[int, Any]]:
-        new_id_to_fetcher: dict[int, Fetcher[SourceType, IdType]] = {}
-        old_id_to_new_id: dict[int, int] = {}
-
-        members = self.__dict__
-
-        for old_id, old_fetcher in members["_id_to_fetcher"].items():
+        clones: dict[int, Fetcher[SourceType, IdType]] = {}
+        for old_id, old_fetcher in self._id_to_fetcher.items():
             try:
-                new_fetcher = deepcopy(old_fetcher, memo)
+                clones[old_id] = deepcopy(old_fetcher, memo)
             except TypeError as e:
                 # Sharing the child instead would hand back a copy that is partly the original, with only a log line
                 # to say so. Translator.copy(fetcher='auto') handles the failure for the fetcher as a whole.
                 raise TypeError(f"Cannot clone {self.format_child(old_fetcher)}: {e}") from e
 
-            new_id = id(new_fetcher)
-            new_id_to_fetcher[new_id] = new_fetcher
-            old_id_to_new_id[old_id] = new_id
+        return self._rekeyed(self.__dict__, clones)
 
+    @staticmethod
+    def _rekeyed(
+        members: dict[str, Any], children: dict[int, Fetcher[SourceType, IdType]]
+    ) -> dict[str, dict[str, Any] | dict[int, Any]]:
+        """The `id()`-keyed members, keyed by `children`, which replace the old children by their old IDs."""
+        new_id = {old_id: id(child) for old_id, child in children.items()}
         return {
-            "_id_to_fetcher": new_id_to_fetcher,
-            "_id_to_rank": {old_id_to_new_id[old_id]: rank for old_id, rank in members["_id_to_rank"].items()},
-            "_source_to_id": {source: old_id_to_new_id[old_id] for source, old_id in members["_source_to_id"].items()},
+            "_id_to_fetcher": {new_id[old_id]: child for old_id, child in children.items()},
+            "_id_to_rank": {new_id[old_id]: rank for old_id, rank in members["_id_to_rank"].items()},
+            "_source_to_id": {source: new_id[old_id] for source, old_id in members["_source_to_id"].items()},
         }
 
 
@@ -634,3 +629,97 @@ OSC_HELPER: LiteralHelper[OnSourceConflict] = LiteralHelper(
     default_name="on_source_conflict",
     type_name="OnSourceConflict",
 )
+
+
+def _log_discard(
+    logger: logging.LoggerAdapter[logging.Logger],
+    level: int,
+    child: str,
+    reason: str,
+    *,
+    task_id: int,
+    exc_info: bool = False,
+    extra: dict[str, Any] | None = None,
+) -> None:
+    if not logger.isEnabledFor(level):
+        return
+
+    logger.log(
+        level,
+        f"Discarding optional {child}: {reason}",
+        exc_info=exc_info,
+        extra={"task_id": task_id, **(extra or {})},
+    )
+
+
+_RANK_ORDER = "Rank follows input order (in TOML: the main file, then extra_fetchers)."
+
+
+def _log_outranked(
+    logger: logging.LoggerAdapter[logging.Logger],
+    child: str,
+    *,
+    optional: bool,
+    discard_level: int,
+    task_id: int,
+    discarded: dict[Any, list[str]],
+) -> None:
+    if not discarded:
+        return  # A child without sources was logged at discovery.
+
+    reason = "All sources found in higher-ranking fetchers."
+    if optional:
+        _log_discard(logger, discard_level, child, reason, task_id=task_id, extra={"discarded": discarded})
+    elif logger.isEnabledFor(logging.WARNING):
+        logger.warning(
+            f"Required {child} is useless, but will be kept: {reason}",
+            extra={"task_id": task_id, "discarded": discarded},
+        )
+
+
+def _handle_conflict(
+    logger: logging.LoggerAdapter[logging.Logger],
+    source: Any,
+    accepted: str,
+    rejected: str,
+    on_source_conflict: OnSourceConflict,
+    *,
+    task_id: int,
+) -> None:
+    extra = {"task_id": task_id, "source": source}
+    if on_source_conflict == "raise":
+        msg = f"The {accepted} and the {rejected} both claim {source=}."
+        hint = (
+            f"{_RANK_ORDER} Set on_source_conflict='warn' or 'ignore' (in TOML: [fetching.MultiFetcher]) to keep the"
+            " highest-ranked claim."
+        )
+        logger.error(msg, extra=extra)  # The exception does not carry the task_id.
+        raise exceptions.DuplicateSourceError(msg, source=source, hints=hint)
+
+    msg = f"Discarded {source=} retrieved from {rejected} since the {accepted} already claimed same source."
+    if on_source_conflict == "warn":
+        logger.warning(msg, extra=extra)
+        hint = _RANK_ORDER
+        emit_warning(f"{msg}\nHint: {hint}", exceptions.DuplicateSourceWarning, logged=True)
+    elif on_source_conflict == "ignore" and logger.isEnabledFor(logging.DEBUG):
+        logger.debug(msg, extra=extra)
+
+
+def _warn_dropped_translations(
+    logger: logging.LoggerAdapter[logging.Logger],
+    source: Any,
+    *,
+    returned_by: str,
+    owner: str | None,
+    implementation: str,
+    operation: FetchOperation,
+    task_id: int,
+) -> None:
+    belongs_to = "no fetcher" if owner is None else f"the {owner}"
+    msg = (
+        f"Dropping translations for {source=} returned by the {returned_by} during {operation};"
+        f" this source belongs to {belongs_to}."
+    )
+    logger.warning(msg, extra={"task_id": task_id, "source": source})
+    category = exceptions.FetcherWarning if owner is None else exceptions.DuplicateSourceWarning
+    emit_warning(f"{msg}\nHint: The implementation of {implementation} may be incorrect.", category, logged=True)

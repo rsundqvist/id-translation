@@ -123,6 +123,8 @@ def test_runtime_rejected_keys() -> None:
     assert not main.is_valid({"fetching": {"MemoryFetcher": {**memory, "mapper": {}}}}), "use [fetching.mapping]"
     assert not main.is_valid({"fetching": {"my.lib.Fetcher": {"cache_access": {}}}}), "use [fetching.cache.'<type>']"
 
+    assert not main.is_valid({"fetching": {"MultiFetcher": {"max_workers": 0}, "MemoryFetcher": memory}})
+
     optional = {"fetching": {"MemoryFetcher": {**memory, "optional": True}}}
     assert not main.is_valid(optional), "the main file's fetcher cannot be optional"
     assert fetcher.is_valid(optional)

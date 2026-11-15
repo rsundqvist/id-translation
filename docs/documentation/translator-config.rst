@@ -184,8 +184,8 @@ a source claimed by several fetchers is served by the one in `translation.toml` 
      - Action for disputes during :meth:`source discovery <.Fetcher.initialize_sources>`.
    * - fetcher_discarded_log_level
      - ``int | str``
-     - Log level used when an :attr:`~.Fetcher.optional` fetcher is discarded because
-       :meth:`source discovery <.Fetcher.initialize_sources>` failed.
+     - Log level used when an :attr:`~.Fetcher.optional` fetcher is discarded, e.g. because
+       :meth:`source discovery <.Fetcher.initialize_sources>` failed or higher-ranked fetchers serve all its sources.
 
 .. _optional-fetchers:
 

@@ -1,7 +1,10 @@
 import logging
+import pickle
+import threading
 from collections.abc import Collection
 from copy import deepcopy
 from itertools import combinations
+from typing import Any, Never
 
 import pandas as pd
 import pytest
@@ -11,6 +14,7 @@ from id_translation.fetching import AbstractFetcher, MemoryFetcher, MultiFetcher
 from id_translation.fetching.exceptions import FetcherWarning
 from id_translation.fetching.types import IdsToFetch
 from id_translation.offline.types import PlaceholderTranslations, SourcePlaceholderTranslations
+from id_translation.testing import TestFetcher as _TestFetcher  # Aliased: pytest collects Test* classes
 from id_translation.types import IdTypes
 
 from ..conftest import ROOT, NotCloneableFetcher
@@ -65,6 +69,19 @@ def test_source_to_child_mapping(multi_fetcher):
     assert multi_fetcher.get_sources(children[1]) == ["big_table", "huge_table"]
 
 
+def test_child_accessors_reject_strangers(multi_fetcher):
+    stranger = deepcopy(multi_fetcher.children[0])  # A copy, but not a child; neither is a raw id() or rank.
+
+    for bad in [stranger, 0, id(multi_fetcher.children[0])]:
+        with pytest.raises(ValueError, match="Not a child of this MultiFetcher"):
+            multi_fetcher.get_sources(bad)
+        with pytest.raises(ValueError, match="Not a child of this MultiFetcher"):
+            multi_fetcher.format_child(bad)
+
+    with pytest.raises(exceptions.UnknownSourceError):
+        multi_fetcher.get_child("no-such-source")
+
+
 def test_placeholders(multi_fetcher):
     assert multi_fetcher.placeholders == {
         "animals": ["id", "name", "is_nice"],
@@ -74,52 +91,59 @@ def test_placeholders(multi_fetcher):
     }
 
 
-def test_process_future():
-    # Dict[str, Dict[str, List[int]]]
-    # Dict[str, Dict[str, Sequence[Any]]]
-    children: list[MemoryFetcher[str, int]] = [MemoryFetcher({f"{i=}": {"id": [1, 2, 3]}}) for i in range(10)]
+def test_process_future_keeps_only_the_owners_translations():
+    children: list[MemoryFetcher[str, int]] = [MemoryFetcher({f"s{i}": {"id": [1, 2, 3]}}) for i in range(3)]
     fetcher: MultiFetcher[str, int] = MultiFetcher(*children)
-
+    fetcher.initialize_sources()
     ans: SourcePlaceholderTranslations[str] = {}
-    source_ranks: dict[str, int] = {}
 
-    def make_and_process(rank):
-        pht = PlaceholderTranslations.make("source", pd.DataFrame([rank], columns=["rank"]))
-        fetcher._process_future_result({"source": pht}, rank, source_ranks, ans, operation="FETCH", task_id=0)
+    def process(source: str, child: MemoryFetcher[str, int]) -> PlaceholderTranslations[str]:
+        pht = PlaceholderTranslations.make(source, pd.DataFrame([1], columns=["id"]))
+        fetcher._process_future_result({source: pht}, id(child), ans, operation="FETCH", task_id=0)
         return pht
 
-    translations4 = make_and_process(4)
-    assert ans["source"] == translations4
+    owned = process("s1", children[1])
+    assert ans == {"s1": owned}
 
-    with pytest.warns(exceptions.DuplicateSourceWarning):
-        make_and_process(5)
-    assert ans["source"] == translations4
+    # A higher-ranked child returning another child's source must not win.
+    with pytest.warns(exceptions.DuplicateSourceWarning, match=r"returned by the rank-0 .* belongs to the rank-1"):
+        process("s1", children[0])
+    assert ans == {"s1": owned}
 
-    with pytest.warns(exceptions.DuplicateSourceWarning):
-        translations2 = make_and_process(2)
-    assert ans["source"] == translations2
-
-    with pytest.warns(exceptions.DuplicateSourceWarning):
-        translations0 = make_and_process(0)
-    assert ans["source"] == translations0
+    with pytest.warns(exceptions.FetcherWarning, match="belongs to no fetcher"):
+        process("unknown", children[2])
+    assert ans == {"s1": owned}
 
 
 def test_fetch_all(multi_fetcher, expected, caplog):
     actual = multi_fetcher.fetch_all()
 
     assert actual == expected
+    assert not [r for r in caplog.records if r.getMessage().startswith("Dropping")]
 
-    dropped = (
-        "Dropping translations for source='humans' returned by the rank-2 fetcher "
-        "MemoryFetcher(sources=['humans', 'big_table', 'huge_table']"
-    )
 
-    for record in caplog.records:
-        if record.getMessage().startswith(dropped):
-            assert record.levelno == logging.DEBUG, "should be DEBUG during fetch_all"
-            return
+def test_fetch_all_skips_lost_sources(data):
+    class Fallback(MemoryFetcher[str, int]):
+        def fetch_translations(self, instr):
+            assert instr.source != "humans", "lost to the primary fetcher"
+            return super().fetch_translations(instr)
 
-    raise AssertionError(f"not found: {dropped!r}")
+    primary: MemoryFetcher[str, int] = MemoryFetcher({"humans": data["humans"]})
+    fetcher = MultiFetcher(primary, Fallback(data), on_source_conflict="ignore")
+
+    assert sorted(fetcher.fetch_all()) == ALL_SOURCES
+
+
+def test_fetch_all_logs_dispatched_fetchers(data, caplog):
+    primary: MemoryFetcher[str, int] = MemoryFetcher(data)
+    loser: MemoryFetcher[str, int] = MemoryFetcher({"humans": data["humans"]})
+    fetcher = MultiFetcher(primary, loser, on_source_conflict="ignore")
+
+    with caplog.at_level(logging.DEBUG, logger="id_translation.fetching"):
+        fetcher.fetch_all()
+
+    counts = [r.num_fetchers for r in caplog.records if hasattr(r, "num_fetchers")]
+    assert counts == [1, 1], "the loser has no sources left to fetch"
 
 
 @pytest.mark.parametrize(
@@ -233,7 +257,7 @@ class TestOptionalFetchers:
         )
 
         assert len(fetcher._unresolved_children()) == 1
-        assert str(crashed) in fetcher._unresolved_children()[0]
+        assert f"fetcher CrashFetcher at {hex(id(crashed))}" in fetcher._unresolved_children()[0]
 
     def test_unresolved_children_is_empty_without_discards(self):
         fetcher: MultiFetcher[str, int] = MultiFetcher(
@@ -251,7 +275,7 @@ class TestOptionalFetchers:
         outer: MultiFetcher[str, int] = MultiFetcher(inner, MemoryFetcher({"outer": {"id": [1]}}))
 
         assert len(outer._unresolved_children()) == 1
-        assert str(crashed) in outer._unresolved_children()[0]
+        assert f"fetcher CrashFetcher at {hex(id(crashed))}" in outer._unresolved_children()[0]
 
     @staticmethod
     def _run(children, expected):
@@ -352,6 +376,20 @@ def test_copy(fetchers):
     copied.close()
 
 
+def test_pickle(data):
+    """Children are keyed by `id()`, which unpickled children do not keep."""
+    original: MultiFetcher[str, int] = MultiFetcher(
+        MemoryFetcher[str, int]({"humans": data["humans"]}),
+        MemoryFetcher[str, int]({"humans": data["humans"], "animals": data["animals"]}),
+        on_source_conflict="ignore",
+    )
+    copied = pickle.loads(pickle.dumps(original))  # noqa: S301
+
+    assert copied.sources == ["humans", "animals"], "discovery formats the losing child"
+    assert [copied.get_sources(child) for child in copied.children] == [["humans"], ["animals"]]
+    assert copied.format_child(copied.children[1]).startswith("rank-1")
+
+
 def test_copy_uncloneable_child_raises(fetchers):
     """A copy that silently shares a child is worse than no copy; Translator.copy() decides what to do instead."""
     original = MultiFetcher(NotCloneableFetcher(), *fetchers, on_source_conflict="ignore")
@@ -438,12 +476,153 @@ def test_discovery_failure_does_not_escape_the_discard_handler():
     assert "<uninitialized>" in str(bad), "formatting must not attempt discovery either"
 
 
+def test_discard_after_failed_discovery_does_not_call_str():
+    """A custom ``__str__`` may read the public `sources`, which re-runs the discovery that just failed."""
+
+    class Unreachable(MemoryFetcher[str, int]):
+        attempts = 0
+
+        def _initialize_sources(self, task_id: int) -> dict[str, list[str]]:  # noqa: ARG002
+            self.attempts += 1
+            raise ConnectionError("unreachable")
+
+        def __str__(self) -> str:
+            return f"Unreachable(sources={self.sources})"
+
+    bad = Unreachable({}, optional=True)
+    multi_fetcher = MultiFetcher(MemoryFetcher[str, int]({"b": {"id": [1]}}), bad)
+    multi_fetcher.initialize_sources()
+
+    assert multi_fetcher.sources == ["b"]
+    assert bad.attempts == 1
+    assert multi_fetcher._unresolved_children() == [f"rank-1 fetcher Unreachable at {hex(id(bad))}"]
+
+
+@pytest.mark.parametrize(
+    "error, optional",
+    [(ConnectionError("down"), False)],
+    ids=["required"],
+)
+def test_raise_after_failed_discovery_does_not_call_str(error, optional):
+    """A ``__str__`` that re-runs discovery would replace the original error while the context note is formatted."""
+
+    class Failing(MemoryFetcher[str, int]):
+        attempts = 0
+
+        def _initialize_sources(self, task_id: int) -> dict[str, list[str]]:  # noqa: ARG002
+            self.attempts += 1
+            raise error
+
+        def __str__(self) -> str:
+            return f"Failing(sources={self.sources})"
+
+    bad = Failing({}, optional=optional)
+    multi_fetcher: MultiFetcher[str, int] = MultiFetcher(bad)
+
+    with pytest.raises(type(error)) as exc_info:
+        multi_fetcher.initialize_sources()
+    assert exc_info.value is error
+    assert bad.attempts == 1
+    assert f"child= rank-0 fetcher Failing at {hex(id(bad))}" in "\n".join(exc_info.value.__notes__)
+
+
+class _Rediscovering(MemoryFetcher[str, int]):
+    """Undiscovered until asked: its ``__str__`` reads `sources`, and discovery raises."""
+
+    def __init__(self) -> None:
+        super().__init__({})
+        self.attempts = 0
+
+    def _initialize_sources(self, task_id: int) -> dict[str, list[str]]:  # noqa: ARG002
+        self.attempts += 1
+        raise ConnectionError("down")
+
+    def __str__(self) -> str:
+        return f"_Rediscovering(sources={self.sources})"
+
+    def close(self) -> None:
+        raise RuntimeError("close failed")
+
+    def __deepcopy__(self, memo: dict[int, Any] | None = None) -> Never:
+        raise TypeError("cannot be copied")
+
+
+def test_close_copy_and_repr_do_not_run_discovery_of_children(caplog):
+    children = [_Rediscovering(), _Rediscovering()]
+    multi_fetcher: MultiFetcher[str, int] = MultiFetcher(*children)
+
+    with pytest.raises(RuntimeError, match="close failed"):
+        multi_fetcher.close()
+    assert any("Failed to close rank-1 fetcher _Rediscovering at" in r.getMessage() for r in caplog.records)
+
+    with pytest.raises(TypeError, match="Cannot clone rank-0 fetcher _Rediscovering at"):
+        deepcopy(multi_fetcher)
+
+    assert "    _Rediscovering,\n" in repr(multi_fetcher)
+    assert [child.attempts for child in children] == [0, 0]
+    assert "MemoryFetcher(sources=<uninitialized>" in repr(MultiFetcher(MemoryFetcher({}))), "bundled __str__ is safe"
+
+
+def test_repr_of_plain_and_nested_children():
+    """A plain ``Fetcher`` has no discovery state of its own; its ``__str__`` is trusted once the parent is discovered."""
+
+    class Plain(_TestFetcher[str, int]):
+        reads = 0
+
+        def __str__(self) -> str:
+            self.reads += 1
+            return f"Plain(sources={self.sources})"
+
+    plain = Plain(["a"])
+    multi_fetcher: MultiFetcher[str, int] = MultiFetcher(plain, MultiFetcher(MemoryFetcher({"b": {"id": [1]}})))
+
+    before = repr(multi_fetcher)
+    assert "    Plain,\n" in before
+    assert "    MultiFetcher,\n" in before
+    assert plain.reads == 0
+
+    multi_fetcher.initialize_sources()
+    after = repr(multi_fetcher)
+    assert "    Plain(sources=['a']),\n" in after
+    assert "    MultiFetcher(max_workers=" in after
+
+
+def test_subclass_logs_as_its_own_class(caplog):
+    class Derived(MultiFetcher[str, int]):
+        pass
+
+    caplog.set_level(logging.DEBUG, logger="id_translation")
+    Derived(MemoryFetcher({"s": {"id": [1]}})).initialize_sources()
+
+    records = [r for r in caplog.records if r.name.startswith("id_translation.fetching.") and "children" in r.msg]
+    assert {r.name for r in records} == {"id_translation.fetching.Derived"}
+    assert {(r.fetcher_class, r.fetcher_config_file) for r in records} == {(f"{__name__}.Derived", None)}
+
+
+def test_conflict_that_raises_logs_the_task_id(caplog):
+    fetcher: MultiFetcher[str, int] = MultiFetcher(MemoryFetcher({"s": {"id": [1]}}), MemoryFetcher({"s": {"id": [1]}}))
+    with pytest.raises(exceptions.DuplicateSourceError):
+        fetcher.initialize_sources(task_id=17)
+    assert [(r.task_id, r.source) for r in caplog.records if r.levelno >= logging.ERROR] == [(17, "s")]
+
+
 def test_fetch_all_debug_extras_are_json_serializable(caplog):
     # The root `VerifyRecord` handler in conftest raises for extras that json.dumps rejects, such as sets.
     caplog.set_level(logging.DEBUG, logger="id_translation")
     fetcher: MultiFetcher[str, int] = MultiFetcher(MemoryFetcher({"s": {"id": [1], "name": ["a"]}}))
 
     fetcher.fetch_all(("id", "name"), placeholder_attributes={"name": {"upper"}})
+
+
+def test_fetch_all_error_names_the_child(data):
+    class Failing(MemoryFetcher[str, int]):
+        def fetch_translations(self, instr):  # noqa: ARG002
+            raise ConnectionError("lost")
+
+    fetcher = MultiFetcher(Failing({"humans": data["humans"]}))
+    with pytest.raises(ConnectionError, match="lost") as exc_info:
+        fetcher.fetch_all()
+    assert any(note.startswith("Context (added by MultiFetcher):") for note in exc_info.value.__notes__)
 
 
 def test_fetch_all_unknown_source_raises(multi_fetcher):
@@ -465,3 +644,146 @@ def test_configuration_error_escapes_optional():
     assert any("child= rank-1" in note for note in exc_info.value.__notes__), (
         "must name the child, as for a required one"
     )
+
+
+def test_failed_discovery_is_not_committed(monkeypatch):
+    """A raise after discovery started must leave nothing marked as done, or the retry returns a partial result."""
+    fetcher: MultiFetcher[str, int] = MultiFetcher(
+        MemoryFetcher({"a": {"id": [1]}}),
+        MemoryFetcher({"a": {"id": [1]}}),
+        on_source_conflict="ignore",
+    )
+
+    def raise_error(*_args, **_kwargs):
+        raise RuntimeError("raised while handling the outranked child")
+
+    # Raises from the per-child loop, after the first child's sources were collected.
+    monkeypatch.setattr("id_translation.fetching._multi_fetcher._log_outranked", raise_error)
+
+    for _ in range(2):
+        with pytest.raises(RuntimeError, match="outranked child"):
+            fetcher.initialize_sources()
+
+
+@pytest.mark.parametrize("level", ["DEBUG", "ERROR"])
+def test_outranked_optional_discard_uses_the_discard_level(caplog, level):
+    data = {"people": {"id": [1]}}
+    fetcher: MultiFetcher[str, int] = MultiFetcher(
+        MemoryFetcher(data),
+        MemoryFetcher(data, optional=True),
+        on_source_conflict="ignore",
+        fetcher_discarded_log_level=level,
+    )
+    with caplog.at_level(logging.DEBUG, logger="id_translation"):
+        fetcher.initialize_sources()
+
+    (record,) = [r for r in caplog.records if "All sources found in higher-ranking fetchers" in r.getMessage()]
+    assert record.levelname == level
+
+
+@pytest.mark.parametrize("max_workers", [0, -1, "2"])
+def test_bad_max_workers_raises_at_construction(max_workers):
+    with pytest.raises((ValueError, TypeError)):
+        MultiFetcher(max_workers=max_workers)
+
+
+class _Closing(MemoryFetcher[str, int]):
+    def __init__(self, *args, fail_close=False, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fail_close = fail_close
+        self.closed = False
+
+    def _initialize_sources(self, task_id: int) -> dict[str, list[str]]:  # noqa: ARG002
+        raise AssertionError("close() must not run discovery")
+
+    def close(self) -> None:
+        self.closed = True
+        if self.fail_close:
+            raise ConnectionError(f"{self} failed to close")
+
+
+class TestClose:
+    def test_closes_every_child_without_discovery(self, caplog):
+        children = [_Closing({}, fail_close=True), _Closing({}), _Closing({}, fail_close=True)]
+        fetcher = MultiFetcher(*children)
+
+        with pytest.raises(ConnectionError) as exc_info:
+            fetcher.close()
+        assert all(child.closed for child in children)
+        assert any("child= rank-0" in note for note in exc_info.value.__notes__)
+        assert any(r.levelname == "ERROR" and "Failed to close rank-2" in r.getMessage() for r in caplog.records)
+
+    def test_discards_optional_child_that_also_fails_to_close(self, caplog):
+        class Down(_Closing):
+            def _initialize_sources(self, task_id: int) -> dict[str, list[str]]:  # noqa: ARG002
+                raise ConnectionError("down")
+
+        down = Down({}, fail_close=True, optional=True)
+        fetcher = MultiFetcher(MemoryFetcher({"people": {"id": [1]}}), down)
+
+        fetcher.initialize_sources()
+        assert len(fetcher.children) == 1
+        assert down.closed
+        assert any("Failed to close discarded rank-1" in r.getMessage() for r in caplog.records)
+
+
+def test_first_failure_cancels_queued_children(monkeypatch):
+    calls = []
+    release = threading.Event()
+
+    class Recording(MemoryFetcher[str, int]):
+        def __init__(self, name: str, *, fail: bool = False) -> None:
+            super().__init__({name: {"id": [1]}})
+            self.name = name
+            self.fail = fail
+
+        def fetch_translations(self, instr):
+            calls.append(self.name)
+            if self.fail:
+                raise ConnectionError(self.name)
+            release.wait(timeout=5)  # Holds the only worker until _gather has handled the failure.
+            return super().fetch_translations(instr)
+
+    children = [Recording("first", fail=True), Recording("second"), Recording("third", fail=True)]
+    fetcher = MultiFetcher(*children, max_workers=1)
+
+    gather = fetcher._gather
+
+    def gather_then_release(*args, **kwargs):
+        try:
+            return gather(*args, **kwargs)
+        finally:
+            release.set()
+
+    monkeypatch.setattr(fetcher, "_gather", gather_then_release)
+
+    with pytest.raises(ConnectionError, match="first"):
+        fetcher.fetch([IdsToFetch(name, {1}) for name in ("first", "second", "third")])
+    assert "third" not in calls
+
+
+class Leaky(MemoryFetcher[str, int]):
+    def fetch(self, *args, **kwargs):
+        rv = super().fetch(*args, **kwargs)
+        return {**rv, "b": PlaceholderTranslations("b", ("id",), [(-1,)])}
+
+    def fetch_all(self, *args, **kwargs):
+        rv = super().fetch_all(*args, **kwargs)
+        return {**rv, "b": PlaceholderTranslations("b", ("id",), [(-1,)])}
+
+
+@pytest.mark.parametrize("leaky_rank", [0, 1])
+@pytest.mark.parametrize("max_workers", [1, 3])
+@pytest.mark.parametrize("fetch_all", [False, True])
+def test_only_the_serving_child_is_kept(leaky_rank, max_workers, fetch_all):
+    children: list[MemoryFetcher[str, int]] = [MemoryFetcher({"b": {"id": [1]}})]
+    children.insert(leaky_rank, Leaky({"a": {"id": [1]}}))
+    fetcher = MultiFetcher(*children, max_workers=max_workers)
+    fetcher.initialize_sources()
+
+    with pytest.warns(exceptions.DuplicateSourceWarning, match=f"returned by the rank-{leaky_rank}"):
+        if fetch_all:
+            result = fetcher.fetch_all()
+        else:
+            result = fetcher.fetch([IdsToFetch("a", {1}), IdsToFetch("b", {1})])
+    assert list(result["b"].records) == [(1,)]

@@ -7,8 +7,8 @@ import pytest
 
 from id_translation import Translator
 from id_translation.exceptions import ConfigurationError
-from id_translation.fetching import AbstractFetcher, CacheAccess, MemoryFetcher, MultiFetcher
-from id_translation.fetching.exceptions import UnknownPlaceholderError
+from id_translation.fetching import AbstractFetcher, CacheAccess, Fetcher, MemoryFetcher, MultiFetcher
+from id_translation.fetching.exceptions import DuplicateSourceError, UnknownPlaceholderError
 from id_translation.toml import TranslatorFactory
 from id_translation.toml._factory import SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS
 from id_translation.toml.factories._fetcher import default_fetcher_factory
@@ -214,6 +214,20 @@ def test_override_tables_to_absent_column(tmp_path, table):
     with pytest.raises(UnknownPlaceholderError, match=r"\['nope'\] not recognized") as ec:
         translator.initialize_sources()
     assert ("shared override" in ec.value.__notes__[0]) is not bool(table)
+
+
+def test_source_conflict_names_both_files(tmp_path):
+    main = tmp_path / "main.toml"
+    main.write_text("[fetching.MemoryFetcher.data.people]\nid = [1]\n", encoding="utf-8")
+    extra = tmp_path / "extra.toml"
+    extra.write_text("[fetching.MemoryFetcher.data.people]\nid = [2]\n", encoding="utf-8")
+
+    translator: Translator[str, str, int] = Translator.from_config(main, extra_fetchers=[extra])
+    with pytest.raises(DuplicateSourceError, match="both claim source='people'") as exc_info:
+        translator.initialize_sources()
+    assert "file='main.toml'" in str(exc_info.value)
+    assert "file='extra.toml'" in str(exc_info.value)
+    assert "on_source_conflict='warn'" in exc_info.value.__notes__[0]
 
 
 class TestEnvVars:
@@ -450,6 +464,21 @@ def test_every_fetcher_discarded(tmp_path, monkeypatch):
 
     with pytest.raises(ConfigurationError, match=r"All \[fetching\]-sections were discarded as optional"):
         Translator.from_config(main, extra_fetchers=[aux])
+
+
+def test_lone_survivor_stays_wrapped(tmp_path, monkeypatch):
+    monkeypatch.setenv(SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS, "true")
+    main = tmp_path / "main.toml"
+    main.write_text("[fetching.MultiFetcher]\nmax_workers = 3\n", encoding="utf-8")
+    good = tmp_path / "good.toml"
+    good.write_text("[fetching.MemoryFetcher]\ndata = { s = { id = [1], name = ['one'] } }\n", encoding="utf-8")
+    bad = tmp_path / "bad.toml"
+    bad.write_text(f"[fetching.'{__name__}.CrashesOnInitFetcher']\noptional = true\n", encoding="utf-8")
+
+    fetcher: Fetcher[Any, Any] = Translator.from_config(main, extra_fetchers=[good, bad]).fetcher
+    assert isinstance(fetcher, MultiFetcher)
+    assert len(fetcher.children) == 1
+    assert fetcher.max_workers == 3
 
 
 class CrashesOnInitFetcher(MemoryFetcher[Any, Any]):

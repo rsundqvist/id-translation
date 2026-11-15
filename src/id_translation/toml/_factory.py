@@ -259,7 +259,8 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
             )
 
         retval: Fetcher[SourceType, IdType]
-        if len(fetchers) == 1:
+        # Counted as declared, so a fetcher discarded at construction doesn't change the type or drop these settings.
+        if bool(config) + len(extra_fetchers) == 1:
             if multi_fetcher_kwargs:
                 with _rethrow_with_file(self.file):
                     MultiFetcher(**multi_fetcher_kwargs)  # Unused; raises for values that a second fetcher would hit.

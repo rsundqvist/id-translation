@@ -263,7 +263,8 @@
       "properties": {
         "max_workers": {
           "type": "integer",
-          "description": "Maximum number of child fetchers to call in parallel."
+          "description": "Maximum number of child fetchers to call in parallel.",
+          "minimum": 1
         },
         "on_source_conflict": {
           "enum": [
@@ -278,7 +279,7 @@
             "integer",
             "string"
           ],
-          "description": "Log level used when discarding optional fetchers that fail during source discovery."
+          "description": "Log level used when an optional fetcher is discarded, e.g. because source discovery failed or higher-ranked fetchers serve all its sources."
         }
       }
     },
