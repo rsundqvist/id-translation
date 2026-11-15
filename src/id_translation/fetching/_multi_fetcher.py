@@ -12,8 +12,10 @@ from rics.strings import format_seconds as fmt_sec
 from rics.types import LiteralHelper
 
 from .._utils.emit_warning import emit_warning
-from ..exceptions import ConfigurationError, MissingPlaceholderError
+from .._utils.locks import DiscoveryGuard
+from ..exceptions import MissingPlaceholderError
 from ..logging import generate_task_id, get_event_key
+from ..mapping.exceptions import MappingError
 from ..offline.types import PlaceholderAttributes, SourcePlaceholderTranslations
 from ..transform.types import Transformer
 from ..types import IdType, SourceType
@@ -72,10 +74,11 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         self._placeholders: dict[SourceType, list[str]] | None = None
         self._source_to_id: dict[SourceType, int] = {}
         self._unresolved: list[str] = []
+        self._discovery_guard = DiscoveryGuard()
 
     @property
     def allow_fetch_all(self) -> bool:
-        return all(f.allow_fetch_all for f in self._id_to_fetcher.values())  # pragma: no cover
+        return all(f.allow_fetch_all for f in [*self._id_to_fetcher.values()])  # pragma: no cover
 
     def close(self) -> None:
         """Close all :attr:`child <id_translation.fetching.MultiFetcher.children>` fetchers.
@@ -173,8 +176,11 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         Perform source discovery for all :attr:`~id_translation.fetching.MultiFetcher.children`, discarding
         :attr:`optional <id_translation.fetching.Fetcher.optional>` children that raise or do not return any sources
         when their respective :meth:`Fetcher.initialize_sources <id_translation.fetching.Fetcher.initialize_sources>`
-        methods are called. Configuration errors (a :class:`~id_translation.exceptions.ConfigurationError`, or a
-        source missing a required placeholder) are raised, also for optional children.
+        methods are called. Configuration errors and broken implementations (a
+        :class:`~id_translation.mapping.exceptions.MappingError`,
+        :class:`~id_translation.fetching.exceptions.DuplicateSourceError` or
+        :class:`~id_translation.fetching.exceptions.ImplementationError`, a source missing a required placeholder, or an
+        override naming a column the source lacks) are raised, also for optional children.
 
         Args:
             task_id: Used for logging.
@@ -186,54 +192,27 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
             An optional child whose every source a higher-ranked child serves is discarded too.
             Calling this method multiple times will not recover previously discarded optional child fetchers.
         """
+        # Mirrors AbstractFetcher.initialize_sources(); if the duplicated locking logic grows, break it out into one place.
         if self._placeholders is not None:
             return
-
-        start = perf_counter()
-        if task_id is None:
-            task_id = generate_task_id()
-
-        self._logger.debug(
-            "Begin initialization of %i children.",
-            len(self._id_to_fetcher),
-            extra={"task_id": task_id, "event_key": get_event_key(self.initialize_sources, "enter")},
-        )
-
-        fid_to_placeholders = self._initialize_sources(task_id)
-        self._source_to_id = self._make_source_to_id(fid_to_placeholders, task_id)
-
-        # Committed last: `_placeholders` marks discovery as done, so a raise below must leave it unset for the retry.
-        all_placeholders: dict[SourceType, list[str]] = {}
-        for fid, source_to_placeholders in fid_to_placeholders.items():
-            discarded = dict(source_to_placeholders)
-            placeholders = {
-                source: placeholders
-                for source, placeholders in source_to_placeholders.items()
-                if self._source_to_id[source] == fid
-            }
-
-            if placeholders:
-                all_placeholders.update(placeholders)
-                continue
-
-            fetcher = self._id_to_fetcher[fid]
-            _log_outranked(
-                self._logger,
-                self._format_child(fid),
-                optional=fetcher.optional,
-                discard_level=self._discard_level,
-                task_id=task_id,
-                discarded=discarded,
+        if self._discovery_guard.is_current():
+            raise exceptions.ImplementationError(
+                f"{type(self).__name__}.initialize_sources() was called during its own discovery.",
+                hints="Code run during discovery, such as a child or a log handler, must not read its sources or"
+                " placeholders.",
             )
-            if fetcher.optional:
-                self._discard(fid)
 
-        if not self._id_to_fetcher:
-            emit_warning("No fetchers. See log output for more information.", exceptions.FetcherWarning)
+        with self._discovery_guard.lock:
+            if self._placeholders is not None:
+                return  # Another thread finished discovery while this one waited; see AbstractFetcher for failures.
 
-        self._placeholders = all_placeholders
+            start = perf_counter()
+            if task_id is None:
+                task_id = generate_task_id()
 
-        if self._logger.isEnabledFor(logging.DEBUG):
+            self._discover_locked(task_id)
+
+        if self._logger.isEnabledFor(logging.DEBUG):  # Outside the lock, as in AbstractFetcher.
             seconds = perf_counter() - start
             event_key = get_event_key(self.initialize_sources, "exit")
             self._logger.debug(
@@ -242,18 +221,69 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
                 extra={"task_id": task_id, "seconds": seconds, "event_key": event_key},
             )
 
+    def _discover_locked(self, task_id: int) -> None:
+        try:
+            self._discovery_guard.set_current()
+            self._logger.debug(
+                "Begin initialization of %i children.",
+                len(self._id_to_fetcher),
+                extra={"task_id": task_id, "event_key": get_event_key(self.initialize_sources, "enter")},
+            )
+
+            fid_to_placeholders = self._initialize_sources(task_id)
+            self._source_to_id = self._make_source_to_id(fid_to_placeholders, task_id)
+
+            # Committed last: `_placeholders` marks discovery as done, so a raise below must leave it unset for the retry.
+            all_placeholders: dict[SourceType, list[str]] = {}
+            for fid, source_to_placeholders in fid_to_placeholders.items():
+                discarded = dict(source_to_placeholders)
+                placeholders = {
+                    source: placeholders
+                    for source, placeholders in source_to_placeholders.items()
+                    if self._source_to_id[source] == fid
+                }
+
+                if placeholders:
+                    all_placeholders.update(placeholders)
+                    continue
+
+                fetcher = self._id_to_fetcher[fid]
+                _log_outranked(
+                    self._logger,
+                    self._format_child(fid),
+                    optional=fetcher.optional,
+                    discard_level=self._discard_level,
+                    task_id=task_id,
+                    discarded=discarded,
+                )
+                if fetcher.optional:
+                    self._discard(fid)
+
+            if not self._id_to_fetcher:
+                emit_warning("No fetchers. See log output for more information.", exceptions.FetcherWarning)
+
+            self._placeholders = all_placeholders
+        finally:
+            self._discovery_guard.clear()
+
     def _initialize_sources(self, task_id: int) -> dict[int, dict[SourceType, list[str]]]:
         retval: dict[int, dict[SourceType, list[str]]] = {}
 
         log_level = self._discard_level
+        # Raised even by an `optional` child: they mean a misconfiguration or a broken implementation.
+        not_suppressed = (
+            MissingPlaceholderError,
+            MappingError,
+            exceptions.ImplementationError,
+            exceptions.DuplicateSourceError,
+        )
 
         for fid, fetcher in list(self._id_to_fetcher.items()):
             if fetcher.optional:
                 try:
                     fetcher.initialize_sources(task_id)
                     placeholders = fetcher.placeholders
-                except (ConfigurationError, MissingPlaceholderError) as e:
-                    # `optional` covers an unavailable source, not a misconfigured one.
+                except not_suppressed as e:
                     self._raise_with_notes(e, fetcher)
                 except Exception as e:
                     pretty = self._format_child(fid)
@@ -527,7 +557,8 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
 
     def __repr__(self) -> str:
         max_workers = self.max_workers
-        fetchers = "\n    ".join(f"{self._child_str(f)}," for f in self._id_to_fetcher.values())
+        # A snapshot: discovery in another thread may discard children while this runs.
+        fetchers = "\n    ".join(f"{self._child_str(f)}," for f in [*self._id_to_fetcher.values()])
         return f"{tname(self)}({max_workers=}, fetchers=[\n    {fetchers}\n])"
 
     def format_child(self, fetcher: Fetcher[SourceType, IdType]) -> str:
@@ -580,6 +611,8 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         self.__dict__.update(state, **self._rekeyed(state, state["_id_to_fetcher"]))
 
     def __deepcopy__(self, memo: dict[int, Any] | None = None) -> Self:
+        # Neither this nor pickling takes the discovery lock: copied while another thread discovers, the children dicts
+        # may change mid-copy (`_discard`) and the copy raises. A Translator's copy() waits only for its own first use.
         if memo is None:
             memo = {}
         cls = self.__class__
@@ -652,9 +685,6 @@ def _log_discard(
     )
 
 
-_RANK_ORDER = "Rank follows input order (in TOML: the main file, then extra_fetchers)."
-
-
 def _log_outranked(
     logger: logging.LoggerAdapter[logging.Logger],
     child: str,
@@ -686,11 +716,12 @@ def _handle_conflict(
     *,
     task_id: int,
 ) -> None:
+    rank_order = "Rank follows input order (in TOML: the main file, then extra_fetchers)."
     extra = {"task_id": task_id, "source": source}
     if on_source_conflict == "raise":
         msg = f"The {accepted} and the {rejected} both claim {source=}."
         hint = (
-            f"{_RANK_ORDER} Set on_source_conflict='warn' or 'ignore' (in TOML: [fetching.MultiFetcher]) to keep the"
+            f"{rank_order} Set on_source_conflict='warn' or 'ignore' (in TOML: [fetching.MultiFetcher]) to keep the"
             " highest-ranked claim."
         )
         logger.error(msg, extra=extra)  # The exception does not carry the task_id.
@@ -699,8 +730,7 @@ def _handle_conflict(
     msg = f"Discarded {source=} retrieved from {rejected} since the {accepted} already claimed same source."
     if on_source_conflict == "warn":
         logger.warning(msg, extra=extra)
-        hint = _RANK_ORDER
-        emit_warning(f"{msg}\nHint: {hint}", exceptions.DuplicateSourceWarning, logged=True)
+        emit_warning(f"{msg}\nHint: {rank_order}", exceptions.DuplicateSourceWarning, logged=True)
     elif on_source_conflict == "ignore" and logger.isEnabledFor(logging.DEBUG):
         logger.debug(msg, extra=extra)
 

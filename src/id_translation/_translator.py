@@ -280,8 +280,9 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         Raises:
             ~id_translation.exceptions.NoSourcesError: If the fetcher finds no sources and `require_sources` is set.
 
-        See Also:
-            🧵 Thread safe, unless the fetcher is shared with another instance; see :ref:`thread-safety-fetchers`.
+        Notes:
+            🧵 Thread safe with an :class:`~id_translation.fetching.AbstractFetcher` or
+            :class:`~id_translation.fetching.MultiFetcher`. See :ref:`thread-safety-fetchers` for details.
         """
         tx = self._tx
         if self.online and not (tx.discovered and tx.queried):

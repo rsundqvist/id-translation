@@ -2,13 +2,13 @@ from collections.abc import Iterable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from copy import deepcopy
 from functools import partial
-from threading import RLock
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Generic, Self
 
 from rics.types import LiteralHelper
 
 from ._utils.emit_warning import emit_warning
+from ._utils.locks import new_lock
 from .exceptions import TransformerConflictError, TransformerStateError
 from .fetching import AbstractFetcher, Fetcher, MultiFetcher
 from .transform import TransformerStack, as_transformer
@@ -53,14 +53,7 @@ class TransformerRegistry(Generic[NameType, SourceType, IdType]):
         # Serializes first use: discovery, the fetcher pass and settling, and a copy's snapshot of them. Checked twice,
         # so a settled registry never takes it.
         # Reentrant, since an overridden `register_transformer` may call back into the Translator.
-        self.lock = RLock()
-
-    def __getstate__(self) -> dict[str, Any]:
-        return {k: v for k, v in self.__dict__.items() if k != "lock"}
-
-    def __setstate__(self, state: dict[str, Any]) -> None:
-        self.__dict__.update(state)
-        self.lock = RLock()
+        self.lock = new_lock()
 
     @property
     def frozen(self) -> bool:

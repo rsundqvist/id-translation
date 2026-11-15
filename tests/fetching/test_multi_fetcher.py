@@ -13,6 +13,7 @@ from id_translation import Translator
 from id_translation.fetching import AbstractFetcher, MemoryFetcher, MultiFetcher, SqlFetcher, exceptions
 from id_translation.fetching.exceptions import FetcherWarning
 from id_translation.fetching.types import IdsToFetch
+from id_translation.mapping.exceptions import AmbiguousScoreError
 from id_translation.offline.types import PlaceholderTranslations, SourcePlaceholderTranslations
 from id_translation.testing import TestFetcher as _TestFetcher  # Aliased: pytest collects Test* classes
 from id_translation.types import IdTypes
@@ -500,8 +501,8 @@ def test_discard_after_failed_discovery_does_not_call_str():
 
 @pytest.mark.parametrize(
     "error, optional",
-    [(ConnectionError("down"), False)],
-    ids=["required"],
+    [(ConnectionError("down"), False), (AmbiguousScoreError("tied"), True)],
+    ids=["required", "optional-not-suppressed"],
 )
 def test_raise_after_failed_discovery_does_not_call_str(error, optional):
     """A ``__str__`` that re-runs discovery would replace the original error while the context note is formatted."""
@@ -630,16 +631,40 @@ def test_fetch_all_unknown_source_raises(multi_fetcher):
         multi_fetcher.fetch_all(sources={"humans", "no-such-source"})
 
 
-def test_configuration_error_escapes_optional():
-    """`optional` covers an unavailable source, not a misconfigured one such as a source without an ID column."""
+class _NoIdColumn(MemoryFetcher[str, int]):
+    def _initialize_sources(self, task_id: int) -> dict[str, list[str]]:  # noqa: ARG002
+        return {"notes": ["title"]}
 
-    class NoIdColumn(MemoryFetcher[str, int]):
-        def _initialize_sources(self, task_id: int) -> dict[str, list[str]]:  # noqa: ARG002
-            return {"notes": ["title"]}
 
-    fetcher = MultiFetcher(MemoryFetcher({"people": {"id": [1]}}), NoIdColumn({}, optional=True))
+class _Reentrant(MemoryFetcher[str, int]):
+    def _initialize_sources(self, task_id: int) -> dict[str, list[str]]:  # noqa: ARG002
+        return {source: [] for source in self.sources}
 
-    with pytest.raises(exceptions.UnknownIdPlaceholderError) as exc_info:
+
+class _Raises(MemoryFetcher[str, int]):
+    def __init__(self, error: Exception) -> None:
+        super().__init__({}, optional=True)
+        self.error = error
+
+    def _initialize_sources(self, task_id: int) -> dict[str, list[str]]:  # noqa: ARG002
+        raise self.error
+
+
+@pytest.mark.parametrize(
+    "child, expected",
+    [
+        (_NoIdColumn({}, optional=True), exceptions.UnknownIdPlaceholderError),
+        (_Reentrant({}, optional=True), exceptions.ImplementationError),
+        (_Raises(AmbiguousScoreError("tied")), AmbiguousScoreError),
+        (_Raises(exceptions.DuplicateSourceError("both", source="s")), exceptions.DuplicateSourceError),
+    ],
+    ids=["no-id-column", "reentrant", "mapping", "duplicate-source"],
+)
+def test_errors_that_escape_optional(child, expected):
+    """`optional` covers an unavailable source, not a misconfigured or broken one."""
+    fetcher = MultiFetcher(MemoryFetcher({"people": {"id": [1]}}), child)
+
+    with pytest.raises(expected) as exc_info:
         fetcher.initialize_sources()
     assert any("child= rank-1" in note for note in exc_info.value.__notes__), (
         "must name the child, as for a required one"
@@ -787,3 +812,14 @@ def test_only_the_serving_child_is_kept(leaky_rank, max_workers, fetch_all):
         else:
             result = fetcher.fetch([IdsToFetch("a", {1}), IdsToFetch("b", {1})])
     assert list(result["b"].records) == [(1,)]
+
+
+def test_reentrant_discovery():
+    class ReadsParent(MemoryFetcher[str, int]):
+        def _initialize_sources(self, task_id: int) -> dict[str, list[str]]:
+            assert parent.sources  # Re-enters the parent's discovery from the same thread.
+            return super()._initialize_sources(task_id)
+
+    parent: MultiFetcher[str, int] = MultiFetcher(ReadsParent({"people": {"id": [1]}}))
+    with pytest.raises(exceptions.ImplementationError, match=r"MultiFetcher.initialize_sources\(\) was called during"):
+        parent.initialize_sources()

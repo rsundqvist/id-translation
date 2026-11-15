@@ -213,6 +213,26 @@ def test_deepcopy(connection_string):
     cloned.close()
 
 
+def test_deepcopy_mid_discovery_can_discover(connection_string):
+    clones: list[RealSqlFetcher[int]] = []
+
+    class Cloning(SqlFetcher):
+        def _initialize_sources(self, task_id):
+            if not clones:
+                clones.append(deepcopy(self))
+            return super()._initialize_sources(task_id)
+
+    original = Cloning(connection_string)
+    original.initialize_sources()
+    (clone,) = clones
+    plain = SqlFetcher(connection_string)
+
+    assert clone.sources == plain.sources  # A stale discovery marker refuses this thread.
+
+    for fetcher in (original, clone, plain):
+        fetcher.close()  # See test_deepcopy.
+
+
 def test_optional_engine_error():
     connection_string = "not a proper connection string!"
     fetcher = SqlFetcher(connection_string, optional=True)

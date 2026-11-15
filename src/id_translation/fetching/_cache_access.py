@@ -57,7 +57,9 @@ class CacheAccess(ABC, Generic[SourceType, IdType]):
 
         Returns:
             Cached :class:`~id_translation.offline.types.PlaceholderTranslations`, a
-            :class:`~id_translation.fetching.types.PartialCacheHit`, or ``None``.
+            :class:`~id_translation.fetching.types.PartialCacheHit`, or ``None``. Anything else, including translations
+            for a source other than the source of `instr`, raises an
+            :class:`~id_translation.fetching.exceptions.ImplementationError`.
         """
 
     @abstractmethod

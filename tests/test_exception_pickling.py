@@ -21,7 +21,6 @@ from id_translation.dio.exceptions import NotInplaceTranslatableError, Untransla
 from id_translation.exceptions import MissingNamesError, TooManyFailedTranslationsError, TransformerStateError
 from id_translation.fetching import MemoryFetcher
 from id_translation.fetching.exceptions import (
-    ConcurrentOperationWarning,
     DuplicateSourceError,
     ForbiddenOperationError,
     UnknownIdPlaceholderError,
@@ -87,9 +86,6 @@ _FETCHER: MemoryFetcher[str, int] = MemoryFetcher(
 )
 
 FACTORY_SAMPLES: dict[str, Callable[[], BaseException]] = {
-    "ConcurrentOperationWarning.for_operation": lambda: ConcurrentOperationWarning.for_operation(
-        "initialize_sources", fetcher_class="SqlFetcher"
-    ),
     "ForbiddenOperationError.for_operation": lambda: ForbiddenOperationError.for_operation(
         "FETCH_ALL", fetcher_class="SqlFetcher", hints="Check it."
     ),

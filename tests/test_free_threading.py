@@ -239,7 +239,6 @@ def test_concurrent_translated_names_is_consistent(offline_translator: Translato
     _run_in_threads(worker, iterations=500)
 
 
-@pytest.mark.filterwarnings("ignore::id_translation.fetching.exceptions.ConcurrentOperationWarning")
 def test_concurrent_lazy_initialization(
     online_translator: Translator[str, str, int], offline_translator: Translator[str, str, int]
 ) -> None:

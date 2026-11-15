@@ -195,10 +195,10 @@ class BadFetcher(AbstractFetcher[str, int]):
         raise NotImplementedError
 
 
-def test_concurrent_initialize_sources_warns():
-    """Most likely site (I think?) where id-translation-project users might run into this."""
-
-    fetcher = BlockingFetcher()
+@pytest.mark.parametrize("multi", [False, True])
+def test_concurrent_initialize_sources_discovers_once(multi):
+    child = BlockingFetcher()
+    fetcher = CountingMultiFetcher(child) if multi else child
     errors: list[BaseException] = []
 
     def call() -> None:
@@ -209,23 +209,58 @@ def test_concurrent_initialize_sources_warns():
 
     first = threading.Thread(target=call, name="first")
     first.start()
-    assert fetcher.entered.wait(timeout=5), f"{first=} did not enter"
-
-    # The first thread is now stuck in the critical section. The second thread
-    # should detect this and emit a warning.
+    assert child.entered.wait(timeout=5), f"{first=} did not enter"
 
     second = threading.Thread(target=call, name="second")
     second.start()
-    second.join(timeout=5)
+    second.join(timeout=0.1)
+    assert second.is_alive(), "the second caller should wait for the first discovery"
 
-    fetcher.release.set()  # Allow the first thread to continue.
+    child.release.set()
     first.join(timeout=5)
+    second.join(timeout=5)
+    assert not first.is_alive()
+    assert not second.is_alive()
 
-    assert len(errors) == 1
-    warning = errors[0]
-    assert isinstance(warning, exceptions.ConcurrentOperationWarning)
-    assert warning.operation == "initialize_sources"
-    assert warning.fetcher_class.endswith("test_abstract_fetcher.BlockingFetcher")
+    assert errors == []
+    assert child.discoveries == 1
+    assert fetcher.discoveries == 1
+
+
+class CloningFetcher(MemoryFetcher[str, int]):
+    """Clones `target` once from inside its own discovery. Class attributes: a pickled clone cannot carry a lambda."""
+
+    target: Any = None
+    clone: Any = None
+    clones: list[Any] = []
+
+    def _initialize_sources(self, task_id):
+        if not CloningFetcher.clones:
+            CloningFetcher.clones.append(CloningFetcher.clone(CloningFetcher.target))
+        return super()._initialize_sources(task_id)
+
+
+@pytest.mark.parametrize("clone", [deepcopy, lambda f: pickle.loads(pickle.dumps(f))], ids=["deepcopy", "pickle"])  # noqa: S301
+@pytest.mark.parametrize("multi", [False, True])
+def test_clone_taken_mid_discovery_can_discover(monkeypatch, clone, multi):
+    child = CloningFetcher({"people": {"id": [1]}})
+    fetcher = MultiFetcher(child) if multi else child
+    monkeypatch.setattr(CloningFetcher, "target", fetcher)
+    monkeypatch.setattr(CloningFetcher, "clone", clone)
+    monkeypatch.setattr(CloningFetcher, "clones", [])
+
+    fetcher.initialize_sources()
+
+    (copy,) = CloningFetcher.clones
+    assert copy.sources == ["people"]  # In the thread that discovered the original, which a stale marker refuses.
+
+
+class CountingMultiFetcher(MultiFetcher[str, int]):
+    discoveries = 0
+
+    def _initialize_sources(self, task_id):
+        self.discoveries += 1
+        return super()._initialize_sources(task_id)
 
 
 class BlockingFetcher(AbstractFetcher[str, int]):
@@ -233,8 +268,10 @@ class BlockingFetcher(AbstractFetcher[str, int]):
         super().__init__()
         self.entered = threading.Event()
         self.release = threading.Event()
+        self.discoveries = 0
 
     def _initialize_sources(self, _):
+        self.discoveries += 1
         self.entered.set()
         assert self.release.wait(timeout=5)
         return {}
@@ -486,15 +523,6 @@ def test_unknown_source_raises_on_a_fresh_fetcher(call):
             fetcher.fetch_all(sources={"nope", "people"} if call == "fetch_all_mixed" else {"nope"})
 
 
-def test_a_subclass_may_assign_config_file():
-    class Custom(MemoryFetcher[str, int]):
-        def __init__(self) -> None:
-            super().__init__({})
-            self.config_file = "my.yaml"
-
-    assert Custom().config_file == "my.yaml"
-
-
 def test_repeated_source_in_ids_to_fetch_raises():
     fetcher: MemoryFetcher[str, int] = MemoryFetcher({"a": {"id": [1, 2], "name": ["x", "y"]}})
     with pytest.raises(ValueError, match=r"Repeated sources in ids_to_fetch: \['a'\]"):
@@ -584,3 +612,60 @@ def test_missing_id_column_hint_for_implementers(bundled):
         fetcher.initialize_sources()
     leave_out = [n for n in exc_info.value.__notes__ if "leave it out of MyFetcher._initialize_sources()" in n]
     assert bool(leave_out) is not bundled
+
+
+class TestImplementationErrors:
+    @pytest.mark.parametrize(
+        "result, match",
+        [
+            (None, r"fetch_translations\(\) returned NoneType; expected PlaceholderTranslations for source='people'"),
+            (PlaceholderTranslations("dogs", ("id",), [(1,)]), r"returned translations for source='dogs'"),
+        ],
+    )
+    def test_bad_fetch_translations_result(self, result, match):
+        class Broken(MemoryFetcher[str, int]):
+            def fetch_translations(self, instr):  # noqa: ARG002
+                return result
+
+        fetcher = Broken({"people": {"id": [1]}})
+        with pytest.raises(exceptions.ImplementationError, match=match):
+            fetcher.fetch([IdsToFetch("people", {1})])
+
+    def test_bad_load_result(self):
+        class BadCache(CacheAccess[str, int]):
+            def load(self, instr: FetchInstruction[str, int]) -> Any:  # noqa: ARG002
+                return {"id": [1]}
+
+            def store(self, instr: FetchInstruction[str, int], translations: PlaceholderTranslations[str]) -> None:
+                pass
+
+        fetcher: MemoryFetcher[str, int] = MemoryFetcher({"people": {"id": [1]}}, cache_access=BadCache())
+        with pytest.raises(exceptions.ImplementationError, match=r"BadCache.load\(\) returned dict"):
+            fetcher.fetch([IdsToFetch("people", {1})])
+
+    def test_bad_partial_hit_source(self):
+        class BadCache(CacheAccess[str, int]):
+            def load(self, instr: FetchInstruction[str, int]) -> Any:  # noqa: ARG002
+                return PartialCacheHit(PlaceholderTranslations("dogs", ("id",), [(1,)]))
+
+            def store(self, instr: FetchInstruction[str, int], translations: PlaceholderTranslations[str]) -> None:
+                pass
+
+        fetcher: MemoryFetcher[str, int] = MemoryFetcher({"people": {"id": [1, 2]}}, cache_access=BadCache())
+        match = r"BadCache.load\(\) returned a PartialCacheHit with translations for source='dogs'"
+        with pytest.raises(exceptions.ImplementationError, match=match):
+            fetcher.fetch([IdsToFetch("people", {1, 2})])
+
+    @pytest.mark.parametrize("read", ["sources", "placeholders", "map_placeholders"])
+    def test_reentrant_discovery(self, read):
+        class Reentrant(MemoryFetcher[str, int]):
+            def _initialize_sources(self, task_id: int) -> dict[str, list[str]]:
+                if read == "map_placeholders":
+                    self.map_placeholders("people", ["id"], task_id=task_id)
+                else:
+                    getattr(self, read)
+                return super()._initialize_sources(task_id)
+
+        fetcher = Reentrant({"people": {"id": [1]}})
+        with pytest.raises(exceptions.ImplementationError, match=r"was called during its own discovery"):
+            fetcher.initialize_sources()

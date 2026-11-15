@@ -183,3 +183,13 @@ def test_uuid_heuristics_filtered(source_id, data_id):
     fetcher: MemoryFetcher[str, str | UUID] = MemoryFetcher({"s": {"id": [source_id], "name": ["found"]}})
     translator: Translator[str, str, str | UUID] = Translator(fetcher, fmt="{name}", enable_uuid_heuristics=True)
     assert translator.translate([data_id], names="s") == ["found"]
+
+
+@pytest.mark.parametrize("return_all", [False, True])
+def test_ready_made_translations_keyed_under_another_name(return_all):
+    pht: PlaceholderTranslations[str] = PlaceholderTranslations("humans", ("id", "name"), [(1, "Fred")])
+    fetcher: MemoryFetcher[str, int] = MemoryFetcher({"people": pht}, return_all=return_all)
+
+    (translations,) = fetcher.fetch([IdsToFetch("people", {1})]).values()
+    assert translations.source == "people"
+    assert pht.source == "humans", "the caller's instance is left alone"

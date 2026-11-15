@@ -21,34 +21,6 @@ class FetcherWarning(_IdTranslationWarning):
     """Base class for ``Fetcher`` warnings."""
 
 
-class ConcurrentOperationWarning(FetcherWarning):
-    """A thread-unsafe ``Fetcher`` operation was entered from multiple threads at once.
-
-    Use :meth:`~id_translation.fetching.exceptions.ConcurrentOperationWarning.for_operation` to build the
-    standard message.
-
-    Args:
-        msg: The warning message.
-        operation: The thread-unsafe operation that was entered concurrently.
-        fetcher_class: Class name of the emitting implementation, e.g. `SqlFetcher`;
-            module-qualified for a class outside ``id_translation.fetching``.
-    """
-
-    def __init__(self, msg: str, *, operation: str = "", fetcher_class: str = "") -> None:
-        super().__init__(msg)
-        self.operation = operation
-        self.fetcher_class = fetcher_class
-
-    @classmethod
-    def for_operation(cls, operation: str, *, fetcher_class: str) -> _Self:
-        """Create a warning with the standard message."""
-        return cls(
-            f"Concurrent operation detected in {fetcher_class}.{operation}().",
-            operation=operation,
-            fetcher_class=fetcher_class,
-        )
-
-
 class FetcherError(RuntimeError):
     """Base class for ``Fetcher`` exceptions."""
 

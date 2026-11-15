@@ -65,6 +65,7 @@ class PlaceholderTranslations(_t.Generic[_tt.SourceType]):
         if isinstance(data, PlaceholderTranslations):
             if isinstance(data, cls):
                 return data  # Frozen and never mutated in place, so an offline Translator.copy() shares the records.
+            # A subclass's make() returns that subclass.
             return cls(data.source, data.placeholders, data.records, placeholder_aliases=data.placeholder_aliases)
         if isinstance(data, _Mapping):
             return cls.from_dict(source, data)

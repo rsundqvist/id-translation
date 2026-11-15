@@ -38,7 +38,10 @@ class SlowProvider(MemoryFetcher[str, int]):
         return Tag()
 
 
-@pytest.mark.parametrize("method", ["translate", "map", "initialize_sources", "sources", "sources+translate"])
+@pytest.mark.parametrize(
+    "method",
+    ["translate", "map", "initialize_sources", "sources", "sources+translate", "fetcher.sources+translate"],
+)
 def test_concurrent_first_use(method):
     translator: Translator[str, str, int] = Translator(SlowProvider({"s": {"id": [1], "name": ["a"]}}))
     barrier = threading.Barrier(16)
@@ -46,7 +49,8 @@ def test_concurrent_first_use(method):
 
     def first_use(i: int) -> None:
         # Mixed: discovery through `sources` must take the same lock as a first translation.
-        m = method if method != "sources+translate" else ("sources", "translate")[i % 2]
+        # Through `fetcher`, the Translator lock is bypassed and only the fetcher's own lock applies.
+        m = method if "+" not in method else method.split("+")[i % 2]
         barrier.wait()
         try:
             if m == "translate":
@@ -55,6 +59,8 @@ def test_concurrent_first_use(method):
                 translator.map({"s": [1]})
             elif m == "sources":
                 assert translator.sources == ["s"]
+            elif m == "fetcher.sources":
+                assert translator.fetcher.sources == ["s"]
             else:
                 translator.initialize_sources()
         except BaseException as e:

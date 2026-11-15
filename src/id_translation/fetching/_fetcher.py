@@ -22,10 +22,11 @@ class Fetcher(Generic[SourceType, IdType], HasSources[SourceType]):
             🔑 This is a key event method. See :ref:`key-events` for details.
 
         Notes:
-            🧵 This method is not thread safe. See :ref:`thread-safety` for details.
+            🧵 Thread safe in :class:`~id_translation.fetching.AbstractFetcher` and
+            :class:`~id_translation.fetching.MultiFetcher`. See :ref:`thread-safety-fetchers` for details.
 
-            Called implicitly and possibly repeatedly, such as after a failed discovery or by a ``Translator`` that
-            shares the fetcher but has not discovered its sources yet. Implementations should cache a successful result.
+            Called implicitly, possibly repeatedly and from several threads, such as after a failed discovery or by each
+            ``Translator`` that shares the fetcher. Bundled fetchers cache a successful result.
         """
 
     @property
@@ -65,10 +66,12 @@ class Fetcher(Generic[SourceType, IdType], HasSources[SourceType]):
         """Return ``True`` if this fetcher has been marked as `optional`.
 
         In multi-fetcher mode, optional fetchers may be discarded if :attr:`~id_translation.types.HasSources.sources`
-        cannot be resolved (raises an exception). Configuration errors (a
-        :class:`~id_translation.exceptions.ConfigurationError`, or a source missing a required placeholder, such as an
-        ID column) are not suppressed: `optional` covers an unavailable source, not a misconfigured one. Default value
-        is ``False``.
+        cannot be resolved (raises an exception). Configuration errors and broken implementations (a
+        :class:`~id_translation.mapping.exceptions.MappingError`,
+        :class:`~id_translation.fetching.exceptions.DuplicateSourceError` or
+        :class:`~id_translation.fetching.exceptions.ImplementationError`, a source missing a required placeholder, such
+        as an ID column, or an override naming a column the source lacks) are not suppressed: `optional` covers an
+        unavailable source, not a misconfigured or broken one. Default value is ``False``.
 
         Returns:
             Optionality status.

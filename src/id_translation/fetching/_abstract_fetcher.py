@@ -1,11 +1,8 @@
 import logging
-import threading
 from abc import abstractmethod
-from collections.abc import Iterable, Iterator, Mapping, MutableMapping, Sequence
-from contextlib import contextmanager
+from collections.abc import Iterable, Mapping, MutableMapping, Sequence
 from copy import copy as shallow_copy
 from copy import deepcopy
-from functools import cached_property
 from time import perf_counter
 from types import MappingProxyType
 from typing import Any, Generic, Self, TypedDict, final
@@ -16,6 +13,7 @@ from rics.strings import format_seconds as fmt_sec
 
 from .. import logging as _logging
 from .._utils.emit_warning import emit_warning
+from .._utils.locks import DiscoveryGuard
 from ..mapping import HeuristicScore, Mapper
 from ..mapping.exceptions import MappingWarning
 from ..mapping.score_functions import modified_hamming
@@ -29,7 +27,7 @@ from ..transform.types import Transformer
 from ..types import ID, IdType, SourceType
 from . import exceptions
 from ._cache_access import CacheAccess
-from ._cache_coordinator import CacheCoordinator
+from ._cache_coordinator import CacheCoordinator, check_result
 from ._fetcher import Fetcher
 from .types import FetchInstruction, IdsToFetch
 
@@ -106,21 +104,20 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         self._allow_fetch_all: bool = allow_fetch_all
         self._selective_fetch_all = selective_fetch_all
 
-        identifiers = () if identifiers is None else (*identifiers,)
-        config_file = self._find_config_file(identifiers)
-        self._identifiers: tuple[str, ...] = identifiers
-        self._config_file = config_file
+        self._identifiers: tuple[str, ...] = () if identifiers is None else (*identifiers,)
 
         self.logger = logging.getLogger(__package__).getChild(type(self).__name__)
         self._mapper.logger = _ExtraLoggerAdapter(self.logger.logger.getChild("map"), self._log_extra())
         self._optional = optional
 
         self._placeholders: dict[SourceType, list[str]] | None = None
+        # Set only during discovery, which starts it at `{}` and is its only reader: a copy taken mid-discovery that
+        # keeps entries is harmless.
         self._discovered_id_columns: dict[SourceType, str | None] | None = None
         # From the [fetching.transform]-section of the file that declared this fetcher; set by `TranslatorFactory`.
         self._transform_config: dict[SourceType, list[Transformer[IdType]]] = {}
 
-        self._active_operations: dict[str, int] = {}
+        self._discovery_guard = DiscoveryGuard()
 
         if cache_access is not None:
             cache_access.set_parent(self)
@@ -128,38 +125,35 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
 
     @final  # Prevent accidental overriding
     def initialize_sources(self, task_id: int | None = None) -> None:
+        # Mirrors MultiFetcher.initialize_sources(); if the duplicated locking logic grows, break it out into one place.
         if self._placeholders is not None:
             return
-
-        start = perf_counter()
-        if task_id is None:
-            task_id = _logging.generate_task_id(start)
-
-        logger = self.logger
-        if _logging.ENABLE_VERBOSE_LOGGING and logger.isEnabledFor(logging.DEBUG):
-            logger.debug(
-                f"Begin initialization of '{self._cls_name()}' at {hex(id(self))}.",
-                extra=dict(
-                    task_id=task_id,
-                    event_key=_logging.get_event_key(self.initialize_sources, "enter"),
-                ),
+        if self._discovery_guard.is_current():
+            raise exceptions.ImplementationError(
+                f"{self._cls_name()}.initialize_sources() was called during its own discovery.",
+                hints=[
+                    "Code run during discovery, such as _initialize_sources() or a log handler, must not read its"
+                    " sources or placeholders.",
+                    "In _initialize_sources(), use id_column(source, candidates=...) instead, and pass candidates to"
+                    " map_placeholders().",
+                ],
             )
 
-        with self._detect_concurrent_access("initialize_sources"):
-            self._discovered_id_columns = {}
-            try:
-                placeholders = self._initialize_sources(task_id)
-                if placeholders is None:
-                    raise exceptions.ImplementationError(
-                        f"{self._cls_name()}._initialize_sources() returned None;"
-                        " it must return a dict {source: [placeholder, ...]}."
-                    )
-                self._verify_id_columns(placeholders, task_id)
-                self._verify_overrides(placeholders)
-            finally:
-                self._discovered_id_columns = None
-            self._placeholders = placeholders
+        with self._discovery_guard.lock:
+            if self._placeholders is not None:
+                return  # Another thread finished discovery while this one waited.
+            # If it failed instead, this thread tries again, so N waiters behind an unreachable source make N attempts
+            # in turn. Left undocumented on purpose: a patch may let waiters share the failure instead.
 
+            start = perf_counter()
+            if task_id is None:
+                task_id = _logging.generate_task_id(start)
+
+            self._discover_locked(task_id)
+
+        # Outside the lock: discovery's only non-verbose record, so the likeliest to reach a handler that would deadlock
+        # under it.
+        logger = self.logger
         if logger.isEnabledFor(logging.INFO):
             seconds = perf_counter() - start
             logger.info(
@@ -170,6 +164,33 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
                     seconds=seconds,
                 ),
             )
+
+    def _discover_locked(self, task_id: int) -> None:
+        try:
+            self._discovery_guard.set_current()
+            if _logging.ENABLE_VERBOSE_LOGGING and self.logger.isEnabledFor(logging.DEBUG):
+                self.logger.debug(
+                    f"Begin initialization of '{self._cls_name()}' at {hex(id(self))}.",
+                    extra=dict(
+                        task_id=task_id,
+                        event_key=_logging.get_event_key(self.initialize_sources, "enter"),
+                    ),
+                )
+
+            self._discovered_id_columns = {}
+            placeholders = self._initialize_sources(task_id)
+            if placeholders is None:
+                raise exceptions.ImplementationError(
+                    f"{self._cls_name()}._initialize_sources() returned None;"
+                    " it must return a dict {source: [placeholder, ...]}."
+                )
+            self._verify_id_columns(placeholders, task_id)
+            self._verify_overrides(placeholders)
+        finally:
+            self._discovered_id_columns = None
+            self._discovery_guard.clear()
+
+        self._placeholders = placeholders
 
     @abstractmethod
     def _initialize_sources(self, task_id: int) -> dict[SourceType, list[str]]:
@@ -186,8 +207,15 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
 
         If discovery fails (e.g. because the target database is not accessible), the exception should be raised here.
         The :class:`~id_translation.fetching.MultiFetcher` will suppress exceptions [#f1]_ raised by
-        :attr:`~id_translation.fetching.AbstractFetcher.optional` children, except configuration errors (a
-        :class:`~id_translation.exceptions.ConfigurationError`, or a source missing a required placeholder).
+        :attr:`~id_translation.fetching.AbstractFetcher.optional` children, except configuration errors and broken
+        implementations (a :class:`~id_translation.mapping.exceptions.MappingError`,
+        :class:`~id_translation.fetching.exceptions.DuplicateSourceError` or
+        :class:`~id_translation.fetching.exceptions.ImplementationError`, a source missing a required placeholder, or an
+        override naming a column the source lacks).
+
+        Do not read :attr:`~id_translation.fetching.AbstractFetcher.sources` or
+        :attr:`~id_translation.fetching.AbstractFetcher.placeholders` here; pass explicit `candidates` instead. Doing so
+        raises an :class:`~id_translation.fetching.exceptions.ImplementationError`.
 
         Every returned source must have an ID column, or
         :meth:`~id_translation.fetching.AbstractFetcher.initialize_sources` raises. Leave out sources that should be
@@ -234,13 +262,16 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         """A collection of hierarchical identifiers for this fetcher."""
         return self._identifiers
 
-    @cached_property  # Not a property: a subclass may already assign its own `config_file`.
+    @property
     def config_file(self) -> str | None:
         """The name of the TOML file this fetcher was declared in, or ``None`` if it wasn't built from one.
 
         Derived from :attr:`identifiers`; ``None`` unless one of them ends with ``.toml``.
         """
-        return self._config_file
+        for identifier in self._identifiers:
+            if identifier.endswith(".toml"):
+                return identifier
+        return None
 
     def map_placeholders(
         self,
@@ -287,11 +318,10 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         start = perf_counter()
 
         if self._placeholders is not None and source not in self._placeholders:
-            # Check the underlying attribute to avoid infinite recursion in _initialize_sources()-implementations that
-            # call this method. This is typically done indirectly via id_column(), which requires explicit candidates.
+            # The underlying attribute, so that _initialize_sources() may call this method with explicit candidates,
+            # typically through id_column(). Reading self.placeholders there would re-enter discovery and raise.
             raise exceptions.UnknownSourceError.for_sources({source}, sources=self.sources)
         if candidates is None:
-            # May lead to infinite recursion if _initialize_sources() calls map_placeholders(candidates=None).
             candidates = self.placeholders[source]
 
         candidates = set(candidates)
@@ -485,7 +515,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
             self._logger = _ExtraLoggerAdapter(logger, self._log_extra())
 
     def _log_extra(self) -> dict[str, str | None]:
-        return {"fetcher_class": self._cls_name(), "fetcher_config_file": self._config_file}
+        return {"fetcher_class": self._cls_name(), "fetcher_config_file": self.config_file}
 
     @property
     def optional(self) -> bool:
@@ -691,20 +721,6 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
 
         return source_translations
 
-    @contextmanager
-    def _detect_concurrent_access(self, operation: str) -> Iterator[None]:
-        current = threading.get_ident()
-
-        contender = self._active_operations.get(operation)
-        if contender is not None and contender != current:
-            emit_warning(exceptions.ConcurrentOperationWarning.for_operation(operation, fetcher_class=self._cls_name()))
-
-        self._active_operations[operation] = current
-        try:
-            yield
-        finally:
-            self._active_operations.pop(operation, None)
-
     def _fetch_all_mapper(self) -> Mapper[str, str, SourceType]:
         """The mapper for ``fetch_all``: one that ignores unmapped placeholders when sources may be skipped.
 
@@ -740,13 +756,18 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         fetcher should retrieve data for as many IDs as possible. Use
         :attr:`~id_translation.fetching.AbstractFetcher.allow_fetch_all` to disallow.
 
+        Every placeholder in :attr:`~id_translation.fetching.types.FetchInstruction.required` must be present, and the
+        rest of :attr:`~id_translation.fetching.types.FetchInstruction.placeholders` should be. Leave out any IDs that
+        the source does not have.
+
         Exceptions propagate to the caller.
 
         Args:
             instr: A single :class:`~id_translation.fetching.types.FetchInstruction` instance.
 
         Returns:
-            A single :class:`~id_translation.offline.types.PlaceholderTranslations` instance.
+            A single :class:`~id_translation.offline.types.PlaceholderTranslations` instance for the source of `instr`.
+            Anything else raises an :class:`~id_translation.fetching.exceptions.ImplementationError`.
 
         See Also:
             🔑 This is a key event method. See :ref:`key-events` for details.
@@ -836,6 +857,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
             )
 
         translations = self.fetch_translations(instr)
+        check_result(translations, instr.source, returned_by=f"{self._cls_name()}.fetch_translations()")
 
         if logger.isEnabledFor(logging.DEBUG):
             seconds = perf_counter() - start
@@ -1009,6 +1031,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         result = cls.__new__(cls)
         memo[id(self)] = result
 
+        # Not under the discovery lock; see MultiFetcher.__deepcopy__. Here `_discovered_id_columns` may change mid-copy.
         for k, v in self.__dict__.items():
             setattr(result, k, self._copy_transform_config(memo) if k == "_transform_config" else deepcopy(v, memo))
 
@@ -1036,13 +1059,6 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
                     )
                     rv[source].append(transformer)
         return rv
-
-    @staticmethod
-    def _find_config_file(identifiers: tuple[str, ...]) -> str | None:
-        for identifier in identifiers:
-            if identifier.endswith(".toml"):
-                return identifier
-        return None
 
     @classmethod
     def _format_fetch_result(

@@ -1,6 +1,5 @@
 import logging
 from collections.abc import Collection, Iterable
-from copy import deepcopy
 from dataclasses import dataclass
 from time import perf_counter
 from typing import Any, Generic, Literal, NoReturn, Self, TypeAlias, Unpack
@@ -541,22 +540,10 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
     def __deepcopy__(self, memo: dict[int, Any] | None = None) -> Self:
         if memo is None:
             memo = {}
-        cls = self.__class__
-        result = cls.__new__(cls)
-        memo[id(self)] = result
-
-        for k, v in self.__dict__.items():
-            setattr(
-                result,
-                k,
-                self._copy_engine(memo, v, self._engine_kwargs)
-                if isinstance(v, sqlalchemy.Engine)
-                else self._copy_transform_config(memo)
-                if k == "_transform_config"
-                else deepcopy(v, memo),
-            )
-
-        return result
+        for v in self.__dict__.values():
+            if isinstance(v, sqlalchemy.Engine):
+                self._copy_engine(memo, v, self._engine_kwargs)  # Into `memo`, where super() finds it.
+        return super().__deepcopy__(memo)
 
     @staticmethod
     def _copy_engine(memo: dict[int, Any], engine: sqlalchemy.Engine, kwargs: dict[str, Any]) -> sqlalchemy.Engine:

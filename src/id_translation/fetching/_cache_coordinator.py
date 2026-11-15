@@ -67,7 +67,6 @@ class CacheCoordinator(Generic[SourceType, IdType]):
         required_placeholders: set[str],
         placeholder_attributes: PlaceholderAttributes | None,
     ) -> PlaceholderTranslations[SourceType]:
-        """Resolve `instr` against the cache, fetching only what is missing (via the owning fetcher)."""
         fetcher = self._fetcher
         cache = self._cache
         logger = fetcher.logger if cache.enabled and fetcher.logger.isEnabledFor(logging.DEBUG) else None
@@ -80,6 +79,11 @@ class CacheCoordinator(Generic[SourceType, IdType]):
 
         cache_instr = _to_wanted(instr, reverse_mappings)
         result = cache.load(cache_instr) if cache.enabled else None
+        if isinstance(result, PartialCacheHit):
+            hit = "a PartialCacheHit with "
+            check_result(result.translations, instr.source, returned_by=f"{type(cache).__name__}.load()", inside=hit)
+        elif result is not None:
+            check_result(result, instr.source, returned_by=f"{type(cache).__name__}.load()")
 
         if isinstance(result, PartialCacheHit):
             return self._complete_partial(
@@ -332,3 +336,12 @@ def _normalize(
 
     normalized = dataclasses.replace(translations, placeholders=placeholders, records=records)
     return _with_aliases(normalized, reverse_mappings, aliases, blocked)
+
+
+def check_result(result: Any, source: Any, *, returned_by: str, inside: str = "") -> None:
+    if not isinstance(result, PlaceholderTranslations):
+        msg = f"{returned_by} returned {inside}{type(result).__name__}; expected PlaceholderTranslations for {source=}."
+        raise exceptions.ImplementationError(msg)
+    if result.source != source:
+        msg = f"{returned_by} returned {inside}translations for source={result.source!r}; expected {source=}."
+        raise exceptions.ImplementationError(msg)

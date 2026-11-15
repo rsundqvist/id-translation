@@ -8,7 +8,7 @@ from datetime import datetime
 from enum import StrEnum
 from random import shuffle
 from re import Match, compile
-from threading import Lock
+from threading import RLock
 from types import TracebackType
 from typing import TypeAlias
 
@@ -52,13 +52,6 @@ PATTERN_TO_COLOR: tuple[tuple[str, Color], ...] = (
 
 
 class DebugLoggingFormatter(logging.Formatter):
-    """Helper class used to display debug out.
-
-    Args:
-        less: If ``True``, abbreviate output.
-        indent_style: Indentation prefix. Empty=disabled.
-    """
-
     def __init__(
         self,
         *,
@@ -92,7 +85,7 @@ class DebugLoggingFormatter(logging.Formatter):
         shuffle(self._task_id_styles)
 
         self._task_id_style: dict[int, tuple[str, Color]] = {}
-        self._lock = Lock()
+        self._lock = RLock()  # Reentrant: one leaked by an interrupt must not deadlock the thread that leaked it.
 
     def formatMessage(self, record: logging.LogRecord) -> str:  # noqa: N802
         """Emit pretty-printed log record."""
