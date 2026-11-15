@@ -57,7 +57,7 @@ class Reject(Generic[ValueType, CandidateType]):
                 why = f" (superseded by short-circuit or override{extra})"
             elif self.superseding_candidate and self.superseding_candidate.score == inf:
                 extra = f": {self.superseding_candidate}" if full else ""
-                why = f" (superseded by short-circuit or override{extra}"
+                why = f" (superseded by short-circuit or override{extra})"
             else:
                 why = " (filtered)"
         elif self.record.score < min_score:

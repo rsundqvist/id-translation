@@ -310,7 +310,7 @@ uses (values, candidates and context).
      - Handle unmatched values.
      -
    * - on_unknown_user_override
-     - `raise | warn | keep`
+     - `raise | warn`
      - Handle an override function returning an unknown candidate.
      -
    * - cardinality

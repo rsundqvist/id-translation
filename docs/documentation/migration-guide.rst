@@ -248,8 +248,7 @@ Questions that tend to come up mid-migration.
     Names derived from the data (e.g. ``DataFrame`` columns, when ``names`` is not given) that fail to map to a source
     raise :class:`~id_translation.mapping.exceptions.ScoringDisabledError` under the default mapper. Once
     ``[translator.mapping]`` sets a score function, :attr:`~id_translation.mapping.Mapper.on_unmapped` decides (skip
-    silently by default), except for a name with a −∞ score for any source (e.g. from a filter): it is always skipped.
-    Call
+    silently by default), except for a name that filters leave without sources: it is always skipped. Call
     :meth:`translator.map(df) <id_translation.Translator.map>` to inspect the name-to-source decision without
     translating, and use :func:`~id_translation.logging.enable_verbose_debug_messages` to see why a match was
     rejected. The :ref:`mapping primer <mapping-primer>` explains the procedure.

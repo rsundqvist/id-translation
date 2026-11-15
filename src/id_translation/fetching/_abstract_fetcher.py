@@ -3,6 +3,7 @@ import threading
 from abc import abstractmethod
 from collections.abc import Iterable, Iterator, Mapping, MutableMapping, Sequence
 from contextlib import contextmanager
+from copy import copy as shallow_copy
 from copy import deepcopy
 from functools import cached_property
 from time import perf_counter
@@ -63,7 +64,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
     Args:
         mapper: A :class:`~id_translation.mapping.Mapper` instance used to adapt placeholder names in sources to wanted
             names, i.e. the names of the placeholders that are in the translation
-            :class:`~id_translation.offline.Format` being used.
+            :class:`~id_translation.offline.Format` being used. A shallow copy is used.
         allow_fetch_all: If ``False``, an error will be raised when
             :meth:`~id_translation.fetching.AbstractFetcher.fetch_all` is called.
         selective_fetch_all: If ``True``, fetch only from those :attr:`~id_translation.types.HasSources.sources` that
@@ -90,7 +91,11 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         optional: bool = False,
         cache_access: CacheAccess[SourceType, IdType] | None = None,
     ) -> None:
-        self._mapper: Mapper[str, str, SourceType] = mapper or Mapper(**self._default_mapper_kwargs())
+        # A copy: the logger is set below, and the caller's mapper may be shared. Shallow, since Mapper.copy() would
+        # re-run __init__ with base arguments only, which a subclass may not take.
+        self._mapper: Mapper[str, str, SourceType] = (
+            Mapper(**self._default_mapper_kwargs()) if mapper is None else shallow_copy(mapper)
+        )
         if self._mapper.on_unmapped == "raise":
             emit_warning(
                 "Using on_unmapped='raise' will treat optional placeholders as "

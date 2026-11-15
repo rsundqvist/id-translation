@@ -5,12 +5,13 @@ import pytest
 from id_translation.fetching import MemoryFetcher
 from id_translation.fetching.types import IdsToFetch
 from id_translation.logging import enable_verbose_debug_messages
+from id_translation.mapping import Mapper
 
 SHARED = ("id_translation.fetching", "id_translation.fetching.map")
 
 
-def make(config_file: str) -> MemoryFetcher[str, int]:
-    return MemoryFetcher({"s": {"id": [1], "name": ["one"]}}, identifiers=[config_file])
+def make(config_file: str, mapper: Mapper[str, str, str] | None = None) -> MemoryFetcher[str, int]:
+    return MemoryFetcher({"s": {"id": [1], "name": ["one"]}}, identifiers=[config_file], mapper=mapper)
 
 
 def test_one_logger_per_class() -> None:
@@ -81,3 +82,18 @@ def test_caller_extra_is_kept(caplog: pytest.LogCaptureFixture) -> None:
     records = [r for r in caplog.records if r.name == "id_translation.fetching.MemoryFetcher"]
     assert records
     assert all(hasattr(r, "task_id") for r in records), "the adapter dropped the caller's own extra="
+
+
+def test_shared_mapper(caplog: pytest.LogCaptureFixture) -> None:
+    mapper: Mapper[str, str, str] = Mapper()
+    mine = mapper.logger
+    a = make("a.toml", mapper)
+    make("b.toml", mapper)  # Constructed last; it used to relabel the shared mapper for a.
+
+    assert mapper.logger is mine, "the caller's mapper was modified"
+    assert a.mapper is not mapper
+
+    with enable_verbose_debug_messages(), caplog.at_level(logging.DEBUG, logger="id_translation"):
+        a.fetch([IdsToFetch("s", {1})])
+    labels = {r.fetcher_config_file for r in caplog.records if r.name.endswith(".map")}  # type: ignore[attr-defined]
+    assert labels == {"a.toml"}

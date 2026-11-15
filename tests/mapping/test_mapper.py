@@ -122,6 +122,44 @@ def test_mapping_failure(candidates):
         mapper.apply((3, 4), candidates)
 
 
+@pytest.mark.parametrize("filtered", [{"y"}, {"x", "y"}])
+def test_unmapped_after_filter(filtered: set[str]) -> None:
+    # A value is unmapped when it keeps at least one candidate after filtering. Once every candidate is filtered out,
+    # the filter decided the value should not map, so it is not reported.
+
+    def remove_filtered(_value: str, candidates: Iterable[str], _context: None) -> set[str]:
+        return set(candidates) - filtered
+
+    mapper: Mapper[str, str, None] = Mapper(
+        "equality",
+        on_unmapped="raise",
+        filter_functions=[(remove_filtered, {})],
+    )
+
+    if filtered == {"x", "y"}:
+        assert mapper.apply(["a"], ["x", "y"]).left_to_right == {}
+    else:
+        with pytest.raises(exceptions.UnmappedValuesError, match=r"Could not map \['a'\]"):
+            mapper.apply(["a"], ["x", "y"])
+
+
+def test_caller_kwargs_are_not_mutated() -> None:
+    score_kwargs: dict[str, Any] = {"positional_penalty": 0.0}
+    filter_kwargs: dict[str, Any] = {"regex": ".*"}
+    mapper: Mapper[str, str, None] = Mapper(
+        HeuristicScore[str, str, None]("modified_hamming", heuristics=[]),
+        score_function_kwargs=score_kwargs,
+        filter_functions=[("filter_names", filter_kwargs)],
+    )
+    before = mapper.copy()
+
+    mapper.apply(["a"], ["aa", "b"], task_id=7)
+
+    assert score_kwargs == {"positional_penalty": 0.0}
+    assert filter_kwargs == {"regex": ".*"}
+    assert mapper == before, "per-call task_id stored on the mapper"
+
+
 def test_bad_filter(candidates):
     mapper: Mapper[int, str, None] = Mapper(filter_functions=[(lambda *_: {3, 4}, {})])
     with pytest.raises(exceptions.BadFilterError):
@@ -185,10 +223,8 @@ def test_conflicting_overrides_prioritizes_first(values, expected):
     ],
 )
 def test_conflicting_function_overrides_prioritizes_first(values, expected):
-    mapper: Mapper[int, int, None] = Mapper(
-        score_function=lambda *_: [1] * len(values), on_unknown_user_override="keep", cardinality="1:1"
-    )
-    assert mapper.apply(values, reversed(values), override_function=lambda *_: 0).flatten() == expected
+    mapper: Mapper[int, int, None] = Mapper(score_function=lambda *_: [1] * len(values), cardinality="1:1")
+    assert mapper.apply(values, [0, *reversed(values)], override_function=lambda *_: 0).flatten() == expected
 
 
 def test_context_sensitive_overrides():
@@ -235,18 +271,3 @@ def test_disabled():
     mapper = Mapper("disabled", overrides={"a": 1}, score_function_kwargs=dict(strict=False))
     assert mapper.apply("ab", {1}).flatten() == {"a": 1}
     assert mapper.apply("b", {1}).flatten() == {}
-
-
-def test_caller_kwargs_are_not_mutated() -> None:
-    score_kwargs: dict[str, Any] = {"positional_penalty": 0.0}
-    filter_kwargs: dict[str, Any] = {"regex": ".*"}
-    mapper: Mapper[str, str, None] = Mapper(
-        HeuristicScore[str, str, None]("modified_hamming", heuristics=[]),
-        score_function_kwargs=score_kwargs,
-        filter_functions=[("filter_names", filter_kwargs)],
-    )
-
-    mapper.apply(["a"], ["aa", "b"], task_id=7)
-
-    assert score_kwargs == {"positional_penalty": 0.0}
-    assert filter_kwargs == {"regex": ".*"}

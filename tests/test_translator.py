@@ -723,6 +723,35 @@ def test_offline_copy_keeps_snapshot_cache():
     assert original.copy(fmt="{id}-{name}").cache["people"][1] == "1-Richard"
 
 
+def test_caller_mapper_logger():
+    mapper: Mapper[str, str, None] = Mapper()
+    mine = logging.LoggerAdapter(logging.getLogger("my.mapping"), {})
+    mapper.logger = mine
+
+    translator: RealTranslator[str, str, int] = RealTranslator({"people": {1: "Alice"}}, mapper=mapper)
+    assert mapper.logger is mine, "the caller's mapper was modified"
+    assert translator.mapper.logger.name == "id_translation.Translator.map"
+
+    translator.mapper.logger = mine
+    assert translator.copy().mapper.logger is mine
+
+
+def test_mapper_subclass_with_own_arguments():
+    class AuditingMapper(Mapper[Any, Any, Any]):
+        def __init__(self, audit: list[str], **kwargs: Any) -> None:
+            super().__init__(**kwargs)
+            self.audit = audit
+
+    audit: list[str] = []
+    translator: RealTranslator[str, str, int] = RealTranslator(
+        MemoryFetcher({"people": {"id": [1], "name": ["Alice"]}}, mapper=AuditingMapper(audit)),
+        mapper=AuditingMapper(audit),
+    )
+    assert translator.mapper.audit is audit  # type: ignore[attr-defined]
+    assert translator.fetcher.mapper.audit is audit  # type: ignore[attr-defined]
+    assert translator.translate(1, names="people") == "1:Alice"
+
+
 def test_float_ids(translator):
     from id_translation._tasks import TranslationTask
     from id_translation.offline import Format
@@ -884,10 +913,7 @@ class TestDictNames:
     @classmethod
     def setup_class(cls):
         tmp = UnitTestTranslator.from_config(ROOT.joinpath("config.imdb.toml"))
-        translator = tmp.copy(
-            fmt="{id}:{name}",
-            mapper=tmp.mapper.copy(on_unknown_user_override="keep"),
-        )
+        translator = tmp.copy(fmt="{id}:{name}")
         assert "name_basics" in translator.sources
         cls.translate = translator.translate
 

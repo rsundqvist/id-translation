@@ -1,7 +1,9 @@
+from math import inf
+
 import pytest
 
 from id_translation.mapping import Cardinality, DirectionalMapping
-from id_translation.mapping.matrix import ScoreHelper, ScoreMatrix
+from id_translation.mapping.matrix import Record, Reject, ScoreHelper, ScoreMatrix
 
 
 @pytest.mark.parametrize(
@@ -87,3 +89,14 @@ def make_scores() -> ScoreMatrix[int, str]:
         [15.0, 16.0, 17.0, 18.0, 19.0],
     ]
     return ScoreMatrix(values=[0, 1, 2, 3], candidates=["c0", "c1", "c2", "c3", "c4"], grid=grid)
+
+
+@pytest.mark.parametrize("full", [False, True])
+def test_explain_superseded_is_balanced(full):
+    record = Record("horse", "4", -inf)
+    for reject in (
+        Reject(record, superseding_value=Record("horse", "5", inf)),
+        Reject(record, superseding_candidate=Record("dog", "4", inf)),
+    ):
+        explanation = reject.explain(0.9, full=full)
+        assert explanation.count("(") == explanation.count(")") == 1, explanation

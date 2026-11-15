@@ -17,7 +17,7 @@ def modified_hamming(
     /,
     *,
     add_length_ratio_term: bool = True,
-    positional_penalty: float = 0.001,
+    positional_penalty: float = 1e-9,
 ) -> _Iterable[float]:
     """Compute hamming distance modified by length ratio, from the back. Score range is ``[0, 1]``.
 
@@ -26,19 +26,27 @@ def modified_hamming(
         candidates: Candidate sources.
         context: Should be ``None``. Always ignored, exists for compatibility.
         add_length_ratio_term: If ``True``, the score is multiplied by ``1 / (1 + abs(len(name) - len(candidate)))``.
-        positional_penalty: A penalty applied to prefer earlier `candidates`, according to the formulare
-            ``penalty = index(candidate) * positional_penalty)``.
+        positional_penalty: A penalty applied to prefer earlier `candidates`, according to the formula
+            ``penalty = index(candidate) * positional_penalty``.
 
     Examples:
         >>> from id_translation.mapping.score_functions import modified_hamming
-        >>> list(modified_hamming("aa", ["aa", "a", "ab", "aa"], None))
-        [1.0, 0.499, 0.498, 0.997]
-        >>> list(
-        ...     modified_hamming("aa", ["aa", "a", "ab", "aa"], None, positional_penalty=0)
-        ... )
+        >>> scores = list(modified_hamming("aa", ["aa", "a", "ab", "aa"], None))
+        >>> [round(s, 6) for s in scores]
         [1.0, 0.5, 0.5, 1.0]
-        >>> list(modified_hamming("face", ["face", "FAce", "race", "place"], None))
-        [1.0, 0.499, 0.748, 0.372]
+        >>> scores[0] > scores[3]
+        True
+        >>> list(
+        ...     modified_hamming(
+        ...         "aa", ["aa", "a", "ab", "aa"], None, positional_penalty=0.001
+        ...     )
+        ... )
+        [1.0, 0.499, 0.498, 0.997]
+        >>> [
+        ...     round(s, 6)
+        ...     for s in modified_hamming("face", ["face", "FAce", "race", "place"], None)
+        ... ]
+        [1.0, 0.5, 0.75, 0.375]
     """
 
     def _apply(candidate: str) -> float:
@@ -98,7 +106,7 @@ def disabled(
             f"Scoring disabled: the Mapper is working in strict override-only mode, so the {value=} in {context=} "
             f"cannot be mapped to any of the candidates={sorted(candidates, key=str)}."
         )
-        hint = "Add an override or filter for this value, set strict=False to skip it silently, or use another score function."
+        hint = "Add an override or filter for this value, set strict=False to stop raising for it, or use another score function."
         raise exceptions.ScoringDisabledError(msg, value=value, candidates=candidates, context=context, hints=hint)
 
     return [float("-inf")] * sum(1 for _ in candidates)

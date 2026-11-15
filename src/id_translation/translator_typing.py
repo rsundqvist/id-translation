@@ -40,8 +40,8 @@ FetcherCopyMode = _t.Literal["keep", "copy", "auto"]
 
 * ``'keep'``: Reuse the current :attr:`~id_translation.Translator.fetcher` without attempting to clone it, e.g. because
   it holds a live connection.
-* ``'copy'``: Require a :func:`~copy.deepcopy`; raise instead of falling back if that fails.
-* ``'auto'``: Try to clone, falling back to ``'keep'`` with a warning on failure. The default.
+* ``'copy'``: Require a :func:`~copy.deepcopy`; raise its ``TypeError`` instead of falling back.
+* ``'auto'``: Try to clone, falling back to ``'keep'`` with a warning on a ``TypeError``. The default.
 
 Applies only while :attr:`~id_translation.Translator.online`; an offline copy always shares the original's cached
 translation records, which are never mutated in place.

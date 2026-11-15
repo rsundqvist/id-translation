@@ -16,6 +16,7 @@ from . import score_functions as sf
 from ._cardinality import Cardinality
 from ._directional_mapping import DirectionalMapping
 from ._heuristic_score import HeuristicScore
+from ._kwargs import check_function_kwargs
 from .exceptions import (
     BadFilterError,
     MappingError,
@@ -58,10 +59,11 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
             :class:`rics.collections.dicts.InheritedKeysDict`, the context passed to
             :meth:`~id_translation.mapping.Mapper.apply` is used to retrieve specific overrides. An override to ``"_"``
             prevents the value from matching any candidate, and the value is not reported as unmapped.
-        on_unmapped: Action to take if mapping fails for any values.
+        on_unmapped: Action to take if mapping fails for any values. Values that filters leave without candidates are
+            not reported.
         on_unknown_user_override: Action to take if an :attr:`~id_translation.mapping.types.UserOverrideFunction`
-            returns an unknown candidate. Unknown candidates, i.e. candidates not in the input `candidates` collection,
-            will not be used unless `'keep'` is chosen.
+            returns an unknown candidate, i.e. one that is not in the input `candidates` collection. Unknown candidates
+            are never used.
         cardinality: Desired cardinality for mapped values. Derive for each matching if ``None``.
     """
 
@@ -83,7 +85,12 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
             raise ValueError(f"Got {min_score=}. The score limit should be a finite positive value.")
 
         self._score = get_by_full_name(score_function, sf) if isinstance(score_function, str) else score_function
-        self._score_kwargs = dict(score_function_kwargs or {})  # A copy: task_id is written into it.
+        self._score_kwargs = dict(score_function_kwargs or {})
+        check_function_kwargs(
+            self._score.score_function if isinstance(self._score, HeuristicScore) else self._score,
+            self._score_kwargs,
+            what="score function",
+        )
         self._min_score = min_score
         self._overrides: InheritedKeysDict[ContextType, ValueType, CandidateType] | dict[ValueType, CandidateType] = (
             overrides if isinstance(overrides, InheritedKeysDict) else (overrides or {})
@@ -128,7 +135,8 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
             :attr:`Cardinality.one_right <id_translation.mapping.Cardinality.one_right>`).
 
         Raises:
-            ~id_translation.mapping.exceptions.MappingError: If any values failed to match and ``on_unmapped='raise'``.
+            ~id_translation.mapping.exceptions.UnmappedValuesError: If any values with a finite score for some
+                candidate failed to match and ``on_unmapped='raise'``.
             ~id_translation.mapping.exceptions.BadFilterError: If a filter returns candidates that are not a subset of
                 the original candidates.
             ~id_translation.mapping.exceptions.UserMappingError: If `override_function` returns an unknown candidate and
@@ -254,8 +262,9 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
             return scores
 
         score_fn = self._score
+        score_kwargs = self._score_kwargs
         if isinstance(score_fn, HeuristicScore):
-            self._score_kwargs["task_id"] = task_id
+            score_kwargs = {**score_kwargs, "task_id": task_id}
 
         if logger_enabled:
             logger.debug(
@@ -277,7 +286,7 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
             else:
                 if logger_enabled:
                     logger.debug(f"Compute match scores for {value=}.", extra={"task_id": task_id})
-                scores_for_value = score_fn(value, filtered_candidates, context, **self._score_kwargs, **kwargs)
+                scores_for_value = score_fn(value, filtered_candidates, context, **score_kwargs, **kwargs)
 
             for score, candidate in zip(scores_for_value, filtered_candidates, strict=True):
                 scores[value, candidate] = score
@@ -435,7 +444,7 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
             if user_override is None:
                 continue
 
-            if user_override not in candidates and self.on_unknown_user_override != "keep":
+            if user_override not in candidates:
                 msg = f"The user-defined override function {func} returned an unknown candidate={user_override!r} for {value=}."
                 if self.on_unknown_user_override == "raise":
                     logger.error(msg, extra={"task_id": task_id})
@@ -464,7 +473,7 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
 
         for filter_function, function_kwargs in self._filters:
             if "task_id" in function_kwargs:
-                function_kwargs["task_id"] = task_id
+                function_kwargs = {**function_kwargs, "task_id": task_id}  # noqa: PLW2901
             kept = filter_function(value, filtered_candidates, context, **function_kwargs, **kwargs)
 
             not_in_original_candidates = kept.difference(candidates)
@@ -518,10 +527,10 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
         }
 
         if "score_function_kwargs" not in kwargs:
-            kwargs["score_function_kwargs"] = self._score_kwargs.copy()
+            kwargs["score_function_kwargs"] = self._score_kwargs
 
         if "filter_functions" not in kwargs:
-            kwargs["filter_functions"] = [(func, func_kwargs.copy()) for func, func_kwargs in self._filters]
+            kwargs["filter_functions"] = self._filters
 
         if "overrides" not in kwargs:
             kwargs["overrides"] = self._overrides.copy()
@@ -554,10 +563,11 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
         filter_functions: Iterable[FilterFunctionArgItem[ValueType, CandidateType, ContextType]],
     ) -> list[FilterFunctionWithKwargs[ValueType, CandidateType, ContextType]]:
         rv = []
-        for func_or_str, given_kwargs in filter_functions:
+        for func_or_str, func_kwargs in filter_functions:
             func = get_by_full_name(func_or_str, ff) if isinstance(func_or_str, str) else func_or_str
 
-            kwargs = {**given_kwargs}  # A copy: task_id is written into it.
+            kwargs = dict(func_kwargs)
+            check_function_kwargs(func, kwargs, what="filter function")
             if "task_id" in getattr(func, "__annotations__", {}):
                 kwargs.setdefault("task_id", None)
 

@@ -102,7 +102,7 @@ HeuristicsTypes: _t.TypeAlias = (
 
 OnUnmapped = _t.Literal["raise", "warn", "ignore"]
 """Action types for unmapped values."""
-OnUnknownUserOverride = _t.Literal["raise", "warn", "keep"]
+OnUnknownUserOverride = _t.Literal["raise", "warn"]
 """Action types for unknown candidates returned by a
 :attr:`~id_translation.mapping.types.UserOverrideFunction`. Does not apply to ``Mapper(overrides=...)``.
 """

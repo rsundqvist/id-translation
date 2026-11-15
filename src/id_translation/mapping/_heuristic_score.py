@@ -6,6 +6,7 @@ from rics.misc import get_by_full_name, tname
 
 from .. import logging as _logging
 from . import filter_functions, heuristic_functions, score_functions
+from ._kwargs import check_function_kwargs
 from .types import CandidateType, ContextType, HeuristicsTypes, ScoreFunction, ValueType
 
 
@@ -71,6 +72,8 @@ class HeuristicScore(Generic[ValueType, CandidateType, ContextType]):
     ) -> None:
         """Add a new heuristic."""
         new_heuristic = (_resolve_heuristic(heuristic), kwargs or {})
+        func_kwargs = {k: v for k, v in new_heuristic[1].items() if k != "mutate"}  # Consumed by `__call__`.
+        check_function_kwargs(new_heuristic[0], func_kwargs, what="heuristic function")
         self._heuristics.append(new_heuristic)
 
     def __repr__(self) -> str:

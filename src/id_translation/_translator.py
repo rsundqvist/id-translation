@@ -2,6 +2,7 @@ import logging
 import pickle
 from collections.abc import Iterable, Mapping, Sequence
 from contextlib import nullcontext
+from copy import copy as shallow_copy
 from copy import deepcopy
 from datetime import timedelta
 from time import perf_counter
@@ -108,7 +109,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
     Args:
         fetcher: A :class:`~id_translation.fetching.Fetcher`, or translations as inline data.
         fmt: String :class:`~id_translation.offline.Format` specification for translations.
-        mapper: A :class:`~id_translation.mapping.Mapper` instance for binding names to sources.
+        mapper: A :class:`~id_translation.mapping.Mapper` instance for binding names to sources. A shallow copy is used.
         default_fmt: Alternative :class:`~id_translation.offline.Format` to use for fallback translation of unknown IDs.
         default_fmt_placeholders: Shared and/or source-specific default placeholder values for unknown IDs. See
             :meth:`InheritedKeysDict.make() <rics.collections.dicts.InheritedKeysDict.make>` for details.
@@ -211,7 +212,9 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         else:
             raise TypeError(type(fetcher))  # pragma: no cover
 
-        self._mapper: Mapper[NameType, SourceType, None] = mapper or Mapper()
+        # A copy: the logger is set below, and the caller's mapper may be shared. Shallow, since Mapper.copy() would
+        # re-run __init__ with base arguments only, which a subclass may not take.
+        self._mapper: Mapper[NameType, SourceType, None] = Mapper() if mapper is None else shallow_copy(mapper)
         self._mapper.logger = LOGGER.getChild("map")
 
         self._translated_names: tuple[int, NameToSource[NameType, SourceType]] | None = None
@@ -321,25 +324,24 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         """Make a copy of this :class:`~id_translation.Translator`.
 
         Args:
+            fetcher: How the copy gets this instance's fetcher: ``'keep'`` reuses it, ``'copy'`` requires a
+                :func:`~copy.deepcopy`, and ``'auto'`` (the default) tries one, falling back to ``'keep'`` with a
+                warning on a ``TypeError``. Has no effect offline, where the copy shares the original's cached records.
             transformers: A dict ``{source: transformer}`` that replaces all transformers, without asking the fetcher
                 for more. ``None`` starts empty and asks the fetcher on first use, as the constructor does. When
                 omitted, the copy keeps this instance's transformers, and is
                 :ref:`settled <transformation-primer-settling>` if this instance is.
-            overrides: Keyword arguments to use when instantiating the copy. Options that aren't given will be taken
-                from the current instance. See the :class:`~id_translation.Translator` class documentation for possible
-                choices (except `fetcher`; see Notes).
+            **overrides: Other :class:`~id_translation.Translator` arguments. Those not given come from this instance.
 
         Returns:
             A copy of this :class:`~id_translation.Translator` with `overrides` applied.
 
+        Raises:
+            TypeError: If `fetcher` is not a :attr:`~id_translation.translator_typing.FetcherCopyMode`.
+            TypeError: If ``fetcher='copy'`` and the fetcher cannot be deep-copied.
+
         Notes:
-            User types are copied using :func:`copy.deepcopy`. The data source
-            (:attr:`~id_translation.Translator.fetcher` or :attr:`~id_translation.Translator.cache`) is fixed for the
-            lifetime of a ``Translator`` and cannot be replaced this way; `fetcher` instead selects how the *current*
-            one is carried over: ``'keep'`` reuses it as-is, ``'copy'`` requires a successful :func:`~copy.deepcopy`,
-            and the default, ``'auto'``, tries to clone and falls back to ``'keep'`` with a warning if that fails.
-            This only applies while :attr:`~id_translation.Translator.online`; an offline copy always shares the
-            cached translation records with the original, which are never mutated in place.
+            Kept transformers are deep-copied (on a ``TypeError``, reused with a warning); the mapper is a shallow copy.
 
             🧵 Not thread safe. See :ref:`thread-safety-copying` for details.
         """
@@ -355,7 +357,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         }
 
         if "mapper" not in kwargs:
-            kwargs["mapper"] = self.mapper.copy()
+            kwargs["mapper"] = self.mapper  # Copied by the constructor.
 
         carry = "transformers" not in kwargs
         if carry:
@@ -370,6 +372,8 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
         new = cls(**kwargs)
         new._config_metadata = self._config_metadata
+        if "mapper" not in overrides:
+            new._mapper.logger = self._mapper.logger  # The constructor relabels it; keep any logger set since.
         if not self.online:
             # The constructor rebuilt the cache from records alone; keep what the snapshot knew, as pickling does.
             cache = new.cache

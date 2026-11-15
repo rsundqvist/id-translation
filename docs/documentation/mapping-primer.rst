@@ -161,7 +161,7 @@ Troubleshooting
 Values that scoring leaves without a match are ignored by default, but the default score function,
 :func:`.score_functions.disabled`, raises before that point. If mapping failure is not an acceptable outcome for your
 application, initialize the ``Mapper`` with ``on_unmapped='raise'`` to raise an error for unmapped values. A value
-with a −∞ score for any candidate (e.g. from a filter) is not reported.
+that filters leave without candidates (only −∞ scores) is not reported.
 
 Verbose logging
 ~~~~~~~~~~~~~~~
@@ -199,12 +199,12 @@ The severity of unmapped values is determined by the :attr:`.Mapper.on_unmapped`
    :caption: Messages from the scoring procedure.
 
    id_translation.mapping.HeuristicScore: Heuristics scores for value='name': [
-     'last_update': 0.06 -> 0.10 (+0.03), 'first_name': 0.14 -> 0.99 (+0.85),
+     'last_update': 0.06 -> 0.10 (+0.04), 'first_name': 0.14 -> 1.00 (+0.86),
      'email': 0.12 -> 0.12 (+0.00), 'address_id': -0.00 -> -0.00 (+0.00),
-     'create_date': 0.06 -> 0.14 (+0.08), 'last_name': 0.16 -> 0.38 (+0.22),
-     'store_id': -0.01 -> -0.01 (+0.00), 'active': 0.08 -> 0.08 (+0.00),
-     'customer_id': -0.01 -> -0.01 (+0.00)]
-   id_translation.mapping.filter_functions.filter_names: Refuse matching for
-     name='return_date': Does not match pattern=re.compile('.*_id$', re.IGNORECASE).
+     'create_date': 0.06 -> 0.15 (+0.09), 'last_name': 0.17 -> 0.39 (+0.22),
+     'store_id': -0.00 -> -0.00 (+0.00), 'active': 0.08 -> 0.08 (+0.00),
+     'customer_id': -0.00 -> -0.00 (+0.00)]
+   id_translation.mapping.filter_functions.filter_names: Do not translate name='return_date'; does not match
+     pattern=re.compile('.*_id$', re.IGNORECASE).
 
 The mapping procedure may emit a large amount of records in verbose mode.

@@ -115,8 +115,8 @@ class ScoreMatrix(Generic[ValueType, CandidateType]):
         return [*self._candidates]
 
     def get_finite_values(self) -> set[ValueType]:
-        """Compute all finite values."""
-        return {value for value, row in zip(self._values, self._grid, strict=True) if all(map(isfinite, row))}
+        """Compute all values with at least one finite score."""
+        return {value for value, row in zip(self._values, self._grid, strict=True) if any(map(isfinite, row))}
 
     def to_pandas(self) -> "pandas.DataFrame":
         """Convert to :class:`pandas.DataFrame`."""
