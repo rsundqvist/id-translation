@@ -3,12 +3,14 @@
 Execute 'invoke --list' for guidance on using Invoke.
 """
 
+import json
 import os
 import platform
 import webbrowser
 from pathlib import Path
 
 from invoke.context import Context
+from invoke.exceptions import Exit
 from invoke.runners import Result
 from invoke.tasks import call, task
 
@@ -108,13 +110,37 @@ def spelling(c: Context) -> None:
     _run(c, f"uv run codespell {PYTHON_TARGETS_STR}")
 
 
-@task
-def audit(c: Context) -> None:
-    """Audit dependencies for known vulnerabilities."""
-    _run(c, "uv audit --preview-features audit-command")
+@task(help={"upgrade": "Upgrade vulnerable packages in uv.lock before auditing. Default: on, except in CI."})
+def audit(c: Context, upgrade: bool = not os.environ.get("CI")) -> None:
+    """Audit dependencies for known vulnerabilities, except the local-dev groups (which are still upgraded)."""
+    audit_options = [
+        "--preview-features audit-command,json-output",
+    ]
+
+    if upgrade:
+        # No pty: it merges stderr into stdout. Findings exit non-zero too, so only a missing report is an error.
+        command = f"uv audit {' '.join(audit_options)} --output-format json"
+        result = c.run(command, hide=True, warn=True)
+        try:
+            report = json.loads(result.stdout)
+        except json.JSONDecodeError:
+            raise Exit(f"Command: {command}\n{result.stderr}", code=result.exited or None) from None
+        vulnerable = sorted({v["dependency"]["name"] for v in report["vulnerabilities"]})
+        audit_options.extend(f"--upgrade-package {name}" for name in vulnerable)
+
+    audit_options.extend(
+        f"--no-group {group}"
+        for group in [
+            "notebooks",
+            "docs",
+        ]
+    )
+
+    command = f"uv audit {' '.join(audit_options)}"
+    _run(c, command)
 
 
-@task(pre=[audit, call(flake8, check=True), call(format_, check=True), spelling])  # type: ignore[arg-type]
+@task(pre=[call(audit, upgrade=False), call(flake8, check=True), call(format_, check=True), spelling])  # type: ignore[arg-type]
 def lint(_: Context) -> None:
     """Run all linting."""
 
