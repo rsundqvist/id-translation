@@ -122,10 +122,11 @@ class ScoreMatrix(Generic[ValueType, CandidateType]):
         """Convert to :class:`pandas.DataFrame`."""
         from pandas import DataFrame, Index  # noqa: PLC0415
 
+        # Tuple labels (e.g. MultiIndex column names) stay labels; a MultiIndex would reject the scalar `name`.
         return DataFrame(
             self._grid,
-            index=Index(self._values, name="values"),
-            columns=Index(self._candidates, name="candidates"),
+            index=Index(self._values, name="values", tupleize_cols=False),
+            columns=Index(self._candidates, name="candidates", tupleize_cols=False),
         )
 
     def to_dict(self) -> dict[tuple[ValueType, CandidateType], float]:
@@ -149,12 +150,15 @@ class ScoreMatrix(Generic[ValueType, CandidateType]):
         column_separator = " ┃ " if lines else " "
 
         header_row = ["v/c"] + [str(c) for c in self._candidates]
+        value_labels = [str(v) for v in self._values]
         formatted_scores = [[f"{float(s):.{decimals}f}" for s in scores] for scores in self._grid]
-        width = max(*map(len, header_row + [str(i) for i in self._values]), *map(len, formatted_scores))
+
+        all_scores = [s for scores in formatted_scores for s in scores]
+        width = max(len(cell) for cell in header_row + value_labels + all_scores)
 
         rows = []
-        for value, scores in zip(self._values, formatted_scores, strict=False):
-            row = [f"{value:<{width}}"] + [f"{s:>{width}}" for s in scores]
+        for label, scores in zip(value_labels, formatted_scores, strict=False):
+            row = [f"{label:<{width}}"] + [f"{s:>{width}}" for s in scores]
             rows.append(column_separator.join(row))
 
         column_headers = [f"{h:<{width}}" for h in header_row]

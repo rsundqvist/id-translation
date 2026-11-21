@@ -2,6 +2,7 @@ import secrets as _secrets
 import shutil as _shutil
 from collections.abc import Callable as _Callable
 from collections.abc import Iterable as _Iterable
+from collections.abc import Mapping as _Mapping
 from pathlib import Path as _Path
 from typing import IO as _IO
 from typing import Any as _Any
@@ -14,6 +15,7 @@ __all__ = [
     "DOC_LINK",
     "add_hints",
     "as_tuple",
+    "json_keys",
     "replace_atomically",
     "type_name",
 ]
@@ -48,6 +50,25 @@ def replace_atomically(path: _Path, write: _Callable[[_IO[bytes]], _Any]) -> Non
 def as_tuple(values: _Iterable[_Any] | str) -> tuple[_Any, ...]:
     """Convert `values` to a tuple, treating a bare string as a single value rather than a sequence of characters."""
     return (values,) if isinstance(values, str) else tuple(values)
+
+
+def json_keys(mapping: _Mapping[_Any, _Any]) -> dict[_Any, _Any]:
+    """Make `mapping` usable as a log extra: ``json.dumps`` rejects a key such as a tuple name or source.
+
+    A formatter's ``default=`` hook does not apply to keys. Other keys are kept as they are.
+    """
+    return {_to_json_key(k): v for k, v in mapping.items()}
+
+
+def _to_json_key(key: _Any) -> str | int | float | None:
+    if key is None or isinstance(key, (str, int, float)):
+        return key
+
+    # A user's __str__ may raise, and logging must not make translation fail.
+    try:
+        return str(key)
+    except Exception:
+        return object.__repr__(key)
 
 
 def type_name(obj: _Any) -> str:

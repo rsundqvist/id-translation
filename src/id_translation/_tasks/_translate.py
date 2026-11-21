@@ -9,6 +9,7 @@ from rics.misc import tname
 from rics.strings import format_seconds as fmt_sec
 
 from .. import _uuid_utils
+from .._utils import json_keys
 from .._utils.emit_warning import emit_warning
 from ..exceptions import TooManyFailedTranslationsError
 from ..mapping.types import UserOverrideFunction
@@ -204,13 +205,13 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
                 seconds=self._seconds,
                 # Task-specific
                 durations_ms=self.get_timings_ms(),
-                num_ids=self.num_ids,
+                num_ids=json_keys(self.num_ids),
                 online=self.caller.online,
                 translatable_type=self.full_type_name,
                 io_type="{cls.__module__}.{cls.__name__}".format(cls=type(self.io)),
                 copy=self.copy,
                 reverse=self.reverse,
-                name_to_source=self.name_to_source,
+                name_to_source=json_keys(self.name_to_source),
             ),
         )
 

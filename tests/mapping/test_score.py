@@ -58,6 +58,24 @@ def test_native_string():
     assert actual in EXPECTED_NATIVE_STRING
 
 
+@pytest.mark.parametrize("score, expected", [(-inf, "-inf"), (100.0, "100.00")])
+def test_native_string_fits_wide_scores(score, expected):
+    lines = ScoreMatrix(values=["a"], candidates=["b"], grid=[[score]]).to_native_string().splitlines()
+    assert lines[2].endswith(f" {expected}")
+    assert len({len(line) for line in lines}) == 1
+
+
+def test_native_string_of_an_empty_matrix():
+    assert ScoreMatrix(values=[], candidates=[], grid=[]).to_native_string(lines=False) == "v/c"
+
+
+@pytest.mark.parametrize("value", [("input", "0"), None])
+def test_native_string_with_labels_that_take_no_format_spec(value):
+    """The pandas-free table used by DEBUG logging; tuple names are common, and None takes no format spec either."""
+    actual = ScoreMatrix(values=[value], candidates=[("db", "0")], grid=[[1.0]]).to_native_string(lines=False)
+    assert actual.splitlines()[1].startswith(str(value))
+
+
 EXPECTED_NATIVE_STRING = """
 v/c   ┃ c0    ┃ c1    ┃ c2    ┃ c3    ┃ c4   
 ━━━━━━╋━━━━━━━╋━━━━━━━╋━━━━━━━╋━━━━━━━╋━━━━━━

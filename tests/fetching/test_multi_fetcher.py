@@ -589,6 +589,25 @@ def test_repr_of_plain_and_nested_children():
     assert "    MultiFetcher(max_workers=" in after
 
 
+@pytest.mark.parametrize("optional", [False, True])
+def test_outranked_child_logs_sources_without_str(caplog, optional):
+    class Source(tuple[str, str]):
+        __slots__ = ()
+
+        def __str__(self) -> str:
+            raise AssertionError("str() of a source during discovery")
+
+    source = Source(("schema", "table"))
+    caplog.set_level(logging.DEBUG, logger="id_translation")
+    fetcher: MultiFetcher[Source, int] = MultiFetcher(
+        MemoryFetcher({source: {"id": [1]}}),
+        MemoryFetcher({source: {"id": [1]}}, optional=optional),
+        on_source_conflict="ignore",
+    )
+    assert fetcher.sources == [source]
+    assert [r.discarded for r in caplog.records if hasattr(r, "discarded")] == [[source]]
+
+
 def test_subclass_logs_as_its_own_class(caplog):
     class Derived(MultiFetcher[str, int]):
         pass

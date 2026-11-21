@@ -700,13 +700,11 @@ def _log_outranked(
         return  # A child without sources was logged at discovery.
 
     reason = "All sources found in higher-ranking fetchers."
+    extra = {"discarded": [*discarded]}  # Not keyed by source: a JSON key needs str(), which may raise.
     if optional:
-        _log_discard(logger, discard_level, child, reason, task_id=task_id, extra={"discarded": discarded})
+        _log_discard(logger, discard_level, child, reason, task_id=task_id, extra=extra)
     elif logger.isEnabledFor(logging.WARNING):
-        logger.warning(
-            f"Required {child} is useless, but will be kept: {reason}",
-            extra={"task_id": task_id, "discarded": discarded},
-        )
+        logger.warning(f"Required {child} is useless, but will be kept: {reason}", extra={"task_id": task_id, **extra})
 
 
 def _handle_conflict(

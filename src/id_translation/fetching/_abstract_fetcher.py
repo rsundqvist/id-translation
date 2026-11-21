@@ -12,6 +12,7 @@ from rics.misc import tname
 from rics.strings import format_seconds as fmt_sec
 
 from .. import logging as _logging
+from .._utils import json_keys
 from .._utils.emit_warning import emit_warning
 from .._utils.locks import DiscoveryGuard
 from ..mapping import HeuristicScore, Mapper
@@ -555,7 +556,7 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
                     placeholder_attributes={p: sorted(attrs) for p, attrs in placeholder_attributes.items()}
                     if placeholder_attributes
                     else None,
-                    num_ids=num_ids,
+                    num_ids=json_keys(num_ids),
                     fetch_all=False,
                 ),
             )
@@ -588,9 +589,9 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
                     event_key=_logging.get_event_key(self.fetch, "exit"),
                     seconds=seconds,
                     sources=[*rv],
-                    placeholders_returned=placeholders_returned,
-                    num_ids=num_ids,
-                    num_ids_returned={source: len(pht.records) for source, pht in rv.items()},
+                    placeholders_returned=json_keys(placeholders_returned),
+                    num_ids=json_keys(num_ids),
+                    num_ids_returned=json_keys({source: len(pht.records) for source, pht in rv.items()}),
                     fetch_all=False,
                 ),
             )
@@ -664,9 +665,9 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
                     event_key=_logging.get_event_key(self.fetch_all, "exit"),
                     seconds=seconds,
                     sources=[*rv],
-                    placeholders_returned={source: len(pht.placeholders) for source, pht in rv.items()},
+                    placeholders_returned=json_keys({source: len(pht.placeholders) for source, pht in rv.items()}),
                     num_ids=None,
-                    num_ids_returned={source: len(pht.records) for source, pht in rv.items()},
+                    num_ids_returned=json_keys({source: len(pht.records) for source, pht in rv.items()}),
                     fetch_all=True,
                 ),
             )

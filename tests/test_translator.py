@@ -4,7 +4,7 @@ import pickle
 import subprocess
 import sys
 import warnings
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from itertools import product
 from types import MappingProxyType
 from typing import Any, assert_type
@@ -1348,3 +1348,46 @@ def test_fetcher_dropping_a_requested_source_raises(dropped):
     translator: RealTranslator[str, str, int] = RealTranslator(Dropping(data))
     with pytest.raises(ImplementationError, match=r"Dropping\.fetch\(\) returned no translations"):
         translator.translate({"people": [1], "pets": [1]})
+
+
+def test_tuple_keyed_log_extras_are_json_serializable(caplog):
+    # The root `VerifyRecord` handler in conftest raises for extras that json.dumps rejects, such as tuple dict keys.
+    caplog.set_level(logging.DEBUG, logger="id_translation")
+    source, name = ("db", "people"), ("x", "y")
+    fetcher: MultiFetcher[tuple[str, str], int] = MultiFetcher(
+        MemoryFetcher({source: {"id": [1], "name": ["Ada"]}}),
+        MemoryFetcher({source: {"id": [1], "name": ["Bob"]}}, optional=True),  # Outranked, so discarded.
+        on_source_conflict="ignore",
+    )
+    translator: RealTranslator[tuple[str, str], tuple[str, str], int] = RealTranslator(fetcher, fmt="{name}")
+
+    assert translator.translate({name: 1}, names={name: source}) == {name: "Ada"}
+    translator.go_offline()
+
+
+def test_log_extras_do_not_need_str_of_a_source(caplog):
+    class Source(tuple[str, str]):
+        __slots__ = ()
+
+        def __str__(self) -> str:
+            raise AssertionError("str() of a source in a log extra")
+
+    caplog.set_level(logging.INFO, logger="id_translation")  # Not DEBUG: its messages format the source with str().
+    source = Source(("db", "people"))
+    fetcher: MultiFetcher[Source, int] = MultiFetcher(MemoryFetcher({source: {"id": [1], "name": ["Ada"]}}))
+    translator: RealTranslator[str, Source, int] = RealTranslator(fetcher, fmt="{name}")
+
+    assert translator.translate({"x": 1}, names={"x": source}) == {"x": "Ada"}
+
+
+@pytest.mark.parametrize("verbose", [False, True])
+def test_tuple_names_in_debug_score_tables(caplog, verbose):
+    """pandas reads tuple labels as a MultiIndex, which rejects the scalar axis names of a score table."""
+    caplog.set_level(logging.DEBUG, logger="id_translation")
+    names, sources = [("input", "0"), ("input", "1")], [("db", "0"), ("db", "1")]
+    fetcher: MemoryFetcher[tuple[str, str], int] = MemoryFetcher({s: {"id": [1], "name": ["Ada"]} for s in sources})
+    translator: RealTranslator[tuple[str, str], tuple[str, str], int] = RealTranslator(fetcher, fmt="{name}")
+
+    with enable_verbose_debug_messages() if verbose else nullcontext():
+        actual = translator.translate(dict.fromkeys(names, 1), names=dict(zip(names, sources, strict=True)))
+    assert actual == dict.fromkeys(names, "Ada")

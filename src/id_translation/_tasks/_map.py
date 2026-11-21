@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any
 from rics.strings import format_seconds as fmt_sec
 
 from .. import logging as _logging
+from .._utils import json_keys
 from .._utils.emit_warning import emit_warning
 from ..exceptions import TranslationAbortedWarning
 from ..mapping.exceptions import BadOverrideError, MappingError, UnmappedExplicitNamesError, UserMappingError
@@ -111,7 +112,7 @@ class MappingTask(NamesTask[NameType, SourceType, IdType]):
                     translatable_type=self.full_type_name,
                     values=values,
                     candidates=sources,
-                    mapping=with_nones,
+                    mapping=json_keys(with_nones),
                 ),
             )
 
