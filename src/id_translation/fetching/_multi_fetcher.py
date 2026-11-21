@@ -441,7 +441,9 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
         if task_id is None:
             task_id = generate_task_id()
         self.initialize_sources(task_id)
-        if sources is not None and (unknown := set(sources).difference(self._source_to_id)):
+        if sources is not None and (
+            unknown := [source for source in dict.fromkeys(sources) if source not in self._source_to_id]
+        ):
             raise exceptions.UnknownSourceError.for_sources(unknown, sources=self.sources)
 
         placeholders = tuple(placeholders)
@@ -527,7 +529,7 @@ class MultiFetcher(Fetcher[SourceType, IdType]):
             for future in futures:
                 future.cancel()
             raise
-        return ans
+        return {source: ans[source] for source in self.sources if source in ans}  # Not in completion order.
 
     def _process_future_result(
         self,

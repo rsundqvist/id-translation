@@ -39,7 +39,7 @@ class TestMapper(_Mapper[ValueType, ValueType, ContextType]):
         **kwargs: _Any,  # noqa: ARG002
     ) -> _DirectionalMapping[ValueType, ValueType]:
         """Map values to themselves, unless `override_function` is given."""
-        values = set(values)
+        values = list(dict.fromkeys(values))
 
         left_to_right: dict[ValueType, tuple[ValueType, ...]] = {v: (v,) for v in values}
 
@@ -61,7 +61,7 @@ class TestFetcher(_Fetcher[SourceType, IdType]):
     """
 
     def __init__(self, sources: _Collection[SourceType] | None = None) -> None:
-        self._sources = set(sources or [])
+        self._sources = list(dict.fromkeys(sources or []))
 
     @property
     def allow_fetch_all(self) -> bool:
@@ -88,17 +88,33 @@ class TestFetcher(_Fetcher[SourceType, IdType]):
         wanted = list(dict.fromkeys([*placeholders, *required]))
         return {itf.source: self._generate_data(itf, wanted) for itf in ids_to_fetch}
 
-    @staticmethod
+    @classmethod
     def _generate_data(
-        itf: _IdsToFetch[SourceType, IdType], placeholders: list[str]
+        cls,
+        itf: _IdsToFetch[SourceType, IdType],
+        placeholders: list[str],
     ) -> _PlaceholderTranslations[SourceType]:
         if itf.ids is None:
             raise NotImplementedError
 
-        ids = [*itf.ids]
+        ids = cls._process_ids(itf.ids)
         data: dict[str, list[str] | list[IdType]] = {p: [f"{p}-of-{idx}" for idx in ids] for p in placeholders}
         data[ID] = ids
         return _PlaceholderTranslations.from_dict(itf.source, data=data)
+
+    @classmethod
+    def _process_ids(cls, ids: set[IdType]) -> list[IdType]:
+        try:
+            return sorted(ids)
+        except TypeError:
+            pass
+
+        try:
+            return sorted(ids, key=repr)
+        except Exception:  # noqa: S110
+            pass
+
+        return [*ids]  # Order depends on PYTHONHASHSEED
 
     def fetch_all(
         self,

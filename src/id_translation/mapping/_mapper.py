@@ -1,5 +1,5 @@
 import logging
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, Sequence
 from math import isinf
 from time import perf_counter
 from typing import Any, Generic, Self
@@ -171,7 +171,8 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
             msg = (
                 f"Could not map {sorted(unmapped, key=str)}{extra} to any of candidates={sorted(candidates, key=str)}."
             )
-            self._report_unmapped(msg, unmapped=unmapped, task_id=task_id)
+            ordered = [value for value in scores.values if value in unmapped]  # Not in the set's order.
+            self._report_unmapped(msg, unmapped=ordered, task_id=task_id)
 
         logger = self.logger
         if _logging.ENABLE_VERBOSE_LOGGING and logger.isEnabledFor(logging.DEBUG):
@@ -430,21 +431,21 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
         self,
         func: UserOverrideFunction[ValueType, CandidateType, ContextType],
         values: Iterable[ValueType],
-        candidates: Iterable[CandidateType],
+        candidates: Sequence[CandidateType],
         context: ContextType | None,
         task_id: int | None,
     ) -> list[tuple[ValueType, CandidateType]]:
-        candidates = set(candidates)
+        candidate_set = set(candidates)
 
         logger = self.logger
 
         ans = []
         for value in values:
-            user_override = func(value, candidates, context)
+            user_override = func(value, candidate_set, context)
             if user_override is None:
                 continue
 
-            if user_override not in candidates:
+            if user_override not in candidate_set:
                 msg = f"The user-defined override function {func} returned an unknown candidate={user_override!r} for {value=}."
                 if self.on_unknown_user_override == "raise":
                     logger.error(msg, extra={"task_id": task_id})

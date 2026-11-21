@@ -286,3 +286,18 @@ def test_to_translations(translation_map):
             42098: "42098:'Danger'",
         },
     }
+
+
+@pytest.mark.parametrize("seed", ["0", "1"])
+def test_iteration_keeps_the_order_of_the_sources(seed, monkeypatch, tmp_path):
+    from ..conftest import run_python
+
+    monkeypatch.setenv("PYTHONHASHSEED", seed)  # A set's iteration order changes with it.
+    sources = ["customer", "film", "category", "staff", "store"]
+    code = f"""from id_translation import Translator
+from id_translation.fetching import MemoryFetcher
+translator = Translator(MemoryFetcher({{s: {{"id": [1]}} for s in {sources}}}), fmt="{{id}}")
+translator.go_offline()
+print(list(translator.cache))
+"""
+    assert run_python("-c", code, cwd=tmp_path).strip() == str(sources)

@@ -271,3 +271,37 @@ def test_disabled():
     mapper = Mapper("disabled", overrides={"a": 1}, score_function_kwargs=dict(strict=False))
     assert mapper.apply("ab", {1}).flatten() == {"a": 1}
     assert mapper.apply("b", {1}).flatten() == {}
+
+
+@pytest.mark.parametrize("seed", ["0", "1"])
+def test_apply_keeps_the_order_of_the_values(seed, monkeypatch, tmp_path):
+    from ..conftest import run_python
+
+    monkeypatch.setenv("PYTHONHASHSEED", seed)  # A set's iteration order changes with it.
+    values = ["customer", "film", "category", "staff", "store"]
+    code = f"""from id_translation.mapping import DirectionalMapping, Mapper
+print(list(Mapper().apply({values}, {values}, None).left))
+print(list(DirectionalMapping(left_to_right={{v: ["x"] for v in {values}}}).right_to_left["x"]))
+"""
+    assert run_python("-c", code, cwd=tmp_path).splitlines() == [str(values)] * 2
+
+
+@pytest.mark.parametrize("seed", ["0", "1"])
+def test_errors_keep_the_order_of_the_values_and_candidates(seed, monkeypatch, tmp_path):
+    from ..conftest import run_python
+
+    monkeypatch.setenv("PYTHONHASHSEED", seed)  # A set's iteration order changes with it.
+    values = ["customer", "film", "category", "staff", "store"]
+    code = f"""from id_translation.mapping import Mapper
+from id_translation.mapping.exceptions import UnmappedValuesError, UserMappingError
+try:
+    Mapper("modified_hamming", min_score=1e-4, cardinality="1:1", on_unmapped="raise").apply({values}, ["customers"])
+except UnmappedValuesError as e:
+    print(list(e.unmapped))
+try:
+    Mapper(on_unknown_user_override="raise").apply(["a"], {values}, override_function=lambda *_: "x")
+except UserMappingError as e:
+    print(list(e.candidates))
+"""
+    unmapped = [v for v in values if v != "category"]  # The best match for 'customers'.
+    assert run_python("-c", code, cwd=tmp_path).splitlines() == [str(unmapped), str(values)]

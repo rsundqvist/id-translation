@@ -1,5 +1,8 @@
 import json
 import logging
+import os
+import subprocess
+import sys
 from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
@@ -153,3 +156,18 @@ class NotCloneableFetcher(AbstractFetcher[str, int]):
     def fetch_translations(self, instr: FetchInstruction[str, int]) -> PlaceholderTranslations[str]:
         self.logger.debug(f"fetch_translations: {instr=}")
         return PlaceholderTranslations.make(instr.source, {1: "name"})
+
+
+def run_python(*args: str, cwd: Path) -> str:
+    """Run a docs example in a subprocess, since the examples configure logging process-wide."""
+    env = {**os.environ, "PYTHONUTF8": "1"}  # Their logs print 'μs'; a Windows pipe defaults to cp1252.
+    result = subprocess.run(  # noqa: S603
+        [sys.executable, *args],
+        cwd=cwd,
+        capture_output=True,
+        encoding="utf-8",
+        env=env,
+        check=False,  # The assert shows the output.
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    return result.stdout

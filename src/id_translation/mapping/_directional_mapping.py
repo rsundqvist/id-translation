@@ -147,7 +147,7 @@ class DirectionalMapping(Generic[HL, HR]):  # noqa: PLW1641
         for k, matches_for_k in backup_side.items():
             for m in matches_for_k:
                 other_side.setdefault(m, []).append(k)
-        return {k: tuple(set(m)) for k, m in other_side.items()}
+        return {k: tuple(dict.fromkeys(m)) for k, m in other_side.items()}
 
     def _verify(self, expected: "DirectionalMapping[HL, HR]") -> None:
         self._verify_side(self.left, expected.left, "Left")

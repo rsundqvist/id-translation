@@ -323,8 +323,8 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         if candidates is None:
             candidates = self.placeholders[source]
 
-        candidates = set(candidates)
-        placeholders = set(placeholders)
+        candidates = list(dict.fromkeys(candidates))  # Not a set: the mapper breaks ties by candidate order.
+        placeholders = list(dict.fromkeys(placeholders))
 
         logger = self.logger
         emit_key_event = self._placeholders or (_logging.ENABLE_VERBOSE_LOGGING and logger.isEnabledFor(logging.DEBUG))
@@ -334,8 +334,8 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
                 extra=dict(
                     task_id=task_id,
                     event_key=_logging.get_event_key(self.map_placeholders, "enter"),
-                    values=list(placeholders),
-                    candidates=list(candidates),
+                    values=[*placeholders],  # Copies: the mapper may be user code.
+                    candidates=[*candidates],
                     context=source,
                 ),
             )
@@ -343,8 +343,8 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         dm = mapper.apply(placeholders, candidates, context=source, task_id=task_id)
 
         ans: dict[str, str | None] = dm.flatten()  # type: ignore[assignment]
-        for not_mapped in placeholders.difference(ans):
-            ans[not_mapped] = None
+        for placeholder in placeholders:
+            ans.setdefault(placeholder, None)
 
         if emit_key_event:
             seconds = perf_counter() - start
@@ -615,8 +615,10 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
             raise exceptions.ForbiddenOperationError.for_operation("FETCH_ALL", fetcher_class=self._cls_name())
 
         self.initialize_sources(task_id)
-        if sources is not None and (unknown := set(sources).difference(self.sources)):
-            raise exceptions.UnknownSourceError.for_sources(unknown, sources=self.sources)
+        if sources is not None:
+            known = {*self.sources}
+            if unknown := [source for source in dict.fromkeys(sources) if source not in known]:
+                raise exceptions.UnknownSourceError.for_sources(unknown, sources=self.sources)
 
         placeholders = tuple(placeholders)
         required_placeholders = set(required)
@@ -684,26 +686,28 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
     ) -> SourcePlaceholderTranslations[SourceType]:
         if wanted_sources is None:
             wanted_sources = {*self.sources}
+        ordered = [source for source in self.sources if source in wanted_sources]  # Not in the set's order.
 
         if self._selective_fetch_all:
+            required = sorted(required_placeholders)  # Not in the set's order: matches may compete for a column.
             # There's nothing stopping us from doing this for regular fetching. But we assume that then the user wants
             # fetching to fail if explicit IDs can't be translated as specified.
-            sources = [
-                source
-                for source in wanted_sources
-                if required_placeholders.issubset(
-                    self._wanted_to_actual(source, required_placeholders, task_id, mapper=mapper)[0]
-                )
-            ]
+            # TODO: Maps `required` alone, unlike the fetch; see test_selective_fetch_all_one_to_one_conflict.
+            sources: list[SourceType] = []
+            discarded: list[SourceType] = []
+            for source in ordered:
+                wanted_to_actual = self._wanted_to_actual(source, required, task_id, mapper=mapper)[0]
+                target = sources if required_placeholders.issubset(wanted_to_actual) else discarded
+                target.append(source)
 
-            if discarded := wanted_sources.difference(sources):
+            if discarded:
                 self.logger.info(
                     f"Ignoring {len(discarded)} sources {discarded} since required "
                     f"placeholders {sorted(required_placeholders)} could not be mapped by {self}.",
                     extra={"task_id": task_id},
                 )
         else:
-            sources = [*wanted_sources]
+            sources = ordered
 
         source_translations = {}
         for source in sources:
@@ -997,7 +1001,8 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         absent: dict[str, str] = {}
         for wanted, actual in mapped.items():
             if actual is not None:
-                (wanted_to_actual if actual in available else absent)[wanted] = actual
+                target = wanted_to_actual if actual in available else absent
+                target[wanted] = actual
         return wanted_to_actual, absent
 
     # Private: the TOML factory merges [fetching.mapping] into these, so a subclass override would apply in Python only.

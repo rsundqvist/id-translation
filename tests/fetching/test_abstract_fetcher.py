@@ -13,7 +13,7 @@ from rics.collections.dicts import InheritedKeysDict
 from id_translation.fetching import AbstractFetcher, CacheAccess, MemoryFetcher, MultiFetcher, exceptions
 from id_translation.fetching.exceptions import CacheAccessNotAvailableError
 from id_translation.fetching.types import FetchInstruction, IdsToFetch, PartialCacheHit
-from id_translation.mapping import Mapper
+from id_translation.mapping import HeuristicScore, Mapper
 from id_translation.mapping.exceptions import MappingWarning, UnmappedValuesWarning
 from id_translation.offline.types import PlaceholderTranslations
 
@@ -627,6 +627,20 @@ def test_missing_id_column_hint_for_implementers(bundled):
     assert bool(leave_out) is not bundled
 
 
+@pytest.mark.parametrize("seed", ["0", "1"])
+def test_first_column_wins_a_placeholder_tie(seed, monkeypatch, tmp_path):
+    from ..conftest import run_python
+
+    monkeypatch.setenv("PYTHONHASHSEED", seed)  # A set's iteration order changes with it.
+    code = """from id_translation import Translator
+from id_translation.fetching import MemoryFetcher
+columns = ["Name", "NAME", "nAme", "naMe"]  # Tied for the wanted 'name'.
+fetcher = MemoryFetcher({"t": {"id": [1], **{c: [c] for c in columns}}})
+print(Translator(fetcher, fmt="{name}").translate({"t": [1]}))
+"""
+    assert run_python("-c", code, cwd=tmp_path).strip() == "{'t': ['Name']}"
+
+
 class TestImplementationErrors:
     @pytest.mark.parametrize(
         "result, match",
@@ -682,3 +696,67 @@ class TestImplementationErrors:
         fetcher = Reentrant({"people": {"id": [1]}})
         with pytest.raises(exceptions.ImplementationError, match=r"was called during its own discovery"):
             fetcher.initialize_sources()
+
+
+@pytest.mark.parametrize("seed", ["0", "1"])
+def test_fetch_all_keeps_the_order_of_the_sources(seed, monkeypatch, tmp_path):
+    from ..conftest import run_python
+
+    monkeypatch.setenv("PYTHONHASHSEED", seed)  # A set's iteration order changes with it.
+    sources = ["customer", "film", "category", "staff", "store"]
+    code = f"""from id_translation.fetching import MemoryFetcher
+fetcher = MemoryFetcher({{s: {{"id": [1]}} for s in {sources}}})
+print(list(fetcher.fetch_all(["id"])))
+print(list(fetcher.fetch_all(["id"], sources={set(sources)})))
+"""
+    assert run_python("-c", code, cwd=tmp_path).splitlines() == [str(sources)] * 2
+
+
+@pytest.mark.parametrize("seed", ["0", "1"])
+def test_fetch_all_reports_sources_in_a_fixed_order(seed, monkeypatch, tmp_path):
+    from ..conftest import run_python
+
+    monkeypatch.setenv("PYTHONHASHSEED", seed)  # A set's iteration order changes with it.
+    sources = ["customer", "film", "category", "staff", "store"]
+    code = f"""import logging, sys
+from id_translation.fetching import MemoryFetcher, MultiFetcher
+from id_translation.fetching.exceptions import UnknownSourceError
+for fetcher in MemoryFetcher({{"known": {{"id": [1]}}}}), MultiFetcher(MemoryFetcher({{"known": {{"id": [1]}}}})):
+    try:
+        fetcher.fetch_all(["id"], sources={sources})
+    except UnknownSourceError as e:
+        print(list(e.unknown_sources))
+logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(message)s")
+logging.getLogger("id_translation").setLevel(logging.INFO)
+fetcher = MemoryFetcher({{"known": {{"id": [1], "name": ["a"]}}, **{{s: {{"id": [1]}} for s in {sources}}}}})
+fetcher.fetch_all(["id", "name"], required=["name"])
+"""
+    lines = run_python("-c", code, cwd=tmp_path).splitlines()
+    assert lines[:2] == [str(sources)] * 2
+    assert f"Ignoring 5 sources {sources} since " in "\n".join(lines[2:])
+
+
+@pytest.mark.parametrize("seed", ["0", "1"])
+def test_selective_fetch_all_maps_required_placeholders_in_a_fixed_order(seed, monkeypatch, tmp_path):
+    from ..conftest import run_python
+
+    monkeypatch.setenv("PYTHONHASHSEED", seed)  # A set's iteration order changes with it.
+    code = """from id_translation.fetching import MemoryFetcher
+from id_translation.mapping import HeuristicScore, Mapper
+score = HeuristicScore("equality", [lambda v, cs, _: {c for c in cs if v.lower() == c.lower()}])
+fetcher = MemoryFetcher({"t": {"id": [1], "Name": ["a"], "name": ["b"]}}, mapper=Mapper(score, cardinality="1:1"))
+print(list(fetcher.fetch_all(["Name", "NAME"], required=["Name", "NAME"])))
+"""
+    assert run_python("-c", code, cwd=tmp_path).strip() == "[]"
+
+
+@pytest.mark.xfail(strict=True, raises=exceptions.UnknownPlaceholderError, reason="See the TODO in _fetch_all().")
+def test_selective_fetch_all_one_to_one_conflict():
+    """The 'Name' placeholder takes the only column, so 't' cannot serve the required 'NAME' and should be skipped."""
+    score: HeuristicScore[str, str, str] = HeuristicScore(
+        "equality", [lambda v, cs, _: {c for c in cs if v.lower() == c.lower()}]
+    )
+    fetcher: MemoryFetcher[str, int] = MemoryFetcher(
+        {"t": {"id": [1], "Name": ["a"]}}, mapper=Mapper(score, cardinality="1:1")
+    )
+    assert list(fetcher.fetch_all(["Name"], required=["NAME"])) == []

@@ -149,9 +149,9 @@ class ScoreHelper(Generic[ValueType, CandidateType]):
                 msg += f" This match supersedes {len(supersedes)} other matches:\n{s}"
             logger.debug(msg, extra={"task_id": self._task_id})
 
-        values = set(self._matrix.values)
+        values = self._matrix.values  # Not a set: the mapping keeps the order of the values.
         if rejections and not logging_disabled:
-            unmapped_values = values.difference(left_to_right)
+            unmapped_values = [value for value in values if value not in left_to_right]
             for value in unmapped_values:
                 value_reasons = "\n".join(
                     "    " + reject.explain(min_score, full=True)
@@ -165,7 +165,7 @@ class ScoreHelper(Generic[ValueType, CandidateType]):
 
         return DirectionalMapping(
             cardinality=cardinality,
-            left_to_right={value: tuple(left_to_right[value]) for value in values.intersection(left_to_right)},
+            left_to_right={value: tuple(left_to_right[value]) for value in values if value in left_to_right},
             _verify=False,
         )
 

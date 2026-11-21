@@ -105,7 +105,7 @@ class TranslationMap(
             source: FormatApplier(translations, transformer=transformers.get(source))
             for source, translations in source_translations.items()
         }
-        self._names_and_sources: set[NameType | SourceType] = set()
+        self._names_and_sources: dict[NameType | SourceType, None] = {}  # Not a set: iteration order.
         self.name_to_source = name_to_source or {}
 
         self._reverse_mode: bool = False
@@ -269,7 +269,7 @@ class TranslationMap(
     @name_to_source.setter
     def name_to_source(self, value: NameToSource[NameType, SourceType]) -> None:
         self._name_to_source: NameToSource[NameType, SourceType] = value
-        self._names_and_sources = set(value).union(self._format_appliers)
+        self._names_and_sources = dict.fromkeys([*value, *self._format_appliers])
 
     @property
     def fmt(self) -> Format:

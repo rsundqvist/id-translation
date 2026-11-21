@@ -1,6 +1,7 @@
 import logging
 import pickle
 import threading
+import time
 from collections.abc import Collection
 from copy import deepcopy
 from itertools import combinations
@@ -12,7 +13,7 @@ import pytest
 from id_translation import Translator
 from id_translation.fetching import AbstractFetcher, MemoryFetcher, MultiFetcher, SqlFetcher, exceptions
 from id_translation.fetching.exceptions import FetcherWarning
-from id_translation.fetching.types import IdsToFetch
+from id_translation.fetching.types import FetchInstruction, IdsToFetch
 from id_translation.mapping.exceptions import AmbiguousScoreError
 from id_translation.offline.types import PlaceholderTranslations, SourcePlaceholderTranslations
 from id_translation.testing import TestFetcher as _TestFetcher  # Aliased: pytest collects Test* classes
@@ -823,3 +824,23 @@ def test_reentrant_discovery():
     parent: MultiFetcher[str, int] = MultiFetcher(ReadsParent({"people": {"id": [1]}}))
     with pytest.raises(exceptions.ImplementationError, match=r"MultiFetcher.initialize_sources\(\) was called during"):
         parent.initialize_sources()
+
+
+@pytest.mark.parametrize("fetch_all", [False, True])
+def test_result_is_in_source_order_when_children_finish_out_of_order(fetch_all):
+    fast_done = threading.Event()
+
+    class Fast(MemoryFetcher[str, int]):
+        def fetch_translations(self, instr: FetchInstruction[str, int]) -> PlaceholderTranslations[str]:
+            fast_done.set()
+            return super().fetch_translations(instr)
+
+    class Slow(MemoryFetcher[str, int]):
+        def fetch_translations(self, instr: FetchInstruction[str, int]) -> PlaceholderTranslations[str]:
+            assert fast_done.wait(5)
+            time.sleep(0.1)  # Until the fast child's future is done, too.
+            return super().fetch_translations(instr)
+
+    fetcher = MultiFetcher(Slow({"a": {"id": [1]}}), Fast({"b": {"id": [1]}}), max_workers=2)
+    result = fetcher.fetch_all() if fetch_all else fetcher.fetch([IdsToFetch("a", {1}), IdsToFetch("b", {1})])
+    assert list(result) == fetcher.sources == ["a", "b"]
