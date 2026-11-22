@@ -163,7 +163,3 @@ class GoOfflineParams(FetchParams[_tt.NameType, _tt.SourceType, _tt.IdType], tot
     """All arguments of :meth:`Translator.go_offline <id_translation.Translator.go_offline>`."""
 
     path: _AnyPath | None
-
-
-CacheMissReasonType = _t.Literal["metadata-missing", "metadata-unreadable", "metadata-changed", "too-old"]
-"""High-level reason why a cached ``Translator`` was rejected."""

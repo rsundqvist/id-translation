@@ -155,7 +155,7 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
 
     def create(self) -> "Translator[NameType, SourceType, IdType]":
         """Create :class:`~id_translation.Translator` instance."""
-        config_metadata = ConfigMetadata.from_toml_paths(self.file, self.extra_fetchers, self.clazz)
+        config_metadata = ConfigMetadata.from_toml_paths(self.file, self.extra_fetchers, clazz=self.clazz)
         with _rethrow_with_file(self.file):
             config = self.load_toml_file(self.file)
             _check_sections(self.TOP_LEVEL_KEYS, actual=config)

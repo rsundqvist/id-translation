@@ -1,5 +1,6 @@
 import inspect
 import logging
+import os
 import pickle
 import subprocess
 import sys
@@ -20,7 +21,6 @@ from id_translation import Translator as RealTranslator
 from id_translation import __version__
 from id_translation.dio.exceptions import NotInplaceTranslatableError, UntranslatableTypeError
 from id_translation.exceptions import (
-    ConfigurationChangedError,
     ConnectionStatusError,
     MissingNamesError,
     NoSourcesError,
@@ -38,7 +38,6 @@ from id_translation.mapping.exceptions import (
     UnmappedExplicitNamesError,
     UserMappingError,
 )
-from id_translation.toml.meta import _config_metadata
 from id_translation.transform import BitmaskTransformer
 
 from .conftest import ROOT, NotCloneableFetcher
@@ -60,10 +59,6 @@ def verification_context(purpose):
 class UnitTestTranslator(RealTranslator[str, str, int]):
     """Test implementation that performs additional verification."""
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.now = pd.Timestamp.now()
-
 
 class FailsToUnpickle:
     """Stands in for a nested object whose state another version cannot restore. Module-level to be picklable."""
@@ -81,12 +76,6 @@ class SlottedTranslator(RealTranslator[str, str, int]):
     __slots__ = ("tag",)
 
     tag: str
-
-
-class ConfigMetadataForTest(_config_metadata.ConfigMetadata):
-    def __init__(self, **kwargs: Any) -> None:
-        super().__init__(**kwargs)
-        assert self.clazz in ("id_translation._translator.Translator", "tests.test_translator.Translator")
 
 
 @pytest.mark.parametrize("with_id, with_override, store", list(product([False, True], repeat=3)))
@@ -261,7 +250,7 @@ def test_from_config():
     assert sorted(actual.versions) == ["id-translation", "python"]
     assert actual.metaconf.equivalence.extra_packages == []
 
-    reason_not_equivalent = actual.is_equivalent(actual)
+    reason_not_equivalent = actual.reason_not_equivalent(actual)
     assert reason_not_equivalent == ""
 
 
@@ -418,9 +407,11 @@ def test_explicit_name_ignored(translator):
 def test_complex_default(hex_fetcher):
     fmt = "{id}:{hex}[, positive={positive}]"
     default_fmt = "{id} - {hex} - {positive}"
-    default_fmt_placeholders = {"default": {"positive": "POSITIVE/NEGATIVE", "hex": "HEX"}}
     t = UnitTestTranslator(
-        hex_fetcher, fmt=fmt, default_fmt=default_fmt, default_fmt_placeholders=default_fmt_placeholders
+        hex_fetcher,
+        fmt=fmt,
+        default_fmt=default_fmt,
+        default_fmt_placeholders={"default": {"positive": "POSITIVE/NEGATIVE", "hex": "HEX"}},
     ).go_offline()
 
     in_range = t.translate({"positive_numbers": [-1, 0, 1]})
@@ -805,54 +796,17 @@ def test_float_ids(translator):
     assert ids == {0, 1, 3}
 
 
-def test_load_persistent_instance(tmp_path):
-    config_path = ROOT.joinpath("dvdrental/translation.toml")  # Uses an in-memory fetcher.
+def test_go_offline_snapshot_follows_the_umask(tmp_path, hex_fetcher):
+    old = os.umask(0o022)  # Under 0o077, the private 0o600 of a mkstemp() file would match too.
+    try:
+        RealTranslator(hex_fetcher, fmt="{id}:{hex}").go_offline(path=tmp_path / "translator.pkl")
+        reference = tmp_path / "reference"
+        reference.write_bytes(b"")
+    finally:
+        os.umask(old)
 
-    expected = ["<Failed: id=0>", "1:Action", "2:Animation"]
-    translatable: list[int] = [0, 1, 2]
-    args = (translatable, "category_id")
-
-    translator = UnitTestTranslator.load_persistent_instance(tmp_path, config_path)
-    assert type(translator) is UnitTestTranslator
-    now = translator.now
-    assert translator.translate(*args) == expected
-
-    translator = UnitTestTranslator.load_persistent_instance(tmp_path, config_path)
-    assert type(translator) is UnitTestTranslator
-    assert translator.now == now
-    assert translator.translate(*args) == expected
-
-    translator = UnitTestTranslator.load_persistent_instance(tmp_path, config_path, max_age="0 days")
-    assert type(translator) is UnitTestTranslator
-    assert translator.now > now
-    assert translator.translate(*args) == expected
-
-    now = translator.now
-    translator = UnitTestTranslator.load_persistent_instance(tmp_path, config_path, max_age=None)
-    assert type(translator) is UnitTestTranslator
-    assert translator.now == now
-    assert translator.translate(*args) == expected
-
-    real_translator: RealTranslator[str, str, int] = RealTranslator.load_persistent_instance(tmp_path, config_path)
-    assert type(real_translator) is RealTranslator
-    assert real_translator.translate(*args) == expected
-
-    metadata_path = tmp_path / "metadata.json"
-    metadata = ConfigMetadataForTest.from_json(metadata_path.read_text())
-    metadata.versions["python"] = "-1"
-    metadata_path.write_text(metadata.to_json())
-    with pytest.raises(
-        ConfigurationChangedError,
-        match=r"cached instance is not equivalent: Expected python='3\.\d+\.\d+' \(your environment\) but got python='-1'",
-    ) as exc_info:
-        RealTranslator.load_persistent_instance(tmp_path, config_path, on_config_changed="raise")
-    assert exc_info.value.cache_dir == str(tmp_path)
-    assert "on_config_changed='recreate'" in exc_info.value.__notes__[0]
-
-    real_translator = RealTranslator.load_persistent_instance(tmp_path, config_path)
-    assert type(real_translator) is RealTranslator
-    assert real_translator.translate(*args) == expected
-    assert not isinstance(real_translator, UnitTestTranslator)
+    modes = {p.name: p.stat().st_mode & 0o777 for p in tmp_path.iterdir()}
+    assert modes == dict.fromkeys(["reference", "translator.pkl"], modes["reference"])
 
 
 @pytest.mark.parametrize(

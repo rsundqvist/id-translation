@@ -67,7 +67,6 @@ Working offline
 
    Translator.go_offline
    Translator.restore
-   Translator.load_persistent_instance
 
 .. rubric:: Related attributes
 .. autosummary::

@@ -8,7 +8,7 @@ This implementation provides:
     * Incremental caching: only the IDs that are actually translated are kept.
     * A per-ID time-to-live (TTL) in seconds, and a per-source size cap.
 
-Reach for this instead of Translator.load_persistent_instance() when you want
+Reach for this instead of a Translator.go_offline(path=...) snapshot when you want
 caching but cannot accept its pickle dependency, and want to stay online so new
 IDs are fetched on demand. Unlike the on-disk example -- which caches whole
 fetch_all tables -- this accumulates the "hot" subset of IDs across by-ID

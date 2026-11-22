@@ -29,9 +29,9 @@ def test_dvd_rental(dialect, with_schema):
     pd.testing.assert_frame_equal(actual, expected)
 
 
-def test_load_persistent_instance(tmp_path, dialect):
-    cfg = setup_for_dialect(dialect)
+def test_snapshot_keeps_the_config_metadata(tmp_path, dialect):
+    config_path, extra_fetchers = setup_for_dialect(dialect)
 
-    expected_metadata = Translator.load_persistent_instance(tmp_path, *cfg).config_metadata
-    actual_metadata = Translator.load_persistent_instance(tmp_path, *cfg).config_metadata
-    assert expected_metadata == actual_metadata
+    translator = Translator[str, str, int].from_config(config_path, extra_fetchers)
+    translator.go_offline(path=tmp_path / "translator.pkl")
+    assert Translator.restore(tmp_path / "translator.pkl").config_metadata == translator.config_metadata

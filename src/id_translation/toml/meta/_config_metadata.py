@@ -1,10 +1,14 @@
 import json
 import logging
 import sys
+from collections.abc import Iterable
 from datetime import date, time
 from hashlib import sha256
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+
+from rics.collections.misc import as_list
+from rics.paths import AnyPath
 
 from id_translation.toml._load_toml import load_toml_file
 
@@ -30,8 +34,8 @@ class ConfigMetadata(BaseMetadata):
         - All auxiliary fetcher configurations are equal after parsing, and
         - They have the same meta configuration (``metaconf.toml``).
 
-    Environment variable changes may also invalidate the cache if interpolations such as ``${VAR}`` are present and
-    :attr:`EnvConf.allow_interpolation <id_translation.toml.meta.EnvConf.allow_interpolation>` is set.
+    Environment variable changes may also make configurations non-equivalent if interpolations such as ``${VAR}`` are
+    present and :attr:`EnvConf.allow_interpolation <id_translation.toml.meta.EnvConf.allow_interpolation>` is set.
 
     Args:
         main: Absolute path and fingerprint of the main translation configuration."
@@ -81,17 +85,17 @@ class ConfigMetadata(BaseMetadata):
             metaconf=Metaconf.from_dict(from_json.pop("metaconf")),
         )
 
-    def _is_equivalent(self, other: BaseMetadata) -> str:  # pragma: no cover
+    def _reason_not_equivalent(self, other: BaseMetadata) -> str:
         assert isinstance(other, ConfigMetadata)  # noqa: S101
 
         if self.clazz != other.clazz:
             return f"Class not equal. Expected '{self.clazz}', but got '{other.clazz}'"
 
         if self.main[1] != other.main[1]:
-            return f"Main configuration changed. Expected fingerprint {self.main[1]}, but got {other.main[1]}"
+            return f"Main configuration changed: {self.main[0]}"
 
         if self.metaconf != other.metaconf:
-            return f"Meta configuration changed: {self.metaconf} != {other.metaconf}."
+            return f"Meta configuration changed: {_diff(other.metaconf.as_dict(), self.metaconf.as_dict())}"
 
         if len(self.extra_fetchers) != len(other.extra_fetchers):
             return (
@@ -99,24 +103,34 @@ class ConfigMetadata(BaseMetadata):
                 f" fetchers but got {len(other.extra_fetchers)}"
             )
 
-        for i, (path, fingerprint) in enumerate(self.extra_fetchers):
-            _, other_fingerprint = other.extra_fetchers[i]
+        for rank, ((path, fingerprint), (_, other_fingerprint)) in enumerate(
+            zip(self.extra_fetchers, other.extra_fetchers, strict=True), start=1
+        ):
             if fingerprint != other_fingerprint:
-                return (
-                    f"Configuration changed for auxiliary fetcher #{i} at {path}. "
-                    f"Expected fingerprint {fingerprint}, but got {other_fingerprint}"
-                )
+                return f"Auxiliary fetcher configuration #{rank} changed: {path}"  # The main file has rank 0.
 
         return ""
 
     @staticmethod
     def from_toml_paths(
-        path: str,
-        extra_fetchers: list[str],
+        path: AnyPath,
+        extra_fetchers: AnyPath | Iterable[AnyPath] = (),
+        *,
         clazz: type["Translator[Any, Any, Any]"],
     ) -> "ConfigMetadata":
-        """Convenience function for creating ``ConfigMetadata`` instances."""
-        metaconf_path = str(Path(path).expanduser().with_name("metaconf.toml"))
+        """Create ``ConfigMetadata`` from configuration files, without creating a :class:`~id_translation.Translator`.
+
+        Args:
+            path: Path to the main TOML configuration file.
+            extra_fetchers: A path, or paths, to fetching configuration TOML files, in rank order.
+            clazz: The :class:`~id_translation.Translator` class, which is part of equivalence.
+
+        Returns:
+            A new ``ConfigMetadata``.
+        """
+        main_path = str(Path(path).expanduser())
+        fetcher_paths: list[AnyPath] = as_list(extra_fetchers)  # A bare path is one path, not characters.
+        metaconf_path = str(Path(main_path).with_name("metaconf.toml"))
         metaconf = Metaconf.from_path_or_default(metaconf_path)
 
         def _create_path_tuple(str_path: str) -> tuple[Path, str]:
@@ -130,8 +144,8 @@ class ConfigMetadata(BaseMetadata):
             return p, sha256(json.dumps(content, sort_keys=True, default=_fingerprint_default).encode()).hexdigest()
 
         return ConfigMetadata(
-            main=_create_path_tuple(path),
-            extra_fetchers=tuple(map(_create_path_tuple, extra_fetchers)),
+            main=_create_path_tuple(main_path),
+            extra_fetchers=tuple(_create_path_tuple(str(Path(p))) for p in fetcher_paths),
             clazz=clazz.__module__ + "." + clazz.__qualname__,  # Fully qualified name
             metaconf=metaconf,
         )
@@ -142,3 +156,13 @@ def _fingerprint_default(obj: Any) -> str:
     if isinstance(obj, date | time):
         return f"{type(obj).__name__}:{obj.isoformat()}"
     raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
+
+
+def _diff(old: dict[str, dict[str, Any]], new: dict[str, dict[str, Any]]) -> str:
+    changes = [
+        f"{section}.{key}: {old[section].get(key)!r} -> {value!r}"
+        for section, values in new.items()
+        for key, value in values.items()
+        if old.get(section, {}).get(key) != value
+    ]
+    return ", ".join(changes)

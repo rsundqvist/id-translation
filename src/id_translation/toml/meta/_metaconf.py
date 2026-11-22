@@ -41,7 +41,7 @@ class EquivalenceConf:
 
     .. seealso::
 
-       The :meth:`Translator.load_persistent_instance <id_translation.Translator.load_persistent_instance>` method.
+       The :class:`~id_translation.toml.meta.ConfigMetadata` class.
     """
 
     python_version: str = "{v.major}.{v.minor}.{v.micro}"

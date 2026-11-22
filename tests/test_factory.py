@@ -630,7 +630,5 @@ def test_tilde_paths_are_expanded(tmp_path, monkeypatch):
     translator = Translator[str, str, int].from_config("~/main.toml", extra_fetchers="~/fetcher.toml")
     assert translator.translate(1, names="s") == "1!"
 
-    cached = Translator[str, str, int].load_persistent_instance(
-        "~/cache", "~/main.toml", extra_fetchers="~/fetcher.toml"
-    )
-    assert cached.translate(1, names="s") == "1!"
+    translator.go_offline(path="~/cache/translator.pkl")
+    assert Translator[str, str, int].restore("~/cache/translator.pkl").translate(1, names="s") == "1!"

@@ -4,7 +4,6 @@ from collections.abc import Iterable, Mapping, Sequence
 from contextlib import nullcontext
 from copy import copy as shallow_copy
 from copy import deepcopy
-from datetime import timedelta
 from time import perf_counter
 from typing import (
     TYPE_CHECKING,
@@ -30,10 +29,9 @@ from . import _pickle
 from . import logging as _logging
 from ._tasks import MappingTask, NamesTask, TranslationTask
 from ._transformer_registry import TransformerRegistry
-from ._utils import add_hints, replace_atomically, type_name
+from ._utils import replace_atomically, type_name
 from ._utils.emit_warning import emit_warning
 from .exceptions import (
-    ConfigurationChangedError,
     ConnectionStatusError,
     MissingNamesError,
     NoSourcesError,
@@ -1160,96 +1158,6 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             msg = f"No cache available. Use `{self.go_offline.__qualname__}` to cache translations."
             raise RuntimeError(msg)
         return self._cached_tmap
-
-    @classmethod
-    def load_persistent_instance(
-        cls,
-        cache_dir: AnyPath,
-        config_path: AnyPath,
-        extra_fetchers: AnyPath | Iterable[AnyPath] = (),
-        max_age: str | timedelta | None = "12h",
-        on_config_changed: Literal["raise", "recreate"] = "recreate",
-    ) -> Self:
-        """Load or create a persistent, offline :class:`~id_translation.Translator`.
-
-        Instances are created, stored and loaded as determined by a metadata file located in the given `cache_dir`. A
-        new :class:`~id_translation.Translator` will be created if:
-
-        * There is no `'metadata'` file, or it cannot be parsed, or
-        * the cached instance cannot be restored, e.g. because it is missing or was only partly written, or
-        * the original :class:`~id_translation.Translator` is too old (see `max_age`), or
-        * the current configuration, as defined by `config_path` and `extra_fetchers`, has changed in such a way
-          that it is no longer equivalent to the configuration used to create the original
-          :class:`~id_translation.Translator`. Equivalence also covers the ``Translator`` class, ``metaconf.toml``,
-          and the Python and package versions, so upgrading ``id-translation`` counts as a change. For details, see
-          :class:`~id_translation.toml.meta.ConfigMetadata`.
-
-        Args:
-            cache_dir: Root directory where the cached translator and associated metadata is stored.
-            config_path: Path to the main TOML configuration file.
-            extra_fetchers: A path, or paths, to fetching configuration TOML files. If multiple fetchers are defined,
-                they are ranked by input order. A fetcher defined in the main configuration is prioritized (rank=0).
-            max_age: The maximum age of the cached :class:`~id_translation.Translator` before it must be recreated. Pass
-                ``'0s'`` or ``timedelta(0)`` to force recreation, or ``None`` to ignore.
-            on_config_changed: One of ``raise|recreate``. If ``'raise'``, crash instead of creating a new instance if
-                the configuration (as determined by `config_path` and `extra_fetchers`) has changed, including after a
-                version upgrade.
-
-        Returns:
-            A new or cached :class:`~id_translation.Translator` instance with a
-            :attr:`~id_translation.Translator.config_metadata` attribute.
-
-        Raises:
-            ~id_translation.exceptions.ConfigurationChangedError: If the configuration has changed and
-                ``on_config_changed='raise'``.
-
-        Notes:
-            🧵 This method is not thread safe. See :ref:`thread-safety` for details.
-
-        See Also:
-            The :meth:`~id_translation.Translator.from_config` method, which will read the `config_path`.
-        """
-        path = any_path_to_path(config_path).expanduser()
-        cache_dir = any_path_to_path(cache_dir).expanduser().absolute()
-        cache_dir.mkdir(parents=True, exist_ok=True)
-
-        metadata_path = cache_dir / "metadata.json"
-        cache_path = cache_dir / "translator.pkl"
-
-        fetcher_paths: list[AnyPath] = as_list(extra_fetchers)  # A bare path is one path, not characters.
-        extra_fetcher_paths = [str(any_path_to_path(p).expanduser()) for p in fetcher_paths]
-
-        metadata = meta.ConfigMetadata.from_toml_paths(
-            str(path),
-            extra_fetcher_paths,
-            clazz=cls,
-        )
-        use_cached, reason, reason_type = metadata.use_cached(metadata_path, max_age)
-        if use_cached:
-            try:
-                cached = cls.restore(cache_path)
-            except Exception as e:  # Missing, torn or incompatible: a cache miss like any other.
-                if isinstance(e, OSError) and not isinstance(e, FileNotFoundError):
-                    raise  # E.g. no permission: fail now rather than after recreating, which may not fix it.
-                reason = f"cached instance is unreadable: {e!r}"
-            else:
-                LOGGER.info(f"Reuse existing Translator; {reason}. Cache dir: '{cache_dir}'.")
-                return cached
-
-        if reason_type == "metadata-changed" and on_config_changed.lower() == "raise":
-            exc = ConfigurationChangedError(reason, cache_dir=str(cache_dir))
-            add_hints(
-                exc, f"Pass on_config_changed='recreate', or delete the cache directory '{cache_dir}', to rebuild it."
-            )
-            raise exc
-
-        LOGGER.info(f"Create new Translator; {reason}. Cache dir: '{cache_dir}'.")
-        translator = cls.from_config(path, extra_fetcher_paths)
-        translator.go_offline(path=cache_path)
-        # Last, and replaced atomically like the snapshot: metadata never vouches for a torn or missing snapshot.
-        metadata_json = translator.config_metadata.to_json().encode("utf-8")
-        replace_atomically(metadata_path, lambda f: f.write(metadata_json))
-        return translator
 
     @classmethod
     def restore(cls, path: AnyPath) -> Self:

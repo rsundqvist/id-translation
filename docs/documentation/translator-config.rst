@@ -261,9 +261,9 @@ re-fetching translation data; they differ in scope, lifetime, and storage.
      - In-process; discards the fetcher
      - Memory
      - Required IDs are known in advance.
-   * - :meth:`~.Translator.load_persistent_instance`
+   * - :meth:`~.Translator.go_offline` with `path`, then :meth:`~.Translator.restore`
      - Whole :class:`.Translator`
-     - Cross-process; reused until it :meth:`must be recreated <.Translator.load_persistent_instance>`
+     - Cross-process; until it is replaced
      - Disk (:mod:`pickle`)
      - The cache should be shared or reused between processes.
    * - :class:`.CacheAccess`
@@ -561,8 +561,7 @@ comment mentions still raises.
        ``${VAR:}`` does when ``VAR`` is unset), and ``allow_nested`` (default ``false``).
    * - ``[equivalence]``
      - :class:`~id_translation.toml.meta.EquivalenceConf`
-     - Determines how equivalence between configuration files is determined (used by e.g.
-       :meth:`~.Translator.load_persistent_instance`).
+     - Determines how equivalence between configuration files is determined. See :class:`.ConfigMetadata`.
 
 The ``metaconf.toml``-file is read as-is, without any preprocessing.
 

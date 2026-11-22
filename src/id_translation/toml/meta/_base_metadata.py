@@ -1,14 +1,9 @@
 import json
 from abc import ABC, abstractmethod
 from collections.abc import Iterable
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from importlib.metadata import version as get_version
-from pathlib import Path
-from typing import Any, Literal, Self
-
-from rics.strings import format_seconds as fmt_sec
-
-from id_translation.translator_typing import CacheMissReasonType
+from typing import Any, Self
 
 
 class BaseMetadata(ABC):
@@ -25,7 +20,7 @@ class BaseMetadata(ABC):
         created: datetime | None = None,
     ) -> None:
         self.versions = self.get_package_versions([]) if versions is None else versions
-        self.created = created or datetime.now(UTC)
+        self.created = datetime.now(UTC) if created is None else created.astimezone(UTC)
 
     @abstractmethod
     def _to_dict(self, to_json: dict[str, Any]) -> dict[str, Any]:
@@ -37,17 +32,17 @@ class BaseMetadata(ABC):
         """Turn `from_json` into desired types."""
 
     @abstractmethod
-    def _is_equivalent(self, other: Self) -> str:
+    def _reason_not_equivalent(self, other: Self) -> str:
         """Implementation-specific equivalence check."""
 
-    def is_equivalent(self, other: Self) -> str:
-        """Compute equivalency with `other`.
+    def reason_not_equivalent(self, other: Self) -> str:
+        """Explain why `other` is not equivalent to this instance.
 
         Args:
-            other: Another metadata instance.
+            other: Another metadata instance, e.g. a stored one.
 
         Returns:
-            A string `reason_not_equivalent` or an empty string.
+            The reason, or an empty string if the two are equivalent.
         """
         if not isinstance(other, self.__class__):
             return f"Expected class={self.__class__.__name__} but got {other.__class__}"
@@ -57,7 +52,7 @@ class BaseMetadata(ABC):
             if other_version != version:
                 return f"Expected {package}={version!r} (your environment) but got {package}={other_version!r}"
 
-        return self._is_equivalent(other)
+        return self._reason_not_equivalent(other)
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, BaseMetadata) or type(self) is not type(other):
@@ -87,100 +82,22 @@ class BaseMetadata(ABC):
         return json.dumps(kwargs, indent=4)
 
     @classmethod
-    def from_json(cls, s: str) -> "BaseMetadata":
+    def from_json(cls, s: str) -> Self:
         """Create ``BaseMetadata`` from a JSON string `s`."""
         raw = json.loads(s)
 
-        kwargs = dict(
-            versions=raw.pop("versions"),
-            created=datetime.fromisoformat(raw.pop("created")),
-        )
+        versions = raw.pop("versions")
+        if not isinstance(versions, dict):
+            raise TypeError(f"Bad {versions=}: expected a dict.")
+        created = datetime.fromisoformat(raw.pop("created"))
+
+        kwargs: dict[str, Any] = {"versions": versions, "created": created}
         kwargs.update(cls._deserialize(raw))
 
-        assert not raw, f"Not deserialized: {raw}."  # noqa: S101
+        if raw:
+            raise ValueError(f"Unknown keys: {sorted(raw)}.")
+
         return cls(**kwargs)
-
-    def use_cached(
-        self,
-        metadata_path: Path,
-        max_age: str | int | timedelta | None,
-    ) -> tuple[Literal[True], str, None] | tuple[Literal[False], str, CacheMissReasonType]:
-        """Check status of stored metadata config based a desired configuration ``self``.
-
-        Args:
-            metadata_path: Path of stored metadata.
-            max_age: Maximum age of stored metadata; an ``int`` is a number of seconds. Pass zero to force recreation.
-                Smaller than zero = never expire.
-
-        Returns:
-            A tuple ``(True, expires_at, None)`` or ``(False, reason, reason_type)``.
-        """
-        if not metadata_path.exists():
-            return False, "no cache metadata found", "metadata-missing"
-
-        try:
-            stored_config = self.from_json(metadata_path.read_text(encoding="utf-8"))
-            # Comparing reads the stored values, which may have the wrong types.
-            reason_not_equivalent = self.is_equivalent(stored_config)
-        except (ValueError, LookupError, TypeError, AttributeError) as e:  # E.g. a file torn by a crash mid-write.
-            return False, f"cache metadata is unreadable: {e!r}", "metadata-unreadable"
-
-        if reason_not_equivalent:
-            return False, f"cached instance is not equivalent: {reason_not_equivalent}", "metadata-changed"
-
-        delta: timedelta | None
-        if isinstance(max_age, str):
-            delta = self._delta_from_string(max_age)
-        elif isinstance(max_age, int):
-            delta = timedelta(seconds=max_age)
-        else:
-            delta = max_age
-
-        if delta is None or delta < timedelta(0):
-            return True, "does not expire", None
-
-        expires_at = (stored_config.created + abs(delta)).replace(microsecond=0)
-        offset = fmt_sec(round(abs(datetime.now(UTC) - expires_at).total_seconds()))
-
-        if expires_at <= datetime.now(UTC):
-            return False, f"expired at {expires_at.isoformat()} ({offset} ago)", "too-old"
-        else:
-            return True, f"expires at {expires_at.isoformat()} (in {offset})", None
-
-    @classmethod
-    def _delta_from_string(cls, max_age: str) -> timedelta:
-        try:
-            import pandas  # noqa: PLC0415
-
-            return pandas.Timedelta(max_age).to_pytimedelta()  # type: ignore[no-any-return]
-        except ImportError:
-            pass
-
-        unit = ""
-        for c in max_age:
-            if c.isalpha():
-                unit = c
-                break
-
-        if not unit:
-            msg = f"bad {max_age=}"
-            raise ValueError(msg)
-
-        unit_multiplier: int
-        match unit.lower():
-            case "s":
-                unit_multiplier = 1
-            case "m":
-                unit_multiplier = 60
-            case "h":
-                unit_multiplier = 60 * 60
-            case "d":
-                unit_multiplier = 60 * 60 * 24
-            case _:
-                raise ValueError(f"bad {max_age=}")
-
-        n_units = int(max_age[: max_age.index(unit)])
-        return timedelta(seconds=n_units * unit_multiplier)
 
     @classmethod
     def get_package_versions(cls, extra_packages: Iterable[str]) -> dict[str, str]:

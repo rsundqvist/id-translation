@@ -23,21 +23,6 @@ class ConfigurationError(TypeError):
         _add_hints(self, hints)
 
 
-class ConfigurationChangedError(Exception):
-    """See :meth:`Translator.load_persistent_instance <id_translation.Translator.load_persistent_instance>`.
-
-    Args:
-        msg: The error message, which says what changed.
-        cache_dir: The cache directory of the persistent instance, if known.
-        hints: Additional context, attached as notes.
-    """
-
-    def __init__(self, msg: str, *, cache_dir: str | None = None, hints: str | _Iterable[str] = ()) -> None:
-        super().__init__(msg)
-        self.cache_dir = cache_dir
-        _add_hints(self, hints)
-
-
 class ConnectionStatusError(ConnectionError):
     """Raised when trying to perform operations in a bad online/offline state."""
 

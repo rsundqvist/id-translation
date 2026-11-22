@@ -6,11 +6,10 @@ An in-memory ``CacheAccess`` implementation
 A :class:`.CacheAccess` that accumulates translations in process memory, keyed by ID, with a per-ID TTL. Click
 :download:`here <in_memory.py>` to download the full script.
 
-This is the **no-pickle, stays-online** alternative to :meth:`.Translator.load_persistent_instance`. Compared to that
-method, it:
+This is the **no-pickle, stays-online** alternative to a :meth:`.Translator.go_offline` snapshot on disk. Compared to
+a snapshot, it:
 
-* has no ``pickle`` dependency -- ``load_persistent_instance`` serializes the whole :class:`.Translator` to disk using
-  :mod:`pickle`, and
+* has no ``pickle`` dependency -- a snapshot serializes the whole :class:`.Translator` to disk using :mod:`pickle`, and
 * keeps the ``Translator`` :attr:`~.Translator.online`, fetching unseen IDs on demand.
 
 Unlike the :ref:`on-disk example <caching_example>`, which caches whole :attr:`~.Fetcher.fetch_all` tables, this caches
@@ -19,8 +18,7 @@ the cache lives only as long as the process.
 
 .. seealso::
 
-   :ref:`choosing-a-cache` for how this compares to :meth:`.Translator.go_offline` and
-   :meth:`.Translator.load_persistent_instance`.
+   :ref:`choosing-a-cache` for how this compares to :meth:`.Translator.go_offline`.
 
 Partial hits
 ------------

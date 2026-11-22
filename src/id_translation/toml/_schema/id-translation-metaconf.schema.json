@@ -27,7 +27,7 @@
     },
     "equivalence": {
       "type": "object",
-      "description": "Determines how equivalence between configuration files is computed (for cache invalidation).",
+      "description": "Determines how equivalence between configuration files is computed.",
       "additionalProperties": false,
       "properties": {
         "python_version": {

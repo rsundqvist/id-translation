@@ -1,9 +1,7 @@
 """Pickling of :class:`~id_translation.Translator` snapshots.
 
-Snapshots are same-version artifacts by definition: ``ConfigMetadata`` records the ``id-translation`` version and
-``use_cached()`` refuses any mismatch, so there is no cross-version repair. ``load_persistent_instance`` rejects a
-foreign snapshot before reading it, but ``Translator.restore`` is handed a path and cannot. A pickled ``Translator``
-therefore carries its version twice:
+Snapshots are same-version artifacts by definition, so there is no cross-version repair. ``Translator.restore`` has
+only the file to go on, so a pickled ``Translator`` carries its version twice:
 
 * As the argument of :func:`unpickle_translator`, which pickle calls before it unpickles the state. The version is
   checked before any nested object from another version can fail with an unrelated error.
