@@ -48,3 +48,14 @@ def test_short_circuiting(value, candidates, expected):
 )
 def test_alias(value, candidates, expected):
     _run(value, candidates, expected)
+
+
+def test_unknown_heuristic_name():
+    with pytest.raises(NameError, match=r"^Cannot resolve 'nosuch' as a filter or heuristic function\.$") as exc_info:
+        HeuristicScore("equality", heuristics=["nosuch"])
+    assert exc_info.value.name == "nosuch"
+
+
+def test_mutate_must_be_a_bool():
+    with pytest.raises(TypeError, match=r"^Bad mutate of type builtins\.str; expected a bool\.$"):
+        HeuristicScore("equality", heuristics=[("like_database_table", {"mutate": "false"})])

@@ -374,3 +374,8 @@ def test_source_order_does_not_depend_on_the_hash_seed(connection_string):
         reflected, whitelisted = json.loads(out)
         assert reflected == sorted(ALL_TABLES), f"{seed=}"
         assert whitelisted == ["humans", "huge_table", "animals", "big_table"], f"{seed=}"
+
+
+def test_include_views_must_be_a_bool():
+    with pytest.raises(TypeError, match=r"^Bad include_views of type builtins\.str; expected a bool\.$"):
+        RealSqlFetcher("sqlite://", include_views="false")  # type: ignore[arg-type]

@@ -10,7 +10,7 @@ from rics.misc import get_by_full_name, tname
 from rics.types import AnyPath
 
 from .. import _uuid_utils
-from .._utils import add_hints
+from .._utils import add_hints, require_bool
 from ..logging import generate_task_id
 from ..offline.types import PlaceholderTranslations
 from ..types import ID, IdType
@@ -97,6 +97,7 @@ class PandasFetcher(AbstractFetcher[str, IdType]):
         return_all: bool = False,
         **kwargs: Unpack[AbstractFetcherParams[str, IdType]],
     ) -> None:
+        require_bool(return_all=return_all)
         super().__init__(**kwargs)
 
         self._check_read_path_format(read_path_format, read_function)

@@ -5,10 +5,11 @@ from pathlib import Path
 import pytest
 
 from id_translation import Translator
-from id_translation.exceptions import ConfigurationError, TranslationWarning
+from id_translation.exceptions import TranslationWarning
 from id_translation.fetching import MemoryFetcher, MultiFetcher
 from id_translation.fetching.exceptions import DuplicateSourceError
 from id_translation.toml import TranslatorFactory
+from id_translation.toml.exceptions import ConfigFileError
 from id_translation.transform import TransformerStack
 from id_translation.transform.types import Transformer
 
@@ -190,7 +191,7 @@ def test_top_level_transform_in_auxiliary_file_raises(tmp_path):
         f"\n[transform.guests.'{SUFFIX}']\nsuffix = \"!\"\n"
     )
 
-    with pytest.raises(ConfigurationError, match=r"main file only") as info:
+    with pytest.raises(ConfigFileError, match=r"main file only") as info:
         Translator[str, str, int].from_config(_main(tmp_path), extra_fetchers=[aux])
 
     notes = getattr(info.value, "__notes__", [])
@@ -201,7 +202,7 @@ def test_top_level_transform_in_auxiliary_file_raises(tmp_path):
 def test_fetcher_section_without_a_fetcher_says_where_it_belongs(tmp_path):
     main = _main(tmp_path, f"\n[fetching.transform.guests.'{SUFFIX}']\nsuffix = \"!\"\n")
 
-    with pytest.raises(ConfigurationError, match="belongs to a fetcher declared in the same file") as info:
+    with pytest.raises(ConfigFileError, match="belongs to a fetcher declared in the same file") as info:
         Translator[str, str, int].from_config(main, extra_fetchers=[_aux(tmp_path, "A")])
     assert [n for n in getattr(info.value, "__notes__", []) if "top-level [transform]" in n]
 
@@ -210,10 +211,28 @@ def test_optional_main_fetcher_raises(tmp_path):
     main = tmp_path / "main.toml"
     main.write_text("[fetching.MemoryFetcher]\noptional = true\n\n[fetching.MemoryFetcher.data]\ns = { id = [1] }\n")
 
-    with pytest.raises(ConfigurationError, match="main file cannot be optional") as info:
+    with pytest.raises(ConfigFileError, match="main file cannot be optional") as info:
         Translator[str, str, int].from_config(main)
 
     assert [n for n in getattr(info.value, "__notes__", []) if "auxiliary file" in n]
+
+
+class OptionalByDefault(MemoryFetcher[str, int]):
+    def __init__(self, data, *, optional=True, **kwargs):
+        super().__init__(data, optional=optional, **kwargs)
+
+
+def test_main_fetcher_optional_by_default_raises(tmp_path):
+    main = tmp_path / "main.toml"
+    clazz = "tests.transform.test_factory.OptionalByDefault"
+    main.write_text(f"[fetching.'{clazz}'.data]\ns = {{ id = [1] }}\n")
+
+    with pytest.raises(ConfigFileError, match="main file cannot be optional") as info:
+        Translator[str, str, int].from_config(main)
+    assert [n for n in getattr(info.value, "__notes__", []) if "auxiliary file" in n]
+
+    main.write_text(f"[fetching.'{clazz}']\noptional = false\n\n[fetching.'{clazz}'.data]\ns = {{ id = [1] }}\n")
+    assert not Translator[str, str, int].from_config(main).fetcher.optional
 
 
 def test_empty_transform_section(tmp_path):
@@ -223,7 +242,7 @@ def test_empty_transform_section(tmp_path):
         '[fetching.MemoryFetcher.data]\nguests = { id = [1], name = ["a"] }\n'
     )
 
-    with pytest.raises(ConfigurationError, match="must be specified as"):
+    with pytest.raises(ConfigFileError, match="must be specified as"):
         Translator[str, str, int].from_config(file)
 
 
@@ -261,33 +280,43 @@ def test_malformed_section_raises_even_if_its_fetcher_is_discarded(tmp_path, mon
         + (section + "\n" if table else "")
     )
 
-    with pytest.raises(ConfigurationError, match=r"fetching.transform") as info:
+    with pytest.raises(ConfigFileError, match=r"fetching.transform") as info:
         Translator[str, str, int].from_config(_main(tmp_path), extra_fetchers=[aux])
     assert [n for n in getattr(info.value, "__notes__", []) if "In file" in n], "the file hint must survive"
 
 
+@pytest.mark.parametrize(
+    "transformer, expected_type",
+    [
+        ("'no.such.module.Nope']", ConfigFileError),  # The section key does not resolve: the file is invalid.
+        (f"'{__name__}.MissingDependency']", ModuleNotFoundError),  # Raised by the transformer: propagates as itself.
+        (f"'{SUFFIX}']\nno_such_argument = 1", TypeError),
+    ],
+    ids=["missing-module", "import-error", "bad-argument"],
+)
 @pytest.mark.parametrize("in_main_file", [True, False])
-def test_broken_transform_does_not_suggest_the_suppress_variable(tmp_path, in_main_file):
-    """The variable only skips a section whose fetcher fails to construct; it cannot help with a malformed one."""
+def test_broken_transform_does_not_suggest_the_suppress_variable(tmp_path, in_main_file, transformer, expected_type):
+    """The variable only skips a section whose fetcher fails to construct; it cannot help with a broken one."""
     fetching = '[fetching.MemoryFetcher.data]\nguests = { id = [1], name = ["a"] }\n'
     main = tmp_path / "main.toml"
-    main.write_text('[translator]\nfmt = "{name}"\n\n' + fetching + ("\n[transform.guests.'no.such.module.Nope']\n"))
+    main.write_text('[translator]\nfmt = "{name}"\n\n' + fetching + f"\n[transform.guests.{transformer}\n")
+    file = main
     extra = []
     if not in_main_file:
         main.write_text('[translator]\nfmt = "{name}"\n\n' + fetching)
-        aux = tmp_path / "fetcher.toml"
-        aux.write_text(
+        file = tmp_path / "fetcher.toml"
+        file.write_text(
             '[fetching.MemoryFetcher.data]\nother = { id = [2], name = ["b"] }\n'
-            "\n[fetching.transform.other.'no.such.module.Nope']\n"
+            f"\n[fetching.transform.other.{transformer}\n"
         )
-        extra.append(aux)
+        extra.append(file)
 
-    with pytest.raises(ConfigurationError) as info:
+    with pytest.raises(expected_type) as info:
         Translator[str, str, int].from_config(main, extra_fetchers=extra)
 
-    notes = [*getattr(info.value, "__notes__", []), *getattr(info.value.__cause__, "__notes__", [])]
-    assert not [note for note in notes if "SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS" in note], notes
-    assert [note for note in notes if "In file" in note], "the file hint must survive"
+    assert type(info.value) is expected_type
+    assert "TOMLDecodeError" not in str(info.value)
+    assert info.value.__notes__ == [f"Hint: In file: {file.resolve()}"]
 
 
 def test_fetcher_file_without_fetching_section(tmp_path):
@@ -295,7 +324,7 @@ def test_fetcher_file_without_fetching_section(tmp_path):
     file.write_text("")
 
     # Anchored: the "At least one [fetching]-section" fallback would otherwise satisfy this.
-    with pytest.raises(ConfigurationError, match=r"^A \[fetching\]-section is required") as info:
+    with pytest.raises(ConfigFileError, match=r"^A \[fetching\]-section is required") as info:
         Translator[str, str, int].from_config(ROOT / "minimal-main.toml", extra_fetchers=[file])
 
     notes = getattr(info.value, "__notes__", [])
@@ -342,14 +371,14 @@ def test_copy_keeps_the_config_metadata_with_extra_fetchers(tmp_path):
 
 
 @pytest.mark.parametrize("section", ["abc", 123, []])
-def test_malformed_transform_root_raises_configuration_error(section):
-    with pytest.raises(ConfigurationError, match=r"\[fetching.transform\]-section must contain"):
+def test_malformed_transform_root_raises_config_file_error(section):
+    with pytest.raises(ConfigFileError, match=r"\[fetching.transform\]-section must contain"):
         TranslatorFactory._handler_transformers(section, section="fetching.transform")
 
 
 @pytest.mark.parametrize("config", ["abc", 123, [], {}])
-def test_malformed_transform_section_raises_configuration_error(config):
-    with pytest.raises(ConfigurationError, match="must be specified as"):
+def test_malformed_transform_section_raises_config_file_error(config):
+    with pytest.raises(ConfigFileError, match="must be specified as"):
         TranslatorFactory._handler_transformers({"guests": config}, section="transform")
 
 
@@ -380,6 +409,17 @@ class Suffix(Transformer[int]):
     def update_translations(self, translations, /):
         for idx in translations:
             translations[idx] += self.suffix
+
+
+class MissingDependency(Transformer[int]):
+    def __init__(self):
+        raise ModuleNotFoundError("No module named 'no_such_package'", name="no_such_package")
+
+    def update_ids(self, _, /):
+        pass
+
+    def update_translations(self, translations, /):
+        pass
 
 
 class UncopyableSuffix(Suffix):

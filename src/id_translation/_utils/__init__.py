@@ -17,6 +17,7 @@ __all__ = [
     "as_tuple",
     "json_keys",
     "replace_atomically",
+    "require_bool",
     "type_name",
 ]
 
@@ -45,6 +46,13 @@ def replace_atomically(path: _Path, write: _Callable[[_IO[bytes]], _Any]) -> Non
     except BaseException:
         tmp.unlink(missing_ok=True)
         raise
+
+
+def require_bool(**flags: _Any) -> None:
+    """Raise for a flag that is not a ``bool``: a TOML string such as ``'false'`` is truthy."""
+    for name, value in flags.items():
+        if not isinstance(value, bool):
+            raise TypeError(f"Bad {name} of type {type_name(value)}; expected a bool.")
 
 
 def as_tuple(values: _Iterable[_Any] | str) -> tuple[_Any, ...]:

@@ -1,18 +1,17 @@
 import logging
-from collections.abc import Callable, Generator, Iterable
-from contextlib import contextmanager
-from inspect import signature
-from os import getenv
+from collections.abc import Callable, Iterable
+from inspect import isabstract, signature
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Generic, TypeAlias, get_origin
 
 from rics.collections.dicts import InheritedKeysDict
 from rics.collections.misc import as_list
 from rics.env.read import read_bool
+from rics.misc import get_by_full_name
 from rics.types import AnyPath
 
-from id_translation._utils import add_hints
-from id_translation.exceptions import ConfigurationError
+from id_translation import fetching
+from id_translation._utils import add_hints, type_name
 from id_translation.fetching import AbstractFetcher, CacheAccess, Fetcher, MultiFetcher
 from id_translation.mapping import Mapper
 from id_translation.transform import as_transformer
@@ -20,7 +19,10 @@ from id_translation.transform.types import Transformer
 from id_translation.types import IdType, NameType, SourceType
 
 from . import factories as cf
-from ._load_toml import load_toml_file
+from ._load_toml import _rethrow_with_file, load_toml_file
+from .exceptions import ConfigFileError
+from .factories._initialize import expect_table
+from .factories._mapper import _check_shape as _check_mapping_shape
 from .meta import ConfigMetadata, Metaconf
 
 if TYPE_CHECKING:
@@ -33,24 +35,30 @@ SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS = "ID_TRANSLATION_SUPPRESS_OPTIONAL_FETCHE
 class TranslatorFactory(Generic[NameType, SourceType, IdType]):
     """Create a :class:`~id_translation.Translator` from TOML inputs."""
 
-    FetcherFactory: TypeAlias = Callable[[str, dict[str, Any]], AbstractFetcher[Any, Any]]
+    FetcherFactory: TypeAlias = Callable[[str, dict[str, Any]], Fetcher[Any, Any]]
     """Signature for :attr:`~id_translation.toml.TranslatorFactory.FETCHER_FACTORY`."""
 
     FETCHER_FACTORY: ClassVar[FetcherFactory] = cf.default_fetcher_factory
-    """A callable ``(clazz, config) -> AbstractFetcher``.
+    """A callable ``(clazz, config) -> Fetcher``.
 
     Overwrite attribute with your own :attr:`~id_translation.toml.TranslatorFactory.FetcherFactory` implementation to customize.
+    The default creates an :class:`~id_translation.fetching.AbstractFetcher`; a custom factory may create any
+    :class:`~id_translation.fetching.Fetcher`.
+
+    An implementation may raise a :class:`~id_translation.toml.exceptions.ConfigFileError` for a section that breaks its own rules. Any
+    other error, such as an :class:`ImportError` for a missing driver or an :class:`OSError` for a refused connection,
+    propagates as itself, with a hint naming the file.
 
     Args:
-        clazz: Type of :class:`~id_translation.fetching.AbstractFetcher` to create.
-        config: Keyword arguments for the fetcher class.
+        clazz: Name of the fetcher type to create, e.g. ``'SqlFetcher'`` or ``'my.library.SuperFetcher'``.
+        config: Keyword arguments for the fetcher: the keys of its section, plus arguments added by the factory.
 
     Returns:
-        An :class:`~id_translation.fetching.AbstractFetcher` instance.
+        A :class:`~id_translation.fetching.Fetcher` instance.
 
     Raises:
-        exceptions.ConfigurationError: If `config` is invalid.
-        TypeError: If `clazz` is not an :class:`~id_translation.fetching.AbstractFetcher` subtype.
+        ~id_translation.toml.exceptions.ConfigFileError: If the default factory is given a `clazz` that cannot be
+            imported, or that does not create an :class:`~id_translation.fetching.AbstractFetcher`.
 
     See Also:
         :ref:`translator-config-fetching`
@@ -64,7 +72,9 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
 
     Overwrite attribute with your own :attr:`~id_translation.toml.TranslatorFactory.MapperFactory` implementation to customize.
 
-    If ``None`` is returned, a suitable default is used instead.
+    If ``None`` is returned, a suitable default is used instead. A custom factory skips the default factory's shape
+    checks of the section's contents. For a ``[fetching.mapping]``-section it receives the fetcher defaults (a
+    ``score_function`` and ``overrides``) merged under the section's own keys.
 
     Args:
         config: Keyword arguments for the :class:`~id_translation.mapping.Mapper`.
@@ -75,7 +85,10 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
         A :class:`~id_translation.mapping.Mapper` instance or ``None``.
 
     Raises:
-        ~id_translation.exceptions.ConfigurationError: If `config` is invalid.
+        ~id_translation.toml.exceptions.ConfigFileError: If the default factory is given a section it cannot use, e.g.
+            context-specific overrides in ``[translator.mapping]``. An error from the
+            :class:`~id_translation.mapping.Mapper` itself, such as a :class:`TypeError` for an unknown key, propagates
+            as itself.
 
     See Also:
         :ref:`translator-config-mapping`
@@ -89,6 +102,10 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
 
     Overwrite attribute with your own :attr:`~id_translation.toml.TranslatorFactory.TransformerFactory` implementation to customize.
 
+    An implementation may raise a :class:`~id_translation.toml.exceptions.ConfigFileError` for a section that breaks its own rules. Any
+    other error, such as an :class:`ImportError` for a missing optional dependency, propagates as itself, with a hint
+    naming the file.
+
     Args:
         clazz: Type of :class:`~id_translation.transform.types.Transformer` to create.
         config: Keyword arguments for the transformer class.
@@ -97,7 +114,8 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
         A :class:`~id_translation.transform.types.Transformer` instance.
 
     Raises:
-        ~id_translation.exceptions.ConfigurationError: If `config` is invalid.
+        ~id_translation.toml.exceptions.ConfigFileError: If `clazz` cannot be imported, or does not create a
+            :class:`~id_translation.transform.types.Transformer`.
 
     See Also:
         :ref:`translator-config-transform`
@@ -119,7 +137,8 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
         A :class:`~id_translation.fetching.CacheAccess` instance.
 
     Raises:
-        ~id_translation.exceptions.ConfigurationError: If `config` is invalid.
+        ~id_translation.toml.exceptions.ConfigFileError: If `clazz` cannot be imported, or does not create a
+            :class:`~id_translation.fetching.CacheAccess`.
     """
 
     TOP_LEVEL_KEYS = ("translator", "fetching", "unknown_ids", "transform")
@@ -159,6 +178,9 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
         with _rethrow_with_file(self.file):
             config = self.load_toml_file(self.file)
             _check_sections(self.TOP_LEVEL_KEYS, actual=config)
+            # Before the fetchers: building one may be slow or fail, which would hide a typo here.
+            _check_allowed_keys(self.TOP_LEVEL_KEYS, actual=config, toml_path="<root>")
+            _check_allowed_keys(self._translator_keys(), actual=config.get("translator", {}), toml_path="translator")
 
         fetcher = self._handle_fetching(
             config.pop("fetching", {}),
@@ -167,9 +189,7 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
         )
 
         with _rethrow_with_file(self.file):
-            _check_allowed_keys(self.TOP_LEVEL_KEYS, actual=config, toml_path="<root>")
             translator_config = config.pop("translator", {})
-            _check_allowed_keys(self._translator_keys(), actual=translator_config, toml_path="translator")
             mapper = self._make_mapper("translator", translator_config)
             _make_default_translations(translator_config, config.pop("unknown_ids", {}))
 
@@ -225,6 +245,7 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
     ) -> Fetcher[SourceType, IdType]:
         multi_fetcher_kwargs = config.pop("MultiFetcher", {})
         with _rethrow_with_file(self.file):
+            expect_table(multi_fetcher_kwargs, "fetching.MultiFetcher")
             allowed = [p.name for p in signature(MultiFetcher).parameters.values() if p.kind is p.KEYWORD_ONLY]
             _check_allowed_keys(allowed, actual=multi_fetcher_kwargs, toml_path="fetching.MultiFetcher")
 
@@ -234,14 +255,14 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
 
         if config:
             with _rethrow_with_file(self.file):
-                fetcher = self._make_fetcher(default_identifiers[0], main=True, **config)
+                fetcher = self._make_fetcher(default_identifiers[0], config, main=True)
             assert not isinstance(fetcher, Exception), "the main fetcher cannot be optional"  # noqa: S101
             fetchers.append(fetcher)  # Add primary fetcher
 
         for i, fetcher_file in enumerate(extra_fetchers, start=1):
             fetcher_config = self._load_auxiliary_file(fetcher_file)
             with _rethrow_with_file(fetcher_file):
-                fetcher = self._make_fetcher(default_identifiers[i], **fetcher_config["fetching"])
+                fetcher = self._make_fetcher(default_identifiers[i], fetcher_config["fetching"])
 
             if isinstance(fetcher, Exception):
                 transform = fetcher_config["fetching"].get("transform", {})
@@ -251,11 +272,15 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
             fetchers.append(fetcher)
 
         if not fetchers:
-            raise ConfigurationError(
-                "All [fetching]-sections were discarded as optional; see the logged errors."
-                if extra_fetchers
-                else f"At least one [fetching]-section is required. Add it to '{self.file}',"
-                " or as an auxiliary configuration.",
+            if extra_fetchers:  # The main file declares none: a main fetcher cannot be discarded.
+                raise ConfigFileError(
+                    "All [fetching]-sections were discarded as optional; see the logged errors.",
+                    hints=[f"In file: {Path(f).resolve()}" for f in extra_fetchers],
+                )
+
+            raise ConfigFileError(
+                f"At least one [fetching]-section is required. Add it to '{self.file}', or as an auxiliary configuration.",
+                hints=f"In file: {Path(self.file).resolve()}",
             )
 
         retval: Fetcher[SourceType, IdType]
@@ -278,7 +303,7 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
         with _rethrow_with_file(fetcher_file):
             fetcher_config = self.load_toml_file(fetcher_file)
             if "transform" in fetcher_config:
-                raise ConfigurationError(
+                raise ConfigFileError(
                     "A top-level [transform]-section is allowed in the main file only.",
                     hints="Use [fetching.transform.<source>.<transformer-class>]: transformers in an auxiliary file"
                     " belong to its fetcher, and apply to the sources that fetcher serves.",
@@ -286,9 +311,9 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
             _check_allowed_keys(["fetching"], actual=fetcher_config, toml_path="<root>")
             _check_sections(["fetching"], actual=fetcher_config)
             if "fetching" not in fetcher_config:
-                raise ConfigurationError("A [fetching]-section is required.")
+                raise ConfigFileError("A [fetching]-section is required.")
             if "MultiFetcher" in fetcher_config["fetching"]:
-                raise ConfigurationError(f"[fetching.MultiFetcher] is allowed in the main file only: '{self.file}'.")
+                raise ConfigFileError(f"[fetching.MultiFetcher] is allowed in the main file only: '{self.file}'.")
         return fetcher_config
 
     def _log_optional_fetcher_init_error(
@@ -299,14 +324,13 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
     ) -> None:
         from id_translation._utils import DOC_LINK  # noqa: PLC0415
 
-        value = getenv(SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS)
-        env = f"{SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS}={value}"
+        reason = f"{SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS}=true` or `suppress_optional_fetcher_init_errors=True"
         url = DOC_LINK + "documentation/translator-config.html#optional-fetchers"
         # The reverse mistake, a transformer for a source nobody serves, warns. This one would be silent.
         dropped = sorted(map(str, transform)) if transform else []
         self.logger.exception(
             f"Discarded optional fetcher in file '{fetcher_file}': {exception!r}."
-            f"\nHint: Discarded since `optional=true` and `{env}`."
+            f"\nHint: Discarded since `optional=true` and `{reason}`."
             + (f"\nHint: Its [fetching.transform]-sections went with it: {dropped}." if dropped else "")
             + f"\nHint: See {url} for help.",
             exc_info=exception,
@@ -319,49 +343,55 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
             return None  # pragma: no cover
 
         config = config.pop("mapping")
+        expect_table(config, f"{parent_section}.mapping")
         if "score_function_kwargs" in config:
-            raise ConfigurationError(
+            raise ConfigFileError(
                 f"Key 'score_function_kwargs' is not allowed in [{parent_section}.mapping].",
                 hints=f"Use a [{parent_section}.mapping.score_function.<name>] table for the score function's arguments.",
             )
+        if cls.MAPPER_FACTORY is cf.default_mapper_factory:  # A custom factory's grammar is its own.
+            # The user's section only: the defaults merged in below are not tables, e.g. overrides=InheritedKeysDict().
+            _check_mapping_shape(config, section=f"{parent_section}.mapping")
         for_fetcher = parent_section.startswith("fetching")
         if for_fetcher:
             config = {**AbstractFetcher._default_mapper_kwargs(), **config}
 
-        return cls.MAPPER_FACTORY(config, for_fetcher)
+        mapper = cls.MAPPER_FACTORY(config, for_fetcher)
+        if mapper is not None:  # Means a suitable default.
+            _check_factory_result(mapper, Mapper, hook="MAPPER_FACTORY", key=f"[{parent_section}.mapping]")
+        return mapper
 
     @staticmethod
     def _pop_single_impl(config: dict[str, Any], *, what: str, section: str) -> tuple[str, dict[str, Any]]:
-        """Extract the sole ``{clazz: kwargs}`` entry from a name-as-section config block."""
         if keys := sorted(key for key, value in config.items() if not isinstance(value, dict)):
-            raise ConfigurationError(f"Expected only [{section}.'<type>']-sections in [{section}]; got keys {keys}.")
-        if len(config) == 0:  # pragma: no cover
-            raise ConfigurationError(f"{what} implementation section missing.")
+            raise ConfigFileError(f"Expected only [{section}.'<type>']-sections in [{section}]; got keys {keys}.")
+        if len(config) == 0:
+            raise ConfigFileError(f"{what} implementation section missing.")
         if len(config) > 1:  # pragma: no cover
-            raise ConfigurationError(
+            raise ConfigFileError(
                 f"Multiple {what.lower()} implementations specified in the same file: {sorted(config)}"
             )
 
         return next(iter(config.items()))
 
-    @classmethod
-    def _make_cache_access(cls, config: dict[str, Any]) -> CacheAccess[Any, Any]:
-        clazz, kwargs = cls._pop_single_impl(config, what="Cache", section="fetching.cache")
-        return cls.CACHE_ACCESS_FACTORY(clazz, kwargs)
-
     def _make_fetcher(
         self,
         __identifiers: list[str],
+        config: dict[str, Any],
         *,
         main: bool = False,
-        **config: Any,
-    ) -> AbstractFetcher[SourceType, IdType] | Exception:
+    ) -> Fetcher[SourceType, IdType] | Exception:
+        config = dict(config)  # Popped below; the caller reads the transform section of a discarded fetcher.
+        _check_fetcher_declared(config)
         mapper = self._make_mapper("fetching", config) if "mapping" in config else None
-        cache_access = self._make_cache_access(config.pop("cache")) if "cache" in config else None
+        cache = None
+        if "cache" in config:
+            expect_table(config["cache"], "fetching.cache")
+            cache = self._pop_single_impl(config.pop("cache"), what="Cache", section="fetching.cache")
         transform = config.pop("transform", {})
         self._check_transformers_shape(transform, section="fetching.transform")  # Also for a fetcher discarded below.
         if transform and not config:
-            raise ConfigurationError(
+            raise ConfigFileError(
                 "A [fetching.transform]-section belongs to a fetcher declared in the same file, but there is none.",
                 hints="Declare the fetcher here, or use a top-level [transform] in the main file to transform any source.",
             )
@@ -369,40 +399,109 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
         clazz, kwargs = self._pop_single_impl(config, what="Fetcher", section="fetching")
         sections = {"mapper": "[fetching.mapping]", "cache_access": "[fetching.cache.'<type>']"}
         if keys := sorted(key for key in sections if key in kwargs):
-            raise ConfigurationError(
+            raise ConfigFileError(
                 f"Keys {keys} are not allowed in [fetching.{clazz}].",
                 hints=[f"Configure the '{key}' in a {sections[key]} section instead." for key in keys],
             )
 
         kwargs["identifiers"] = kwargs.get("identifiers", __identifiers)
         kwargs["mapper"] = mapper
-        kwargs["cache_access"] = cache_access
+        kwargs["cache_access"] = None
 
+        if not isinstance(kwargs.get("optional", False), bool):
+            raise ConfigFileError(f"Bad optional of type {type_name(kwargs['optional'])}; expected a bool.")
         is_optional = kwargs.get("optional") is True
         if is_optional and main:
-            raise ConfigurationError(
+            raise ConfigFileError(
                 "The fetcher in the main file cannot be optional.",
                 hints="Move it to an auxiliary file (`extra_fetchers`) to make it optional.",
             )
 
-        try:
-            fetcher = type(self).FETCHER_FACTORY(clazz, kwargs)
-        except Exception as e:
-            if is_optional and self.suppress_optional_fetcher_init_errors:
-                return e
-            if is_optional:
-                # The variable only discards an optional fetcher that fails to construct, so only hint here.
-                hint = f"Setting {SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS}=true may help temporarily."
-                if isinstance(e, ConfigurationError):  # Keep its message and hints; wrapping would relabel it.
-                    e.add_note(f"Hint: {hint}")
-                    raise
-                raise ConfigurationError(f"{type(e).__name__}: {e}", hints=hint) from e
-            raise
+        fetcher = self._construct_fetcher(clazz, kwargs, cache, is_optional=is_optional)
+        if isinstance(fetcher, Exception):
+            return fetcher
+
+        _check_factory_result(fetcher, Fetcher, hook="FETCHER_FACTORY", key=repr(clazz))
+
+        if main and fetcher.optional:
+            # After the key check above (is_optional); this catches optional-by-default.
+            raise ConfigFileError(
+                "The fetcher in the main file cannot be optional.",
+                hints="Move it to an auxiliary file (`extra_fetchers`) to make it optional.",
+            )
+
+        if not isinstance(fetcher, AbstractFetcher):
+            if transform:
+                raise ConfigFileError(
+                    f"A [fetching.transform]-section requires an AbstractFetcher, but {clazz} is not one.",
+                    hints="Override Fetcher.get_transformer(), or use the main file's top-level [transform].",
+                )
+            return fetcher
 
         # Built after construction: a fetcher discarded as optional takes its section with it, unbuilt. Its transformers
         # often come from the same missing package that made the fetcher fail. The shape was checked above.
         fetcher._transform_config = self._handler_transformers(transform, section="fetching.transform")
         return fetcher
+
+    def _construct_fetcher(
+        self,
+        clazz: str,
+        kwargs: dict[str, Any],
+        cache: tuple[str, dict[str, Any]] | None,
+        *,
+        is_optional: bool,
+    ) -> Fetcher[SourceType, IdType] | Exception:
+        # The emergency hatch: anything from the class lookup on, an unresolvable section key or a failing cache
+        # included. A factory result of the wrong type, like the checks in _make_fetcher(), is never discarded.
+        discard = is_optional and self.suppress_optional_fetcher_init_errors
+        # The variable only discards an optional fetcher that fails to construct, so only hint here.
+        suppress_hint = f"Setting {SUPPRESS_OPTIONAL_FETCHER_INIT_ERRORS}=true may help temporarily."
+
+        if cache is not None:
+            try:
+                cache_access = type(self).CACHE_ACCESS_FACTORY(*cache)
+            except Exception as e:
+                if discard:
+                    return e
+                if is_optional:
+                    add_hints(e, suppress_hint)
+                raise
+            _check_factory_result(cache_access, CacheAccess, hook="CACHE_ACCESS_FACTORY", key=repr(cache[0]))
+            kwargs["cache_access"] = cache_access
+
+        try:
+            return type(self).FETCHER_FACTORY(clazz, kwargs)
+        except Exception as e:
+            if discard:
+                return e
+            if isinstance(e, TypeError):
+                add_hints(e, self._fetcher_type_hints(clazz, kwargs))
+            if is_optional:
+                add_hints(e, suppress_hint)
+            raise
+
+    @classmethod
+    def _fetcher_type_hints(cls, clazz: str, kwargs: dict[str, Any]) -> list[str]:
+        if cls.FETCHER_FACTORY is not cf.default_fetcher_factory:
+            return []  # A custom factory's errors are its own.
+        try:
+            fetcher_class = get_by_full_name(clazz, fetching)
+        except Exception:
+            return []
+
+        params = ["identifiers", "mapper", "cache_access"]  # Passed to every fetcher; see _make_fetcher().
+        is_class = isinstance(fetcher_class, type) and not isabstract(fetcher_class)
+        if is_class and issubclass(fetcher_class, AbstractFetcher):
+            if _rejects_only(fetcher_class, kwargs, params):
+                return [
+                    f"{clazz} must accept the keyword arguments {params} and pass them on to AbstractFetcher.__init__()."
+                ]
+        elif is_class and issubclass(fetcher_class, Fetcher):
+            return [
+                f"The default TranslatorFactory.FETCHER_FACTORY creates AbstractFetchers only. Set it to a function"
+                f" (clazz, config) -> Fetcher that creates {clazz}; `config` holds the keys of its section, plus {params}."
+            ]
+        return []
 
     @classmethod
     def _handler_transformers(
@@ -426,19 +525,19 @@ class TranslatorFactory(Generic[NameType, SourceType, IdType]):
     def _check_transformers_shape(per_source: Any, *, section: str) -> None:
         """Raise for a malformed section without importing anything, so that it can be checked for any fetcher."""
         if not isinstance(per_source, dict):
-            raise ConfigurationError(
+            raise ConfigFileError(
                 f"The [{section}]-section must contain [{section}.<source>.<transformer-class>] subsections."
                 f"\nGot: {section} = {per_source!r}."
             )
 
         for source, config in per_source.items():
             if not isinstance(config, dict) or not config:
-                raise ConfigurationError(
+                raise ConfigFileError(
                     f"Transformation config must be specified as [{section}.<source>.<transformer-class>] sections."
                     f"\nGot: {source!r} = {config!r}."
                 )
             if bad := sorted(clazz for clazz, kwargs in config.items() if not isinstance(kwargs, dict)):
-                raise ConfigurationError(
+                raise ConfigFileError(
                     f"Init arguments must be [{section}.{source}.<transformer-class>] tables; got values for {bad}."
                 )
 
@@ -452,8 +551,25 @@ def _make_default_translations(
     if "fmt" in config:
         out["default_fmt"] = config.pop("fmt")
     if "overrides" in config:
+        expect_table(config["overrides"], "unknown_ids.overrides")
         shared, specific = _split_overrides(config.pop("overrides"))
         out["default_fmt_placeholders"] = InheritedKeysDict(specific, default=shared)
+
+
+def _check_factory_result(value: Any, expected: type, *, hook: str, key: str) -> None:
+    # A factory that falls through returns None, which downstream means a default: no cache, or a TestFetcher.
+    if not isinstance(value, expected):
+        raise TypeError(f"{hook} returned a '{type_name(value)}' for {key}; expected a {expected.__name__}.")
+
+
+def _check_fetcher_declared(config: dict[str, Any]) -> None:
+    """Raise before building anything if a file has ``[fetching.mapping]`` or ``[fetching.cache]`` but no fetcher."""
+    shared = [f"[fetching.{key}]" for key in ("mapping", "cache") if key in config]
+    if shared and not set(config).difference(("mapping", "cache", "transform")):
+        raise ConfigFileError(
+            "Fetcher implementation section missing.",
+            hints=f"Declare the fetcher for {' and '.join(shared)} in the same file.",
+        )
 
 
 def _check_allowed_keys(allowed: Iterable[str], *, actual: Iterable[str], toml_path: str) -> None:
@@ -464,14 +580,25 @@ def _check_allowed_keys(allowed: Iterable[str], *, actual: Iterable[str], toml_p
         if toml_path == "<root>" and "mapping" in bad_keys:
             sections = [f"[{parent}.mapping]" for parent in ("translator", "fetching") if parent in allowed]
             hints.append(f"Use {' or '.join(sections)}.")
-        if toml_path == "translator" and "default_fmt" in bad_keys:
-            hints.append("Use [unknown_ids] fmt.")
-        raise ConfigurationError(f"Forbidden keys {sorted(bad_keys)} in [{toml_path}]-section.", hints=hints)
+        if toml_path == "<root>" and list(allowed) == ["fetching"]:
+            hints.append("Auxiliary files may only contain a [fetching]-section.")
+        if toml_path == "translator":
+            translator_hints = {
+                "default_fmt": "Use [unknown_ids] fmt.",
+                "default_fmt_placeholders": "Use [unknown_ids.overrides]: keys from its .default table go at the top"
+                " level, and each .specific.<source> table becomes [unknown_ids.overrides.<source>].",
+                "mapper": "Use [translator.mapping].",
+                "transformers": "Delete the transformers key to keep current results, or move it to"
+                " [transform.'<source>'] to apply the transformers.",
+            }
+            hints.extend(hint for key, hint in translator_hints.items() if key in bad_keys)
+        where = "at the top level" if toml_path == "<root>" else f"in [{toml_path}]-section"
+        raise ConfigFileError(f"Forbidden keys {sorted(bad_keys)} {where}.", hints=hints)
 
 
 def _check_sections(sections: Iterable[str], *, actual: dict[str, Any]) -> None:
     if values := sorted(key for key in sections if key in actual and not isinstance(actual[key], dict)):
-        raise ConfigurationError(f"Top-level keys {values} must be sections, e.g. [{values[0]}].")
+        raise ConfigFileError(f"Top-level keys {values} must be sections, e.g. [{values[0]}].")
 
 
 def _split_overrides(overrides: Any) -> Any:
@@ -485,14 +612,15 @@ def _identifier_from_config_metadata(config_metadata: ConfigMetadata) -> list[li
     return list(map(lambda t: [t[0].name, t[1]], (config_metadata.main, *config_metadata.extra_fetchers)))
 
 
-@contextmanager
-def _rethrow_with_file(file: str) -> Generator[None, None, None]:
-    hint = f"In file: {Path(file).resolve()}"
+def _rejects_only(fetcher_class: type, kwargs: dict[str, Any], params: list[str]) -> bool:
+    """Return ``True`` if `fetcher_class` accepts `kwargs` without `params`, but not with them."""
     try:
-        yield
-    except ConfigurationError as e:
-        if f"Hint: {hint}" not in getattr(e, "__notes__", ()):  # load_toml_file() may have named it already.
-            add_hints(e, hint)
-        raise
-    except Exception as e:
-        raise ConfigurationError(f"{type(e).__name__}: {e}", hints=hint) from e
+        sig = signature(fetcher_class)
+        sig.bind(**{k: v for k, v in kwargs.items() if k not in params})
+    except (TypeError, ValueError):
+        return False  # The section is wrong too, or the signature is opaque; the error says what.
+    try:
+        sig.bind(**kwargs)
+    except TypeError:
+        return True
+    return False

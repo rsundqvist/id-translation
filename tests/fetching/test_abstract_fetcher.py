@@ -23,6 +23,13 @@ def fetcher(data):
     return MemoryFetcher(data)
 
 
+@pytest.mark.parametrize("key", ["optional", "allow_fetch_all", "selective_fetch_all", "return_all"])
+@pytest.mark.parametrize("value", ["false", 1])
+def test_flags_must_be_bools(key, value):
+    with pytest.raises(TypeError, match=rf"^Bad {key} of type builtins\.(str|int); expected a bool\.$"):
+        MemoryFetcher({}, **{key: value})
+
+
 def test_unknown_sources(fetcher):
     with pytest.raises(exceptions.UnknownSourceError, match="edible_humans") as ec:
         fetcher.fetch([IdsToFetch("humans", {1, 2}), IdsToFetch("edible_humans", {1, 2})])

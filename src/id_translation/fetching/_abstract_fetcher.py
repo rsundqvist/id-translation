@@ -12,7 +12,7 @@ from rics.misc import tname
 from rics.strings import format_seconds as fmt_sec
 
 from .. import logging as _logging
-from .._utils import json_keys
+from .._utils import json_keys, require_bool, type_name
 from .._utils.emit_warning import emit_warning
 from .._utils.locks import DiscoveryGuard
 from ..mapping import HeuristicScore, Mapper
@@ -89,6 +89,10 @@ class AbstractFetcher(Fetcher[SourceType, IdType]):
         optional: bool = False,
         cache_access: CacheAccess[SourceType, IdType] | None = None,
     ) -> None:
+        if isinstance(identifiers, str) or not isinstance(identifiers, (Iterable, type(None))):
+            raise TypeError(f"Bad identifiers of type {type_name(identifiers)}; expected a sequence of str.")
+        require_bool(optional=optional, allow_fetch_all=allow_fetch_all, selective_fetch_all=selective_fetch_all)
+
         # A copy: the logger is set below, and the caller's mapper may be shared. Shallow, since Mapper.copy() would
         # re-run __init__ with base arguments only, which a subclass may not take.
         self._mapper: Mapper[str, str, SourceType] = (

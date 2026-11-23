@@ -45,7 +45,17 @@ Sections
 The valid top-level keys are ``translator``, ``fetching``, ``unknown_ids``, and ``transform`` (the
 :attr:`~.TranslatorFactory.TOP_LEVEL_KEYS`). Only the ``fetching`` section is required, though it may be left out of
 the main configuration file if fetching is configured separately. Any other top-level key
-will raise a :class:`~id_translation.exceptions.ConfigurationError`.
+will raise a :class:`~id_translation.toml.exceptions.ConfigFileError`.
+
+A :class:`~id_translation.toml.exceptions.ConfigFileError` means that id-translation's own checks found a file invalid,
+e.g. it is not valid TOML, has an unknown, misplaced or malformed key or section, or a fetcher, transformer or cache
+section key names a class that cannot be imported or does not create the expected type. It is also raised when every
+fetcher was discarded as optional; the logged errors say why. Anything else propagates as itself, usually with a hint
+naming the file. That covers errors raised by a fetcher, transformer or mapper that the file
+declares (e.g. a :class:`TypeError` for an unknown argument in its section, an :class:`ImportError` for a missing
+driver, or an :class:`OSError` for a refused connection) or by the :class:`~id_translation.Translator` class (e.g. a
+:class:`TypeError` for a bad ``[translator]`` argument), and an unset environment variable.
+A file that cannot be read raises an :class:`OSError` as is.
 
 Section: Translator
 -------------------
@@ -132,9 +142,9 @@ for integer IDs: TOML keys are always strings, so ``101 = "Widget"`` would key t
      - If ``True``, discard on :attr:`~id_translation.types.HasSources.sources`-resolution crash.
      - Auxiliary files only. See :ref:`Optional fetchers` for details.
 
-The keys listed above are for the :class:`~id_translation.fetching.AbstractFetcher` class, which all fetchers created by
-TOML configuration must inherit. Additional parameters vary based on the chosen implementation. See the
-:mod:`id_translation.fetching` module for choices.
+The keys listed above are for the :class:`~id_translation.fetching.AbstractFetcher` class, which every fetcher created
+by the default :attr:`~id_translation.toml.TranslatorFactory.FETCHER_FACTORY` inherits. Additional parameters vary based
+on the chosen implementation. See the :mod:`id_translation.fetching` module for choices.
 
 The ``AbstractFetcher`` uses a :class:`~id_translation.mapping.Mapper` to bind actual
 :attr:`placeholder <id_translation.types.HasSources.placeholders>` names in
@@ -149,9 +159,11 @@ See: :ref:`Subsection: Mapping` for details. For all mapping operations performe
    example, a ``[fetching.'my.library.SuperFetcher']``-section would import and initialize a ``SuperFetcher`` from the
    ``my.library`` module.
 
-   Under the hood, this will call :func:`~rics.misc.get_by_full_name` using ``name="my.library.SuperFetcher"``. It
-   must accept the keyword arguments of :class:`~id_translation.fetching.AbstractFetcherParams` and pass them on to
-   :class:`~id_translation.fetching.AbstractFetcher`.
+   Under the hood, this will call :func:`~rics.misc.get_by_full_name` using ``name="my.library.SuperFetcher"``. With
+   the default :attr:`~id_translation.toml.TranslatorFactory.FETCHER_FACTORY`, it must create an
+   :class:`~id_translation.fetching.AbstractFetcher`, accepting the keyword arguments of
+   :class:`~id_translation.fetching.AbstractFetcherParams` and passing them on. To use another kind of
+   :class:`~id_translation.fetching.Fetcher`, set ``FETCHER_FACTORY`` to a function that creates it.
 
 Multiple fetchers
 ~~~~~~~~~~~~~~~~~
@@ -440,7 +452,7 @@ Overrides are implemented by the :class:`~rics.collections.dicts.InheritedKeysDi
    The type of ``context`` is determined by the class that owns the overrides. For fetchers, it is the source: each
    source has its own columns, so placeholder overrides may differ per source. The ``Translator`` has no context,
    since a name is matched against every source at once; its overrides must be top-level, and a subsection raises
-   :class:`~id_translation.exceptions.ConfigurationError`.
+   :class:`~id_translation.toml.exceptions.ConfigFileError`.
 
 The same structure supplies placeholder values for unknown IDs. This next snippet is from :doc:`another example
 <examples/notebooks/pickle-translation/PickleFetcher>`. For unknown IDs, the `name` placeholder is set to `'Name

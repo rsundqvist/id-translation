@@ -194,6 +194,16 @@ def test_bad_format_raises_at_construction(read_path_format):
         PandasFetcher(read_path_format)
 
 
+def test_underivable_read_function_hint_from_toml(tmp_path):
+    """The hint must make sense in a file too, where there are no positional or keyword arguments."""
+    config = tmp_path / "config.toml"
+    config.write_text('[fetching.PandasFetcher]\nread_path_format = "data/{}.tsv"\n')
+
+    with pytest.raises(ValueError, match="Cannot derive") as exc_info:
+        Translator.from_config(config)
+    assert "Hint: Set `read_function`" in "\n".join(exc_info.value.__notes__)
+
+
 def test_path_object_has_no_read_function_hint():
     """A `Path` is not a supported format at all; passing `read_function` would not help."""
     with pytest.raises(ValueError, match="Cannot derive") as exc_info:

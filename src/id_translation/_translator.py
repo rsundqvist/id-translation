@@ -29,7 +29,7 @@ from . import _pickle
 from . import logging as _logging
 from ._tasks import MappingTask, NamesTask, TranslationTask
 from ._transformer_registry import TransformerRegistry
-from ._utils import replace_atomically, type_name
+from ._utils import replace_atomically, require_bool, type_name
 from ._utils.emit_warning import emit_warning
 from .exceptions import (
     ConnectionStatusError,
@@ -106,7 +106,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
     Args:
         fetcher: A :class:`~id_translation.fetching.Fetcher`, or translations as inline data.
-        fmt: String :class:`~id_translation.offline.Format` specification for translations.
+        fmt: A :class:`~id_translation.offline.Format` specification for translations.
         mapper: A :class:`~id_translation.mapping.Mapper` instance for binding names to sources. A shallow copy is used.
         default_fmt: Alternative :class:`~id_translation.offline.Format` to use for fallback translation of unknown IDs.
         default_fmt_placeholders: Shared and/or source-specific default placeholder values for unknown IDs. See
@@ -182,6 +182,7 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
         self._fmt = Format.parse(fmt)
         self._default_fmt_placeholders, self._default_fmt = _handle_default(default_fmt, default_fmt_placeholders)
+        require_bool(enable_uuid_heuristics=enable_uuid_heuristics)
         self._enable_uuid_heuristics = enable_uuid_heuristics
 
         if fetcher is None:
@@ -233,8 +234,11 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
                 they are ranked by input order. A fetcher defined in the main configuration is prioritized (rank=0).
 
         Returns:
-            A new :class:`~id_translation.Translator` instance with a :attr:`~id_translation.Translator.config_metadata`
-            attribute.
+            A new :class:`~id_translation.Translator` with :attr:`~id_translation.Translator.config_metadata`.
+
+        Raises:
+            ~id_translation.toml.exceptions.ConfigFileError: If a file fails id-translation's own checks.
+            OSError: If a file cannot be read.
         """
         # docs: https://id-translation.readthedocs.io/en/stable/documentation/translator-config.html
         factory = TranslatorFactory(path, extra_fetchers, cls)

@@ -15,4 +15,5 @@ def default_fetcher_factory(clazz: str, config: dict[str, Any]) -> AbstractFetch
         config,
         AbstractFetcher,  # type: ignore[type-abstract]  # https://github.com/python/mypy/issues/4717
         default_module,
+        hint="Subclass AbstractFetcher, or set TranslatorFactory.FETCHER_FACTORY to a function that creates it.",
     )

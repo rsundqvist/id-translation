@@ -5,6 +5,7 @@ from typing import Any, Generic
 from rics.misc import get_by_full_name, tname
 
 from .. import logging as _logging
+from .._utils import require_bool
 from . import filter_functions, heuristic_functions, score_functions
 from ._kwargs import check_function_kwargs
 from .types import CandidateType, ContextType, HeuristicsTypes, ScoreFunction, ValueType
@@ -72,6 +73,7 @@ class HeuristicScore(Generic[ValueType, CandidateType, ContextType]):
     ) -> None:
         """Add a new heuristic."""
         new_heuristic = (_resolve_heuristic(heuristic), kwargs or {})
+        require_bool(mutate=new_heuristic[1].get("mutate", False))
         func_kwargs = {k: v for k, v in new_heuristic[1].items() if k != "mutate"}  # Consumed by `__call__`.
         check_function_kwargs(new_heuristic[0], func_kwargs, what="heuristic function")
         self._heuristics.append(new_heuristic)
@@ -184,6 +186,6 @@ def _resolve_heuristic(
             except AttributeError:
                 pass
 
-        raise NameError(func_or_name)
+        raise NameError(f"Cannot resolve {func_or_name!r} as a filter or heuristic function.", name=func_or_name)
     else:
         return func_or_name

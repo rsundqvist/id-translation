@@ -1,12 +1,13 @@
 import copy
 import json
 from datetime import datetime, timedelta
+from importlib.metadata import PackageNotFoundError
 
 import pytest
 
 from id_translation import Translator
-from id_translation.exceptions import ConfigurationError
-from id_translation.toml.meta import ConfigMetadata, Metaconf
+from id_translation.toml.exceptions import ConfigFileError
+from id_translation.toml.meta import ConfigMetadata, Metaconf, _base_metadata
 
 from .conftest import ROOT
 
@@ -120,8 +121,31 @@ def test_metaconf_from_dict_does_not_mutate_input():
 
 
 def test_metaconf_unknown_key():
-    with pytest.raises(ConfigurationError, match=r"Unknown keys: \['envv'\]"):
+    with pytest.raises(TypeError, match=r"Unknown keys: \['envv'\]"):
         Metaconf.from_dict({"envv": {}})
+
+
+def test_toml_date_literals(tmp_path):
+    def fingerprint(value: str) -> str:
+        path = tmp_path / "config.toml"
+        path.write_text(f"[fetching.MemoryFetcher.data.holidays]\nid = [1]\nname = [{value}]\n", encoding="utf-8")
+        return ConfigMetadata.from_toml_paths(path, clazz=Translator).main[1]
+
+    assert fingerprint("2026-12-24") != fingerprint('"2026-12-24"')
+    assert fingerprint("12:30:00") != fingerprint('"12:30:00"')
+
+
+def test_reordered_transformers_change_the_fingerprint(tmp_path):
+    """Transformers are chained in declaration order, so a reorder can change translations."""
+    first = '[transform.s.First]\nkey = "a"\n'
+    second = '[transform.s.Second]\nkey = "b"\n'
+
+    def fingerprint(transform: str) -> str:
+        path = tmp_path / "config.toml"
+        path.write_text(f"[fetching.MemoryFetcher.data.s]\nid = [1]\n\n{transform}", encoding="utf-8")
+        return ConfigMetadata.from_toml_paths(path, clazz=Translator).main[1]
+
+    assert fingerprint(first + second) != fingerprint(second + first)
 
 
 def test_changed_metaconf_names_the_changed_keys(metadata):
@@ -130,3 +154,74 @@ def test_changed_metaconf_names_the_changed_keys(metadata):
 
     reason = current.reason_not_equivalent(metadata)
     assert reason == "Meta configuration changed: env.allow_blank: False -> True"
+
+
+@pytest.mark.parametrize(
+    ("toml", "match"),
+    [
+        ("[env]\nallow_interpolation = 'false'\n", "allow_interpolation"),
+        ("env = 'x'\n", r"bad env='x': expected a table"),
+        ("equivalence = 'ab'\n", r"bad equivalence='ab': expected a table"),
+        ("equivalence = []\n", r"bad equivalence=\[\]: expected a table"),
+        ("[equivalence]\npython_version = '{v.nope}'\n", "python_version"),
+        ("[equivalence]\npython_version = '{'\n", "python_version"),
+        ("[equivalence]\npython_version = 3\n", "python_version"),
+        ("[equivalence]\npython_version = '{v:%Y}'\n", "python_version"),
+    ],
+)
+def test_metaconf_type_error_is_a_config_file_error(tmp_path, toml, match):
+    path = tmp_path / "metaconf.toml"
+    path.write_text(toml, encoding="utf-8")
+    with pytest.raises(ConfigFileError, match=match) as exc_info:
+        Metaconf.from_path_or_default(path)
+    assert exc_info.value.__notes__ == [f"Hint: In file: {path.resolve()}"]
+
+
+def test_metaconf_unknown_key_names_the_file(tmp_path):
+    path = tmp_path / "metaconf.toml"
+    path.write_text("[envv]\nallow_interpolation = false\n", encoding="utf-8")
+    with pytest.raises(ConfigFileError) as exc_info:
+        Metaconf.from_path_or_default(path)
+    assert str(exc_info.value).startswith("TypeError: Unknown keys")
+    assert exc_info.value.__notes__ == [f"Hint: In file: {path.resolve()}"]
+
+
+def test_metaconf_package_check_skipped_with_old_packaging(tmp_path, monkeypatch):
+    packaging_utils = pytest.importorskip("packaging.utils")
+    monkeypatch.delattr(packaging_utils, "InvalidName")  # Added in packaging 23.2.
+
+    path = tmp_path / "metaconf.toml"
+    path.write_text("[equivalence]\nextra_packages = ['rics']\n", encoding="utf-8")
+    assert Metaconf.from_path_or_default(path).equivalence.extra_packages == ["rics"]
+
+
+@pytest.mark.parametrize("value", ["'rics'", "{rics = 'ignored'}", "5"])
+def test_metaconf_extra_packages_must_be_an_array(tmp_path, value):
+    path = tmp_path / "metaconf.toml"
+    path.write_text(f"[equivalence]\nextra_packages = {value}\n", encoding="utf-8")
+    with pytest.raises(ConfigFileError, match=r"expected list\[str\]"):
+        Metaconf.from_path_or_default(path)
+
+
+def test_extra_package_that_is_not_installed_names_metaconf(tmp_path):
+    metaconf_path = tmp_path / "metaconf.toml"
+    metaconf_path.write_text("[equivalence]\nextra_packages = ['no-such-distribution']\n", encoding="utf-8")
+    main = tmp_path / "main.toml"
+    main.write_text("", encoding="utf-8")
+    with pytest.raises(PackageNotFoundError) as exc_info:
+        ConfigMetadata.from_toml_paths(main, clazz=Translator)
+    assert exc_info.value.__notes__ == [f"Hint: In file: {metaconf_path.resolve()}"]
+
+
+def test_id_translation_without_metadata_names_no_file(tmp_path, monkeypatch):
+    """A vendored install without metadata has no version; metaconf.toml, which may not exist, is not why."""
+
+    def get_version(name: str) -> str:
+        raise PackageNotFoundError(name)
+
+    monkeypatch.setattr(_base_metadata, "get_version", get_version)
+    main = tmp_path / "main.toml"
+    main.write_text("", encoding="utf-8")
+    with pytest.raises(PackageNotFoundError) as exc_info:
+        ConfigMetadata.from_toml_paths(main, clazz=Translator)
+    assert not hasattr(exc_info.value, "__notes__")

@@ -242,7 +242,7 @@ def test_from_config():
     actual = translator.config_metadata
 
     assert actual.main[0].name == "config.toml"
-    assert actual.main[1] == "5d4fb2b2588712125ba367d1809bebac6225b4d8e15461a77455347db424df9b"
+    assert actual.main[1] == "2a71c46fd327055ba0ff6a5e9ee86a7620d56703e302496b634cc54f0b2c353d"
     assert actual.extra_fetchers == ()
 
     assert sorted(actual.to_dict()) == ["class", "created", "extra_fetchers", "main", "metaconf", "versions"]
@@ -1345,3 +1345,8 @@ def test_tuple_names_in_debug_score_tables(caplog, verbose):
     with enable_verbose_debug_messages() if verbose else nullcontext():
         actual = translator.translate(dict.fromkeys(names, 1), names=dict(zip(names, sources, strict=True)))
     assert actual == dict.fromkeys(names, "Ada")
+
+
+def test_enable_uuid_heuristics_must_be_a_bool():
+    with pytest.raises(TypeError, match=r"^Bad enable_uuid_heuristics of type builtins\.str; expected a bool\.$"):
+        RealTranslator(enable_uuid_heuristics="false")  # type: ignore[arg-type]

@@ -3,6 +3,7 @@ from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Any, Unpack
 
 from .. import _uuid_utils
+from .._utils import require_bool
 from ..offline.types import PlaceholderTranslations, SourcePlaceholderTranslations
 from ..types import IdType, SourceType
 from ._abstract_fetcher import AbstractFetcher, AbstractFetcherParams, format_sources
@@ -50,6 +51,7 @@ class MemoryFetcher(AbstractFetcher[SourceType, IdType]):
         return_all: bool = False,
         **kwargs: Unpack[AbstractFetcherParams[SourceType, IdType]],
     ) -> None:
+        require_bool(return_all=return_all)
         super().__init__(**kwargs)
         self._data = {source: _labelled(source, pht) for source, pht in data.items()}
         # ID columns are resolved through the mapper in _initialize_sources() and kept here: the objects in `data` may

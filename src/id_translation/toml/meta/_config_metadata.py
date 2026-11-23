@@ -4,12 +4,14 @@ import sys
 from collections.abc import Iterable
 from datetime import date, time
 from hashlib import sha256
+from importlib.metadata import PackageNotFoundError
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from rics.collections.misc import as_list
 from rics.paths import AnyPath
 
+from id_translation._utils import add_hints
 from id_translation.toml._load_toml import load_toml_file
 
 from ._base_metadata import BaseMetadata
@@ -141,14 +143,29 @@ class ConfigMetadata(BaseMetadata):
                 allow_nested=metaconf.env.allow_nested,
                 allow_blank=metaconf.env.allow_blank,
             )
-            return p, sha256(json.dumps(content, sort_keys=True, default=_fingerprint_default).encode()).hexdigest()
 
-        return ConfigMetadata(
-            main=_create_path_tuple(main_path),
-            extra_fetchers=tuple(_create_path_tuple(str(Path(p))) for p in fetcher_paths),
-            clazz=clazz.__module__ + "." + clazz.__qualname__,  # Fully qualified name
-            metaconf=metaconf,
-        )
+            json_content = json.dumps(
+                content,
+                sort_keys=False,  # key order is meaningful in places, e.g. transformers
+                default=_fingerprint_default,
+            )
+            return p, sha256(json_content.encode()).hexdigest()
+
+        main = _create_path_tuple(main_path)
+        extra = tuple(_create_path_tuple(str(Path(p))) for p in fetcher_paths)
+        try:
+            return ConfigMetadata(
+                main=main,
+                extra_fetchers=extra,
+                clazz=clazz.__module__ + "." + clazz.__qualname__,  # Fully qualified name
+                metaconf=metaconf,
+            )
+        except Exception as e:
+            # E.g. an extra_packages entry that is not installed, or not a name. Not id-translation's own missing
+            # metadata, though: the file may not exist.
+            if not (isinstance(e, PackageNotFoundError) and e.name not in metaconf.equivalence.extra_packages):
+                add_hints(e, f"In file: {Path(metaconf_path).resolve()}")
+            raise
 
 
 def _fingerprint_default(obj: Any) -> str:

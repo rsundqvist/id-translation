@@ -3,6 +3,7 @@ from uuid import UUID
 
 import pytest
 
+from id_translation._utils import type_name
 from id_translation.offline import Format
 
 
@@ -162,5 +163,5 @@ def test_equality():
 
 @pytest.mark.parametrize("fmt", [1, b"{id}", None])
 def test_parse_rejects_other_types(fmt):
-    with pytest.raises(TypeError, match=f"Bad fmt of type {type(fmt).__name__}; expected a str or Format"):
+    with pytest.raises(TypeError, match=f"Bad fmt of type {type_name(fmt)}; expected a str or Format"):
         Format.parse(fmt)

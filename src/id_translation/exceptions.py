@@ -15,14 +15,6 @@ from ._utils import add_hints as _add_hints
 from ._utils import as_tuple as _as_tuple
 
 
-class ConfigurationError(TypeError):
-    """Raised in case of bad configuration."""
-
-    def __init__(self, msg: str, *, hints: str | _Iterable[str] = ()) -> None:
-        super().__init__(msg)
-        _add_hints(self, hints)
-
-
 class ConnectionStatusError(ConnectionError):
     """Raised when trying to perform operations in a bad online/offline state."""
 

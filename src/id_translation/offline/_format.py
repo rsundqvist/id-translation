@@ -3,6 +3,7 @@ from typing import Any, Literal, Self
 
 from rics.misc import tname
 
+from .._utils import type_name
 from .parse_format_string import Element, get_elements
 from .types import PlaceholderAttributes, PlaceholdersTuple
 
@@ -182,7 +183,7 @@ class Format:
             return cls(fmt)
         if isinstance(fmt, Format):
             return fmt
-        raise TypeError(f"Bad fmt of type {type(fmt).__name__}; expected a str or Format.")
+        raise TypeError(f"Bad fmt of type {type_name(fmt)}; expected a str or Format.")
 
     @property
     def placeholders(self) -> PlaceholdersTuple:

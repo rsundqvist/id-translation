@@ -13,6 +13,7 @@ from sqlalchemy import BINARY, CHAR, TypeDecorator
 
 from .. import _uuid_utils
 from .. import logging as _logging
+from .._utils import require_bool
 from .._utils.emit_warning import emit_warning
 from ..exceptions import ConnectionStatusError
 from ..offline.types import PlaceholderTranslations
@@ -90,6 +91,7 @@ class SqlFetcher(AbstractFetcher[str, IdType]):
         engine_kwargs: dict[str, Any] | None = None,
         **kwargs: Unpack[AbstractFetcherParams[str, IdType]],
     ) -> None:
+        require_bool(include_views=include_views)
         super().__init__(**kwargs)
         self._engine_kwargs = engine_kwargs or {}
 
