@@ -46,6 +46,7 @@ class MappingTask(NamesTask[NameType, SourceType, IdType]):
             io_kwargs=io_kwargs,
             task_id=task_id,
         )
+        _ = self.mapper_input_names  # Before discovery: data without derivable names is a bad argument.
         # Here, not in BaseTask: extracting names needs only the IO, not sources. Through the Translator, which
         # serializes the first call.
         caller.initialize_sources(task_id=self.task_id)

@@ -27,7 +27,7 @@ from rics.types import LiteralHelper
 
 from . import _pickle
 from . import logging as _logging
-from ._tasks import MappingTask, NamesTask, TranslationTask
+from ._tasks import MappingTask, NamesTask, TranslationTask, check_max_fails, handle_input_names
 from ._transformer_registry import TransformerRegistry
 from ._utils import replace_atomically, require_bool, type_name
 from ._utils.emit_warning import emit_warning
@@ -897,8 +897,6 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             raise ConnectionStatusError("Reverse translation cannot be performed online.")
 
         task_id = _logging.generate_task_id()
-        self.initialize_sources(task_id=task_id)
-
         task = TranslationTask(
             self,
             translatable,
@@ -1054,9 +1052,6 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
             The first call runs :meth:`~id_translation.Translator.initialize_sources`; see it for what it raises.
         """
-        task_id = _logging.generate_task_id()
-        self.initialize_sources(task_id=task_id)
-
         return MappingTask(
             self,
             translatable,
@@ -1064,7 +1059,6 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             ignore_names=ignore_names,
             override_function=override_function,
             io_kwargs=io_kwargs,
-            task_id=task_id,
         ).name_to_source
 
     def map_scores(
@@ -1285,14 +1279,21 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         """
         if not self.online:
             raise ConnectionStatusError("Translator is already offline.")
+        names = self._check_fetch_arguments(
+            translatable,
+            names,
+            ignore_names=ignore_names,
+            override_function=override_function,
+            max_fails=max_fails,
+            io_kwargs=io_kwargs,
+        )
 
         start = perf_counter()
         task_id = _logging.generate_task_id(start)
-        self.initialize_sources(task_id=task_id)
 
         if LOGGER.isEnabledFor(logging.DEBUG):
             LOGGER.debug(
-                msg=f"Begin going offline with {len(self.sources)} sources provided by: {self.fetcher}",
+                msg=f"Begin going offline with sources provided by: {type_name(self.fetcher)}",
                 extra=dict(
                     task_id=task_id,
                     event_key=_logging.get_event_key(self.go_offline, "enter"),
@@ -1446,9 +1447,15 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
 
             See :class:`~id_translation.offline.TranslationMap` for details.
         """
+        names = self._check_fetch_arguments(
+            translatable,
+            names,
+            ignore_names=ignore_names,
+            override_function=override_function,
+            max_fails=max_fails,
+            io_kwargs=io_kwargs,
+        )
         task_id = _logging.generate_task_id()
-        self.initialize_sources(task_id=task_id)
-
         return self._user_fetch(
             translatable,
             names,
@@ -1460,6 +1467,28 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
             func=self.fetch.__qualname__,
             task_id=task_id,
         )
+
+    @staticmethod
+    def _check_fetch_arguments(
+        translatable: Translatable[NameType, IdType] | None,
+        names: ExplicitNames[NameType, SourceType] | None,
+        *,
+        ignore_names: Names[NameType] | None,
+        override_function: UserOverrideFunction[NameType, SourceType, None] | None,
+        max_fails: float,
+        io_kwargs: Mapping[str, Any] | None,
+    ) -> ExplicitNames[NameType, SourceType] | None:
+        # Needs no sources: a bad argument must raise before discovery, which may be slow or fail on its own.
+        if io_kwargs and translatable is None:
+            raise ValueError(f"Got {io_kwargs=}, but {translatable=}; io_kwargs requires a translatable.")
+        if max_fails != 1.0 and translatable is None:
+            raise ValueError(f"Got {max_fails=}, but {translatable=}; max_fails requires a translatable.")
+        check_max_fails(max_fails)
+        reusable: ExplicitNames[NameType, SourceType] | None = (
+            names if names is None or isinstance(names, Mapping) else as_list(names)
+        )
+        handle_input_names(reusable if ignore_names is None else names, ignore_names, override_function)
+        return reusable
 
     def _user_fetch(
         self,
@@ -1474,14 +1503,10 @@ class Translator(Generic[NameType, SourceType, IdType], HasSources[SourceType]):
         func: str,
         task_id: int | None = None,
     ) -> TranslationMap[NameType, SourceType, IdType]:
-        if io_kwargs and translatable is None:
-            raise ValueError(f"Got {io_kwargs=}, but {translatable=}; io_kwargs requires a translatable.")
-        if max_fails != 1.0 and translatable is None:
-            raise ValueError(f"Got {max_fails=}, but {translatable=}; max_fails requires a translatable.")
-
         fmt = self._fmt if fmt is None else Format.parse(fmt)
 
         if translatable is None:
+            self.initialize_sources(task_id=task_id)
             if all(p is None for p in (names, ignore_names, override_function)):
                 source_translations = self._fetch(None, fmt, task_id=task_id)
             else:

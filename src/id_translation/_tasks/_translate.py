@@ -45,6 +45,8 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
         event_key: str,
         task_id: int | None = None,
     ) -> None:
+        check_max_fails(max_fails)  # Before super(), which runs source discovery.
+
         super().__init__(
             caller,
             translatable,
@@ -54,9 +56,6 @@ class TranslationTask(MappingTask[NameType, SourceType, IdType]):
             io_kwargs=io_kwargs,
             task_id=task_id,
         )
-
-        if not (0.0 <= max_fails <= 1):
-            raise ValueError(f"Argument {max_fails=} is not a valid fraction")
 
         self.fmt = fmt
         self.copy = copy
@@ -381,3 +380,8 @@ def _json_safe_types(items: list[Any]) -> list[Any]:
         return item
 
     return [convert(e) for e in items]
+
+
+def check_max_fails(max_fails: float) -> None:
+    if not (0.0 <= max_fails <= 1):
+        raise ValueError(f"Argument {max_fails=} is not a valid fraction")

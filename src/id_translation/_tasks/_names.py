@@ -39,12 +39,7 @@ class NamesTask(BaseTask[NameType, SourceType, IdType]):
             task_id=task_id,
         )
 
-        if not (names is None or ignore_names is None):
-            exc = ValueError(f"Explicit {names=} cannot be used with {ignore_names=}.")
-            exc.add_note("Hint: Set names=None to use automatic name extraction with user-defined ignored names.")
-            raise exc
-
-        names, override_function = _handle_input_names(names, override_function)
+        names, override_function = handle_input_names(names, ignore_names, override_function)
 
         # Explicit, user-given names
         self.names_from_user: list[NameType] | None = None if names is None else as_list(names)
@@ -120,10 +115,17 @@ class NamesTask(BaseTask[NameType, SourceType, IdType]):
         return names
 
 
-def _handle_input_names(
+def handle_input_names(
     names: ExplicitNames[NameType, SourceType] | None,
+    ignore_names: Names[NameType] | None,
     override_function: UserOverrideFunction[NameType, SourceType, None] | None,
 ) -> tuple[list[NameType] | None, UserOverrideFunction[NameType, SourceType, None] | None]:
+    """Validate the user's name arguments; needs no sources, so callers may run it before discovery."""
+    if not (names is None or ignore_names is None):
+        exc = ValueError(f"Explicit {names=} cannot be used with {ignore_names=}.")
+        exc.add_note("Hint: Set names=None to use automatic name extraction with user-defined ignored names.")
+        raise exc
+
     if names is None:
         return None, override_function
 

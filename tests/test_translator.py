@@ -938,7 +938,8 @@ class TestDictNames:
 
 
 class TestTranslatedNames:
-    translator = UnitTestTranslator()
+    def setup_method(self):
+        self.translator = UnitTestTranslator()  # Per test: test_unused fails after any test that translates.
 
     def test_unused(self):
         with pytest.raises(ValueError, match=r"No names have been translated using this Translator."):
@@ -1302,6 +1303,128 @@ def test_fetcher_dropping_a_requested_source_raises(dropped):
     translator: RealTranslator[str, str, int] = RealTranslator(Dropping(data))
     with pytest.raises(ImplementationError, match=r"Dropping\.fetch\(\) returned no translations"):
         translator.translate({"people": [1], "pets": [1]})
+
+
+# Anchored, so that every entry point reports the names as given.
+_BAD_NAMES_ARGUMENTS = [
+    ({"names": "a", "ignore_names": ["b"]}, r"^Explicit names='a' cannot be used with ignore_names=\['b'\]\."),
+    ({"names": {"a": None}}, r"^Bad name-to-source mapping: 'a' -> None\."),
+    ({"names": {"a": "a"}, "override_function": lambda *_: None}, r"^Mapping names=\{'a': 'a'\} cannot be combined"),
+]
+
+
+@pytest.mark.parametrize(
+    "method, translatable, kwargs, match",
+    [
+        ("translate", {"a": [1]}, {"names": "a", "max_fails": 2.0}, "max_fails"),
+        *(("translate", {"a": [1]}, kwargs, match) for kwargs, match in _BAD_NAMES_ARGUMENTS),
+        ("map", {"a": [1]}, {"names": {"a": "a"}, "override_function": lambda *_: None}, "override_function"),
+        ("fetch", {"a": [1]}, {"names": "a", "max_fails": 2.0}, "max_fails"),
+        *(("fetch", None, kwargs, match) for kwargs, match in _BAD_NAMES_ARGUMENTS),
+        ("go_offline", {"a": [1]}, {"names": "a", "max_fails": 2.0}, "max_fails"),
+        *(("go_offline", None, kwargs, match) for kwargs, match in _BAD_NAMES_ARGUMENTS),
+        *(
+            (method, None, kwargs, match)
+            for method in ("fetch", "go_offline")
+            for kwargs, match in [
+                ({"io_kwargs": {"a": 1}}, "io_kwargs requires a translatable"),
+                ({"max_fails": 0.5}, "max_fails requires a translatable"),
+                ({"fmt": "{id"}, "expected '}'"),
+            ]
+        ),
+    ],
+)
+def test_bad_arguments_raise_before_discovery(method, translatable, kwargs, match):
+    class DownFetcher(MemoryFetcher[str, int]):
+        def _initialize_sources(self, task_id: int) -> dict[str, list[str]]:  # noqa: ARG002
+            raise ConnectionError("down")
+
+    translator: RealTranslator[str, str, int] = RealTranslator(DownFetcher({}))
+    with pytest.raises(ValueError, match=match):
+        getattr(translator, method)(translatable, **kwargs)
+
+
+@pytest.mark.parametrize("method", ["translate", "fetch", "go_offline"])
+@pytest.mark.parametrize(
+    "translatable, kwargs, exc_type",
+    [
+        ({"a": [1]}, {"fmt": "{id"}, ValueError),
+        (object(), {}, UntranslatableTypeError),
+        ({"a": [1]}, {"io_kwargs": {"unknown": 1}}, TypeError),
+    ],
+)
+def test_bad_format_or_translatable_raises_before_discovery(method, translatable, kwargs, exc_type):
+    """A bad fmt or translatable cost a discovery, and a fetcher that was down raised its own error instead."""
+    discoveries = []
+
+    class DownFetcher(MemoryFetcher[str, int]):
+        def _initialize_sources(self, task_id: int) -> dict[str, list[str]]:
+            discoveries.append(task_id)
+            raise ConnectionError("down")
+
+    translator: RealTranslator[str, str, int] = RealTranslator(DownFetcher({}))
+    with pytest.raises(exc_type):
+        getattr(translator, method)(translatable, **kwargs)
+    assert discoveries == []
+
+
+class _OneShot:
+    """An iterable, but not an iterator, that can be read only once."""
+
+    def __init__(self, names: list[str]) -> None:
+        self._names: list[str] | None = names
+
+    def __iter__(self):
+        if self._names is None:
+            raise RuntimeError("read twice")
+        names, self._names = self._names, None
+        return iter(names)
+
+
+class _OneShotCollection(_OneShot):
+    """A :class:`~collections.abc.Collection` that can still be read only once."""
+
+    def __len__(self) -> int:
+        return 0 if self._names is None else len(self._names)
+
+    def __contains__(self, name: object) -> bool:
+        return self._names is not None and name in self._names
+
+
+@pytest.mark.parametrize("method", ["translate", "map", "fetch", "go_offline"])
+def test_underivable_names_raise_before_discovery(method):
+    """Names were derived after discovery, so a fetcher that was down raised its own error instead."""
+    discoveries = []
+
+    class DownFetcher(MemoryFetcher[str, int]):
+        def _initialize_sources(self, task_id: int) -> dict[str, list[str]]:
+            discoveries.append(task_id)
+            raise ConnectionError("down")
+
+    translator: RealTranslator[str, str, int] = RealTranslator(DownFetcher({}))
+    with pytest.raises(MissingNamesError, match="Failed to derive names for 'list'-type data"):
+        getattr(translator, method)([1])
+    assert discoveries == []
+
+
+@pytest.mark.parametrize("method", ["fetch", "go_offline"])
+@pytest.mark.parametrize("translatable", [None, {"people": [1]}])
+@pytest.mark.parametrize(
+    "make_names",
+    [iter, _OneShot, _OneShotCollection],
+    ids=["iterator", "one-shot", "one-shot-collection"],
+)
+def test_names_iterator_is_read_once(method, translatable, make_names):
+    """The argument check before discovery must not use up `names`, which the fetch reads again."""
+    translator: RealTranslator[str, str, int] = RealTranslator(
+        MemoryFetcher({"people": {"id": [1], "name": ["Ada"]}}),
+        fmt="{name}",
+    )
+    result = getattr(translator, method)(translatable, names=make_names(["people"]))
+
+    translation_map = result if method == "fetch" else translator.cache
+    assert translation_map.sources == ["people"]
+    assert translation_map.name_to_source == {"people": "people"}
 
 
 def test_tuple_keyed_log_extras_are_json_serializable(caplog):
