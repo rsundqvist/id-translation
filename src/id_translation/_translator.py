@@ -40,8 +40,7 @@ from .exceptions import (
 from .fetching import Fetcher, MultiFetcher
 from .fetching.exceptions import ImplementationError
 from .fetching.types import IdsToFetch
-from .mapping import Mapper
-from .mapping.matrix import ScoreMatrix
+from .mapping import Mapper, ScoreMatrix
 from .mapping.types import UserOverrideFunction
 from .offline import Format, TranslationMap
 from .offline.types import (

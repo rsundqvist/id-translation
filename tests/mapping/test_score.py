@@ -2,8 +2,8 @@ from math import inf
 
 import pytest
 
-from id_translation.mapping import Cardinality, DirectionalMapping
-from id_translation.mapping.matrix import Record, Reject, ScoreHelper, ScoreMatrix
+from id_translation.mapping import Cardinality, DirectionalMapping, ScoreMatrix
+from id_translation.mapping._score_helper import Record, Reject, ScoreHelper
 
 
 @pytest.mark.parametrize(
@@ -35,44 +35,53 @@ def test_natural_number_mapping(cardinality, min_score, expected):
     assert actual == expected
 
 
-def test_axis_assignment_equivalent_to_pandas():
+def test_row_assignment_equivalent_to_pandas():
     matrix = make_scores()
 
-    matrix[1, :] = -1
+    matrix._set_row(1, -1)
     assert (matrix.to_pandas().loc[1, :] == -1).all(), "row assignment"
-    matrix[:, "c2"] = -2
-    assert (matrix.to_pandas().loc[:, "c2"] == -2).all(), "column assignment"
 
 
 def test_missing_index_assignment():
     matrix = make_scores()
 
-    matrix[1000, :] = -1
+    matrix._set_row(1000, -1)
     assert (matrix.to_pandas().loc[1000, :] == -1).all(), "row assignment"
-    matrix[:, "c2000"] = -2
-    assert (matrix.to_pandas().loc[:, "c2000"] == -2).all(), "column assignment"
+    matrix._set(0, "c2000", -2)
+    assert matrix.to_dict()[(0, "c2000")] == -2
+    assert (matrix.to_pandas().loc[1000, "c2000"]) == -inf
+
+
+def test_grid_is_copied():
+    row = [0.0]
+    grid = [row, row]
+    matrix = ScoreMatrix(values=["a", "b"], candidates=["c"], grid=grid)
+    matrix._set("a", "c", 1.0)
+    matrix._set("a", "d", 2.0)
+    assert grid == [[0.0], [0.0]]
+    assert matrix.to_dict() == {("a", "c"): 1.0, ("a", "d"): 2.0, ("b", "c"): 0.0, ("b", "d"): -inf}
 
 
 def test_native_string():
-    actual = make_scores().to_native_string()
+    actual = make_scores()._to_native_string()
     assert actual in EXPECTED_NATIVE_STRING
 
 
 @pytest.mark.parametrize("score, expected", [(-inf, "-inf"), (100.0, "100.00")])
 def test_native_string_fits_wide_scores(score, expected):
-    lines = ScoreMatrix(values=["a"], candidates=["b"], grid=[[score]]).to_native_string().splitlines()
+    lines = ScoreMatrix(values=["a"], candidates=["b"], grid=[[score]])._to_native_string().splitlines()
     assert lines[2].endswith(f" {expected}")
     assert len({len(line) for line in lines}) == 1
 
 
 def test_native_string_of_an_empty_matrix():
-    assert ScoreMatrix(values=[], candidates=[], grid=[]).to_native_string(lines=False) == "v/c"
+    assert ScoreMatrix(values=[], candidates=[], grid=[])._to_native_string(lines=False) == "v/c"
 
 
 @pytest.mark.parametrize("value", [("input", "0"), None])
 def test_native_string_with_labels_that_take_no_format_spec(value):
     """The pandas-free table used by DEBUG logging; tuple names are common, and None takes no format spec either."""
-    actual = ScoreMatrix(values=[value], candidates=[("db", "0")], grid=[[1.0]]).to_native_string(lines=False)
+    actual = ScoreMatrix(values=[value], candidates=[("db", "0")], grid=[[1.0]])._to_native_string(lines=False)
     assert actual.splitlines()[1].startswith(str(value))
 
 

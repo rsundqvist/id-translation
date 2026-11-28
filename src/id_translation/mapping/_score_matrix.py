@@ -2,7 +2,7 @@ from collections.abc import Hashable, Iterable
 from math import isfinite
 from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
-from ..types import CandidateType, ValueType
+from .types import CandidateType, ValueType
 
 T = TypeVar("T", bound=Hashable)
 
@@ -17,9 +17,10 @@ class ScoreMatrix(Generic[ValueType, CandidateType]):
     """A matrix of match scores.
 
     Args:
-        values: Iterable of elements to match to candidates.
-        candidates: Iterable of candidates to match with `value`. Duplicate elements will be discarded.
-        grid: Initial score matrix. Default is to fill with ``-inf``.
+        values: Elements to match to candidates. Duplicates are discarded.
+        candidates: Candidates for the `values`. Duplicates are discarded.
+        grid: Initial scores, one row per unique value and one column per unique candidate. Default is to fill with
+            ``-inf``.
 
     Raises:
         ValueError: If a bad `grid` is given.
@@ -39,6 +40,7 @@ class ScoreMatrix(Generic[ValueType, CandidateType]):
             grid = self._new_grid(-inf)
         else:
             _verify_user_grid(grid, self._values, len(self._candidates))
+            grid = [[*row] for row in grid]
 
         self._grid = grid
 
@@ -49,32 +51,12 @@ class ScoreMatrix(Generic[ValueType, CandidateType]):
         row = [value] * len(self._candidates)
         return [[*row] for _ in range(len(self._values))]
 
-    def __setitem__(self, index: tuple[ValueType | slice, CandidateType | slice], value: float) -> None:
-        i, j = index
+    def _set(self, value: ValueType, candidate: CandidateType, score: float) -> None:
+        # Adds a missing value or candidate: an override may name a candidate outside the matrix.
+        self._grid[self._value_index(value)][self._candidate_index(candidate)] = score
 
-        if __debug__:
-            if isinstance(i, slice) and i != slice(None, None, None):
-                msg = f"slice {index=} not supported"
-                raise NotImplementedError(msg)
-            if isinstance(j, slice) and j != slice(None, None, None):
-                msg = f"slice {index=} not supported"
-                raise NotImplementedError(msg)
-
-        if isinstance(i, slice):
-            if isinstance(j, slice):
-                # All rows and columns.
-                self._grid = self._new_grid(value)
-            else:
-                gj = self._candidate_index(j)
-                for row in self._grid:
-                    row[gj] = value
-        else:
-            gi = self._value_index(i)
-            if isinstance(j, slice):
-                self._grid[gi] = [value for _ in range(len(self._candidates))]
-            else:
-                gj = self._candidate_index(j)
-                self._grid[gi][gj] = value
+    def _set_row(self, value: ValueType, score: float) -> None:
+        self._grid[self._value_index(value)] = [score] * len(self._candidates)
 
     def _value_index(self, value: ValueType) -> int:
         try:
@@ -101,21 +83,20 @@ class ScoreMatrix(Generic[ValueType, CandidateType]):
 
     @property
     def size(self) -> int:
-        """Total number of elements."""
+        """The total number of scores."""
         return len(self._values) * len(self._candidates)
 
     @property
     def values(self) -> list[ValueType]:
-        """Unique values in order."""
+        """A ``list`` of the unique values."""
         return [*self._values]
 
     @property
     def candidates(self) -> list[CandidateType]:
-        """Unique candidates in order."""
+        """A ``list`` of the unique candidates."""
         return [*self._candidates]
 
-    def get_finite_values(self) -> set[ValueType]:
-        """Compute all values with at least one finite score."""
+    def _finite_values(self) -> set[ValueType]:
         return {value for value, row in zip(self._values, self._grid, strict=True) if any(map(isfinite, row))}
 
     def to_pandas(self) -> "pandas.DataFrame":
@@ -143,10 +124,9 @@ class ScoreMatrix(Generic[ValueType, CandidateType]):
         try:
             return self.to_pandas().to_string(float_format=f"%.{decimals}f")  # type: ignore[no-any-return]
         except ImportError:
-            return self.to_native_string(decimals=decimals)
+            return self._to_native_string(decimals=decimals)
 
-    def to_native_string(self, *, decimals: int = 2, lines: bool = True) -> str:
-        """Format score table without ``pandas``."""
+    def _to_native_string(self, *, decimals: int = 2, lines: bool = True) -> str:
         column_separator = " ┃ " if lines else " "
 
         header_row = ["v/c"] + [str(c) for c in self._candidates]

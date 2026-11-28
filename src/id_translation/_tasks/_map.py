@@ -9,8 +9,8 @@ from .. import logging as _logging
 from .._utils import json_keys
 from .._utils.emit_warning import emit_warning
 from ..exceptions import TranslationAbortedWarning
+from ..mapping import ScoreMatrix
 from ..mapping.exceptions import BadOverrideError, MappingError, UnmappedExplicitNamesError, UserMappingError
-from ..mapping.matrix import ScoreMatrix
 from ..mapping.types import UserOverrideFunction
 from ..types import ExplicitNames, IdType, Names, NameToSource, NameType, SourceType, Translatable
 from ._names import NamesTask, _UserDefinedNameToSourceMapping

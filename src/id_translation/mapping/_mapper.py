@@ -17,6 +17,8 @@ from ._cardinality import Cardinality
 from ._directional_mapping import DirectionalMapping
 from ._heuristic_score import HeuristicScore
 from ._kwargs import check_function_kwargs
+from ._score_helper import ScoreHelper
+from ._score_matrix import ScoreMatrix
 from .exceptions import (
     BadFilterError,
     MappingError,
@@ -25,7 +27,6 @@ from .exceptions import (
     UserMappingError,
     UserMappingWarning,
 )
-from .matrix import ScoreHelper, ScoreMatrix
 from .types import (
     CandidateType,
     CardinalityType,
@@ -164,7 +165,7 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
 
         dm = self.to_directional_mapping(scores, task_id=task_id)
 
-        unmapped = scores.get_finite_values().difference(dm.left)
+        unmapped = scores._finite_values().difference(dm.left)
         if unmapped:
             extra = f" in {context=}" if context else ""
             candidates = set(scores.candidates)  # Includes candidates added by override logic.
@@ -235,8 +236,7 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
                 not known when the ``Mapper`` is initialized.
 
         Returns:
-            A ``DataFrame`` of value-candidate match scores, with ``DataFrame.index=values`` and
-            ``DataFrame.columns=candidates``.
+            A :class:`~id_translation.mapping.ScoreMatrix` of value-candidate match scores.
 
         Raises:
             ~id_translation.mapping.exceptions.BadFilterError: If a filter returns candidates that are not a subset of
@@ -290,7 +290,7 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
                 scores_for_value = score_fn(value, filtered_candidates, context, **score_kwargs, **kwargs)
 
             for score, candidate in zip(scores_for_value, filtered_candidates, strict=True):
-                scores[value, candidate] = score
+                scores._set(value, candidate, score)
 
         if (len(scores.values) > 1 or _logging.ENABLE_VERBOSE_LOGGING) and logger.isEnabledFor(logging.DEBUG):
             logger.debug(
@@ -309,15 +309,11 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
         """Create a ``DirectionalMapping`` from match scores.
 
         Args:
-            scores: A score matrix, where ``scores.index`` are values and ``score.columns`` are treated as the
-                candidates.
+            scores: A :class:`~id_translation.mapping.ScoreMatrix`.
             task_id: Used for logging.
 
         Returns:
             A ``DirectionalMapping``.
-
-        See Also:
-            :meth:`ScoreHelper.to_directional_mapping <id_translation.mapping.matrix.ScoreHelper.to_directional_mapping>`
         """
         helper = ScoreHelper(scores, self._min_score, self._logger, task_id=task_id)
         return helper.to_directional_mapping(self.cardinality)
@@ -360,9 +356,9 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
         applied: dict[ValueType, CandidateType] = {}
 
         def apply(v: ValueType, oc: CandidateType) -> None:
-            scores[v, :] = -inf
+            scores._set_row(v, -inf)
             if oc != BLOCK:
-                scores[v, oc] = inf
+                scores._set(v, oc, inf)
             unmapped_values.remove(v)
             applied[v] = oc
 

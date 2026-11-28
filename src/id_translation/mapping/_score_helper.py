@@ -3,25 +3,21 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Generic, Self
 
-from ... import logging as _logging
-from .. import Cardinality, DirectionalMapping
-from ..exceptions import AmbiguousScoreError
-from ..types import CandidateType, ValueType
+from .. import logging as _logging
+from ._cardinality import Cardinality
+from ._directional_mapping import DirectionalMapping
 from ._score_matrix import ScoreMatrix
+from .exceptions import AmbiguousScoreError
+from .types import CandidateType, ValueType
 
 inf = float("inf")
 
 
 @dataclass(frozen=True)
 class Record(Generic[ValueType, CandidateType]):
-    """Data concerning a match."""
-
     value: ValueType
-    """A hashable :class:`value <id_translation.mapping.types.ValueType>`."""
     candidate: CandidateType
-    """A hashable :class:`candidate <id_translation.mapping.types.CandidateType>`."""
     score: float
-    """Likeness score computed by some scoring function."""
 
     def __lt__(self, other: Self) -> bool:
         return self.score < other.score
@@ -32,25 +28,11 @@ class Record(Generic[ValueType, CandidateType]):
 
 @dataclass(frozen=True)
 class Reject(Generic[ValueType, CandidateType]):
-    """Data concerning the rejection of a match."""
-
     record: Record[ValueType, CandidateType]
-    """A :class:`~id_translation.mapping.matrix.Record` to describe."""
     superseding_value: Record[ValueType, CandidateType] | None = None
-    """A :class:`~id_translation.mapping.matrix.Record` that prevents matching of the current value."""
     superseding_candidate: Record[ValueType, CandidateType] | None = None
-    """A :class:`~id_translation.mapping.matrix.Record` that prevents matching of the current candidate."""
 
     def explain(self, min_score: float, full: bool = False) -> str:
-        """Create a string which explains the rejection.
-
-        Args:
-            min_score: Minimum score to accept a match.
-            full: If ``True`` show full information about superseding matches.
-
-        Returns:
-            An explanatory string.
-        """
         if self.record.score == -inf:
             if self.superseding_value and self.superseding_value.score == inf:
                 extra = f": {self.superseding_value}" if full else ""
@@ -76,15 +58,6 @@ class Reject(Generic[ValueType, CandidateType]):
 
 
 class ScoreHelper(Generic[ValueType, CandidateType]):
-    """High-level selection operations.
-
-    Args:
-        matrix: A :class:`~id_translation.mapping.matrix.ScoreMatrix` instance.
-        min_score: Minimum score to make a `value -> candidate` match.
-        logger: Explicit ``Logger`` instance to use.
-        task_id: Used for logging.
-    """
-
     def __init__(
         self,
         matrix: ScoreMatrix[ValueType, CandidateType],
@@ -100,24 +73,13 @@ class ScoreHelper(Generic[ValueType, CandidateType]):
 
     @property
     def logger(self) -> logging.Logger | logging.LoggerAdapter[logging.Logger]:
-        """Return the logger (a ``Logger`` or ``LoggerAdapter``) that is used by this instance."""
         return self._logger
 
     def to_directional_mapping(
         self,
         cardinality: Cardinality | None = None,
     ) -> DirectionalMapping[ValueType, CandidateType]:
-        """Create a ``DirectionalMapping`` with a given target ``Cardinality``.
-
-        Args:
-            cardinality: Explicit cardinality to set, see
-                :attr:`~id_translation.mapping.DirectionalMapping.cardinality`. If ``None``, use the actual cardinality
-                when selecting all matches with scores
-                :attr:`at or above <id_translation.mapping.matrix.ScoreHelper.above>` the minimum.
-
-        Returns:
-            A ``DirectionalMapping``.
-        """
+        """With ``cardinality=None``, keep every match at or above the minimum score, and derive the cardinality."""
         matches: list[Record[ValueType, CandidateType]]
         rejections: list[Reject[ValueType, CandidateType]]
         matches, rejections = self._match(cardinality)
@@ -194,13 +156,11 @@ class ScoreHelper(Generic[ValueType, CandidateType]):
         return list(matches), rejections or []
 
     def above(self) -> list[Record[ValueType, CandidateType]]:
-        """Records with scores `above` the threshold."""
         d = self._matrix.to_dict()
         d = {k: v for k, v in d.items() if v >= self._min_score}
         return self._from_dict(d)
 
     def below(self) -> list[Record[ValueType, CandidateType]]:
-        """Records with scores `below` the threshold."""
         d = self._matrix.to_dict()
         d = {k: v for k, v in d.items() if v < self._min_score}
         return self._from_dict(d)
