@@ -305,3 +305,21 @@ except UserMappingError as e:
 """
     unmapped = [v for v in values if v != "category"]  # The best match for 'customers'.
     assert run_python("-c", code, cwd=tmp_path).splitlines() == [str(unmapped), str(values)]
+
+
+def test_nan_score_raises():
+    mapper: Mapper[str, str, None] = Mapper(lambda v, cs, ctx: [float("nan") for _ in cs])
+    with pytest.raises(MappingError, match="returned NaN"):
+        mapper.apply(["v"], ["c"])
+
+
+def test_nan_alias_score_raises():
+    """``max()`` drops a NaN alias score unless ``HeuristicScore`` keeps it."""
+
+    def score(value: str, candidates: Iterable[str], _context: None) -> list[float]:
+        return [float("nan") if value == "v_id" else 0.0 for _ in candidates]
+
+    alias = ("value_fstring_alias", {"fstring": "{value}_id"})
+    mapper: Mapper[str, str, None] = Mapper(HeuristicScore(score, heuristics=[alias]))
+    with pytest.raises(MappingError, match="returned NaN"):
+        mapper.apply(["v"], ["c"])

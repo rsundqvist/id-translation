@@ -108,6 +108,11 @@ def test_bad_grid_column_count():
         ScoreMatrix(values=[0, 1], candidates=["c0", "c1"], grid=[[0.0, 1.0], [2.0]])
 
 
+def test_bad_grid_nan():
+    with pytest.raises(ValueError, match=r"Bad grid\[1\] row \(value=1\): NaN scores are not allowed\."):
+        ScoreMatrix(values=[0, 1], candidates=["c0"], grid=[[0.0], [float("nan")]])
+
+
 def make_scores() -> ScoreMatrix[int, str]:
     grid = [
         [0.0, 1.0, 2.0, 3.0, 4.0],

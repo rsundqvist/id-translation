@@ -1,5 +1,5 @@
 from collections.abc import Hashable, Iterable
-from math import isfinite
+from math import isfinite, isnan
 from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from .types import CandidateType, ValueType
@@ -172,4 +172,7 @@ def _verify_user_grid(grid: list[list[float]], values: list[Any], candidates: in
     for i, (value, row) in enumerate(zip(values, grid, strict=True)):
         if len(row) != candidates:
             msg = f"Bad grid[{i}] row ({value=}): Number of columns {len(row)} must match the number of {candidates=}."
+            raise ValueError(msg)
+        if any(map(isnan, row)):
+            msg = f"Bad grid[{i}] row ({value=}): NaN scores are not allowed."
             raise ValueError(msg)

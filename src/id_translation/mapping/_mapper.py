@@ -1,6 +1,6 @@
 import logging
 from collections.abc import Iterable, Mapping, Sequence
-from math import isinf
+from math import isinf, isnan
 from time import perf_counter
 from typing import Any, Generic, Self
 
@@ -144,6 +144,7 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
                 ``on_unknown_user_override='raise'``.
             ~id_translation.mapping.exceptions.MappingError: If passing ``context=None`` (the default) when using
                 context-sensitive overrides (type :class:`rics.collections.dicts.InheritedKeysDict`).
+            ~id_translation.mapping.exceptions.MappingError: If the score function returns NaN.
         """
         start = perf_counter()
 
@@ -218,6 +219,7 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
         candidates: Iterable[CandidateType],
         context: ContextType | None = None,
         override_function: UserOverrideFunction[ValueType, CandidateType, ContextType] | None = None,
+        *,
         task_id: int | None = None,
         **kwargs: Any,
     ) -> ScoreMatrix[ValueType, CandidateType]:
@@ -243,6 +245,7 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
                 the original candidates.
             ~id_translation.mapping.exceptions.UserMappingError: If `override_function` returns an unknown candidate and
                 ``on_unknown_user_override='raise'``.
+            ~id_translation.mapping.exceptions.MappingError: If the score function returns NaN.
         """
         start = perf_counter()
 
@@ -290,6 +293,9 @@ class Mapper(Generic[ValueType, CandidateType, ContextType]):  # noqa: PLW1641
                 scores_for_value = score_fn(value, filtered_candidates, context, **score_kwargs, **kwargs)
 
             for score, candidate in zip(scores_for_value, filtered_candidates, strict=True):
+                if isnan(score):
+                    msg = f"Score function {score_fn} returned NaN for {value=} and {candidate=}{extra}."
+                    raise MappingError(msg)
                 scores._set(value, candidate, score)
 
         if (len(scores.values) > 1 or _logging.ENABLE_VERBOSE_LOGGING) and logger.isEnabledFor(logging.DEBUG):

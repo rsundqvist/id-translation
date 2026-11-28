@@ -1,5 +1,6 @@
 import logging
 from collections.abc import Iterable
+from math import isnan
 from typing import Any, Generic
 
 from rics.misc import get_by_full_name, tname
@@ -117,7 +118,8 @@ class HeuristicScore(Generic[ValueType, CandidateType, ContextType]):
                 res_scores = list(self._score(res_value, res_candidates, context, **kwargs))
                 for i, heuristic_score in enumerate(res_scores):
                     heuristic_score -= positional_penalty  # noqa: PLW2901
-                    best[i] = max(best[i], heuristic_score)
+                    # max() would drop a NaN alias score; keep it so that the Mapper raises.
+                    best[i] = heuristic_score if isnan(heuristic_score) else max(best[i], heuristic_score)
 
                 if logger:
                     mutating = "mutating" if mutate else "non-mutating"
