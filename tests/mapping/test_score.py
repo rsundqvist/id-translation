@@ -4,6 +4,7 @@ import pytest
 
 from id_translation.mapping import Cardinality, DirectionalMapping, ScoreMatrix
 from id_translation.mapping._score_helper import Record, Reject, ScoreHelper
+from id_translation.mapping.exceptions import AmbiguousScoreError
 
 
 @pytest.mark.parametrize(
@@ -60,6 +61,39 @@ def test_grid_is_copied():
     matrix._set("a", "d", 2.0)
     assert grid == [[0.0], [0.0]]
     assert matrix.to_dict() == {("a", "c"): 1.0, ("a", "d"): 2.0, ("b", "c"): 0.0, ("b", "d"): -inf}
+
+
+@pytest.mark.parametrize("values", [["v1", "v2"], ["v2", "v1"]])
+def test_one_to_one_tie_with_a_taken_value_is_no_conflict(values):
+    """A tie on a candidate is no conflict when a stronger match already took the value."""
+    scores = {"v1": {"c1": 1.0, "c": 0.95}, "v2": {"c1": 0.0, "c": 0.95}}
+    grid = [[scores[v][c] for c in ["c1", "c"]] for v in values]
+    matrix = ScoreMatrix(values=values, candidates=["c1", "c"], grid=grid)
+    actual = ScoreHelper(matrix, 0.9).to_directional_mapping(Cardinality.OneToOne).left_to_right
+    assert actual == {"v1": ("c1",), "v2": ("c",)}
+
+
+@pytest.mark.parametrize("values", [["v1", "v2"], ["v2", "v1"]])
+@pytest.mark.parametrize("candidates", [["c1", "c2"], ["c2", "c1"]])
+@pytest.mark.parametrize(
+    "scores, expected",
+    [
+        pytest.param(
+            {"v1": {"c1": 1.0, "c2": 0.0}, "v2": {"c1": 0.95, "c2": 0.95}},
+            {"v1": ("c1",), "v2": ("c2",)},
+            id="candidate-taken",
+        ),
+        pytest.param({"v1": {"c1": 0.0, "c2": 1.0}, "v2": {"c1": 1.0, "c2": 1.0}}, None, id="tied-on-both-sides"),
+    ],
+)
+def test_one_to_one_tie_in_any_order(values, candidates, scores, expected):
+    grid = [[scores[v][c] for c in candidates] for v in values]
+    helper = ScoreHelper(ScoreMatrix(values=values, candidates=candidates, grid=grid), 0.9)
+    if expected is None:
+        with pytest.raises(AmbiguousScoreError):
+            helper.to_directional_mapping(Cardinality.OneToOne)
+    else:
+        assert helper.to_directional_mapping(Cardinality.OneToOne).left_to_right == expected
 
 
 def test_native_string():

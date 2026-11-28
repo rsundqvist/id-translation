@@ -205,8 +205,11 @@ class ScoreHelper(Generic[ValueType, CandidateType]):
         mcs: dict[CandidateType, Record[ValueType, CandidateType]] = {}
 
         for record in records:
-            self._raise_if_ambiguous(record, mcs, "candidate", Cardinality.OneToOne)
-            self._raise_if_ambiguous(record, mvs, "value", Cardinality.OneToOne)
+            old_value, old_candidate = mvs.get(record.value), mcs.get(record.candidate)
+            # A stronger match on either side rules this record out, so a tie on the other side is no conflict.
+            if old_value is None or old_candidate is None or old_value.score == old_candidate.score:
+                self._raise_if_ambiguous(record, mcs, "candidate", Cardinality.OneToOne)
+                self._raise_if_ambiguous(record, mvs, "value", Cardinality.OneToOne)
 
             if record.score < self._min_score or record.value in mvs or record.candidate in mcs:
                 if rejections is not None:
